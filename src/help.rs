@@ -1,0 +1,13 @@
+//  rasmx86_64   -    help.rs
+//  -------------------------
+//  made by matissoss
+//  licensed under MPL 2.0
+
+static MAIN_HELP : &str = include_str!("helpmsg/main.txt");
+
+pub struct Help;
+impl Help {
+    pub fn main_help(){
+        print!("{}", MAIN_HELP);
+    }
+}

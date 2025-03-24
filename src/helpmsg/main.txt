@@ -1,0 +1,24 @@
+rasmx86_64 	   v0.1.0
+-------------------------
+DISCLAIMER:
+ This is MVP version of rasm asssembler and it doesn't support 100% of functionality.
+ This is WIP assembler - use at your own risk.
+-------------------------
+USAGE:
+rasmx86_64 [FLAG(s)]
+-------------------------
+[FLAG(s)]:
+	-h		; prints this message
+	-i=[PATH]	; specifies path to input file
+	-o=[PATH]	; specifies path to output file
+	-f=[FORMAT]	; specifies output format
+
+[FORMAT]:
+	out		; classical out format, can be used with linkers
+	elf64		; compiles into 64-bit version of ELF
+	elf32		; compiles into 32-bit version of ELF
+	baremetal	; compiles file into 'flat binary' (only instructions, nothing else)
+[PATH]: path :)
+-------------------------
+made by matissoss <matissossgamedev@proton.me>
+licensed under MPL 2.0
