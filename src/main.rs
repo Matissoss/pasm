@@ -8,7 +8,7 @@
 
 use std::{
     path::PathBuf,
-    process
+    //process
 };
 
 // local imports go here
@@ -16,14 +16,13 @@ use std::{
 mod frontend;
 mod cli     ;
 mod help    ;
-mod global  ;
 
 use frontend::parser::Parser;
 use cli ::{
     CLI,
     Cli
 };
-use help::Help;
+//use help::Help;
 
 // start
 
@@ -59,18 +58,22 @@ fn main(){
 
     parse_file   (&infile);
     assemble_file(&outfile);
-    */
+    
     process::exit(0);
+    */
 }
 
-fn parse_file(inpath: &PathBuf){
+#[allow(dead_code)]
+fn parse_file(_inpath: &PathBuf){
 
 }
 
-fn assemble_file(outpath: &PathBuf){
+#[allow(dead_code)]
+fn assemble_file(_outpath: &PathBuf){
 
 }
 
+#[allow(dead_code)]
 fn extend_path(pathbuf: &str) -> PathBuf{
     if pathbuf.starts_with('~'){
         if let Some(hdir) = Cli::home_dir(){
