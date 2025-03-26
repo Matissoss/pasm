@@ -8,7 +8,7 @@
 
 use std::{
     path::PathBuf,
-    //process
+    process
 };
 
 // local imports go here
@@ -22,7 +22,7 @@ use cli ::{
     CLI,
     Cli
 };
-//use help::Help;
+use help::Help;
 
 // start
 
@@ -30,15 +30,6 @@ fn main(){
     let cli = &*CLI;
     cli.verbose("src/main.rs", "main", "initialized CLI");
 
-    loop {
-        let mut buffer = String::new();
-        print!("> ");
-        std::io::stdin().read_line(&mut buffer).unwrap();
-        let line = Parser::parse_line(&buffer);
-        println!("{:?}", line);
-    }
-
-    /*
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
     }
@@ -56,11 +47,16 @@ fn main(){
         cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
     };
 
-    parse_file   (&infile);
-    assemble_file(&outfile);
+    let parsed = Parser::parse_file(&infile).unwrap();
+
+    for (line, tokens) in parsed.iter().enumerate(){
+        println!("{:04}: {:?}", line, tokens);
+    }
+
+    //parse_file   (&infile);
+    //assemble_file(&outfile);
     
     process::exit(0);
-    */
 }
 
 #[allow(dead_code)]

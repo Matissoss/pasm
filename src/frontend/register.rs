@@ -5,7 +5,7 @@
 
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Register{
     AL , BL , CL , DL ,
     SPL, BPL, SIL, DIL,
@@ -146,7 +146,7 @@ impl FromStr for Register{
                             'd' => {
                                 match byte_str[2] as char {
                                     'x' => return Ok(Register::RDX),
-                                    'd' => return Ok(Register::RDI),
+                                    'i' => return Ok(Register::RDI),
                                     _ => Err(RegErr::Unknown(str.to_string()))
                                 }
                             },
@@ -396,5 +396,43 @@ impl FromStr for Register{
             }
             _ => Err(RegErr::TooLong(str.len()))
         };
+    }
+}
+
+impl Register{
+    pub fn is_16bit(&self) -> bool {
+        return match self {
+            Self::AX  |Self::BX  |Self::CX  |Self::DX
+           |Self::SP  |Self::BP  |Self::SI  |Self::DI
+           |Self::R8W |Self::R9W |Self::R10W|Self::R11W
+           |Self::R12W|Self::R13W|Self::R14W|Self::R15W => true,
+           _ => false
+        };
+    }
+    pub fn is_8bit(&self) -> bool {
+        return match self{
+            Self::AL  |Self::BL  |Self::CL  |Self::DL  |
+            Self::SPL |Self::BPL |Self::SIL |Self::DIL |
+            Self::R8B |Self::R9B |Self::R10B|Self::R11B|
+            Self::AH  |Self::BH  |Self::CH  |Self::DH  |
+            Self::R12B|Self::R13B|Self::R14B|Self::R15B| Self::IP
+            => true,
+            _ => false
+        };
+    }
+    pub fn is_32bit(&self) -> bool {
+        return match self {
+            Self::EAX |Self::EBX |Self::ECX |Self::EDX |
+            Self::ESP |Self::EBP |Self::ESI |Self::EDI |
+            Self::R8D |Self::R9D |Self::R10D|Self::R11D|
+            Self::R12D|Self::R13D|Self::R14D|Self::R15D| Self::EIP 
+            => true,
+            _ => false,
+        } 
+    }
+    pub fn is_64bit(&self) -> bool {
+        return !self.is_32bit() 
+            && !self.is_16bit() 
+            && !self.is_8bit ();
     }
 }
