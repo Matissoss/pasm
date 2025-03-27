@@ -13,11 +13,18 @@ use std::{
 
 // local imports go here
 
-mod frontend;
+// rasmx86_64 modules
+mod pre;
+mod shr;
+
+use pre::tok::Tokenizer;
+
+// rasmx86_64 helper utilities
+pub mod conf;
 mod cli     ;
 mod help    ;
 
-use frontend::parser::Parser;
+
 use cli ::{
     CLI,
     Cli
@@ -33,7 +40,7 @@ fn main(){
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
     }
-
+    /*
     let infile : PathBuf   = if let Some(path) = cli.get_arg("-i"){
         extend_path(path)
     }
@@ -46,17 +53,20 @@ fn main(){
     else{
         cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
     };
+    */
 
-    let parsed = Parser::parse_file(&infile).unwrap();
-
-    for (line, tokens) in parsed.iter().enumerate(){
-        println!("{:04}: {:?}", line, tokens);
+    loop {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        for (line, token) in Tokenizer::tokenize_line(&input).iter().enumerate(){
+            println!("{:05}: {:?}", line, token);
+        }
     }
 
     //parse_file   (&infile);
     //assemble_file(&outfile);
     
-    process::exit(0);
+    //process::exit(0);
 }
 
 #[allow(dead_code)]
