@@ -40,6 +40,7 @@ fn main(){
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
     }
+
     /*
     let infile : PathBuf   = if let Some(path) = cli.get_arg("-i"){
         extend_path(path)
@@ -58,7 +59,8 @@ fn main(){
     loop {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
-        for (line, token) in Tokenizer::tokenize_line(&input).iter().enumerate(){
+        let tokenized = Tokenizer::tokenize_line(&input);
+        for (line, token) in tokenized.iter().enumerate(){
             println!("{:05}: {:?}", line, token);
         }
     }

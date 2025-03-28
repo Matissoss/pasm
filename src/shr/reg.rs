@@ -397,6 +397,7 @@ impl FromStr for Register{
     }
 }
 
+#[allow(unused)]
 impl Register{
     pub fn is_16bit(&self) -> bool {
         return match self {
