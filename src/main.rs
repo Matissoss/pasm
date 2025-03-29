@@ -7,6 +7,7 @@
 //  global imports go here
 
 use std::{
+    fs,
     path::PathBuf,
     process
 };
@@ -18,12 +19,13 @@ mod pre;
 mod shr;
 
 use pre::tok::Tokenizer;
+use pre::lex::Lexer;
 
 // rasmx86_64 helper utilities
-pub mod conf;
-mod cli     ;
-mod help    ;
-
+pub mod conf ;
+pub mod color;
+pub mod cli  ;
+pub mod help ;
 
 use cli ::{
     CLI,
@@ -41,7 +43,6 @@ fn main(){
         Help::main_help();
     }
 
-    /*
     let infile : PathBuf   = if let Some(path) = cli.get_arg("-i"){
         extend_path(path)
     }
@@ -54,15 +55,15 @@ fn main(){
     else{
         cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
     };
-    */
-
-    loop {
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+    let mut index = 0;
+    for input in fs::read_to_string(infile).unwrap().lines(){
+    //loop {
         let tokenized = Tokenizer::tokenize_line(&input);
-        for (line, token) in tokenized.iter().enumerate(){
-            println!("{:05}: {:?}", line, token);
-        }
+        println!("{:05}: {:?}", index, tokenized);
+        let parsed = Lexer::parse_file(vec![tokenized]);
+        println!("{:05}: {:?}\n", index, parsed);
+        index += 1;
+    //}
     }
 
     //parse_file   (&infile);

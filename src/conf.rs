@@ -5,7 +5,7 @@
 
 
 // FAST_MODE means that assembler will skip 
-// the kwd_ie part and return the value immediately;
+// the *_ie part and return the value immediately;
 // useful for scenarios where you don't need 100% accuracy 
 // and can allow for some heurestics for efficiency (like compilers)
 // --------------------------------------------------------
@@ -36,7 +36,7 @@ pub const COMMENT_S : char = ';';
 //  default = '%'
 pub const PREFIX_REG : char = '%';
 
-//  PREFIX_VAL defines prefix for constant values (like 10, 0xFF, 0b1001, 'h')
+//  PREFIX_VAL defines prefix for constant/immediate values (like 10, 0xFF, 0b1001, 'h')
 //  ---------------------------------------
 //  default = '$'
 pub const PREFIX_VAL : char = '$';

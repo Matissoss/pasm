@@ -6,7 +6,7 @@
 use std::str::FromStr;
 use crate::conf::FAST_MODE;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Keyword{
     Qword,
     Dword,
@@ -18,6 +18,7 @@ pub enum Keyword{
     Resw,
     Resq,
     Resb,
+    Var,
     Db,
     Dw,
     Dd,
@@ -44,7 +45,7 @@ impl FromStr for Keyword{
     fn from_str(kwd_str: &str) -> Result<Self, <Self as FromStr>::Err>{
         let kwd_raw = kwd_str.as_bytes();
         match kwd_raw.len() {
-            0|1|3 => return Err(()),
+            0|1 => return Err(()),
             2 => {
                 return match kwd_raw[1] as char {
                     'd' => kwd_ie(kwd_str, "dd", Keyword::Dd),
@@ -54,6 +55,7 @@ impl FromStr for Keyword{
                     _   => return Err(())
                 };
             },
+            3 => kwd_ie(kwd_str, "var", Keyword::Var),
             4 => {
                 return match kwd_raw[1] as char {
                     'e' => {
@@ -80,6 +82,31 @@ impl FromStr for Keyword{
             6 => return kwd_ie(kwd_str, "global", Keyword::Global),
             7 => return kwd_ie(kwd_str, "section", Keyword::Section),
             _ => return Err(())
+        }
+    }
+}
+
+impl ToString for Keyword{
+    fn to_string(&self) -> String{
+        match self{
+            Self::Qword => String::from("qword"),
+            Self::Dword => String::from("dword"),
+            Self::Word  => String::from("word"),
+            Self::Byte  => String::from("byte"),
+            
+            Self::Resq  => String::from("resq"),
+            Self::Resd  => String::from("resd"),
+            Self::Resw  => String::from("resw"),
+            Self::Resb  => String::from("resb"),
+
+            Self::Section => String::from("section"),
+            Self::Global  => String::from("global"),
+            
+            Self::Db      => String::from("db"),
+            Self::Dw      => String::from("dw"),
+            Self::Dd      => String::from("dd"),
+            Self::Dq      => String::from("dq"),
+            Self::Var     => String::from("var")
         }
     }
 }

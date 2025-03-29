@@ -8,7 +8,8 @@ use crate::{
     shr::{
         reg::Register,
         kwd::Keyword,
-        mem::Mem
+        mem::Mem,
+        ins::Instruction,
     },
     conf::{
         MEM_START,
@@ -16,124 +17,120 @@ use crate::{
         COMMENT_S,
         PREFIX_REG,
         PREFIX_VAL,
+        PREFIX_REF,
+        PREFIX_LAB
     }
 };
 
 #[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Register(Register),
     Immediate(i64),
     MemAddr(Mem),
     Keyword(Keyword),
+    Instruction(Instruction),
+    Label(String),
+    LabelRef(String),
+    String(String),
     UnknownMemAddr(String),
+    ConstRef(String),
     UnknownReg(String),
     UnknownVal(String),
-    Unknown(String)
+    Unknown(String),
 }
 
 pub struct Tokenizer;
 
 impl Tokenizer{
     pub fn tokenize_line(line: &str) -> Vec<Token>{
-        let mut tokens : Vec<Token> = Vec::new();
-        let mut inside_closure: (bool, char) = (false, ' ');
-        let mut tmp_buf : Vec<char> = Vec::new();
+        let mut tokens          : Vec<Token>    = Vec::new();
+        let mut tmp_buf         : Vec<char>     = Vec::new();
+        let mut inside_closure  : (bool, char)  = (false, ' ');
+        
         for b in line.as_bytes(){
             let c = *b as char;
             match (inside_closure, c) {
                 (_, COMMENT_S) => break,
+
+                ((false, _), '"') => {
+                    inside_closure = (true, '"');
+                }
+                ((true, '"'), '"') => {
+                    tokens.push(Token::String(String::from_iter(tmp_buf.iter())));
+                    tmp_buf = Vec::new();
+                    inside_closure = (false, ' ');
+                }
+                ((true, '"'), c  ) => tmp_buf.push(c),
+                ((false, _), ':') => {
+                    tokens.push(Token::Label(String::from_iter(tmp_buf.iter())));
+                    tmp_buf = Vec::new();
+                },
+                ((false, _), PREFIX_REF) => inside_closure = (true, PREFIX_REF),
+                ((false, _), PREFIX_LAB) => inside_closure = (true, PREFIX_LAB),
                 ((true, MEM_START), ',') => tmp_buf.push(c),
-                ((false, _), ',') => continue,
+                ((false, _), ',')       |
+                ((true, MEM_START), ' ')|
                 ((true, PREFIX_REG|PREFIX_VAL), ',') => continue,
-                ((true, MEM_START) , ' '|'\t'|'\n') => continue,
-                ((false, ' ')       , ' '|'\t'|'\n') => {
-                    if !tmp_buf.is_empty() {
-                        let str = String::from_iter(tmp_buf.iter());
-                        if let Ok(kwd) = Keyword::from_str(&str){
-                            tokens.push(Token::Keyword(kwd));
-                        }
-                        else {
-                            tokens.push(Token::Unknown(str));
-                        }
+                
+                ((false, _), ' '|'\t'|'\n') => {
+                    if tmp_buf.is_empty() == false {
+                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
                         tmp_buf = Vec::new();
                     }
                     continue;
                 },
-                ((false,' '), PREFIX_REG) => {
+                
+                ((false, _), PREFIX_REG) => {
                     inside_closure = (true, PREFIX_REG);
-                },
-                ((false,' '), PREFIX_VAL) => {
+                }
+                ((false, _), PREFIX_VAL) => {
                     inside_closure = (true, PREFIX_VAL);
                 },
-                ((true, PREFIX_REG), ' '|'\t'|'\n') => {
+                
+                ((true, PREFIX_VAL|PREFIX_REG), ' '|'\t'|'\n') => {
+                    tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
                     inside_closure = (false, ' ');
-                    if let Ok(reg) = Register::from_str(&String::from_iter(tmp_buf.iter())){
-                        tokens.push(Token::Register(reg));
-                    }
-                    else {
-                        tokens.push(Token::UnknownReg(String::from_iter(tmp_buf.iter())));
-                    }
                     tmp_buf = Vec::new();
                 },
-                ((true, PREFIX_VAL), ' '|'\t'|'\n') => {
-                    inside_closure = (false, ' ');
-                    if let Ok(val) = parse_num(&String::from_iter(tmp_buf.iter())){
-                        tokens.push(Token::Immediate(val));
-                    }
-                    else {
-                        tokens.push(Token::UnknownVal(String::from_iter(tmp_buf.iter())));
-                    }
-                    tmp_buf = Vec::new();
-                },
+                
                 ((false, _), MEM_START|MEM_CLOSE) => {
-                    if !tmp_buf.is_empty(){
-                        tokens.push(Token::Unknown(String::from_iter(tmp_buf.iter())));
+                    if tmp_buf.is_empty() == false {
+                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
+                        tmp_buf = Vec::new();
                     }
-                    tmp_buf = Vec::new();
                     inside_closure = (true, c);
                 },
+                
                 ((true, MEM_START), MEM_CLOSE) => {
-                    let val = String::from_iter(tmp_buf.iter());
-                    if let Ok(maddr) = Mem::from_str(&val){
-                        tokens.push(Token::MemAddr(maddr));
-                    }
-                    else {
-                        tokens.push(Token::UnknownMemAddr(val));
-                    }
+                    tokens.push(Token::make_from(MEM_START, &String::from_iter(tmp_buf.iter())));
                     inside_closure = (false, ' ');
                     tmp_buf = Vec::new();
                 }
-                _ => tmp_buf.push(c)
+
+                _ => tmp_buf.push(c),
             }
         }
-        if tmp_buf.len() != 0 {
-            tokens.push(Token::Unknown(String::from_iter(tmp_buf.iter())));
+        if tmp_buf.is_empty() == false {
+            tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
         }
         return tokens;
     }
 }
 
-pub fn parse_num(numb: &str) -> Result<i64, String> {
+pub fn parse_num(numb: &str) -> Result<i64, ()> {
     let numb_bytes : &[u8] = numb.as_bytes();
     match numb_bytes.len() {
-        0 => return Err("Expected value, found nothing!".to_string()),
+        0 => Err(()),
         1 => {
             if (numb_bytes[0] as char).is_numeric(){
-                return Ok((numb_bytes[0] - '0' as u8) as i64);
+                Ok((numb_bytes[0] - '0' as u8) as i64)
             }
             else {
-                return Ok(numb_bytes[0] as i64);
+                Err(())
             }
         },
-        2 => {
-            if (numb_bytes[0] as char).is_numeric() && (numb_bytes[1] as char).is_numeric(){
-                return Ok(numb.parse::<i64>().unwrap());
-            }
-            else {
-                return Err(format!("Couldn't parse into number, value: `{}`", numb));
-            }
-        },
+        2 => numb.parse::<i64>().map_err(|_| ()),
         _ => {
             if numb.starts_with("0x"){
                 let mut int : i64 = 0;
@@ -143,8 +140,7 @@ pub fn parse_num(numb: &str) -> Result<i64, String> {
                         int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
                     }
                     else {
-                        return Err(format!("Unknown characted found in hex number: {}, number = {}", 
-                                            numb_bytes[i] as char, numb));
+                        return Err(());
                     }
                     index += 1;
                 }
@@ -158,8 +154,7 @@ pub fn parse_num(numb: &str) -> Result<i64, String> {
                         int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
                     }
                     else {
-                        return Err(format!("Unknown characted found in hex number: {}, number = {}", 
-                                            numb_bytes[i] as char, numb));
+                        return Err(());
                     }
                     index += 1;
                 }
@@ -173,8 +168,7 @@ pub fn parse_num(numb: &str) -> Result<i64, String> {
                         uint += 1 << index;
                     }
                     else if numb_bytes[i] as char != '0'{
-                        return Err(format!("Unknown character found in binary number: {}, number = {}", 
-                                            numb_bytes[i] as char, numb));
+                        return Err(());
                     }
                     index += 1;
                 }
@@ -190,7 +184,7 @@ pub fn parse_num(numb: &str) -> Result<i64, String> {
                         int += 1 << index;
                     }
                     else if numb_bytes[i] as char != '0'{
-                        return Err(format!("Unknown character found in binary number: {}", numb));
+                        return Err(());
                     }
                     index += 1;
                 }
@@ -198,12 +192,7 @@ pub fn parse_num(numb: &str) -> Result<i64, String> {
                 return Ok(-int);
             }
             else {
-                if let Ok(num) = numb.parse::<i64>(){
-                    return Ok(num);
-                }
-                else{
-                    return Err(format!("Unknown Value (not hex nor binary nor decimal): {}", numb));
-                }
+                return numb.parse::<i64>().map_err(|_| ());
             }
         }
     }
@@ -222,6 +211,44 @@ fn hexnum(n: char) -> u8{
             'e'|'E' => 14,
             'f'|'F' => 15,
             _ => 0,
+        }
+    }
+}
+
+impl Token{
+    fn make_from(prefix: char, val: &str) -> Self{
+        return match prefix {
+            PREFIX_REG => {
+                match Register::from_str(val){
+                    Ok(reg) => Self::Register(reg),
+                    Err(_)  => Self::UnknownReg(val.to_string()),
+                }
+            },
+            PREFIX_VAL => {
+                match parse_num(val){
+                    Ok(val) => Self::Immediate(val),
+                    Err(_ ) => Self::UnknownVal(val.to_string()),
+                }
+            },
+            MEM_START => {
+                match Mem::from_str(val){
+                    Ok(addr) => Self::MemAddr(addr),
+                    Err(_)   => Self::UnknownMemAddr(val.to_string())
+                }
+            },
+            PREFIX_LAB => Self::LabelRef(val.to_string()),
+            PREFIX_REF => Self::ConstRef(val.to_string()),
+            _   => {
+                if let Ok(ins) = Instruction::from_str(val){
+                    Self::Instruction(ins)
+                }
+                else if let Ok(kwd) = Keyword::from_str(val.trim()){
+                    Self::Keyword(kwd)
+                }
+                else {
+                    Self::Unknown(val.to_string())
+                }
+            }
         }
     }
 }

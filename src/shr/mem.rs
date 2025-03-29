@@ -17,7 +17,7 @@ use crate::{
     }
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MSScale{
     One   = 0b00,
     Two   = 0b01,
@@ -52,18 +52,18 @@ impl TryFrom<i64> for MSScale {
 
 // classical SIB
 // SIB = Scale, Index, Base
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MemSIB{
-    pub base: Register,
+    pub base : Register,
     pub index: Register,
     pub scale: MSScale,
     pub displacement: Option<i64>
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
     MemAddr(Register),
     MemAddrWOffset(Register, i64),
-    MemSIB (MemSIB),
+    MemSIB(MemSIB),
     Unknown
 }
 
@@ -107,7 +107,7 @@ pub enum MemErr{
 
 type Res<T, E> = Result<T, E>;
 fn type_err(expected: MemToken, found: MemToken) -> MemErr{
-    match &found {
+    match &found{
         MemToken::UnknownReg(r)|MemToken::UnknownVal(r)|MemToken::Unknown(r) => {
             return MemErr::TypeErr(format!("Expected `{}`, found `{}`: `{}`", expected.to_type(), found.to_type(), r));
         },
@@ -367,7 +367,8 @@ fn mem_tok(str: &str) -> Vec<MemToken>{
                         val = false;
                     }
                     else {
-                        splitted.push(MemToken::Unknown(String::from_iter(tmp_buf.iter())));
+                        let val = String::from_iter(tmp_buf.iter());
+                        splitted.push(MemToken::Unknown(val));
                     }
                     tmp_buf = Vec::new();
                 }
