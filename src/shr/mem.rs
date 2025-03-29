@@ -13,6 +13,8 @@ use crate::{
     conf::{
         PREFIX_REG,
         PREFIX_VAL,
+        MEM_CLOSE,
+        MEM_START,
         FAST_MODE,
     }
 };
@@ -64,7 +66,6 @@ pub enum Mem{
     MemAddr(Register),
     MemAddrWOffset(Register, i64),
     MemSIB(MemSIB),
-    Unknown
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -102,7 +103,8 @@ pub enum MemErr{
     InvalidVal(String),
     UnknownVal(String),
     TypeErr(String),
-    Other(String)
+    Other(String),
+    Blank
 }
 
 type Res<T, E> = Result<T, E>;
@@ -182,7 +184,7 @@ fn mem_par(tok: Vec<MemToken>) -> Res<Mem, MemErr>{
                 }
             }
             if FAST_MODE {
-                return Ok(Mem::Unknown);
+                return Err(MemErr::Blank);
             }
             else {
                 match &tok[0] {
@@ -267,7 +269,7 @@ fn mem_par(tok: Vec<MemToken>) -> Res<Mem, MemErr>{
                 }
             }
             if FAST_MODE {
-                return Ok(Mem::Unknown);
+                return Err(MemErr::Blank);
             }
             else {
                 match &tok[0] {
@@ -321,7 +323,7 @@ fn mem_par(tok: Vec<MemToken>) -> Res<Mem, MemErr>{
         _ => {}
     }
 
-    return Ok(Mem::Unknown);
+    return Err(MemErr::Blank);
 }
 
 fn mem_tok(str: &str) -> Vec<MemToken>{
@@ -441,5 +443,38 @@ mod tests {
         ];
         assert!(mem_par(mem_tokenized) == 
             Ok(Mem::MemSIB(MemSIB{base: Register::RAX, index: Register::RCX, scale: MSScale::Eight, displacement: Some(10)})));
+    }
+}
+
+impl ToString for Mem{
+    fn to_string(&self) -> String{
+        match self{
+            Self::MemAddr(reg) => format!("{}{}{}{}", MEM_START, PREFIX_REG, reg.to_string(), MEM_CLOSE),
+            Self::MemSIB(memsib) => {
+                format!("({},{},{}{})", 
+                    memsib.base.to_string(),
+                    memsib.index.to_string(),
+                    memsib.scale.to_string(),
+                    if let Some(d) = memsib.displacement{
+                        format!(",{}", d)
+                    }
+                    else {
+                        format!("")
+                    }
+                )
+            },
+            Self::MemAddrWOffset(reg, offset) => format!("{}{}{}{}", MEM_START, reg.to_string(), offset, MEM_CLOSE),
+        }
+    }
+}
+
+impl ToString for MSScale{
+    fn to_string(&self) -> String{
+        match self{
+            Self::One => String::from("1"),
+            Self::Two => String::from("2"),
+            Self::Four=> String::from("4"),
+            Self::Eight => String::from("8")
+        }
     }
 }

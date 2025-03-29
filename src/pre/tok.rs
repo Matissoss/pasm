@@ -41,6 +41,7 @@ pub enum Token {
 }
 
 pub struct Tokenizer;
+pub struct Tokens(pub Vec<Token>);
 
 impl Tokenizer{
     pub fn tokenize_line(line: &str) -> Vec<Token>{
@@ -251,4 +252,38 @@ impl Token{
             }
         }
     }
+}
+
+impl ToString for Token{
+    fn to_string(&self) -> String{
+        match self{
+            Self::Register(reg)         => format!("{}{}", PREFIX_REG, reg.to_string()),
+            Self::MemAddr(mem)          => mem.to_string(),
+            Self::Immediate(v)          => format!("{}{}", PREFIX_VAL, v.to_string()),
+            Self::Keyword(kwd)          => kwd.to_string(),
+            Self::Instruction(i)        => format!("{}", format!("{:?}", i).to_lowercase()),
+            Self::Label(lbl)            => lbl.to_string(),
+            Self::LabelRef(lbl)         => format!("{}{}", PREFIX_LAB, lbl),
+            Self::String(str)           => format!("\"{}\"", str),
+            Self::UnknownMemAddr(str)   => format!("{}{}{}", MEM_START, str.to_string(), MEM_CLOSE),
+            Self::UnknownReg(str)       => format!("{}{}", PREFIX_REG, str.to_string()),
+            Self::UnknownVal(str)       => format!("{}{}", PREFIX_VAL, str.to_string()),
+            Self::Unknown(val)          => val.to_string(),
+            Self::ConstRef(cref)        => format!("{}{}", PREFIX_REF, cref)
+        }
+    }
+}
+
+impl ToString for Tokens{
+    fn to_string(&self) -> String{
+        let mut to_return = String::new();
+        for (i, token) in self.0.iter().enumerate(){
+            to_return.push_str(&token.to_string());
+            if i + 1 < self.0.len(){
+                to_return.push(' ');
+            }
+        }
+        to_return.push_str("[...]");
+        return to_return;
+ }
 }

@@ -20,6 +20,7 @@ mod shr;
 
 use pre::tok::Tokenizer;
 use pre::lex::Lexer;
+use pre::par::Parser;
 
 // rasmx86_64 helper utilities
 pub mod conf ;
@@ -55,21 +56,29 @@ fn main(){
     else{
         cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
     };
-    let mut index = 0;
-    for input in fs::read_to_string(infile).unwrap().lines(){
-    //loop {
-        let tokenized = Tokenizer::tokenize_line(&input);
-        println!("{:05}: {:?}", index, tokenized);
-        let parsed = Lexer::parse_file(vec![tokenized]);
-        println!("{:05}: {:?}\n", index, parsed);
-        index += 1;
-    //}
+
+    let input = fs::read_to_string(infile).unwrap();
+    let mut tokens = Vec::new();
+    for line in input.lines(){
+        tokens.push(Tokenizer::tokenize_line(line));
+    }
+    let parsed = Lexer::parse_file(tokens);
+    let tree   = Parser::build_tree(parsed);
+
+    match tree{
+        Ok(tree) => println!("{:?}", tree),
+        Err(error_list) => {
+            for error in error_list{
+                println!("{}", error.to_string());
+            }
+            process::exit(1);
+        }
     }
 
     //parse_file   (&infile);
     //assemble_file(&outfile);
     
-    //process::exit(0);
+    process::exit(0);
 }
 
 #[allow(dead_code)]

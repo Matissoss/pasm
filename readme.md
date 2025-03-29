@@ -13,7 +13,7 @@ This is only MVP version of rasm x86_64 assembler. **Use at your own risk**
 ## Todo
 
 - [x] Tokenizer
-- [ ] AST (working on)
+- [x] AST
 - [ ] ELF64 header support
 - [ ] Opcode for most common x86_64 instructions (with support for: REX, SIB, etc.)
 - [ ] MVP

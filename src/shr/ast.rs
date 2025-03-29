@@ -10,7 +10,8 @@ use crate::shr::{
     ins::Instruction
 };
 
-#[derive(Debug)]
+#[allow(unused)]
+#[derive(Debug, Clone)]
 pub enum AsmType{
     Imm,
 
@@ -42,10 +43,14 @@ pub enum AsmType{
     ConstString
 }
 
+pub struct AsmTypes(pub Vec<AsmType>);
+
+#[allow(unused)]
 pub trait ToAsmType{
     fn asm_type(&self) -> AsmType;
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum Operand{
     Reg(Register),
@@ -55,6 +60,7 @@ pub enum Operand{
     ConstRef(String),
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct AstInstruction{
     pub ins: Instruction,
@@ -62,6 +68,7 @@ pub struct AstInstruction{
     pub dst: Option<Operand>
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct VarDec{
     pub name: String,
@@ -70,6 +77,7 @@ pub struct VarDec{
     pub content: String
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum ASTNode{
     Ins(AstInstruction),
@@ -79,7 +87,33 @@ pub enum ASTNode{
     VarDec(VarDec)
 }
 
-pub struct AST(Vec<ASTNode>);
+#[allow(unused)]
+#[derive(Debug)]
+pub enum ExtASTNode{
+    Section(String, VarDec),
+    Label(String, AstInstruction),
+}
+
+#[allow(unused)]
+#[derive(Debug)]
+pub struct Label{
+    pub name : String,
+    pub inst : Vec<AstInstruction>
+}
+
+#[allow(unused)]
+#[derive(Debug)]
+pub struct Section{
+    pub name : String,
+    pub vars : Option<Vec<VarDec>>
+}
+
+#[derive(Debug)]
+pub struct AST{
+    pub sections: Vec<Section>,
+    pub global: Vec<String>,
+    pub labels: Vec<Label>
+}
 
 impl TryFrom<Token> for Operand{
     type Error = ();
@@ -124,5 +158,20 @@ impl ToString for AsmType{
 
             Self::ConstString => String::from("(comptime string)")
         }
+    }
+}
+
+impl ToString for AsmTypes{
+    fn to_string(&self) -> String{
+        let mut ret = String::new();
+        ret.push_str("[");
+        for (i, t) in self.0.iter().enumerate(){
+            ret.push_str(&t.to_string());
+            if i+1 < self.0.len(){
+                ret.push_str(", ");
+            }
+        }
+        ret.push_str("]");
+        return ret;
     }
 }
