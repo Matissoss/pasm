@@ -20,52 +20,10 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum MSScale{
-    One   = 0b00,
-    Two   = 0b01,
-    Four  = 0b10,
-    Eight = 0b11,
-}
-
-impl TryFrom<i8> for MSScale{
-    type Error = ();
-    fn try_from(num: i8) -> Result<Self, <Self as TryFrom<i8>>::Error> {
-        return match num {
-            1 => Ok(Self::One),
-            2 => Ok(Self::Two),
-            4 => Ok(Self::Four),
-            8 => Ok(Self::Eight),
-            _ => Err(())
-        };
-    }
-}
-impl TryFrom<i64> for MSScale {
-    type Error = ();
-    fn try_from(num: i64) -> Result<Self, <Self as TryFrom<i64>>::Error>{
-        let n : Result<i8, _> = num.try_into();
-        if let Ok(n) = n{
-            return Self::try_from(n);
-        }
-        else {
-            return Err(());
-        }
-    }
-}
-
-// classical SIB
-// SIB = Scale, Index, Base
-#[derive(Debug, PartialEq, Clone)]
-pub struct MemSIB{
-    pub base : Register,
-    pub index: Register,
-    pub scale: MSScale,
-    pub displacement: Option<i64>
-}
-#[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
-    MemAddr(Register),
-    MemAddrWOffset(Register, i64),
-    MemSIB(MemSIB),
+    MemAddr(Register, u8),
+    MemAddrWOffset(Register, i64, u8),
+    MemSIB(Register, Register, i64, u8)
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -77,6 +35,8 @@ pub enum MemToken{
     Unknown(String),
     Plus,
     Comma,
+    Start,
+    End,
     Minus
 }
 
@@ -90,391 +50,133 @@ impl MemToken{
             Self::Comma         => String::from("',' (COMMA)"),
             Self::UnknownReg(_) => String::from("%unknown_reg"),
             Self::UnknownVal(_) => String::from("$unknown_val"),
-            Self::Unknown   (_) => String::from("?UNKNOWN")
+            Self::Unknown   (_) => String::from("?UNKNOWN"),
+            Self::Start         => String::from(MEM_START),
+            Self::End           => String::from(MEM_CLOSE),
         }
     }
 }
 
-#[allow(unused)]
-#[derive(PartialEq)]
-pub enum MemErr{
-    UnexpectedToken(MemToken),
-    InvalidReg(String),
-    InvalidVal(String),
-    UnknownVal(String),
-    TypeErr(String),
-    Other(String),
-    Blank
-}
+type Opt<T> = Option<T>;
 
-type Res<T, E> = Result<T, E>;
-fn type_err(expected: MemToken, found: MemToken) -> MemErr{
-    match &found{
-        MemToken::UnknownReg(r)|MemToken::UnknownVal(r)|MemToken::Unknown(r) => {
-            return MemErr::TypeErr(format!("Expected `{}`, found `{}`: `{}`", expected.to_type(), found.to_type(), r));
-        },
-        MemToken::Register(r) => {
-            return MemErr::TypeErr(format!("Expected `{}`, found `{}`: `{:?}`", expected.to_type(), found.to_type(), r));
-        }
-        MemToken::Number(n) => {
-            return MemErr::TypeErr(format!("Expected `{}`, found `{}`: `{}`", expected.to_type(), found.to_type(), n));
-        }
-        _ => {}
-    }
-    return MemErr::TypeErr(format!("Expected `{}`, found `{}`", expected.to_type(), found.to_type()));
-}
+fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Opt<Mem>{
+    let mut tok_iter = tokens.iter();
 
-fn mem_par(tok: Vec<MemToken>) -> Res<Mem, MemErr>{
-    match tok.len() {
-        1 => {
-            if let MemToken::Register(reg) = tok[0] {
-                return Ok(Mem::MemAddr(reg));
+    let mut offset      : Option<i64> = None;
+    let mut base_reg    : Option<Register> = None;
+    let mut index_reg   : Option<Register> = None;
+    while let Some(tok) = tok_iter.next(){
+        if let MemToken::Number(num) = tok{
+            offset = Some(*num);
+        }
+        if let MemToken::Register(reg) = tok{
+            if let None = base_reg{
+                base_reg = Some(*reg);
             }
-        },
-        3 => {
-            if let MemToken::Register(reg) = &tok[0] {
-                if let MemToken::Number(n) = &tok[2] {
-                    if let MemToken::Minus = &tok[1] {
-                        return Ok(Mem::MemAddrWOffset(*reg, -n));
-                    }
-                    if let MemToken::Plus  = &tok[1] {
-                        return Ok(Mem::MemAddrWOffset(*reg, *n));
-                    }
-                    if let MemToken::Comma = &tok[1] {
-                        return Err(MemErr::UnexpectedToken(tok[1].clone()));
-                    }
-                }
-            }
-        },
-        5 => {
-            if let MemToken::Register(reg)     = tok[0]{
-                if let MemToken::Register(r)   = tok[2]{
-                    if let MemToken::Number(n) = tok[4]{
-                        if let Ok(msscale) = MSScale::try_from(n){
-                            if FAST_MODE {
-                                return Ok(Mem::MemSIB(MemSIB{base: reg, index: r, scale: msscale, displacement: None}));
-                            }
-                            else {
-                                if let (MemToken::Comma, MemToken::Comma) = (&tok[1], &tok[3]){
-                                    return Ok(Mem::MemSIB(MemSIB{base: reg, index: r, scale: msscale, displacement: None}));
-                                }
-                            }
-                        }
-                    }
-                    else if let MemToken::Unknown(kwd) = tok[4].clone(){
-                        if let Ok(kwd) = Keyword::from_str(&kwd){
-                            let msscale = match kwd {
-                                Keyword::Qword => MSScale::Eight,
-                                Keyword::Dword => MSScale::Four,
-                                Keyword::Word  => MSScale::Two,
-                                Keyword::Byte  => MSScale::One,
-                                _ => return Err(MemErr::Other(
-                                        format!("Expected either: [Qword, Dword, Word, Byte] found: {:?}", kwd)))
-                            };
-                            if FAST_MODE {
-                                return Ok(Mem::MemSIB(MemSIB{base: reg, index: r, scale: msscale, displacement: None}));
-                            }
-                            else {
-                                if let (MemToken::Comma, MemToken::Comma) = (&tok[1], &tok[3]){
-                                    return Ok(Mem::MemSIB(MemSIB{base: reg, index: r, scale: msscale, displacement: None}));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if FAST_MODE {
-                return Err(MemErr::Blank);
+            else if let None = index_reg{
+                index_reg = Some(*reg);
             }
             else {
-                match &tok[0] {
-                    MemToken::Register(_) => {}
-                    _ => {
-                        return Err(type_err(MemToken::Register(Register::AL), tok[0].clone()));
-                    }
-                }
-                match &tok[1] {
-                    MemToken::Comma => {},
-                    _ => {
-                        return Err(type_err(MemToken::Comma, tok[0].clone()));
-                    }
-                }
-                match &tok[2] {
-                    MemToken::Register(_) => {}
-                    _ => {
-                        return Err(type_err(MemToken::Register(Register::AL), tok[0].clone()));
-                    }
-                }
-                match &tok[3] {
-                    MemToken::Comma => {},
-                    _ => {
-                        return Err(type_err(MemToken::Comma, tok[0].clone()));
-                    }
-                }
-                match &tok[4] {
-                    MemToken::Number(n) => {
-                        if n != &1 && n != &2 && n != &4 && n != &8{
-                            return Err(MemErr::Other(format!("Expected either one of these numbers: [1, 2, 4, 8], found: {}", n)));
-                        }
-                    }
-                    _ => {
-                        return Err(type_err(MemToken::Number(0), tok[0].clone()));
-                    }
-                }
-            }
-        },
-        7 => {
-            if let MemToken::Register(reg)   = tok[0]{
-                if let MemToken::Register(r) = tok[2]{
-                    if let MemToken::Number(n) = tok[4]{
-                        if let Ok(msscale) = MSScale::try_from(n){
-                            if let MemToken::Number(d) = tok[6] {
-                                if FAST_MODE {
-                                    return Ok(Mem::MemSIB(
-                                        MemSIB{base: reg, index: r, scale: msscale, displacement: Some(d)}));
-                                }
-                                else {
-                                    if let (MemToken::Comma, MemToken::Comma) = (&tok[1], &tok[3]){
-                                        return Ok(Mem::MemSIB(
-                                            MemSIB{base: reg, index: r, scale: msscale, displacement: Some(d)}));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else if let MemToken::Unknown(kwd) = tok[4].clone(){
-                        if let Ok(kwd) = Keyword::from_str(&kwd){
-                            let msscale = match kwd {
-                                Keyword::Qword => MSScale::Eight,
-                                Keyword::Dword => MSScale::Four,
-                                Keyword::Word  => MSScale::Two,
-                                Keyword::Byte  => MSScale::One,
-                                _ => return Err(MemErr::Other(
-                                        format!("Expected either: [Qword, Dword, Word, Byte] found: {:?}", kwd)))
-                            };
-                            if let MemToken::Number(d) = tok[6] {
-                                if FAST_MODE {
-                                    return Ok(Mem::MemSIB(
-                                        MemSIB{base: reg, index: r, scale: msscale, displacement: Some(d)}));
-                                }
-                                else {
-                                    if let (MemToken::Comma, MemToken::Comma) = (&tok[1], &tok[3]){
-                                        return Ok(Mem::MemSIB(
-                                            MemSIB{base: reg, index: r, scale: msscale, displacement: Some(d)}));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if FAST_MODE {
-                return Err(MemErr::Blank);
-            }
-            else {
-                match &tok[0] {
-                    MemToken::Register(_) => {}
-                    _ => {
-                        return Err(type_err(MemToken::Register(Register::AL), tok[0].clone()));
-                    }
-                }
-                match &tok[1] {
-                    MemToken::Comma => {},
-                    _ => {
-                        return Err(type_err(MemToken::Comma, tok[0].clone()));
-                    }
-                }
-                match &tok[2] {
-                    MemToken::Register(_) => {}
-                    _ => {
-                        return Err(type_err(MemToken::Register(Register::AL), tok[0].clone()));
-                    }
-                }
-                match &tok[3] {
-                    MemToken::Comma => {},
-                    _ => {
-                        return Err(type_err(MemToken::Comma, tok[0].clone()));
-                    }
-                }
-                match &tok[4] {
-                    MemToken::Number(n) => {
-                        if n != &1 && n != &2 && n != &4 && n != &8{
-                            return Err(MemErr::Other(format!("Expected either one of these numbers: [1, 2, 4, 8], found: {}", n)));
-                        }
-                    }
-                    _ => {
-                        return Err(type_err(MemToken::Number(0), tok[0].clone()));
-                    }
-                }
-                match &tok[5] {
-                    MemToken::Comma => {}
-                    _ => {
-                        return Err(type_err(MemToken::Comma, tok[0].clone()));
-                    }
-                }
-                match &tok[6] {
-                    MemToken::Number(_) => {}
-                    _ => {
-                        return Err(type_err(MemToken::Number(0), tok[0].clone()));
-                    }
-                }
+                return None;
             }
         }
-        _ => {}
     }
 
-    return Err(MemErr::Blank);
+    let size: u8 = if let Some(kwd) = size_spec{
+        match kwd {
+            Keyword::Qword => 8,
+            Keyword::Dword => 4,
+            Keyword::Word  => 2,
+            Keyword::Byte  => 1,
+            _              => return None
+        }
+    }
+    else{
+        return None;
+    };
+
+    return match (offset, base_reg, index_reg){
+        (Some(off), Some(base), Some(index))    => Some(Mem::MemSIB(base, index, off, size)),
+        (Some(off), Some(base), None)           => Some(Mem::MemAddrWOffset(base, off, size)),
+        (None     , Some(base), None)           => Some(Mem::MemAddr(base, size)),
+        (None     , Some(base), Some(index))    => Some(Mem::MemSIB(base, index, 0, size)),
+        _ => None
+    };
 }
 
-fn mem_tok(str: &str) -> Vec<MemToken>{
-    let mut splitted = Vec::new();
-    let mut tmp_buf  = Vec::new();
-    let mut reg      = false;
-    let mut val      = false;
-    for b in str.as_bytes(){
-        let tmp_c = *b as char;
-        match tmp_c {
-            PREFIX_REG => {
-                reg = true;
-                val = false;
+
+fn mem_tok(mem_addr: &str) -> Vec<MemToken>{
+    let mem_raw : &[u8] = mem_addr.as_bytes();
+    
+    let mut tmp_buf : Vec<char>     = Vec::new();
+    let mut tokens  : Vec<MemToken> = Vec::new();
+    let mut minus   : bool          = false;
+
+    let mut prefix  : char = ' ';
+    for b in mem_raw{
+        let c = *b as char;
+
+        match (prefix, c) {
+            (' ', '-') => minus = true,
+            (' ', ' '|'+'|',') => continue,
+            (PREFIX_VAL|PREFIX_REG, ' '|','|'+'|'-') => {
+                tokens.push(mak_tok(prefix, String::from_iter(tmp_buf.iter()), &mut minus));
+                tmp_buf = Vec::new();
+                prefix = ' ';
             },
-            PREFIX_VAL => {
-                val = true;
-                reg = false;
-            }
-            _ => {
-                if tmp_c != '+' && tmp_c != '-' && tmp_c != ',' {
-                    tmp_buf.push(tmp_c);
-                    continue;
-                }
-                if tmp_buf.is_empty() == false {
-                    if reg {
-                        let reg_str = String::from_iter(tmp_buf.iter());
-                        if let Ok(reg) = Register::from_str(&reg_str){
-                            splitted.push(MemToken::Register(reg));
-                        }
-                        else {
-                            splitted.push(MemToken::UnknownReg(reg_str));
-                        }
-                        reg = false;
-                    }
-                    else if val {
-                        let val_str = String::from_iter(tmp_buf.iter());
-                        if let Ok(num) = parse_num(&val_str){
-                            splitted.push(MemToken::Number(num));
-                        }
-                        else {
-                            splitted.push(MemToken::UnknownVal(val_str));
-                        }
-                        val = false;
-                    }
-                    else {
-                        let val = String::from_iter(tmp_buf.iter());
-                        splitted.push(MemToken::Unknown(val));
-                    }
-                    tmp_buf = Vec::new();
-                }
-                if tmp_c == '+' {
-                    splitted.push(MemToken::Plus);
-                }
-                else if tmp_c == '-' {
-                    splitted.push(MemToken::Minus);
-                }
-                else if tmp_c == ',' {
-                    splitted.push(MemToken::Comma);
-                }
+            (' ', PREFIX_REG) => prefix = PREFIX_REG,
+            (' ', PREFIX_VAL) => prefix = PREFIX_VAL,
+            (_, MEM_START) => {
+                tokens.push(mak_tok(prefix, String::from_iter(tmp_buf.iter()), &mut minus));
+                tmp_buf = Vec::new();
             },
+            (_, MEM_CLOSE) => {
+                tokens.push(mak_tok(prefix, String::from_iter(tmp_buf.iter()), &mut minus));
+                tmp_buf = Vec::new();
+            },
+            _   => tmp_buf.push(c)
         }
     }
-    if tmp_buf.is_empty() == false {
-        if reg {
-            let reg_str = String::from_iter(tmp_buf.iter());
-            if let Ok(reg) = Register::from_str(&reg_str){
-                splitted.push(MemToken::Register(reg));
+    return tokens;
+}
+
+fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
+    match prefix{
+        PREFIX_REG => {
+            if let Ok(reg) = Register::from_str(&string){
+                MemToken::Register(reg)
             }
             else {
-                splitted.push(MemToken::UnknownReg(reg_str));
+                MemToken::UnknownReg(string)
             }
-        }
-        else if val {
-            let val_str = String::from_iter(tmp_buf.iter());
-            if let Ok(num) = parse_num(&val_str){
-                splitted.push(MemToken::Number(num));
+        },
+        PREFIX_VAL => {
+            if let Ok(num) = parse_num(&string){
+                if *minus{
+                    *minus = false;
+                    MemToken::Number(-num)
+                }
+                else {
+                    MemToken::Number(-num)
+                }
             }
             else {
-                splitted.push(MemToken::UnknownVal(val_str));
+                MemToken::UnknownVal(string)
             }
-        }
-        else {
-            splitted.push(MemToken::Unknown(String::from_iter(tmp_buf.iter())));
-        }
-    }
-    return splitted;
-}
-
-impl FromStr for Mem{
-    type Err = MemErr;
-    fn from_str(raw_mem: &str) -> Result<Self, <Self as FromStr>::Err>{
-        match mem_par(mem_tok(raw_mem)){
-            Ok(mem)  => return Ok(mem),
-            Err(err) => return Err(err)
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn mem_tok_t() {
-        let mem_str = "%rax-$10,%rcx,$8";
-        let mem_tokenized = mem_tok(mem_str);
-        println!("{:?}", mem_tokenized);
-        assert!(mem_tokenized == vec![
-            MemToken::Register(Register::RAX), MemToken::Minus, MemToken::Number(10), MemToken::Comma, 
-            MemToken::Register(Register::RCX), MemToken::Comma, MemToken::Number(8)
-        ]);
-    }
-    #[test]
-    fn mem_par_t(){
-        let mem_tokenized = vec![
-            MemToken::Register(Register::RAX), MemToken::Comma, MemToken::Register(Register::RCX), MemToken::Comma, 
-            MemToken::Number(8), MemToken::Comma, MemToken::Number(10)
-        ];
-        assert!(mem_par(mem_tokenized) == 
-            Ok(Mem::MemSIB(MemSIB{base: Register::RAX, index: Register::RCX, scale: MSScale::Eight, displacement: Some(10)})));
-    }
-}
-
-impl ToString for Mem{
-    fn to_string(&self) -> String{
-        match self{
-            Self::MemAddr(reg) => format!("{}{}{}{}", MEM_START, PREFIX_REG, reg.to_string(), MEM_CLOSE),
-            Self::MemSIB(memsib) => {
-                format!("({},{},{}{})", 
-                    memsib.base.to_string(),
-                    memsib.index.to_string(),
-                    memsib.scale.to_string(),
-                    if let Some(d) = memsib.displacement{
-                        format!(",{}", d)
-                    }
-                    else {
-                        format!("")
-                    }
-                )
-            },
-            Self::MemAddrWOffset(reg, offset) => format!("{}{}{}{}", MEM_START, reg.to_string(), offset, MEM_CLOSE),
-        }
-    }
-}
-
-impl ToString for MSScale{
-    fn to_string(&self) -> String{
-        match self{
-            Self::One => String::from("1"),
-            Self::Two => String::from("2"),
-            Self::Four=> String::from("4"),
-            Self::Eight => String::from("8")
+        },
+        _ => {
+            if let Ok(num) = parse_num(&string.trim()){
+                if *minus{
+                    *minus = false;
+                    MemToken::Number(-num)
+                }
+                else {
+                    MemToken::Number(-num)
+                }
+            }
+            else {
+                MemToken::Unknown(string)
+            }
         }
     }
 }

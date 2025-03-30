@@ -8,7 +8,6 @@ use crate::{
     shr::{
         reg::Register,
         kwd::Keyword,
-        mem::Mem,
         ins::Instruction,
     },
     conf::{
@@ -18,7 +17,8 @@ use crate::{
         PREFIX_REG,
         PREFIX_VAL,
         PREFIX_REF,
-        PREFIX_LAB
+        PREFIX_LAB,
+        PREFIX_KWD
     }
 };
 
@@ -27,14 +27,19 @@ use crate::{
 pub enum Token {
     Register(Register),
     Immediate(i64),
-    MemAddr(Mem),
     Keyword(Keyword),
+    Section(String),
+
+    Comma,
+
     Instruction(Instruction),
     Label(String),
     LabelRef(String),
     String(String),
-    UnknownMemAddr(String),
     ConstRef(String),
+    MemAddr(String),
+    
+    UnknownKeyword(String),
     UnknownReg(String),
     UnknownVal(String),
     Unknown(String),
@@ -45,6 +50,7 @@ pub struct Tokens(pub Vec<Token>);
 
 impl Tokenizer{
     pub fn tokenize_line(line: &str) -> Vec<Token>{
+        //let line = trim_tok_line(line);
         let mut tokens          : Vec<Token>    = Vec::new();
         let mut tmp_buf         : Vec<char>     = Vec::new();
         let mut inside_closure  : (bool, char)  = (false, ' ');
@@ -62,15 +68,22 @@ impl Tokenizer{
                     tmp_buf = Vec::new();
                     inside_closure = (false, ' ');
                 }
+
                 ((true, '"'), c  ) => tmp_buf.push(c),
                 ((false, _), ':') => {
                     tokens.push(Token::Label(String::from_iter(tmp_buf.iter())));
                     tmp_buf = Vec::new();
                 },
+
+                ((false, _), '.')        => inside_closure = (true, '.'),
+                ((false, _), PREFIX_KWD) => inside_closure = (true, PREFIX_KWD),
                 ((false, _), PREFIX_REF) => inside_closure = (true, PREFIX_REF),
                 ((false, _), PREFIX_LAB) => inside_closure = (true, PREFIX_LAB),
+
                 ((true, MEM_START), ',') => tmp_buf.push(c),
-                ((false, _), ',')       |
+                
+                ((false, _), ',') => tokens.push(Token::Comma),
+                
                 ((true, MEM_START), ' ')|
                 ((true, PREFIX_REG|PREFIX_VAL), ',') => continue,
                 
@@ -89,21 +102,19 @@ impl Tokenizer{
                     inside_closure = (true, PREFIX_VAL);
                 },
                 
-                ((true, PREFIX_VAL|PREFIX_REG), ' '|'\t'|'\n') => {
+                ((true, PREFIX_VAL|PREFIX_REG|PREFIX_KWD), ' '|'\t'|'\n') => {
                     tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
                     inside_closure = (false, ' ');
                     tmp_buf = Vec::new();
                 },
                 
                 ((false, _), MEM_START|MEM_CLOSE) => {
-                    if tmp_buf.is_empty() == false {
-                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
-                        tmp_buf = Vec::new();
-                    }
+                    tmp_buf.push(MEM_START);
                     inside_closure = (true, c);
                 },
                 
                 ((true, MEM_START), MEM_CLOSE) => {
+                    tmp_buf.push(MEM_CLOSE);
                     tokens.push(Token::make_from(MEM_START, &String::from_iter(tmp_buf.iter())));
                     inside_closure = (false, ' ');
                     tmp_buf = Vec::new();
@@ -137,8 +148,14 @@ pub fn parse_num(numb: &str) -> Result<i64, ()> {
                 let mut int : i64 = 0;
                 let mut index : u32 = 0;
                 for i in 2..numb.len(){
-                    if hexnum(numb_bytes[i] as char) != 0{
-                        int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
+                    let hn = hexnum(numb_bytes[i] as char);
+                    if hn != 16{
+                        if hn == 0{
+                            int *= 10;
+                        }
+                        else{
+                            int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
+                        }
                     }
                     else {
                         return Err(());
@@ -151,8 +168,14 @@ pub fn parse_num(numb: &str) -> Result<i64, ()> {
                 let mut int : i64 = 0;
                 let mut index : u32 = 0;
                 for i in 3..numb.len(){
-                    if hexnum(numb_bytes[i] as char) != 0{
-                        int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
+                    let hn = hexnum(numb_bytes[i] as char);
+                    if hn != 16{
+                        if hn == 0{
+                            int *= 10;
+                        }
+                        else{
+                            int += hexnum(numb_bytes[i] as char) as i64 * (16i64.pow(index));
+                        }
                     }
                     else {
                         return Err(());
@@ -199,20 +222,16 @@ pub fn parse_num(numb: &str) -> Result<i64, ()> {
     }
 }
 fn hexnum(n: char) -> u8{
-    let r = n as u16 - '0' as u16;
-    if r < 10{
-        return (r & 0xFF).try_into().unwrap();
-    }
-    else {
-        match n {
-            'a'|'A' => 10,
-            'b'|'B' => 11,
-            'c'|'C' => 12,
-            'd'|'D' => 13,
-            'e'|'E' => 14,
-            'f'|'F' => 15,
-            _ => 0,
-        }
+    match n {
+        '0'|'1'|'2'|'3'|'4'|
+        '5'|'6'|'7'|'8'|'9'=> n as u8 - '0' as u8,
+        'a'|'A' => 10,
+        'b'|'B' => 11,
+        'c'|'C' => 12,
+        'd'|'D' => 13,
+        'e'|'E' => 14,
+        'f'|'F' => 15,
+        _ => 16,
     }
 }
 
@@ -231,20 +250,23 @@ impl Token{
                     Err(_ ) => Self::UnknownVal(val.to_string()),
                 }
             },
+            '.' => Self::Section(val.to_string()),
             MEM_START => {
-                match Mem::from_str(val){
-                    Ok(addr) => Self::MemAddr(addr),
-                    Err(_)   => Self::UnknownMemAddr(val.to_string())
-                }
+                Self::MemAddr(val.to_string())
             },
+            PREFIX_KWD => {
+                if let Ok(kwd) = Keyword::from_str(val.trim()){
+                    Self::Keyword(kwd)
+                }
+                else {
+                    Self::UnknownKeyword(val.to_string())
+                }
+            }
             PREFIX_LAB => Self::LabelRef(val.to_string()),
             PREFIX_REF => Self::ConstRef(val.to_string()),
             _   => {
                 if let Ok(ins) = Instruction::from_str(val){
                     Self::Instruction(ins)
-                }
-                else if let Ok(kwd) = Keyword::from_str(val.trim()){
-                    Self::Keyword(kwd)
                 }
                 else {
                     Self::Unknown(val.to_string())
@@ -265,11 +287,13 @@ impl ToString for Token{
             Self::Label(lbl)            => lbl.to_string(),
             Self::LabelRef(lbl)         => format!("{}{}", PREFIX_LAB, lbl),
             Self::String(str)           => format!("\"{}\"", str),
-            Self::UnknownMemAddr(str)   => format!("{}{}{}", MEM_START, str.to_string(), MEM_CLOSE),
             Self::UnknownReg(str)       => format!("{}{}", PREFIX_REG, str.to_string()),
             Self::UnknownVal(str)       => format!("{}{}", PREFIX_VAL, str.to_string()),
             Self::Unknown(val)          => val.to_string(),
-            Self::ConstRef(cref)        => format!("{}{}", PREFIX_REF, cref)
+            Self::ConstRef(cref)        => format!("{}{}", PREFIX_REF, cref),
+            Self::UnknownKeyword(kwd)   => format!("{}{}", PREFIX_KWD, kwd),
+            Self::Comma                 => format!("{}", ','),
+            Self::Section(sec)          => format!(".{}", sec)
         }
     }
 }
@@ -283,7 +307,6 @@ impl ToString for Tokens{
                 to_return.push(' ');
             }
         }
-        to_return.push_str("[...]");
         return to_return;
- }
+    }
 }

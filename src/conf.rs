@@ -50,3 +50,5 @@ pub const PREFIX_REF : char = '@';
 //  ---------------------------------------
 //  default = '&'
 pub const PREFIX_LAB : char = '&';
+
+pub const PREFIX_KWD : char = '!';

@@ -182,7 +182,7 @@ _start:
 !end
 
 strlen:
-    mov %rcx, 0
+    mov %rcx, $0
     jmp _strlen_loop
 !end
 _strlen_loop:

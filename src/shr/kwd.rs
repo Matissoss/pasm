@@ -12,17 +12,8 @@ pub enum Keyword{
     Dword,
      Word,
      Byte,
-    Section,
     Global,
-    Resd,
-    Resw,
-    Resq,
-    Resb,
-    Var,
-    Db,
-    Dw,
-    Dd,
-    Dq,
+    End
 }
 
 // keyword is equal
@@ -46,27 +37,9 @@ impl FromStr for Keyword{
         let kwd_raw = kwd_str.as_bytes();
         match kwd_raw.len() {
             0|1 => return Err(()),
-            2 => {
-                return match kwd_raw[1] as char {
-                    'd' => kwd_ie(kwd_str, "dd", Keyword::Dd),
-                    'b' => kwd_ie(kwd_str, "db", Keyword::Db),
-                    'w' => kwd_ie(kwd_str, "dw", Keyword::Dw),
-                    'q' => kwd_ie(kwd_str, "dq", Keyword::Dq),
-                    _   => return Err(())
-                };
-            },
-            3 => kwd_ie(kwd_str, "var", Keyword::Var),
+            3 => kwd_ie(kwd_str, "end", Keyword::End),
             4 => {
                 return match kwd_raw[1] as char {
-                    'e' => {
-                        match kwd_raw[3] as char {
-                            'w' => kwd_ie(kwd_str, "resw", Keyword::Resw),
-                            'd' => kwd_ie(kwd_str, "resd", Keyword::Resd),
-                            'q' => kwd_ie(kwd_str, "resq", Keyword::Resq),
-                            'b' => kwd_ie(kwd_str, "resb", Keyword::Resb),
-                            _   => return Err(())
-                        }
-                    },
                     'y' => kwd_ie(kwd_str, "byte", Keyword::Byte),
                     'o' => kwd_ie(kwd_str, "word", Keyword::Word),
                     _   => return Err(())
@@ -80,7 +53,6 @@ impl FromStr for Keyword{
                 };
             },
             6 => return kwd_ie(kwd_str, "global", Keyword::Global),
-            7 => return kwd_ie(kwd_str, "section", Keyword::Section),
             _ => return Err(())
         }
     }
@@ -94,19 +66,8 @@ impl ToString for Keyword{
             Self::Word  => String::from("word"),
             Self::Byte  => String::from("byte"),
             
-            Self::Resq  => String::from("resq"),
-            Self::Resd  => String::from("resd"),
-            Self::Resw  => String::from("resw"),
-            Self::Resb  => String::from("resb"),
-
-            Self::Section => String::from("section"),
             Self::Global  => String::from("global"),
-            
-            Self::Db      => String::from("db"),
-            Self::Dw      => String::from("dw"),
-            Self::Dd      => String::from("dd"),
-            Self::Dq      => String::from("dq"),
-            Self::Var     => String::from("var")
+            Self::End     => String::from("end"),
         }
     }
 }

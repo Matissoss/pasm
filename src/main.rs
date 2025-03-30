@@ -62,19 +62,13 @@ fn main(){
     for line in input.lines(){
         tokens.push(Tokenizer::tokenize_line(line));
     }
-    let parsed = Lexer::parse_file(tokens);
-    let tree   = Parser::build_tree(parsed);
-
-    match tree{
-        Ok(tree) => println!("{:?}", tree),
-        Err(error_list) => {
-            for error in error_list{
-                println!("{}", error.to_string());
-            }
-            process::exit(1);
+    for (n, line) in tokens.iter().enumerate(){
+        print!("{:05}: ", n);
+        for tok in line{
+            print!("{:?} ", tok);
         }
+        print!("\n");
     }
-
     //parse_file   (&infile);
     //assemble_file(&outfile);
     

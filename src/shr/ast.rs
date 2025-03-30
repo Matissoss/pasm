@@ -121,7 +121,7 @@ impl TryFrom<Token> for Operand{
         match tok {
             Token::Register(reg) => Ok(Self::Reg(reg)),
             Token::Immediate(nm) => Ok(Self::Imm(nm )),
-            Token::MemAddr(mm)   => Ok(Self::Mem(mm )),
+            //Token::MemAddr(mm)   => Ok(Self::Mem(mm )),
             Token::ConstRef(val) => Ok(Self::ConstRef(val)),
             Token::LabelRef(val) => Ok(Self::LabelRef(val)),
             _                    => Err(())
