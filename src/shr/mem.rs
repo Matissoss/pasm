@@ -15,15 +15,16 @@ use crate::{
         PREFIX_VAL,
         MEM_CLOSE,
         MEM_START,
-        FAST_MODE,
     }
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum Mem{
     MemAddr(Register, u8),
     MemAddrWOffset(Register, i64, u8),
-    MemSIB(Register, Register, i64, u8)
+    MemSIB(Register, Register, i64, u8),
+    #[default]
+    Unknown
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -33,26 +34,17 @@ pub enum MemToken{
     Number(i64),
     UnknownVal(String),
     Unknown(String),
-    Plus,
-    Comma,
-    Start,
-    End,
-    Minus
 }
 
+#[allow(unused)]
 impl MemToken{
     fn to_type(&self) -> String {
         match self {
             Self::Register  (_) => String::from("%register"),
             Self::Number    (_) => String::from("$number"),
-            Self::Plus          => String::from("'+' (PLUS)"),
-            Self::Minus         => String::from("'-' (MINUS)"),
-            Self::Comma         => String::from("',' (COMMA)"),
             Self::UnknownReg(_) => String::from("%unknown_reg"),
             Self::UnknownVal(_) => String::from("$unknown_val"),
             Self::Unknown   (_) => String::from("?UNKNOWN"),
-            Self::Start         => String::from(MEM_START),
-            Self::End           => String::from(MEM_CLOSE),
         }
     }
 }
@@ -118,7 +110,8 @@ fn mem_tok(mem_addr: &str) -> Vec<MemToken>{
 
         match (prefix, c) {
             (' ', '-') => minus = true,
-            (' ', ' '|'+'|',') => continue,
+            (' ', '+') => minus = false,
+            (' ', ' '|',') => continue,
             (PREFIX_VAL|PREFIX_REG, ' '|','|'+'|'-') => {
                 tokens.push(mak_tok(prefix, String::from_iter(tmp_buf.iter()), &mut minus));
                 tmp_buf = Vec::new();
@@ -157,7 +150,7 @@ fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
                     MemToken::Number(-num)
                 }
                 else {
-                    MemToken::Number(-num)
+                    MemToken::Number(num)
                 }
             }
             else {
@@ -171,12 +164,18 @@ fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
                     MemToken::Number(-num)
                 }
                 else {
-                    MemToken::Number(-num)
+                    MemToken::Number(num)
                 }
             }
             else {
                 MemToken::Unknown(string)
             }
         }
+    }
+}
+
+impl Mem {
+    pub fn create(memstr: &str, size_spec: Option<Keyword>) -> Option<Self>{
+        mem_par(mem_tok(memstr), size_spec)
     }
 }

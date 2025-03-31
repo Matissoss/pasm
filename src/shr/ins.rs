@@ -6,7 +6,7 @@
 use std::str::FromStr;
 use crate::conf::FAST_MODE;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction{
     MOV,
     ADD,

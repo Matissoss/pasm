@@ -18,7 +18,6 @@ pub static CLI : LazyLock<Cli> = LazyLock::new(|| {
 const VERBOSE : (&str, &str) = ("--verbose"     , "-v");
 const DEBUG   : (&str, &str) = ("--debug"       , "-d");
 
-#[allow(unused)]
 pub struct Cli{
     args    : HashSet<String>,
     // additional flags
@@ -26,7 +25,6 @@ pub struct Cli{
     verbose : bool,
 }
 
-#[allow(unused)]
 impl Cli{
     pub fn new(args: Vec<String>) -> Self{
         let (mut debug, mut verbose) = (false,false);

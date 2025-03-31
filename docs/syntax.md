@@ -188,10 +188,10 @@ strlen:
 _strlen_loop:
     mov %al, (%rdi) !byte
     cmp %al, $0
-    je _strlen_end
+    je  &_strlen_end
     inc %rcx
     inc %rdi
-    jmp _strlen_loop
+    jmp &_strlen_loop
 !end
 _strlen_end:
     mov %rax, %rcx

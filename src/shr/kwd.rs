@@ -6,7 +6,7 @@
 use std::str::FromStr;
 use crate::conf::FAST_MODE;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Keyword{
     Qword,
     Dword,

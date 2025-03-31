@@ -22,8 +22,7 @@ use crate::{
     }
 };
 
-#[allow(unused)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Register(Register),
     Immediate(i64),
@@ -82,10 +81,22 @@ impl Tokenizer{
 
                 ((true, MEM_START), ',') => tmp_buf.push(c),
                 
-                ((false, _), ',') => tokens.push(Token::Comma),
+                ((true, PREFIX_REG|PREFIX_VAL), ',') => {
+                    if tmp_buf.is_empty() == false {
+                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
+                        tmp_buf = Vec::new();
+                    }
+                    tokens.push(Token::Comma)
+                },
+                ((false, _), ',') => {
+                    if tmp_buf.is_empty() == false {
+                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
+                        tmp_buf = Vec::new();
+                    }
+                    tokens.push(Token::Comma)
+                },
                 
-                ((true, MEM_START), ' ')|
-                ((true, PREFIX_REG|PREFIX_VAL), ',') => continue,
+                ((true, MEM_START), ' ') => continue,
                 
                 ((false, _), ' '|'\t'|'\n') => {
                     if tmp_buf.is_empty() == false {
@@ -103,9 +114,11 @@ impl Tokenizer{
                 },
                 
                 ((true, PREFIX_VAL|PREFIX_REG|PREFIX_KWD), ' '|'\t'|'\n') => {
-                    tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
+                    if tmp_buf.is_empty() == false{
+                        tokens.push(Token::make_from(inside_closure.1, &String::from_iter(tmp_buf.iter())));
+                        tmp_buf = Vec::new();
+                    }
                     inside_closure = (false, ' ');
-                    tmp_buf = Vec::new();
                 },
                 
                 ((false, _), MEM_START|MEM_CLOSE) => {

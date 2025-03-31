@@ -7,51 +7,44 @@ use crate::pre::tok::Token;
 use crate::shr::{
     reg::Register,
     mem::Mem,
-    ins::Instruction
+    ins::Instruction,
+    kwd::Keyword
 };
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum AsmType{
     Imm,
-
     Imm8,
     Imm16,
     Imm32,
     Imm64,
-
     Reg,
-    
     Reg8,
     Reg16,
     Reg32,
     Reg64,
-
     Mem,
     Mem8,
     Mem16,
     Mem32,
     Mem64,
-
     // register/memory
     RM,
     RM8,
     RM16,
     RM32,
     RM64,
-
     ConstString
 }
 
 pub struct AsmTypes(pub Vec<AsmType>);
-
 #[allow(unused)]
 pub trait ToAsmType{
     fn asm_type(&self) -> AsmType;
 }
-
 #[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operand{
     Reg(Register),
     Imm(i64),
@@ -59,59 +52,43 @@ pub enum Operand{
     LabelRef(String),
     ConstRef(String),
 }
-
-#[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstInstruction{
     pub ins: Instruction,
     pub src: Option<Operand>,
     pub dst: Option<Operand>
 }
-
 #[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VarDec{
     pub name: String,
-    pub bss: bool,
     pub size: u8,
     pub content: String
 }
-
-#[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ASTNode{
     Ins(AstInstruction),
     Label(String),
     Global(String),
     Section(String),
-    VarDec(VarDec)
+    VarDec(VarDec),
+    End
 }
-
-#[allow(unused)]
-#[derive(Debug)]
-pub enum ExtASTNode{
-    Section(String, VarDec),
-    Label(String, AstInstruction),
-}
-
-#[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Label{
     pub name : String,
     pub inst : Vec<AstInstruction>
 }
-
 #[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Section{
     pub name : String,
     pub vars : Option<Vec<VarDec>>
 }
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AST{
     pub sections: Vec<Section>,
-    pub global: Vec<String>,
+    pub text: Vec<String>,
     pub labels: Vec<Label>
 }
 
@@ -121,7 +98,7 @@ impl TryFrom<Token> for Operand{
         match tok {
             Token::Register(reg) => Ok(Self::Reg(reg)),
             Token::Immediate(nm) => Ok(Self::Imm(nm )),
-            //Token::MemAddr(mm)   => Ok(Self::Mem(mm )),
+            Token::MemAddr(mm)   => Ok(Self::Mem(Mem::create(&mm, Some(Keyword::Byte)).unwrap_or_default() )),
             Token::ConstRef(val) => Ok(Self::ConstRef(val)),
             Token::LabelRef(val) => Ok(Self::LabelRef(val)),
             _                    => Err(())

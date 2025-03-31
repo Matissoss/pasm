@@ -50,7 +50,7 @@ fn main(){
     else{
         cli.exit("src/main.rs", "main", "no input file specified; tip: try using (example) = `-i=input.asm`!", 0);
     };
-    let outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
+    let _outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
         extend_path(path)
     }
     else{
@@ -62,13 +62,27 @@ fn main(){
     for line in input.lines(){
         tokens.push(Tokenizer::tokenize_line(line));
     }
-    for (n, line) in tokens.iter().enumerate(){
-        print!("{:05}: ", n);
-        for tok in line{
-            print!("{:?} ", tok);
+    let parsed = Parser::build_tree(Lexer::parse_file(tokens));
+    if let Err(error_list) = parsed.clone(){
+        for error in error_list{
+            println!("{}", error.to_string());
         }
-        print!("\n");
+        process::exit(1);
     }
+    println!("\nGLOBALS:\n");
+    println!("\t{:?}", parsed.clone().unwrap().text);
+    println!("\nSECTIONS:\n");
+    for section in parsed.clone().unwrap().sections{
+        println!("{:?}", section);
+    }
+    println!("\n\nLABELS:\n");
+    for label in parsed.clone().unwrap().labels{
+        println!("\t{}:", label.name);
+        for ins in label.inst{
+            println!("\t\t{} {:?} {:?}", format!("{:?}", ins.ins).to_lowercase(), ins.dst, ins.src);
+        }
+    }
+
     //parse_file   (&infile);
     //assemble_file(&outfile);
     
