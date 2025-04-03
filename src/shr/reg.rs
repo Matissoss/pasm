@@ -594,17 +594,6 @@ impl ToString for Register{
 
 impl ToAsmType for Register{
     fn asm_type(&self) -> AsmType{
-        if self.is_8bit(){
-            return AsmType::Reg8;
-        }
-        else if self.is_16bit(){
-            return AsmType::Reg16;
-        }
-        else if self.is_32bit(){
-            return AsmType::Reg32;
-        }
-        else {
-            return AsmType::Reg64;
-        }
+        return AsmType::Reg;
     }
 }

@@ -21,6 +21,7 @@ mod shr;
 use pre::tok::Tokenizer;
 use pre::lex::Lexer;
 use pre::par::Parser;
+use shr::ast::AST;
 
 // rasmx86_64 helper utilities
 pub mod conf ;
@@ -28,10 +29,7 @@ pub mod color;
 pub mod cli  ;
 pub mod help ;
 
-use cli ::{
-    CLI,
-    Cli
-};
+use cli ::CLI;
 use help::Help;
 
 // start
@@ -45,66 +43,71 @@ fn main(){
     }
 
     let infile : PathBuf   = if let Some(path) = cli.get_arg("-i"){
-        extend_path(path)
+        PathBuf::from(path)
     }
     else{
         cli.exit("src/main.rs", "main", "no input file specified; tip: try using (example) = `-i=input.asm`!", 0);
     };
     let _outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
-        extend_path(path)
+        PathBuf::from(path)
     }
     else{
         cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
     };
 
-    let input = fs::read_to_string(infile).unwrap();
-    let mut tokens = Vec::new();
-    for line in input.lines(){
-        tokens.push(Tokenizer::tokenize_line(line));
-    }
-    let parsed = Parser::build_tree(Lexer::parse_file(tokens));
-    if let Err(error_list) = parsed.clone(){
-        for error in error_list{
-            println!("{}", error.to_string());
-        }
-        process::exit(1);
-    }
-    println!("\nGLOBALS:\n");
-    println!("\t{:?}", parsed.clone().unwrap().text);
-    println!("\nSECTIONS:\n");
-    for section in parsed.clone().unwrap().sections{
-        println!("{:?}", section);
-    }
-    println!("\n\nLABELS:\n");
-    for label in parsed.clone().unwrap().labels{
-        println!("\t{}:", label.name);
-        for ins in label.inst{
-            println!("\t\t{} {:?} {:?}", format!("{:?}", ins.ins).to_lowercase(), ins.dst, ins.src);
-        }
-    }
+    let ast = parse_file   (&infile);
 
-    //parse_file   (&infile);
+    println!("{:?}", ast);
     //assemble_file(&outfile);
     
     process::exit(0);
 }
 
-#[allow(dead_code)]
-fn parse_file(_inpath: &PathBuf){
+fn parse_file(inpath: &PathBuf) -> AST{
+    if let Ok(true) = fs::exists(inpath){
+        if let Ok(buf) = fs::read_to_string(inpath){
+            let mut tokenized_file = Vec::new();
+            for line in buf.lines(){
+                tokenized_file.push(Tokenizer::tokenize_line(line));
+            }
 
+            let lexed = Lexer::parse_file(tokenized_file);
+
+            match Parser::build_tree(lexed){
+                Ok(ast) => {
+                    if conf::FAST_MODE {
+                        return ast
+                    }
+                    else {
+                        if let Some(errs) = pre::chk::check_file(&ast){
+                            for e in errs{
+                                println!("{}", e.to_string());
+                            }
+                        }
+                        else {
+                            return ast;
+                        }
+                    }
+                },
+                Err(errors) => {
+                    for e in errors{
+                        println!("{}", e.to_string());
+                    }
+                }
+            }
+
+            CLI.exit("main.rs", "parse_file", "Assembling ended with error!", 1);
+        }
+        else {
+            CLI.exit("main.rs", "parse_file", "Error occured, while reading file!", 1);
+        }
+    }
+    else {
+        CLI.exit("main.rs", "parse_file", "Source file doesn't exist!", 1);
+    }
 }
 
 #[allow(dead_code)]
 fn assemble_file(_outpath: &PathBuf){
 
-}
-
-#[allow(dead_code)]
-fn extend_path(pathbuf: &str) -> PathBuf{
-    if pathbuf.starts_with('~'){
-        if let Some(hdir) = Cli::home_dir(){
-            return PathBuf::from(format!("{:?}/{}", hdir, pathbuf));
-        }
-    }
-    PathBuf::from(pathbuf)
 }

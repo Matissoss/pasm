@@ -11,7 +11,7 @@ use crate::{
     shr::ast::{
         AST,
         Label,
-        AstInstruction,
+        ASTInstruction,
         Section,
         VarDec,
         ASTNode,
@@ -34,7 +34,7 @@ impl Parser{
         
         let mut inside_label : (bool, String) = (false, String::new());
         let mut vardecs      : Vec<VarDec>         = Vec::new();
-        let mut instructions : Vec<AstInstruction> = Vec::new();
+        let mut instructions : Vec<ASTInstruction> = Vec::new();
 
         for node in list {
             match node {

@@ -11,31 +11,13 @@ use crate::shr::{
     kwd::Keyword
 };
 
-#[allow(unused)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AsmType{
     Imm,
-    Imm8,
-    Imm16,
-    Imm32,
-    Imm64,
     Reg,
-    Reg8,
-    Reg16,
-    Reg32,
-    Reg64,
     Mem,
-    Mem8,
-    Mem16,
-    Mem32,
-    Mem64,
-    // register/memory
-    RM,
-    RM8,
-    RM16,
-    RM32,
-    RM64,
-    ConstString
+    ConstRef,
+    LabelRef,
 }
 
 pub struct AsmTypes(pub Vec<AsmType>);
@@ -43,7 +25,6 @@ pub struct AsmTypes(pub Vec<AsmType>);
 pub trait ToAsmType{
     fn asm_type(&self) -> AsmType;
 }
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Operand{
     Reg(Register),
@@ -53,10 +34,11 @@ pub enum Operand{
     ConstRef(String),
 }
 #[derive(Debug, Clone)]
-pub struct AstInstruction{
+pub struct ASTInstruction{
     pub ins: Instruction,
     pub src: Option<Operand>,
-    pub dst: Option<Operand>
+    pub dst: Option<Operand>,
+    pub lin: usize
 }
 #[allow(unused)]
 #[derive(Debug, Clone)]
@@ -67,7 +49,7 @@ pub struct VarDec{
 }
 #[derive(Debug, Clone)]
 pub enum ASTNode{
-    Ins(AstInstruction),
+    Ins(ASTInstruction),
     Label(String),
     Global(String),
     Section(String),
@@ -77,9 +59,8 @@ pub enum ASTNode{
 #[derive(Debug, Clone)]
 pub struct Label{
     pub name : String,
-    pub inst : Vec<AstInstruction>
+    pub inst : Vec<ASTInstruction>
 }
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Section{
     pub name : String,
@@ -98,7 +79,14 @@ impl TryFrom<Token> for Operand{
         match tok {
             Token::Register(reg) => Ok(Self::Reg(reg)),
             Token::Immediate(nm) => Ok(Self::Imm(nm )),
-            Token::MemAddr(mm)   => Ok(Self::Mem(Mem::create(&mm, Some(Keyword::Byte)).unwrap_or_default() )),
+            Token::MemAddr(mm)   => {
+                if let Some(mem) = Mem::create(&mm, Some(Keyword::Byte)){
+                    return Ok(Self::Mem(mem));
+                }
+                else{
+                    return Err(())
+                }
+            }
             Token::ConstRef(val) => Ok(Self::ConstRef(val)),
             Token::LabelRef(val) => Ok(Self::LabelRef(val)),
             _                    => Err(())
@@ -110,30 +98,10 @@ impl ToString for AsmType{
     fn to_string(&self) -> String{
         match self {
             Self::Imm   => String::from("immX"),
-            Self::Imm8  => String::from("imm8"),
-            Self::Imm16 => String::from("imm16"),
-            Self::Imm32 => String::from("imm32"),
-            Self::Imm64 => String::from("imm64"),
-
             Self::Mem   => String::from("memX"),
-            Self::Mem8  => String::from("mem8"),
-            Self::Mem16 => String::from("mem16"),
-            Self::Mem32 => String::from("mem32"),
-            Self::Mem64 => String::from("mem64"),
-
             Self::Reg   => String::from("regX"),
-            Self::Reg8  => String::from("reg8"),
-            Self::Reg16 => String::from("reg16"),
-            Self::Reg32 => String::from("reg32"),
-            Self::Reg64 => String::from("reg64"),
-
-            Self::RM    => String::from("regX/memX"),
-            Self::RM8   => String::from("reg8/mem8"),
-            Self::RM16  => String::from("reg16/mem16"),
-            Self::RM32  => String::from("reg32/mem32"),
-            Self::RM64  => String::from("reg64/mem64"),
-
-            Self::ConstString => String::from("(comptime string)")
+            Self::LabelRef => String::from("labelref"),
+            Self::ConstRef => String::from("constref")
         }
     }
 }
@@ -150,5 +118,17 @@ impl ToString for AsmTypes{
         }
         ret.push_str("]");
         return ret;
+    }
+}
+
+impl ToAsmType for Operand{
+    fn asm_type(&self) -> AsmType{
+        match self {
+            Self::Reg(_)        => AsmType::Reg,
+            Self::Mem(_)        => AsmType::Mem,
+            Self::LabelRef(_)   => AsmType::LabelRef,
+            Self::ConstRef(_)   => AsmType::ConstRef,
+            Self::Imm(_)        => AsmType::Imm,
+        }
     }
 }

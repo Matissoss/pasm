@@ -15,7 +15,7 @@ use crate::{
         ast::{
             ASTNode,
             Operand,
-            AstInstruction,
+            ASTInstruction,
             VarDec,
         },
         kwd::Keyword,
@@ -81,8 +81,11 @@ impl Lexer{
                         Some(Token::Keyword(Keyword::Word))  => 2,
                         Some(Token::Keyword(Keyword::Byte))  => 1,
                         _   => {
-
-                            break;
+                            ast_tree.push(Err(LexErr::Unknown(
+                                ErrContext::new(&line, line_count),
+                                format!("Unexpected start of line!")
+                            )));
+                            continue;
                         }
                     };
 
@@ -136,11 +139,11 @@ impl Lexer{
                         let inst_dst = make_op(&dst_raw[1..], (&line, line_count)).ok();
                         let inst_src = make_op(&src_raw[1..], (&line, line_count)).ok();
 
-                        node = Some(ASTNode::Ins(AstInstruction {ins: *ins, dst: inst_dst, src: inst_src}));
+                        node = Some(ASTNode::Ins(ASTInstruction {ins: *ins, dst: inst_dst, src: inst_src, lin: line_count}));
                     }
                     else {
                         let operand = make_op(&line[1..], (&line, line_count)).ok();
-                        node = Some(ASTNode::Ins(AstInstruction {ins: *ins, dst: operand, src: None}));
+                        node = Some(ASTNode::Ins(ASTInstruction {ins: *ins, dst: operand, src: None, lin: line_count}));
                     }
                 },
                 s => {
@@ -170,30 +173,34 @@ impl ToString for LexErr{
                 format!("{}:\n\tidk where, try being better coder :)", "error".red())
             },
             LexErr::Unknown(cont, val) => {
-                format!("{}:\n\tAt line {}:\n\t`{}`\n\t---\n\t{}", 
-                    "error".red(), cont.line_num, Tokens(cont.line_con.clone()).to_string(), val)
+                format!("{}:\n\tAt line {}:\n\t{}\n\t---\n\t{}", 
+                    "error".red(), cont.line_num.to_string().as_str().bold_yellow(), 
+                    Tokens(cont.line_con.clone()).to_string().as_str().green(), val)
             }
             LexErr::Syntax(serr)  => {
                 match serr{
                     SynErr::UnexpectedEOL(context, expected) => {
-                        format!("{}:\n\tAt line {}: `{}`\n\t---\n\tUnexpected end of line!\n\t{}\n\t\n\t{}", 
+                        format!("{}:\n\tAt line {}:\n\t{}\n\t---\n\tUnexpected end of line!\n\t{}\n\t\n\t{}", 
                             "error".red(),
                             context.line_num.to_string().as_str().bold_yellow(), 
-                            Tokens(context.line_con.clone()).to_string(),
+                            Tokens(context.line_con.clone()).to_string().as_str().green(),
                             expected,
                             "tip: maybe you forgot to add something?")
                     }
                     SynErr::UnexpectedToken(context, expected, found) => {
-                        format!("{}:\n\tAt line {}: `{}`\n\t---\n\tUnexpected token was found: expected {}, found {}", 
+                        format!("{}:\n\tAt line {}:\n\t{}\n\t---\n\tUnexpected token was found: expected {}, found {}"
+                            , 
                             "error".red(),
-                            context.line_num.to_string().as_str().bold_yellow(), Tokens(context.line_con.clone()).to_string(),
+                            context.line_num.to_string().as_str().bold_yellow(), 
+                            Tokens(context.line_con.clone()).to_string().as_str().green(),
                             expected, found
                         )
                     },
                     SynErr::TooManyArgs(context, expected, found) => {
-                        format!("{}:\n\tAt line {}: `{}`\n\t---\n\tToo many arguments found in instruction!\n\tExpected <= {}\n\tFound = {}\n\t\n\t{}", 
+                        format!("{}:\n\tAt line {}:\n\t{}\n\t---\n\tToo many arguments found in instruction!\n\tExpected <= {}\n\tFound = {}\n\t\n\t{}", 
                             "error".red(),
-                            context.line_num.to_string().as_str().bold_yellow(), Tokens(context.line_con.clone()).to_string(),
+                            context.line_num.to_string().as_str().bold_yellow(), 
+                            Tokens(context.line_con.clone()).to_string().as_str().green(),
                             expected, found,
                             "tip: did you forgot about comma beetwen operands? or maybe you forgot that offset has to be placed without space in memory address?"
                         )

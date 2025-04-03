@@ -4,7 +4,6 @@
 //  licensed under MPL 2.0
 
 use std::{
-    path::PathBuf,
     sync::LazyLock,
     collections::HashSet,
     env,
@@ -43,11 +42,6 @@ impl Cli{
             debug,
             verbose
         };
-    }
-    pub fn home_dir() -> Option<PathBuf>{
-        if cfg!(windows) {return None;}
-        #[allow(deprecated)]
-        return env::home_dir();
     }
     pub fn get_arg(&self, searched: &str) -> Option<&str>{
         for arg in &self.args{

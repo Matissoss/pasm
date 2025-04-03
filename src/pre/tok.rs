@@ -49,7 +49,6 @@ pub struct Tokens(pub Vec<Token>);
 
 impl Tokenizer{
     pub fn tokenize_line(line: &str) -> Vec<Token>{
-        //let line = trim_tok_line(line);
         let mut tokens          : Vec<Token>    = Vec::new();
         let mut tmp_buf         : Vec<char>     = Vec::new();
         let mut inside_closure  : (bool, char)  = (false, ' ');
