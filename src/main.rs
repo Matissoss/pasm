@@ -2,7 +2,6 @@
 //  -----------------------
 //  made by matissoss
 //  licensed under MPL 2.0
-//  -----------------------
 
 //  global imports go here
 
@@ -15,8 +14,9 @@ use std::{
 // local imports go here
 
 // rasmx86_64 modules
-mod pre;
-mod shr;
+pub mod pre;
+pub mod shr;
+//pub mod core;
 
 use pre::tok::Tokenizer;
 use pre::lex::Lexer;

@@ -11,6 +11,8 @@ use crate::shr::{
     kwd::Keyword
 };
 
+use std::convert::TryInto;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum AsmType{
     Imm,
@@ -21,10 +23,11 @@ pub enum AsmType{
 }
 
 pub struct AsmTypes(pub Vec<AsmType>);
-#[allow(unused)]
+
 pub trait ToAsmType{
     fn asm_type(&self) -> AsmType;
 }
+
 #[derive(Debug, Clone)]
 pub enum Operand{
     Reg(Register),
@@ -33,20 +36,22 @@ pub enum Operand{
     LabelRef(String),
     ConstRef(String),
 }
+
 #[derive(Debug, Clone)]
 pub struct ASTInstruction{
-    pub ins: Instruction,
-    pub src: Option<Operand>,
-    pub dst: Option<Operand>,
-    pub lin: usize
+    pub ins : Instruction,
+    pub src : Option<Operand>,
+    pub dst : Option<Operand>,
+    pub lin : usize,
 }
-#[allow(unused)]
+
 #[derive(Debug, Clone)]
 pub struct VarDec{
     pub name: String,
     pub size: u8,
     pub content: String
 }
+
 #[derive(Debug, Clone)]
 pub enum ASTNode{
     Ins(ASTInstruction),
@@ -56,16 +61,19 @@ pub enum ASTNode{
     VarDec(VarDec),
     End
 }
+
 #[derive(Debug, Clone)]
 pub struct Label{
     pub name : String,
     pub inst : Vec<ASTInstruction>
 }
+
 #[derive(Debug, Clone)]
 pub struct Section{
     pub name : String,
     pub vars : Option<Vec<VarDec>>
 }
+
 #[derive(Debug, Clone)]
 pub struct AST{
     pub sections: Vec<Section>,
@@ -130,5 +138,41 @@ impl ToAsmType for Operand{
             Self::ConstRef(_)   => AsmType::ConstRef,
             Self::Imm(_)        => AsmType::Imm,
         }
+    }
+}
+
+// if returns 0 then error
+impl Operand{
+    pub fn size_bytes(&self) -> u8{
+        match self{
+            Self::Reg(rg) => rg.size_bytes(),
+            Self::Imm(im) => {
+                if let Ok(_) = <i64 as TryInto<i8>>::try_into(*im){
+                    return 1;
+                }
+                if let Ok(_) = <i64 as TryInto<i16>>::try_into(*im){
+                    return 2;
+                }
+                if let Ok(_) = <i64 as TryInto<i32>>::try_into(*im){
+                    return 4;
+                }
+                return 8;
+            },
+            Self::Mem(mem) => {
+                match mem {
+                    Mem::MemAddr(_, size)           => *size,
+                    Mem::MemSIB(_,_,_,size)         => *size,
+                    Mem::MemAddrWOffset(_,_,size)   => *size,
+                }
+            },
+            Self::ConstRef(_) => 0,
+            Self::LabelRef(_) => 0,
+        }
+    }
+    pub fn needs_rex(&self) -> bool{
+        if let Self::Reg(r) = self{
+            return r.needs_rex();
+        }
+        return self.size_bytes() == 8;
     }
 }

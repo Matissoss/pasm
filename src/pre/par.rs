@@ -27,8 +27,10 @@ pub enum ASTError{
     UnexpectedEnd
 }
 
+type LexTree= Vec<Result<(ASTNode, usize), LexErr>>;
+
 impl Parser{
-    pub fn build_tree(list: Vec<Result<(ASTNode, usize), LexErr>>) -> Result<AST, Vec<ASTError>>{
+    pub fn build_tree(list: LexTree) -> Result<AST, Vec<ASTError>>{
         let mut errors : Vec<ASTError> = Vec::new();
         let mut ast = AST{sections: Vec::new(), text: Vec::new(), labels: Vec::new()};
         

@@ -18,13 +18,11 @@ use crate::{
     }
 };
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
     MemAddr(Register, u8),
     MemAddrWOffset(Register, i64, u8),
     MemSIB(Register, Register, i64, u8),
-    #[default]
-    Unknown
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -36,22 +34,7 @@ pub enum MemToken{
     Unknown(String),
 }
 
-#[allow(unused)]
-impl MemToken{
-    fn to_type(&self) -> String {
-        match self {
-            Self::Register  (_) => String::from("%register"),
-            Self::Number    (_) => String::from("$number"),
-            Self::UnknownReg(_) => String::from("%unknown_reg"),
-            Self::UnknownVal(_) => String::from("$unknown_val"),
-            Self::Unknown   (_) => String::from("?UNKNOWN"),
-        }
-    }
-}
-
-type Opt<T> = Option<T>;
-
-fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Opt<Mem>{
+fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Option<Mem>{
     let mut tok_iter = tokens.iter();
 
     let mut offset      : Option<i64> = None;

@@ -56,11 +56,6 @@ pub enum Register{
     YMM4, YMM5 , YMM6 , YMM7 , 
     YMM8, YMM9 , YMM10, YMM11,
     YMM12,YMM13, YMM14, YMM15,
-    //  AVX (512-bit)
-    ZMM0, ZMM1 , ZMM2 , ZMM3 , 
-    ZMM4, ZMM5 , ZMM6 , ZMM7 , 
-    ZMM8, ZMM9 , ZMM10, ZMM11,
-    ZMM12,ZMM13, ZMM14, ZMM15,
 }
 
 #[inline(always)]
@@ -342,21 +337,6 @@ impl FromStr for Register{
                             _   => return Err(())
                         }
                     }
-                    'z' => {
-                        match byte_str[3] as char {
-                            '0' => reg_ie(str,"zmm0", Register::ZMM0),
-                            '1' => reg_ie(str,"zmm1", Register::ZMM1),
-                            '2' => reg_ie(str,"zmm2", Register::ZMM2),
-                            '3' => reg_ie(str,"zmm3", Register::ZMM3),
-                            '4' => reg_ie(str,"zmm4", Register::ZMM4),
-                            '5' => reg_ie(str,"zmm5", Register::ZMM5),
-                            '6' => reg_ie(str,"zmm6", Register::ZMM6),
-                            '7' => reg_ie(str,"zmm7", Register::ZMM7),
-                            '8' => reg_ie(str,"zmm8", Register::ZMM8),
-                            '9' => reg_ie(str,"zmm9", Register::ZMM9),
-                            _   => return Err(())
-                        }
-                    },
                     _ => Err(())
                 }
             },
@@ -384,61 +364,11 @@ impl FromStr for Register{
                             _ => Err(())
                         }
                     },
-                    'z' => {
-                        match byte_str[4] as char {
-                            '0' => reg_ie(str,"zmm10", Register::ZMM10),
-                            '1' => reg_ie(str,"zmm11", Register::ZMM11),
-                            '2' => reg_ie(str,"zmm12", Register::ZMM12),
-                            '3' => reg_ie(str,"zmm13", Register::ZMM13),
-                            '4' => reg_ie(str,"zmm14", Register::ZMM14),
-                            '5' => reg_ie(str,"zmm15", Register::ZMM15),
-                            _ => Err(())
-                        }
-                    }
                     _ => Err(())
                 }
             }
             _ => Err(())
         };
-    }
-}
-
-#[allow(unused)]
-impl Register{
-    pub fn is_16bit(&self) -> bool {
-        return match self {
-            Self::AX  |Self::BX  |Self::CX  |Self::DX
-           |Self::SP  |Self::BP  |Self::SI  |Self::DI
-           |Self::R8W |Self::R9W |Self::R10W|Self::R11W
-           |Self::R12W|Self::R13W|Self::R14W|Self::R15W => true,
-           _ => false
-        };
-    }
-    pub fn is_8bit(&self) -> bool {
-        return match self{
-            Self::AL  |Self::BL  |Self::CL  |Self::DL  |
-            Self::SPL |Self::BPL |Self::SIL |Self::DIL |
-            Self::R8B |Self::R9B |Self::R10B|Self::R11B|
-            Self::AH  |Self::BH  |Self::CH  |Self::DH  |
-            Self::R12B|Self::R13B|Self::R14B|Self::R15B| Self::IP
-            => true,
-            _ => false
-        };
-    }
-    pub fn is_32bit(&self) -> bool {
-        return match self {
-            Self::EAX |Self::EBX |Self::ECX |Self::EDX |
-            Self::ESP |Self::EBP |Self::ESI |Self::EDI |
-            Self::R8D |Self::R9D |Self::R10D|Self::R11D|
-            Self::R12D|Self::R13D|Self::R14D|Self::R15D| Self::EIP 
-            => true,
-            _ => false,
-        } 
-    }
-    pub fn is_64bit(&self) -> bool {
-        return !self.is_32bit() 
-            && !self.is_16bit() 
-            && !self.is_8bit ();
     }
 }
 
@@ -571,23 +501,6 @@ impl ToString for Register{
             Self::YMM13 => String::from("ymm13"),
             Self::YMM14 => String::from("ymm14"),
             Self::YMM15 => String::from("ymm15"),
-            
-            Self::ZMM0 => String::from("zmm0"),
-            Self::ZMM1 => String::from("zmm1"),
-            Self::ZMM2 => String::from("zmm2"),
-            Self::ZMM3 => String::from("zmm3"),
-            Self::ZMM4 => String::from("zmm4"),
-            Self::ZMM5 => String::from("zmm5"),
-            Self::ZMM6 => String::from("zmm6"),
-            Self::ZMM7 => String::from("zmm7"),
-            Self::ZMM8 => String::from("zmm8"),
-            Self::ZMM9 => String::from("zmm9"),
-            Self::ZMM10 => String::from("zmm10"),
-            Self::ZMM11 => String::from("zmm11"),
-            Self::ZMM12 => String::from("zmm12"),
-            Self::ZMM13 => String::from("zmm13"),
-            Self::ZMM14 => String::from("zmm14"),
-            Self::ZMM15 => String::from("zmm15"),
         }
     }
 }
@@ -595,5 +508,68 @@ impl ToString for Register{
 impl ToAsmType for Register{
     fn asm_type(&self) -> AsmType{
         return AsmType::Reg;
+    }
+}
+
+impl Register{
+    pub fn size_bytes(&self) -> u8 {
+        match self{
+            Self::AL  |Self::BL  |Self::CL  |Self::DL   |
+            Self::AH  |Self::BH  |Self::CH  |Self::DH   |
+            Self::SPL |Self::BPL |Self::SIL |Self::DIL  |
+            Self::R8B |Self::R9B |Self::R10B|Self::R11B |
+            Self::R12B|Self::R13B|Self::R14B|Self::R15B => 1,
+
+            Self::AX  |Self::BX  |Self::CX  |Self::DX   |
+            Self::SP  |Self::BP  |Self::SI  |Self::DI   |
+            Self::IP  |
+            Self::R8W |Self::R9W |Self::R10W|Self::R11W |
+            Self::R12W|Self::R13W|Self::R14W|Self::R15W => 2,
+
+            Self::EAX |Self::EBX |Self::ECX |Self::EDX  |
+            Self::ESP |Self::EBP |Self::ESI |Self::EDI  |
+            Self::EIP |
+            Self::CR0 |Self::CR2 |Self::CR3 |Self::CR4  |
+            Self::CR8 |Self::DR0 |Self::DR1 |Self::DR2  |
+            Self::DR3 |Self::DR6 |Self::DR7 |
+            Self::R8D |Self::R9D |Self::R10D|Self::R11D |
+            Self::R12D|Self::R13D|Self::R14D|Self::R15D => 4,
+
+            Self::RAX |Self::RBX |Self::RCX |Self::RDX  |
+            Self::RSP |Self::RBP |Self::RSI |Self::RDI  |
+            Self::R8  |Self::R9  |Self::R10 |Self::R11  |
+            Self::RIP |
+            Self::R12 |Self::R13 |Self::R14 |Self::R15  => 8,
+
+            Self::XMM0 |Self::XMM1 |Self::XMM2 |Self::XMM3  |
+            Self::XMM4 |Self::XMM5 |Self::XMM6 |Self::XMM7  |
+            Self::XMM8 |Self::XMM9 |Self::XMM10|Self::XMM11 |
+            Self::XMM12|Self::XMM13|Self::XMM14|Self::XMM15 => 16,
+
+            Self::YMM0 |Self::YMM1 |Self::YMM2 |Self::YMM3  |
+            Self::YMM4 |Self::YMM5 |Self::YMM6 |Self::YMM7  |
+            Self::YMM8 |Self::YMM9 |Self::YMM10|Self::YMM11 |
+            Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => 32,
+
+        }
+    }
+    pub fn needs_rex(&self) -> bool{
+        match self {
+            Self::CR8  |
+            Self::R8   |Self::R9   |Self::R10  |Self::R11  |
+            Self::R12  |Self::R13  |Self::R14  |Self::R15  |
+            Self::R8B  |Self::R9B  |Self::R10B |Self::R11B |
+            Self::R12B |Self::R13B |Self::R14B |Self::R15B |
+            Self::R8W  |Self::R9W  |Self::R10W |Self::R11W |
+            Self::R12W |Self::R13W |Self::R14W |Self::R15W |
+            Self::R8D  |Self::R9D  |Self::R10D |Self::R11D |
+            Self::R12D |Self::R13D |Self::R14D |Self::R15D |
+            Self::XMM8 |Self::XMM9 |Self::XMM10|Self::XMM11|
+            Self::XMM12|Self::XMM13|Self::XMM14|Self::XMM15|
+            Self::YMM8 |Self::YMM9 |Self::YMM10|Self::YMM11|
+            Self::SIL  |Self::DIL  |Self::BPL  |Self::SPL  |
+            Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => true,
+            _ => false
+        }
     }
 }
