@@ -9,6 +9,10 @@ use crate::{
         reg::Register,
         kwd::Keyword,
         num::Number,
+        error::{
+            RASMError,
+            ExceptionType as ExType
+        }
     },
     conf::{
         PREFIX_REG,
@@ -17,14 +21,6 @@ use crate::{
         MEM_START,
     }
 };
-
-#[derive(Debug, PartialEq)]
-pub enum MemErr{
-    NoSizeSpec,
-    TooManyRegisters,
-    InvalidSizeSpec(Keyword),
-    CannotAbsoluteIndex,    // pattern like: (-20)
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
@@ -43,7 +39,7 @@ pub enum MemToken{
     Unknown(String),
 }
 
-fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, MemErr>{
+fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, RASMError>{
     let mut tok_iter = tokens.iter();
 
     let mut offset      : Option<i64> = None;
@@ -61,7 +57,13 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, Mem
                 index_reg = Some(*reg);
             }
             else {
-                return Err(MemErr::TooManyRegisters);
+                return Err(RASMError::new(
+                    None,
+                    ExType::Error,
+                    Some(format!("{:?}", tokens)),
+                    Some(format!("Too many registers found in memory declaration!")),
+                    Some(format!("you can only have 2 (at max) registers in memory declaration"))
+                ));
             }
         }
     }
@@ -72,11 +74,23 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, Mem
             Keyword::Dword => 4,
             Keyword::Word  => 2,
             Keyword::Byte  => 1,
-            _              => return Err(MemErr::InvalidSizeSpec(kwd))
+            _              => return Err(RASMError::new(
+                None,
+                ExType::Error,
+                Some(format!("{:?}", tokens)),
+                Some(format!("Invalid size specifier found")),
+                Some(format!("expected - byte, word, dword, qword"))
+            ))
         }
     }
     else{
-        return Err(MemErr::NoSizeSpec);
+        return Err(RASMError::new(
+            None,
+            ExType::Error,
+            Some(format!("{:?}", tokens)),
+            Some(format!("No size specifier was found")),
+            Some(format!("consider adding either one of these after memory declaration: byte, word, dword or qword keyword"))
+        ));
     };
 
     return match (offset, base_reg, index_reg){
@@ -84,7 +98,15 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, Mem
         (Some(off), Some(base), None)               => Ok(Mem::MemAddrWOffset(base, off, size)),
         (None     , Some(base), None)               => Ok(Mem::MemAddr(base, size)),
         (None     , Some(base), Some(index))        => Ok(Mem::MemSIB(base, index, 0, size)),
-        (None, None, _)|(Some(_), None      , _)    => Err(MemErr::CannotAbsoluteIndex),
+        (None, None, _)|(Some(_), None      , _)    => {
+            Err(RASMError::new(
+                None,
+                ExType::Error,
+                Some(format!("{:?}", tokens)),
+                Some(format!("Cannot index memory by absolute value")),
+                Some(format!("Try adding register and number as offset")),
+            ))
+        },
     };
 }
 
@@ -172,7 +194,7 @@ fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
 }
 
 impl Mem {
-    pub fn new(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, MemErr>{
+    pub fn new(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError>{
         mem_par(mem_tok(memstr), size_spec)
     }
     pub fn size_bytes(&self) -> u8{

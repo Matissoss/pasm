@@ -11,6 +11,15 @@ use crate::shr::{
     kwd::Keyword,
     num::Number
 };
+use crate::conf::{
+    PREFIX_LAB,
+    PREFIX_VAL,
+    PREFIX_REG,
+    PREFIX_KWD,
+    PREFIX_REF,
+    MEM_START,
+    MEM_CLOSE,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AsmType{
@@ -145,13 +154,13 @@ impl ToString for ASTInstruction{
         format!("{}{}{}",
             format!("{:?}", self.ins).to_lowercase(),
             if let Some(dst) = &self.dst{
-                format!(" {:?}", dst)
+                format!(" {}", dst.to_string())
             }
             else{
                 "".to_string()
             },
             if let Some(src) = &self.src{
-                format!(" {:?}", src)
+                format!(" {}", src.to_string())
             }
             else{
                 "".to_string()
@@ -168,6 +177,53 @@ impl Operand{
             Self::Mem(m) => m.size_bytes(),
             Self::LabelRef(_) => 0,
             Self::ConstRef(_) => 0,
+        }
+    }
+}
+
+impl ToString for Operand{
+    fn to_string(&self) -> String{
+        match self {
+            Self::Imm(n) => format!("{}{}", PREFIX_VAL, n.to_string()),
+            Self::Reg(r) => format!("{}{}", PREFIX_REG, r.to_string()),
+            Self::Mem(m) => {
+                match m {
+                    Mem::MemAddr(r, s) =>
+                        format!("{}{}{}{} {}{}", MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, 
+                        match s{
+                            1 => "byte",
+                            2 => "word",
+                            4 => "dword",
+                            8 => "qword",
+                            _ => "{unknown}"
+                        }
+                    ),
+                    Mem::MemAddrWOffset(r, o, s) => 
+                        format!("{}{}{}{}{} {}{}", o, MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, 
+                            match s{
+                                1 => "byte",
+                                2 => "word",
+                                4 => "dword",
+                                8 => "qword",
+                                _ => "{unknown}"
+                            }
+                        ),
+                    Mem::MemSIB(base, index, scale, displacement) => 
+                        format!("{}{}{}{},{}{}{} {}{}", 
+                            displacement, MEM_START, PREFIX_REG, base.to_string(), 
+                            PREFIX_REG, index.to_string(), MEM_CLOSE, PREFIX_KWD,
+                            match scale{
+                                1 => "byte",
+                                2 => "word",
+                                4 => "dword",
+                                8 => "qword",
+                                _ => "{unknown}"
+                            }
+                    ),
+                }
+            },
+            Self::ConstRef(r) => format!("{}{}", PREFIX_REF, r),
+            Self::LabelRef(l) => format!("{}{}", PREFIX_LAB, l)
         }
     }
 }

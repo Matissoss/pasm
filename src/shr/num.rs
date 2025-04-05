@@ -4,8 +4,6 @@
 // licensed under MPL
 use std::str::FromStr;
 
-const SLASH : u8 = '\\' as u8;
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Number{
     Float   (f32),

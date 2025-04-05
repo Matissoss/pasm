@@ -128,15 +128,36 @@ impl Lexer{
                 }
                 Some(Token::Instruction(ins)) => {
                     if let Some((dst_raw, src_raw)) = vec_split_by(&line, Token::Comma){
-                        let inst_dst = make_op(&dst_raw[1..]).ok();
-                        let inst_src = make_op(&src_raw[1..]).ok();
-
+                        let inst_dst = match make_op(&dst_raw[1..]){
+                            Ok(o) => Some(o),
+                            Err(mut err) => {
+                                err.set_line(line_count);
+                                err.set_cont(Tokens(line).to_string());
+                                ast_tree.push(Err(err));
+                                break;
+                            }
+                        };
+                        let inst_src = match make_op(&src_raw[1..]){
+                            Ok(o) => Some(o),
+                            Err(mut err) => {
+                                err.set_line(line_count);
+                                err.set_cont(Tokens(line).to_string());
+                                ast_tree.push(Err(err));
+                                break;
+                            }
+                        };
                         node = Some(
                             ASTNode::Ins(ASTInstruction {ins: *ins, dst: inst_dst, src: inst_src, lin: line_count}));
                     }
                     else {
-                        let operand = make_op(&line[1..]).ok();
-                        node = Some(ASTNode::Ins(ASTInstruction {ins: *ins, dst: operand, src: None, lin: line_count}));
+                        match make_op(&line[1..]){
+                            Ok(op) => node = Some(ASTNode::Ins(ASTInstruction {ins: *ins, dst: Some(op), src: None, lin: line_count})),
+                            Err(mut err) => {
+                                err.set_line(line_count);
+                                err.set_cont(Tokens(line).to_string());
+                                error = Some(err)
+                            }
+                        }
                     }
                 },
                 s => {
@@ -187,22 +208,45 @@ where T: PartialEq + Clone{
     }
 }
 
-fn make_op(tok: &[Token]) -> Result<Operand, ()>{
+fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
     match tok.len(){
         1 => {
-            Operand::try_from(tok[0].clone()).map_err(|_| ())
+            match Operand::try_from(tok[0].clone()){
+                Ok(op) => Ok(op),
+                Err(_) => {
+                    return Err(RASMError::new(
+                        None,
+                        ExType::Error,
+                        Some(Tokens(tok.to_vec()).to_string()),
+                        Some(format!("Couldn't parse following tokens into operand")),
+                        Some(format!("Try formatting as constref, labelref, immediate, register or memory!"))
+                    ));
+                }
+            }
         },
         2 => {
             if let (Token::MemAddr(mem), Token::Keyword(kwd)) = (&tok[0], &tok[1]){
                 match Mem::new(&mem, Some(*kwd)){
                     Ok(ma) => Ok(Operand::Mem(ma)),
-                    Err(_) => Err(())
+                    Err(err) => Err(err)
                 }
             }
             else {
-                Err(())
+                Err(RASMError::new(
+                    None,
+                    ExType::Error,
+                    Some(Tokens(tok.to_vec()).to_string()),
+                    Some(format!("Unexpected tokens found")),
+                    Some(format!("expected memory address and size specifier"))
+                ))
             }
         },
-        _ => Err(())
+        _ => Err(RASMError::new(
+            None,
+            ExType::Error,
+            Some(Tokens(tok.to_vec()).to_string()),
+            Some(format!("Too much tokens were found")),
+            Some(format!("Expected (at most) 2 tokens, found more (or 0)"))
+        ))
     }
 }

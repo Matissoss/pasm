@@ -148,3 +148,10 @@ impl FromStr for Instruction{
         }
     }
 }
+
+impl Instruction{
+    // currently only false
+    pub fn allows_diff_size(&self) -> bool{
+        return false;
+    }
+}

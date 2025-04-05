@@ -96,4 +96,10 @@ impl RASMError{
     pub fn get_context(&self) -> Option<&String>{
         return self.cont.as_ref();
     }
+    pub fn set_line(&mut self, newline: usize){
+        self.line = Some(newline);
+    }
+    pub fn set_cont(&mut self, cont: String){
+        self.cont = Some(cont);
+    }
 }

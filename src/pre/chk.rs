@@ -2,8 +2,6 @@
 // -------------------
 // made by matissoss
 // licensed under MPL
-// ===================
-// Logical syntax check
 
 use crate::shr::{
     ins::Instruction as Ins,
@@ -11,7 +9,8 @@ use crate::shr::{
         AST,
         ASTInstruction,
         AsmType,
-        ToAsmType
+        ToAsmType,
+        Operand
     },
     error::RASMError,
     error::ExceptionType as ExType
@@ -22,6 +21,9 @@ pub fn check_file(file: &AST) -> Option<Vec<RASMError>>{
     for label in &file.labels{
         for instr in &label.inst{
             if let Some(err) = chk_ins(instr){
+                errors.push(err);
+            }
+            if let Some(err) = size_chk(instr){
                 errors.push(err);
             }
         }
@@ -35,6 +37,34 @@ pub fn check_file(file: &AST) -> Option<Vec<RASMError>>{
 
 }
 
+fn size_chk(inst: &ASTInstruction) -> Option<RASMError>{
+    if let (Some(d), Some(s)) = (&inst.dst, &inst.src){
+        if let Operand::Imm(s_i) = s{
+            if d.size_bytes() < s_i.size_bytes(){
+                return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(inst.to_string()),
+                    Some(format!("Destination has smaller size than immediate you tried to assign for destination!")),
+                    Some(format!("Make source (immediate) fit in range of {} byte number", d.size_bytes()))
+                ));
+            }
+            return None;
+        }
+        if d.size_bytes() != s.size_bytes() && !inst.ins.allows_diff_size(){
+            return Some(RASMError::new(
+                Some(inst.lin),
+                ExType::Error,
+                Some(inst.to_string()),
+                Some(format!("Found 2 different size for operands and instruction doesn't allow for it: {}B for dst, {}B for src",
+                    d.size_bytes(), s.size_bytes())),
+                Some(format!("Try using same size operand"))
+            ));
+        }
+    }
+    return None;
+}
+
 type OVA = Option<Vec<AsmType>>;
 fn type_chk(inst: &ASTInstruction, left: OVA, right: OVA) -> Option<RASMError>{
     if let Some(dst_types) = left{
@@ -43,7 +73,7 @@ fn type_chk(inst: &ASTInstruction, left: OVA, right: OVA) -> Option<RASMError>{
             return Some(RASMError::new(
                     Some(inst.lin),
                     ExType::Error,
-                    Some(format!("{:?} {:?} {:?}", inst, inst.dst, inst.src)),
+                    Some(inst.to_string()),
                     Some(format!("Instruction {:?} doesn't have support for: {:?}", inst.ins, dst)),
                     Some(format!("expected = {:?}", dst_types)),
             ));
