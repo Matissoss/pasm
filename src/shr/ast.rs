@@ -176,3 +176,17 @@ impl Operand{
         return self.size_bytes() == 8;
     }
 }
+
+impl ASTInstruction{
+    #[inline(always)]
+    pub fn operand_size_bytes(&self) -> [Option<u8>; 2] {
+        let mut to_ret = [None; 2];
+        if let Some(op) = &self.dst{
+            to_ret[0] = Some(op.size_bytes())
+        }
+        if let Some(op) = &self.src{
+            to_ret[1] = Some(op.size_bytes())
+        }
+        return to_ret;
+    }
+}

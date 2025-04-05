@@ -16,6 +16,7 @@ use std::{
 // rasmx86_64 modules
 pub mod pre;
 pub mod shr;
+pub mod core;
 //pub mod core;
 
 use pre::tok::Tokenizer;
