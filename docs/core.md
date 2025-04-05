@@ -42,7 +42,7 @@ x86_64 Instruction are saved in Little-Endian (reverse) and in following order:
 |  0x66  |      3       |  OpS override   |
 |  0x67  |      3       |  AddrS override |
 
-> ![NOTE]
+> [!NOTE]
 > When there are 2 or more prefixes from single group, the behaviour is undefined !
 
 ### LOCK
@@ -96,7 +96,7 @@ The default OpS and AddrS can be overriden using prefixes found in table below
 |     1     |               No                      |    64     |    64     |
 |     1     |               Yes                     |    64     |    32     |
 
-> ![NOTE]
+> [!NOTE]
 > Some instructions default to 64-bit operands and do not need REX prefix.
 
 ## Opcode
@@ -115,7 +115,7 @@ When mandatory prefix is needed, it is put with modifier prefixes BEFORE REX pre
 
 #### REX Prefix
 
-> ![NOTE]
+> [!NOTE]
 > Only availiable in `Long Mode`.
 
 REX Prefix must be added when:
@@ -127,7 +127,6 @@ In other cases, REX prefix is ignored. If multiple REX prefixes are found, it le
 
 ##### Encoding
 
-(binary)
 ```
 8   7   6   5   4   3   2   1
 +---+---+---+---+---+---+---+
@@ -171,7 +170,7 @@ otherwise register-indirect addressing mode is used.
 |   0b10    | 4B - long disp        |
 |   0b11    | No SIB/disp           |
 
-> ![WARN]
+> [!WARNING]
 > **IF MODRM.mod = 0b00 AND SIB.base = 0b101**:
 > (situations like this: `mov %reg, disp32(_, %index) !scale`)
 > you need to add 4B displacement anyways. Only case, where in `MODRM.mod = 0b00` you need to use disp32
@@ -206,10 +205,10 @@ See [wiki.osdev.org](https://wiki.osdev.org/X86-64_Instruction_Encoding#32/64-bi
 |  1  |  111  |   R15B   |    R15W   |    R15W   |    R15    |    XMM15    |     YMM15   | 
 
 
->![NOTE]
+> [!NOTE]
 > If you use register from table where `REX` is `1`, then you need to use `REX` prefix.
 
-> ![NOTE]
+> [!NOTE]
 > When any REX prefix is used SPL, BPL, SIL or DIL will be used. Otherwise AH, CH, DH or BH will be used
 
 ### SIB
@@ -232,7 +231,7 @@ See [wiki.osdev.org](https://wiki.osdev.org/X86-64_Instruction_Encoding)
 See [wiki.osdev.org](https://wiki.osdev.org/X86-64_Instruction_Encoding)
 
 ### Displacement
-> ![NOTE]
+> [!NOTE]
 > See [wiki.osdev.org](https://wiki.osdev.org/X86-64_Instruction_Encoding#Displacement)
 
 A displacement value is a 1, 2, 4, or 8 byte offset added to the calculated address. 

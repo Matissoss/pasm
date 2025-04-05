@@ -5,10 +5,10 @@
 
 use std::str::FromStr;
 use crate::{
-    pre::tok::parse_num,
     shr::{
         reg::Register,
-        kwd::Keyword
+        kwd::Keyword,
+        num::Number,
     },
     conf::{
         PREFIX_REG,
@@ -17,6 +17,14 @@ use crate::{
         MEM_START,
     }
 };
+
+#[derive(Debug, PartialEq)]
+pub enum MemErr{
+    NoSizeSpec,
+    TooManyRegisters,
+    InvalidSizeSpec(Keyword),
+    CannotAbsoluteIndex,    // pattern like: (-20)
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
@@ -30,11 +38,12 @@ pub enum MemToken{
     Register(Register),
     UnknownReg(String),
     Number(i64),
+    InvalidVal(Number),
     UnknownVal(String),
     Unknown(String),
 }
 
-fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Option<Mem>{
+fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, MemErr>{
     let mut tok_iter = tokens.iter();
 
     let mut offset      : Option<i64> = None;
@@ -52,7 +61,7 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Option<Mem>{
                 index_reg = Some(*reg);
             }
             else {
-                return None;
+                return Err(MemErr::TooManyRegisters);
             }
         }
     }
@@ -63,19 +72,19 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Option<Mem>{
             Keyword::Dword => 4,
             Keyword::Word  => 2,
             Keyword::Byte  => 1,
-            _              => return None
+            _              => return Err(MemErr::InvalidSizeSpec(kwd))
         }
     }
     else{
-        return None;
+        return Err(MemErr::NoSizeSpec);
     };
 
     return match (offset, base_reg, index_reg){
-        (Some(off), Some(base), Some(index))    => Some(Mem::MemSIB(base, index, off, size)),
-        (Some(off), Some(base), None)           => Some(Mem::MemAddrWOffset(base, off, size)),
-        (None     , Some(base), None)           => Some(Mem::MemAddr(base, size)),
-        (None     , Some(base), Some(index))    => Some(Mem::MemSIB(base, index, 0, size)),
-        _ => None
+        (Some(off), Some(base), Some(index))        => Ok(Mem::MemSIB(base, index, off, size)),
+        (Some(off), Some(base), None)               => Ok(Mem::MemAddrWOffset(base, off, size)),
+        (None     , Some(base), None)               => Ok(Mem::MemAddr(base, size)),
+        (None     , Some(base), Some(index))        => Ok(Mem::MemSIB(base, index, 0, size)),
+        (None, None, _)|(Some(_), None      , _)    => Err(MemErr::CannotAbsoluteIndex),
     };
 }
 
@@ -127,13 +136,15 @@ fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
             }
         },
         PREFIX_VAL => {
-            if let Ok(num) = parse_num(&string){
-                if *minus{
+            if let Ok(num) = Number::from_str(&format!("{}{}", if *minus {"-"} else {""}, string)){
+                if *minus {
                     *minus = false;
-                    MemToken::Number(-num)
+                }
+                if let Some(i) = num.get_int(){
+                    MemToken::Number(i)
                 }
                 else {
-                    MemToken::Number(num)
+                    MemToken::InvalidVal(num)
                 }
             }
             else {
@@ -141,24 +152,32 @@ fn mak_tok(prefix: char, string: String, minus: &mut bool) -> MemToken{
             }
         },
         _ => {
-            if let Ok(num) = parse_num(&string.trim()){
-                if *minus{
+            if let Ok(num) = Number::from_str(&format!("{}{}", if *minus {"-"} else {""}, string)){
+                if *minus {
                     *minus = false;
-                    MemToken::Number(-num)
+                }
+
+                if let Some(i) = num.get_int(){
+                    MemToken::Number(i)
                 }
                 else {
-                    MemToken::Number(num)
+                    MemToken::InvalidVal(num)
                 }
             }
             else {
-                MemToken::Unknown(string)
+                MemToken::UnknownVal(string)
             }
         }
     }
 }
 
 impl Mem {
-    pub fn create(memstr: &str, size_spec: Option<Keyword>) -> Option<Self>{
+    pub fn new(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, MemErr>{
         mem_par(mem_tok(memstr), size_spec)
+    }
+    pub fn size_bytes(&self) -> u8{
+        match self{
+            Self::MemSIB(_,_,_,size)|Self::MemAddrWOffset(_,_,size)|Self::MemAddr(_, size) => *size,
+        }
     }
 }

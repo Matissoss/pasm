@@ -8,10 +8,9 @@ use crate::shr::{
     reg::Register,
     mem::Mem,
     ins::Instruction,
-    kwd::Keyword
+    kwd::Keyword,
+    num::Number
 };
-
-use std::convert::TryInto;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AsmType{
@@ -31,7 +30,7 @@ pub trait ToAsmType{
 #[derive(Debug, Clone)]
 pub enum Operand{
     Reg(Register),
-    Imm(i64),
+    Imm(Number),
     Mem(Mem),
     LabelRef(String),
     ConstRef(String),
@@ -88,7 +87,7 @@ impl TryFrom<Token> for Operand{
             Token::Register(reg) => Ok(Self::Reg(reg)),
             Token::Immediate(nm) => Ok(Self::Imm(nm )),
             Token::MemAddr(mm)   => {
-                if let Some(mem) = Mem::create(&mm, Some(Keyword::Byte)){
+                if let Ok(mem) = Mem::new(&mm, Some(Keyword::Byte)){
                     return Ok(Self::Mem(mem));
                 }
                 else{
@@ -141,52 +140,34 @@ impl ToAsmType for Operand{
     }
 }
 
-// if returns 0 then error
-impl Operand{
-    pub fn size_bytes(&self) -> u8{
-        match self{
-            Self::Reg(rg) => rg.size_bytes(),
-            Self::Imm(im) => {
-                if let Ok(_) = <i64 as TryInto<i8>>::try_into(*im){
-                    return 1;
-                }
-                if let Ok(_) = <i64 as TryInto<i16>>::try_into(*im){
-                    return 2;
-                }
-                if let Ok(_) = <i64 as TryInto<i32>>::try_into(*im){
-                    return 4;
-                }
-                return 8;
+impl ToString for ASTInstruction{
+    fn to_string(&self) -> String{
+        format!("{}{}{}",
+            format!("{:?}", self.ins).to_lowercase(),
+            if let Some(dst) = &self.dst{
+                format!(" {:?}", dst)
+            }
+            else{
+                "".to_string()
             },
-            Self::Mem(mem) => {
-                match mem {
-                    Mem::MemAddr(_, size)           => *size,
-                    Mem::MemSIB(_,_,_,size)         => *size,
-                    Mem::MemAddrWOffset(_,_,size)   => *size,
-                }
+            if let Some(src) = &self.src{
+                format!(" {:?}", src)
+            }
+            else{
+                "".to_string()
             },
-            Self::ConstRef(_) => 0,
-            Self::LabelRef(_) => 0,
-        }
-    }
-    pub fn needs_rex(&self) -> bool{
-        if let Self::Reg(r) = self{
-            return r.needs_rex();
-        }
-        return self.size_bytes() == 8;
+        )
     }
 }
 
-impl ASTInstruction{
-    #[inline(always)]
-    pub fn operand_size_bytes(&self) -> [Option<u8>; 2] {
-        let mut to_ret = [None; 2];
-        if let Some(op) = &self.dst{
-            to_ret[0] = Some(op.size_bytes())
+impl Operand{
+    pub fn size_bytes(&self) -> u8{
+        match self {
+            Self::Imm(n) => n.size_bytes(),
+            Self::Reg(r) => r.size_bytes(),
+            Self::Mem(m) => m.size_bytes(),
+            Self::LabelRef(_) => 0,
+            Self::ConstRef(_) => 0,
         }
-        if let Some(op) = &self.src{
-            to_ret[1] = Some(op.size_bytes())
-        }
-        return to_ret;
     }
 }

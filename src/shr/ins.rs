@@ -1,7 +1,7 @@
 // rasmx86_64 - ins.rs
 // -------------------
 // made by matissoss
-// licensed under MPL 2.0
+// licensed under MPL
 
 use std::str::FromStr;
 use crate::conf::FAST_MODE;

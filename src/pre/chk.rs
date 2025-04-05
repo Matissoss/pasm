@@ -5,7 +5,6 @@
 // ===================
 // Logical syntax check
 
-use crate::color::ColorText;
 use crate::shr::{
     ins::Instruction as Ins,
     ast::{
@@ -14,20 +13,12 @@ use crate::shr::{
         AsmType,
         ToAsmType
     },
+    error::RASMError,
+    error::ExceptionType as ExType
 };
 
-#[derive(Debug)]
-pub enum LogErr{
-    NoDst(Ins, usize),
-    NoSrc(Ins, usize),
-    UnexpSrc(Ins, usize),
-    UnexpDst(Ins, usize),
-    WrongSrc(Ins, usize),
-    WrongDst(Ins, usize)
-}
-
-pub fn check_file(file: &AST) -> Option<Vec<LogErr>>{
-    let mut errors : Vec<LogErr> = Vec::new();
+pub fn check_file(file: &AST) -> Option<Vec<RASMError>>{
+    let mut errors : Vec<RASMError> = Vec::new();
     for label in &file.labels{
         for instr in &label.inst{
             if let Some(err) = chk_ins(instr){
@@ -45,48 +36,84 @@ pub fn check_file(file: &AST) -> Option<Vec<LogErr>>{
 }
 
 type OVA = Option<Vec<AsmType>>;
-fn type_chk(inst: &ASTInstruction, left: OVA, right: OVA) -> Option<LogErr>{
+fn type_chk(inst: &ASTInstruction, left: OVA, right: OVA) -> Option<RASMError>{
     if let Some(dst_types) = left{
         let dst = inst.dst.clone().expect("assert instruction.dst == Some failed");
         if !dst_types.contains(&dst.asm_type()){
-            return Some(LogErr::WrongDst(inst.ins, inst.lin));
+            return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(format!("{:?} {:?} {:?}", inst, inst.dst, inst.src)),
+                    Some(format!("Instruction {:?} doesn't have support for: {:?}", inst.ins, dst)),
+                    Some(format!("expected = {:?}", dst_types)),
+            ));
         }
     }
     if let Some(src_types) = right{
         let src = inst.src.clone().expect("assert instruction.src == Some failed");
         if !src_types.contains(&src.asm_type()){
-            return Some(LogErr::WrongSrc(inst.ins, inst.lin));
+            return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(format!("{:?} {:?} {:?}", inst, inst.dst, inst.src)),
+                    Some(format!("Instruction {:?} doesn't have support for: {:?}", inst.ins, src)),
+                    Some(format!("expected = {:?}", src_types)),
+            ));
         }
     }
 
     return None;
 }
 
-fn inst_has(inst: &ASTInstruction, left: bool, right: bool) -> Option<LogErr>{
+fn inst_has(inst: &ASTInstruction, left: bool, right: bool) -> Option<RASMError>{
     if left {
         if let None = inst.dst{
-            return Some(LogErr::NoDst(inst.ins, inst.lin));
+            return Some(RASMError::new(
+                Some(inst.lin),
+                ExType::Error,
+                Some(inst.to_string()),
+                Some(format!("Expected destination (1 operand), found nothing.")),
+                Some(format!("Try adding first operand"))
+            ));
         }
         if let Some(_) = inst.src{
             if !right{
-                return Some(LogErr::UnexpSrc(inst.ins, inst.lin));
+                return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(inst.to_string()),
+                    Some(format!("Unexpected source (2 operand)!")),
+                    Some(format!("Try removing second operand"))
+                ));
             }
         }
     }
     if right{
         if let None = inst.src {
-            return Some(LogErr::NoSrc(inst.ins, inst.lin));
+            return Some(RASMError::new(
+                Some(inst.lin),
+                ExType::Error,
+                Some(inst.to_string()),
+                Some(format!("Expected source (2 operand), found nothing.")),
+                Some(format!("Try adding first operand"))
+            ));
         }
         if let Some(_) = inst.dst{
             if !left{
-                return Some(LogErr::UnexpDst(inst.ins, inst.lin));
+                return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(inst.to_string()),
+                    Some(format!("Unexpected destination (1 operand)!")),
+                    Some(format!("Try removing first operand"))
+                ));
             }
         }
     }
     return None;
 }
 
-fn chk_ins(inst: &ASTInstruction) -> Option<LogErr> {
+fn chk_ins(inst: &ASTInstruction) -> Option<RASMError> {
     match inst.ins {
         Ins::MOV|Ins::ADD |Ins::SUB|Ins::IMUL
        |Ins::MUL|Ins::IDIV|Ins::DIV|Ins::AND
@@ -143,37 +170,5 @@ fn chk_ins(inst: &ASTInstruction) -> Option<LogErr> {
             }
         },
         Ins::SYSCALL|Ins::RET => return inst_has(&inst, false, false)
-    }
-}
-
-impl ToString for LogErr{
-    fn to_string(&self) -> String {
-        match self {
-            Self::NoDst(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tNo Destination found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-            },
-            Self::NoSrc(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tNo Source found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-            },
-            Self::UnexpSrc(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tUnexpected Source found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-            },
-            Self::UnexpDst(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tUnexpected Destination found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-            },
-            Self::WrongDst(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tWrong Destination found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-
-            },
-            Self::WrongSrc(i,l) => {
-                format!("{}:\n\tAt Line {}\n\tWrong Source found for instruction: {:?}", 
-                    "error".red(), l.to_string().as_str().bold_yellow(), i)
-            }
-        }
     }
 }

@@ -6,8 +6,6 @@
 const EMPTY_STRING : &str = "";
 
 use crate::{
-    color::ColorText,
-    pre::lex::LexErr,
     shr::ast::{
         AST,
         Label,
@@ -15,23 +13,20 @@ use crate::{
         Section,
         VarDec,
         ASTNode,
+    },
+    shr::error::{
+        RASMError,
+        ExceptionType as ExType
     }
 };
 
 pub struct Parser;
 
-#[derive(Debug, Clone)]
-pub enum ASTError{
-    LexerError(LexErr),
-    OutsideLabel(String),
-    UnexpectedEnd
-}
-
-type LexTree= Vec<Result<(ASTNode, usize), LexErr>>;
+type LexTree= Vec<Result<(ASTNode, usize), RASMError>>;
 
 impl Parser{
-    pub fn build_tree(list: LexTree) -> Result<AST, Vec<ASTError>>{
-        let mut errors : Vec<ASTError> = Vec::new();
+    pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>>{
+        let mut errors : Vec<RASMError> = Vec::new();
         let mut ast = AST{sections: Vec::new(), text: Vec::new(), labels: Vec::new()};
         
         let mut inside_label : (bool, String) = (false, String::new());
@@ -40,7 +35,7 @@ impl Parser{
 
         for node in list {
             match node {
-                Err(error) => errors.push(ASTError::LexerError(error)),
+                Err(error) => errors.push(error),
                 Ok(node) => {
                     match node.0 {
                         ASTNode::Label(lbl) => {
@@ -51,12 +46,13 @@ impl Parser{
                         }
                         ASTNode::Ins(ins) => {
                             if let (false, _) = inside_label{
-                                errors.push(ASTError::OutsideLabel(format!(
-                                            "at line {}: {} {:?} {:?}",
-                                    node.1, 
-                                    format!("{:?}", ins.ins).to_lowercase(),
-                                    ins.dst, ins.src
-                                )));
+                                errors.push(RASMError::new(
+                                    Some(node.1),
+                                    ExType::Error,
+                                    Some(format!("{:?} {:?} {:?}", ins.ins, ins.dst, ins.src)),
+                                    Some(format!("This instruction was outside of label!")),
+                                    Some(format!("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this"))
+                                ));
                             }
                             else {
                                 instructions.push(ins);
@@ -64,9 +60,13 @@ impl Parser{
                         },
                         ASTNode::Global(glob) => {
                             if let (false, EMPTY_STRING) = (inside_label.0, inside_label.clone().1.as_str()){
-                                errors.push(ASTError::OutsideLabel(format!(
-                                    "at line {}: !global {}", node.1, glob
-                                )));
+                                errors.push(RASMError::new(
+                                    Some(node.1),
+                                    ExType::Error,
+                                    Some(format!("{}", glob)),
+                                    Some(format!("This global statement was outside of section!")),
+                                    Some(format!("RASM doesn't support globals outside of section. Consider adding it to section .text"))
+                                ));
                             }
                             else if let (false, "text") = (inside_label.0, inside_label.clone().1.as_str()){
                                 ast.text.push(glob)
@@ -76,10 +76,7 @@ impl Parser{
                             inside_label = (false, sec)
                         },
                         ASTNode::End => {
-                            if let (false, EMPTY_STRING) = (inside_label.0, inside_label.clone().1.as_str()){
-                                errors.push(ASTError::UnexpectedEnd);
-                            }
-                            else if let (true, label) = (inside_label.0, inside_label.clone().1){
+                            if let (true, label) = (inside_label.0, inside_label.clone().1){
                                 ast.labels.push(Label{name: label, inst: instructions}); 
                                 instructions = Vec::new();
                             }
@@ -101,20 +98,6 @@ impl Parser{
         }
         else{
             return Ok(ast);
-        }
-    }
-}
-
-impl ToString for ASTError{
-    fn to_string(&self) -> String{
-        match self{
-            Self::LexerError(err) => err.to_string(),
-            Self::OutsideLabel(string) => {
-                format!("{}:\n\tSometing was found outside label/section!\n\t\t`{}`", "error".red(), string)
-            },
-            Self::UnexpectedEnd => {
-                format!("{}:\n\t!end keyword was found outside label/section!", "error".red())
-            }
         }
     }
 }
