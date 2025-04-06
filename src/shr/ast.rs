@@ -151,7 +151,7 @@ impl ToAsmType for Operand{
 
 impl ToString for ASTInstruction{
     fn to_string(&self) -> String{
-        format!("{}{}{}",
+        format!("{}{},{}",
             format!("{:?}", self.ins).to_lowercase(),
             if let Some(dst) = &self.dst{
                 format!(" {}", dst.to_string())

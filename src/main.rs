@@ -30,6 +30,10 @@ pub mod color;
 pub mod cli  ;
 pub mod help ;
 
+use color::{
+    ColString,
+    BaseColor,
+};
 use cli ::CLI;
 use help::Help;
 
@@ -38,6 +42,7 @@ use help::Help;
 fn main(){
     let cli = &*CLI;
     cli.verbose("src/main.rs", "main", "initialized CLI");
+    cli.debug("src/main.rs", "main", &format!("FAST_MODE = {}", conf::FAST_MODE.to_string()));
 
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
@@ -81,9 +86,18 @@ fn parse_file(inpath: &PathBuf) -> AST{
                     }
                     else {
                         if let Some(errs) = pre::chk::check_file(&ast){
-                            for e in errs{
-                                println!("{}", e.to_string());
+                            let mut error_count: usize = 0;
+                            for (name, errors) in errs{
+                                println!("\n--- {} ---\n", ColString::new(name).set_color(BaseColor::PURPLE));
+                                for err in errors{
+                                    error_count += 1;
+                                    println!("{}", err)
+                                }
                             }
+                            CLI.exit("main.rs", "parse_file", 
+                                &format!("Assembling ended unsuccesfully with {}!", 
+                                ColString::new(format!("{} errors", error_count)).set_color(BaseColor::RED)), 
+                            1);
                         }
                         else {
                             return ast;

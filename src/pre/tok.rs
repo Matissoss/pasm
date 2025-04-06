@@ -32,19 +32,16 @@ pub enum Token {
     Immediate(Number),
     Keyword(Keyword),
     Instruction(Instruction),
-    
     Section(String),
     MemAddr(String),
     Label(String),
     LabelRef(String),
     String(String),
     ConstRef(String),
-
     UnknownKeyword(String),
     UnknownReg(String),
     UnknownVal(String, NumberErr),
     Unknown(String),
-    
     Comma,
 }
 
@@ -80,7 +77,7 @@ impl Tokenizer{
 
                 (Some(MEM_START), ',') => tmp_buf.push(c),
                 
-                (Some(PREFIX_REG|PREFIX_VAL), ',') => {
+                (Some(PREFIX_REG|PREFIX_KWD|PREFIX_VAL), ',') => {
                     if tmp_buf.is_empty() == false {
                         tokens.push(Token::make_from(inside_closure, &String::from_iter(tmp_buf.iter())));
                         tmp_buf = Vec::new();

@@ -104,7 +104,7 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, RAS
                 ExType::Error,
                 Some(format!("{:?}", tokens)),
                 Some(format!("Cannot index memory by absolute value")),
-                Some(format!("Try adding register and number as offset")),
+                Some(format!("Try adding register and number as offset.\n\t     (maybe you did forgot that registers are prefixed with '{}' and values with '{}'?)", PREFIX_REG, PREFIX_VAL)),
             ))
         },
     };

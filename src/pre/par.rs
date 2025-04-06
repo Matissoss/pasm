@@ -23,7 +23,6 @@ use crate::{
 pub struct Parser;
 
 type LexTree= Vec<Result<(ASTNode, usize), RASMError>>;
-
 impl Parser{
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>>{
         let mut errors : Vec<RASMError> = Vec::new();

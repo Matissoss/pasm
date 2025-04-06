@@ -8,8 +8,11 @@ use std::fmt::{
     Display,
     Error,
 };
-
-use crate::color::ColorText;
+use crate::color::{
+    ColString,
+    BaseColor,
+    Modifier
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExceptionType{
@@ -30,19 +33,19 @@ pub struct RASMError{
 impl Display for RASMError{
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error>{
         writeln!(frm, 
-            "{}:\n\tAt line {}:\n\t{}\n\t---\n\t{}\n\t===\n\ttip: {}", 
+            "{}:\n\tAt line {}:\n\t{}\n\t---\n\t{}!\n\t===\n\ttip: {}", 
             self.etype,
             if let Some(line) = self.line{
-                line.to_string().as_str().yellow()
+                ColString::new(line).set_modf(Modifier::Bold).set_color(BaseColor::YELLOW)
             }
             else{
-                "unknown".yellow()
+                ColString::new("unknown")
             },
             if let Some(cont) = &self.cont {
-                cont.as_str().green()
+                ColString::new(cont).set_modf(Modifier::Bold).set_color(BaseColor::GREEN)
             }
             else {
-                "unknown".green()
+                ColString::new("unknown")
             },
             if let Some(msg) = &self.msg {
                 msg.as_str()
@@ -51,10 +54,10 @@ impl Display for RASMError{
                 "unknown"
             },
             if let Some(tip) = &self.tip {
-                tip.as_str()
+                ColString::new(tip).set_color(BaseColor::BLUE)
             }
             else {
-                "unknown"
+                ColString::new("unknown")
             },
         )
     }
@@ -64,13 +67,13 @@ impl Display for ExceptionType{
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error>{
         write!(frm, "{}", 
             if let Self::Warn = self{
-                "warn".yellow()
+                ColString::new("warn").set_color(BaseColor::YELLOW)
             }
             else if let Self::Error = self{
-                "error".red()
+                ColString::new("error").set_color(BaseColor::RED)
             }
             else {
-                "info".blue()
+                ColString::new("info").set_color(BaseColor::BLUE)
             }
         )
     }

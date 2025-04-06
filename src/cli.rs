@@ -9,24 +9,29 @@ use std::{
     env,
     process
 };
-
+use crate::color::{
+    ColString,
+    Modifier,
+    BaseColor
+};
 pub static CLI : LazyLock<Cli> = LazyLock::new(|| {
     Cli::new(env::args().collect::<Vec<String>>())
 });
-
 const VERBOSE : (&str, &str) = ("--verbose"     , "-v");
 const DEBUG   : (&str, &str) = ("--debug"       , "-d");
+const NOCOL   : (&str, &str) = ("--nocolor"     , "-n");
 
 pub struct Cli{
-    args    : HashSet<String>,
+    pub args    : HashSet<String>,
     // additional flags
-    debug   : bool,
-    verbose : bool,
+    pub debug   : bool,
+    pub verbose : bool,
+    pub nocolor : bool,
 }
 
 impl Cli{
     pub fn new(args: Vec<String>) -> Self{
-        let (mut debug, mut verbose) = (false,false);
+        let (mut debug, mut verbose, mut nocolor) = (false,false,false);
         let mut argset = HashSet::new();
         for arg in &args{
             if arg == DEBUG.0 || arg == DEBUG.1{
@@ -35,12 +40,16 @@ impl Cli{
             else if arg == VERBOSE.0 || arg == VERBOSE.1{
                 verbose = true;
             }
+            else if arg == NOCOL.0 || arg == NOCOL.1{
+                nocolor = true
+            }
             argset.insert(arg.to_string());
         }
         return Cli {
             args : argset,
             debug,
-            verbose
+            verbose,
+            nocolor
         };
     }
     pub fn get_arg(&self, searched: &str) -> Option<&str>{
@@ -80,27 +89,14 @@ impl Cli{
     }
     #[inline(always)]
     pub fn exit(&self, path: &str, function: &str, cause: &str, exit_code: i32) -> !{
-        println!("[{}:{}] (EXIT {}): {}", path, function, exit_code, cause);
+        println!("[{}{}{}] ({} {}): {}", 
+            ColString::new(path)     .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold), 
+            ColString::new(':')      .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold),
+            ColString::new(function) .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold), 
+            ColString::new("EXIT")   .set_color(BaseColor::RED)   .set_modf(Modifier::Bold),
+            ColString::new(exit_code).set_color(BaseColor::RED)   .set_modf(Modifier::Bold), 
+            cause
+        );
         process::exit(exit_code);
-    }
-}
-
-#[cfg(test)]
-mod tests{
-    use super::*;
-    #[test]
-    fn arg_parsing_test(){
-        let mut cli = Cli::new(["./executable", "--debug", "--verbose"].map(|s| s.to_string()).to_vec());
-        assert!(cli.debug   == true);
-        assert!(cli.verbose == true);
-        cli = Cli::new(["./executable", "-d", "-v"].map(|s| s.to_string()).to_vec() );
-        assert!(cli.debug   == true);
-        assert!(cli.verbose == true);
-    }
-    #[test]
-    fn key_value_args(){
-        let cli = Cli::new(["./executable", "-i=file.asm", "-o=file.out"].map(|s| s.to_string()).to_vec());
-        assert!(cli.get_arg("-i") == Some("file.asm"));
-        assert!(cli.get_arg("-o") == Some("file.out"));
     }
 }

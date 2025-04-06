@@ -54,7 +54,7 @@ impl Lexer{
                                 Some(line_count),
                                 ExType::Error,
                                 Some(Tokens(line).to_string()),
-                                Some(format!("Found wrong size specifier for memory!")),
+                                Some(format!("Found wrong size specifier for memory")),
                                 Some(format!("Place either one of these after memory declaration: !byte, !word, !dword, !qword"))
                             )));
                             continue;
@@ -210,6 +210,13 @@ where T: PartialEq + Clone{
 
 fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
     match tok.len(){
+        0 => return Err(RASMError::new(
+            None,
+            ExType::Error,
+            Some(Tokens(tok.to_vec()).to_string()),
+            Some(format!("Tried to make operand from '' (blank)")),
+            Some(format!("Consider adding operand to one of sides (destination or source) of instruction."))
+        )),
         1 => {
             match Operand::try_from(tok[0].clone()){
                 Ok(op) => Ok(op),
@@ -219,7 +226,7 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
                         ExType::Error,
                         Some(Tokens(tok.to_vec()).to_string()),
                         Some(format!("Couldn't parse following tokens into operand")),
-                        Some(format!("Try formatting as constref, labelref, immediate, register or memory!"))
+                        Some(format!("Try formatting as constref, labelref, immediate, register or memory\n\t     (or maybe you did forgot to add size specifier after memory?)"))
                     ));
                 }
             }
@@ -241,12 +248,15 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
                 ))
             }
         },
-        _ => Err(RASMError::new(
-            None,
-            ExType::Error,
-            Some(Tokens(tok.to_vec()).to_string()),
-            Some(format!("Too much tokens were found")),
-            Some(format!("Expected (at most) 2 tokens, found more (or 0)"))
-        ))
+        _ => {
+            println!("{:?}", tok);
+            Err(RASMError::new(
+                None,
+                ExType::Error,
+                Some(Tokens(tok.to_vec()).to_string()),
+                Some(format!("Too much tokens were found")),
+                Some(format!("Expected (at most) 2 tokens, found more."))
+            ))
+        }
     }
 }

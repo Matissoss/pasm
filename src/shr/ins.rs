@@ -150,8 +150,13 @@ impl FromStr for Instruction{
 }
 
 impl Instruction{
-    // currently only false
-    pub fn allows_diff_size(&self) -> bool{
+    pub fn allows_diff_size(&self, _left: Option<u8>, _right: Option<u8>) -> bool{
         return false;
+    }
+    pub fn allows_mem_mem(&self) -> bool{
+        return false;
+    }
+    pub fn is_jump(&self) -> bool{
+        format!("{:?}", self).starts_with('J')
     }
 }

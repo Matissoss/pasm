@@ -8,19 +8,14 @@ use std::str::FromStr;
 pub enum Number{
     Float   (f32),
     Double  (f64),
-
     Int8    (i8),
     UInt8   (u8),
-
     Int16   (i16),
     UInt16  (u16),
-
     Int32   (i32),
     UInt32  (u32),
-
     Int64   (i64),
     UInt64  (u64),
-
     Char    (char)
 }
 
