@@ -82,7 +82,7 @@ pub struct Section{
     pub vars : Option<Vec<VarDec>>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AST{
     pub sections: Vec<Section>,
     pub text: Vec<String>,

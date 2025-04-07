@@ -11,6 +11,3 @@ lto = "thin"
 panic = "abort"
 codegen-units = 1
 debug = false
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]

@@ -17,7 +17,6 @@ use std::{
 pub mod pre;
 pub mod shr;
 pub mod core;
-//pub mod core;
 
 use pre::tok::Tokenizer;
 use pre::lex::Lexer;

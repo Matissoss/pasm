@@ -5,7 +5,6 @@
 
 use std::{
     sync::LazyLock,
-    collections::HashSet,
     env,
     process
 };
@@ -22,7 +21,7 @@ const DEBUG   : (&str, &str) = ("--debug"       , "-d");
 const NOCOL   : (&str, &str) = ("--nocolor"     , "-n");
 
 pub struct Cli{
-    pub args    : HashSet<String>,
+    pub args    : Vec<String>,
     // additional flags
     pub debug   : bool,
     pub verbose : bool,
@@ -32,8 +31,8 @@ pub struct Cli{
 impl Cli{
     pub fn new(args: Vec<String>) -> Self{
         let (mut debug, mut verbose, mut nocolor) = (false,false,false);
-        let mut argset = HashSet::new();
-        for arg in &args{
+        let mut argset = Vec::new();
+        for arg in args{
             if arg == DEBUG.0 || arg == DEBUG.1{
                 debug = true;
             }
@@ -43,7 +42,7 @@ impl Cli{
             else if arg == NOCOL.0 || arg == NOCOL.1{
                 nocolor = true
             }
-            argset.insert(arg.to_string());
+            argset.push(arg.to_string());
         }
         return Cli {
             args : argset,
@@ -72,10 +71,6 @@ impl Cli{
         if self.debug{
             println!("[{}:{}] (DEBUG): {}", path, function, msg);
         }
-    }
-    #[inline(always)]
-    pub fn warn(&self, path: &str, function: &str, msg: &str){
-        println!("[{}:{}] (WARN): {}", path, function, msg);
     }
     #[inline(always)]
     pub fn error(&self, path: &str, function: &str, msg: &str){

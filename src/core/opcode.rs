@@ -2,5 +2,3 @@
 // ----------------------
 // made by matissoss
 // licensed under MPL
-
-use crate::shr::ins::Instruction as Ins;
