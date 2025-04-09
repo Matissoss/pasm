@@ -130,15 +130,15 @@ In other cases, REX prefix is ignored. If multiple REX prefixes are found, it le
 ```
 8   7   6   5   4   3   2   1
 +---+---+---+---+---+---+---+
-|   b100    | W | R | X | B |
+|   b0100   | W | R | X | B |
 +---+---+---+---+---+---+---+
 ```
 
 - **0100** : fixed bit pattern
 - **W bit**: 1 = 64-bit operand used; 0 = default operand size;
-- **R bit**: extension in MODRM.reg field
+- **R bit**: extension in MODRM.reg field (source operand)
 - **X bit**: extension in SIB.index
-- **B bit**: extension to either MODRM.reg or SIB.base
+- **B bit**: extension to either MODRM.reg (destination operand) or SIB.base
 
 #### VEX/EVEX prefix
 
@@ -257,3 +257,5 @@ When an 8 byte immediate value is encoded, no displacement can be encoded.
 Most of info here comes from [wiki.osdev.org](https://wiki.osdev.org) and other opcode tables and **Some parts directly come from** [wiki.osdev.org](https://wiki.osdev.org).
 
 For opcode table see this source: [felixcloutier.com/x86](https://www.felixcloutier.com/x86/)
+
+

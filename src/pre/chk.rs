@@ -2,7 +2,7 @@
 // -------------------
 // made by matissoss
 // licensed under MPL
-
+use crate::conf::PREFIX_REG;
 use crate::shr::{
     ins::Instruction as Ins,
     ast::{
@@ -47,6 +47,18 @@ fn size_check(inst: &ASTInstruction) -> Option<RASMError>{
                 ));
             }
             return None;
+        }
+        if let Operand::Mem(m_i) = s{
+            if d.size_bytes() > m_i.size_bytes(){
+                return Some(RASMError::new(
+                    Some(inst.lin),
+                    ExType::Error,
+                    Some(inst.to_string()),
+                    Some(format!("Illegal operation: tried to assign {}-bit value from address into {}-bit destination", 
+                        m_i.size_bytes() * 8, d.size_bytes() * 8)),
+                    Some(format!("Consider using smaller register, like `{}cl` instead of `{}rcx` for 8-bit value.", PREFIX_REG, PREFIX_REG))
+                ))
+            }
         }
         if d.size_bytes() != s.size_bytes() && !inst.ins.allows_diff_size(Some(d.size_bytes()), Some(s.size_bytes())){
             return Some(RASMError::new(
