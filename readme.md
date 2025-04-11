@@ -4,21 +4,23 @@
 
 ## about
 
-rasmx86_64 (or just rasm) is assembler for x86-64 architecture. It is part of project that I won't leak yet.
+rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 
-> [!WARNING]
-> rasmx86_64 is under heavy development. It currently supports ~100 x86-64 instructions (around ~9%)
+> [!NOTE]
+> This assembler is only "proof of concept", because
+> I didn't know very much about x86-64 architecture at beginning of rasmx86-64, so I made a lot of bad decisions.
+> rasm only implements basics: SIB, displacement, REX, ModRM, Registers, immediates and opcode. 
+> No support for constants and sections (which I also messed up). No support for `.o` files, only flat binary.
+>
+> Hovewer, you can expect, that I'll make another x86-64 assembler in close future, learning from my mistakes. :)
+>
+> -- matissoss
 
 ## roadmap
 
 - [x] Frontend for assembler (tokenizer, lexer, parser)
 - [x] AST
-- [ ] Instruction encoding support (with REX, MODRM, registers, SIB, displacement and immediates)
-- [ ] Releasing as MVP version.
-- [ ] Supporting ~25% of x86-64 instructions.
-- [ ] AVX support (registers xmm0-15 and instructions related to them, VEX prefix)
-- [ ] AVX-256 support (registers ymm0-15 and instructions related to them)
-- [ ] Full 100% of x86-64 instructions (except AVX-512 and FPU, because I don't have access in my CPU)
+- [ ] Instruction encoding support (with REX, ModRM, registers, SIB, displacement and immediates)
 
 ## credits
 

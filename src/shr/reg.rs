@@ -445,4 +445,48 @@ impl Register{
             _ => false
         }
     }
+    pub fn to_byte(&self) -> u8{
+        match &self {
+             Self::R8 |Self::R8B |Self::R8W
+            |Self::R8D|Self::XMM8|Self::YMM8
+            |Self::AL |Self::AX  |Self::EAX
+            |Self::RAX|Self::XMM0|Self::YMM0 => 0,
+
+            Self::R9   | Self::R9B | Self::R9W | Self::R9D |
+            Self::CL   | Self::CX  | Self::ECX | Self::RCX |
+            Self::XMM1 | Self::YMM1| Self::XMM9|
+            Self::YMM9 => 1,
+
+            Self::R10 | Self::R10B | Self::R10W | Self::R10D |
+            Self::DL  | Self::DX   | Self::EDX  | Self::XMM2 |
+            Self::RDX |
+            Self::YMM2| Self::XMM10| Self::YMM10 => 0b10,
+
+            Self::R11 | Self::R11B | Self::R11W | Self::R11D |
+            Self::BL  | Self::BX   | Self::EBX  | Self::XMM3 |
+            Self::RBX |
+            Self::YMM3| Self::XMM11| Self::YMM11 => 0b11,
+            
+            Self::R12 | Self::R12B | Self::R12W | Self::R12D |
+            Self::AH  | Self::SP   | Self::ESP  | Self::XMM4 |
+            Self::SPL | Self::RSP  |
+            Self::YMM4| Self::XMM12| Self::YMM12 => 0b100,
+            
+            Self::R13 | Self::R13B | Self::R13W | Self::R13D |
+            Self::CH  | Self::BP   | Self::EBP  | Self::XMM5 |
+            Self::BPL | Self::RBP  |
+            Self::YMM5| Self::XMM13| Self::YMM13 => 0b101,
+            
+            Self::R14 | Self::R14B | Self::R14W | Self::R14D |
+            Self::DH  | Self::SI   | Self::ESI  | Self::XMM6 |
+            Self::SIL | Self::RSI  |
+            Self::YMM6| Self::XMM14| Self::YMM14 => 0b110,
+            
+            Self::R15 | Self::R15B | Self::R15W | Self::R15D |
+            Self::BH  | Self::DI   | Self::EDI  | Self::XMM7 |
+            Self::DIL | Self::RDI  |
+            Self::YMM7| Self::XMM15| Self::YMM15 => 0b111,
+            _ => 0,
+        }
+    }
 }

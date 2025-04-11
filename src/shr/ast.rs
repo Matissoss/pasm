@@ -227,3 +227,37 @@ impl ToString for Operand{
         }
     }
 }
+
+impl ASTInstruction{
+    pub fn size(&self) -> u8{
+        let dst = match &self.dst{
+            Some(o) => o.size_bytes(),
+            None    => 0,
+        };
+        let src = match &self.src{
+            Some(o) => o.size_bytes(),
+            None => 0,
+        };
+
+        return match (dst, src) {
+            (0, _) => src,
+            (_, 0) => dst,
+            (_, _) => {
+                if let Some(Operand::Imm(n)) = &self.src{
+                    if dst < n.size_bytes(){
+                        return dst;
+                    }
+                    else {
+                        return 0;
+                    }
+                }
+                if dst != src {
+                    return 0;
+                }
+                else {
+                    return dst;
+                }
+            },
+        }
+    }
+}

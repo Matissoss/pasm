@@ -27,15 +27,33 @@ fn needs_rex(ins: &ASTInstruction) -> bool{
     }
     match &ins.ins{
         Ins::ADD|Ins::MOV => true,
-        _        => false,
+        _        => {
+            if let Some(Operand::Reg(dst)) = ins.dst{
+                if dst.needs_rex(){
+                    return true;
+                }
+            }
+            if let Some(Operand::Reg(src)) = ins.src{
+                if src.needs_rex(){
+                    return true;
+                }
+            }
+            return false;
+        },
+    }
+}
+
+fn defaults_to_64bit(ins: &Ins) -> bool{
+    return match ins {
+        Ins::PUSH|Ins::POP => true,
+        _ => false
     }
 }
 
 fn calc_rex(ins: &ASTInstruction) -> u8{
     // fixed pattern
     let base = 0b0100_0000;
-    // we can assert that 64-bit operand is used, because of earlier steps
-    let w : u8 = 1;
+    let w : u8 = if defaults_to_64bit(&ins.ins) {0} else {1};
     let r : u8 = if let Some(Operand::Reg(reg)) = ins.src{
         if reg.needs_rex() {1} else {0} 
     } else {0};

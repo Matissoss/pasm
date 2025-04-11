@@ -120,7 +120,7 @@ When mandatory prefix is needed, it is put with modifier prefixes BEFORE REX pre
 
 REX Prefix must be added when:
 
-- Using 64-bit operand, while instruction DOES NOT default to 64-bit size,
+- Using 64-bit operand, when instruction DOES NOT default to 64-bit size,
 - Using extended registers (found in [Registers](#Registers), where `REX` = `1`)
 
 In other cases, REX prefix is ignored. If multiple REX prefixes are found, it leads to undefined behaviour.
@@ -128,10 +128,10 @@ In other cases, REX prefix is ignored. If multiple REX prefixes are found, it le
 ##### Encoding
 
 ```
-8   7   6   5   4   3   2   1
-+---+---+---+---+---+---+---+
-|   b0100   | W | R | X | B |
-+---+---+---+---+---+---+---+
+8   7   6   5   4   3   2   1   0
++---+---+---+---+---+---+---+---+
+|     b0100     | W | R | X | B |
++---+---+---+---+---+---+---+---+
 ```
 
 - **0100** : fixed bit pattern
