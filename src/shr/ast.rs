@@ -7,9 +7,10 @@ use crate::pre::tok::Token;
 use crate::shr::{
     reg::Register,
     mem::Mem,
-    ins::Instruction,
+    ins::Mnemonic as Mnm,
     kwd::Keyword,
-    num::Number
+    num::Number,
+    size::Size,
 };
 use crate::conf::{
     PREFIX_LAB,
@@ -24,6 +25,8 @@ use crate::conf::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum AsmType{
     Imm,
+    ImmFloat,
+    ImmDouble,
     Reg,
     Mem,
     ConstRef,
@@ -46,47 +49,44 @@ pub enum Operand{
 }
 
 #[derive(Debug, Clone)]
-pub struct ASTInstruction{
-    pub ins : Instruction,
-    pub src : Option<Operand>,
-    pub dst : Option<Operand>,
-    pub lin : usize,
+pub struct Instruction{
+    pub mnem : Mnm,
+    pub addt : Option<Vec<Mnm>>,
+    pub oprs : Vec<Operand>,
+    pub line : usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VarDec{
     pub name: String,
-    pub size: u8,
-    pub content: String
+    pub size: usize,
+    pub bss : bool,
+    pub content: Option<String>
 }
 
 #[derive(Debug, Clone)]
 pub enum ASTNode{
-    Ins(ASTInstruction),
+    Ins(Instruction),
     Label(String),
     Global(String),
     Section(String),
     VarDec(VarDec),
-    End
+    Entry(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Label{
     pub name : String,
-    pub inst : Vec<ASTInstruction>
-}
-
-#[derive(Debug, Clone)]
-pub struct Section{
-    pub name : String,
-    pub vars : Option<Vec<VarDec>>
+    pub inst : Vec<Instruction>
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct AST{
-    pub sections: Vec<Section>,
-    pub text: Vec<String>,
-    pub labels: Vec<Label>
+    pub global: Vec<String>,
+    pub labels: Vec<Label> ,
+    pub variab: Vec<VarDec>,
+    pub entry : String,
+    pub bits  : u8,
 }
 
 impl TryFrom<Token> for Operand{
@@ -114,6 +114,8 @@ impl ToString for AsmType{
     fn to_string(&self) -> String{
         match self {
             Self::Imm   => String::from("immX"),
+            Self::ImmFloat => String::from("float"),
+            Self::ImmDouble => String::from("double"),
             Self::Mem   => String::from("memX"),
             Self::Reg   => String::from("regX"),
             Self::LabelRef => String::from("labelref"),
@@ -144,39 +146,39 @@ impl ToAsmType for Operand{
             Self::Mem(_)        => AsmType::Mem,
             Self::LabelRef(_)   => AsmType::LabelRef,
             Self::ConstRef(_)   => AsmType::ConstRef,
-            Self::Imm(_)        => AsmType::Imm,
+            Self::Imm(n)        => match n {
+                Number::Float(_) => AsmType::ImmFloat,
+                Number::Double(_) => AsmType::ImmDouble,
+                _ => AsmType::Imm,
+            }
         }
     }
 }
 
-impl ToString for ASTInstruction{
+impl ToString for Instruction{
     fn to_string(&self) -> String{
-        format!("{}{},{}",
-            format!("{:?}", self.ins).to_lowercase(),
-            if let Some(dst) = &self.dst{
-                format!(" {}", dst.to_string())
+        let mut mnems : String = self.mnem.to_string();
+        if let Some(addt) = &self.addt{
+            for mnm in addt {
+                mnems.push_str(&format!(" {}", mnm.to_string()))
             }
-            else{
-                "".to_string()
-            },
-            if let Some(src) = &self.src{
-                format!(" {}", src.to_string())
-            }
-            else{
-                "".to_string()
-            },
-        )
+        }
+        let mut oprs = String::new();
+        for operand in &self.oprs{
+            oprs.push_str(&format!(" {}", operand.to_string()))
+        }
+        return format!("{} {}", mnems, oprs)
     }
 }
 
 impl Operand{
-    pub fn size_bytes(&self) -> u8{
+    pub fn size(&self) -> Size{
         match self {
-            Self::Imm(n) => n.size_bytes(),
-            Self::Reg(r) => r.size_bytes(),
-            Self::Mem(m) => m.size_bytes(),
-            Self::LabelRef(_) => 0,
-            Self::ConstRef(_) => 0,
+            Self::Imm(n) => n.size(),
+            Self::Reg(r) => r.size(),
+            Self::Mem(m) => m.size(),
+            Self::LabelRef(_) => Size::Unknown,
+            Self::ConstRef(_) => Size::Unknown,
         }
     }
 }
@@ -189,36 +191,15 @@ impl ToString for Operand{
             Self::Mem(m) => {
                 match m {
                     Mem::MemAddr(r, s) =>
-                        format!("{}{}{}{} {}{}", MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, 
-                        match s{
-                            1 => "byte",
-                            2 => "word",
-                            4 => "dword",
-                            8 => "qword",
-                            _ => "{unknown}"
-                        }
+                        format!("{}{}{}{} {}{}", MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, s
                     ),
                     Mem::MemAddrWOffset(r, o, s) => 
-                        format!("{}{}{}{}{} {}{}", o, MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, 
-                            match s{
-                                1 => "byte",
-                                2 => "word",
-                                4 => "dword",
-                                8 => "qword",
-                                _ => "{unknown}"
-                            }
+                        format!("{}{}{}{}{} {}{}", o, MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, s
                         ),
                     Mem::MemSIB(base, index, scale, displacement) => 
                         format!("{}{}{}{},{}{}{} {}{}", 
                             displacement, MEM_START, PREFIX_REG, base.to_string(), 
-                            PREFIX_REG, index.to_string(), MEM_CLOSE, PREFIX_KWD,
-                            match scale{
-                                1 => "byte",
-                                2 => "word",
-                                4 => "dword",
-                                8 => "qword",
-                                _ => "{unknown}"
-                            }
+                            PREFIX_REG, index.to_string(), MEM_CLOSE, PREFIX_KWD, scale
                     ),
                 }
             },
@@ -228,36 +209,42 @@ impl ToString for Operand{
     }
 }
 
-impl ASTInstruction{
-    pub fn size(&self) -> u8{
-        let dst = match &self.dst{
-            Some(o) => o.size_bytes(),
-            None    => 0,
+impl Instruction{
+    pub fn size(&self) -> Size{
+        let dst = match &self.dst(){
+            Some(o) => o.size(),
+            None    => Size::Unknown,
         };
-        let src = match &self.src{
-            Some(o) => o.size_bytes(),
-            None => 0,
+        let src = match &self.src(){
+            Some(o) => o.size(),
+            None => Size::Unknown,
         };
 
         return match (dst, src) {
-            (0, _) => src,
-            (_, 0) => dst,
+            (Size::Unknown, _) => src,
+            (_, Size::Unknown) => dst,
             (_, _) => {
-                if let Some(Operand::Imm(n)) = &self.src{
-                    if dst < n.size_bytes(){
+                if let Some(Operand::Imm(n)) = &self.src(){
+                    if dst < n.size(){
                         return dst;
                     }
                     else {
-                        return 0;
+                        return Size::Unknown;
                     }
                 }
                 if dst != src {
-                    return 0;
+                    return Size::Unknown;
                 }
                 else {
                     return dst;
                 }
             },
         }
+    }
+    pub fn dst(&self) -> Option<&Operand> {
+        return self.oprs.get(0)
+    }
+    pub fn src(&self) -> Option<&Operand> {
+        return self.oprs.get(1)
     }
 }

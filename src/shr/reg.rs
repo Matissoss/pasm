@@ -1,13 +1,16 @@
-//  rasmx86_64  - reg.rs
-//  --------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// rasmx86_64 - reg.rs
+// --------------------
+// made by matissoss
+// licensed under MPL
 
 use crate::{
     conf::FAST_MODE,
-    shr::ast::{
-        ToAsmType,
-        AsmType
+    shr::{
+        ast::{
+            ToAsmType,
+            AsmType
+        },
+        size::Size,
     }
 };
 use std::str::FromStr;
@@ -385,19 +388,19 @@ impl ToAsmType for Register{
 }
 
 impl Register{
-    pub fn size_bytes(&self) -> u8 {
+    pub fn size(&self) -> Size {
         match self{
             Self::AL  |Self::BL  |Self::CL  |Self::DL   |
             Self::AH  |Self::BH  |Self::CH  |Self::DH   |
             Self::SPL |Self::BPL |Self::SIL |Self::DIL  |
             Self::R8B |Self::R9B |Self::R10B|Self::R11B |
-            Self::R12B|Self::R13B|Self::R14B|Self::R15B => 1,
+            Self::R12B|Self::R13B|Self::R14B|Self::R15B => Size::Byte,
 
             Self::AX  |Self::BX  |Self::CX  |Self::DX   |
             Self::SP  |Self::BP  |Self::SI  |Self::DI   |
             Self::IP  |
             Self::R8W |Self::R9W |Self::R10W|Self::R11W |
-            Self::R12W|Self::R13W|Self::R14W|Self::R15W => 2,
+            Self::R12W|Self::R13W|Self::R14W|Self::R15W => Size::Word,
 
             Self::EAX |Self::EBX |Self::ECX |Self::EDX  |
             Self::ESP |Self::EBP |Self::ESI |Self::EDI  |
@@ -406,23 +409,23 @@ impl Register{
             Self::CR8 |Self::DR0 |Self::DR1 |Self::DR2  |
             Self::DR3 |Self::DR6 |Self::DR7 |
             Self::R8D |Self::R9D |Self::R10D|Self::R11D |
-            Self::R12D|Self::R13D|Self::R14D|Self::R15D => 4,
+            Self::R12D|Self::R13D|Self::R14D|Self::R15D => Size::Dword,
 
             Self::RAX |Self::RBX |Self::RCX |Self::RDX  |
             Self::RSP |Self::RBP |Self::RSI |Self::RDI  |
             Self::R8  |Self::R9  |Self::R10 |Self::R11  |
             Self::RIP |
-            Self::R12 |Self::R13 |Self::R14 |Self::R15  => 8,
+            Self::R12 |Self::R13 |Self::R14 |Self::R15  => Size::Qword,
 
             Self::XMM0 |Self::XMM1 |Self::XMM2 |Self::XMM3  |
             Self::XMM4 |Self::XMM5 |Self::XMM6 |Self::XMM7  |
             Self::XMM8 |Self::XMM9 |Self::XMM10|Self::XMM11 |
-            Self::XMM12|Self::XMM13|Self::XMM14|Self::XMM15 => 16,
+            Self::XMM12|Self::XMM13|Self::XMM14|Self::XMM15 => Size::Xword,
 
             Self::YMM0 |Self::YMM1 |Self::YMM2 |Self::YMM3  |
             Self::YMM4 |Self::YMM5 |Self::YMM6 |Self::YMM7  |
             Self::YMM8 |Self::YMM9 |Self::YMM10|Self::YMM11 |
-            Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => 32,
+            Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => Size::Yword,
 
         }
     }
@@ -487,6 +490,12 @@ impl Register{
             Self::DIL | Self::RDI  |
             Self::YMM7| Self::XMM15| Self::YMM15 => 0b111,
             _ => 0,
+        }
+    }
+    pub fn variant_of_ax(&self) -> bool{
+        match self{
+            Self::EAX|Self::AX|Self::AL|Self::RAX => true,
+            _ => false
         }
     }
 }

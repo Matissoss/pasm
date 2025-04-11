@@ -135,8 +135,8 @@ In other cases, REX prefix is ignored. If multiple REX prefixes are found, it le
 ```
 
 - **0100** : fixed bit pattern
-- **W bit**: 1 = 64-bit operand used; 0 = default operand size;
-- **R bit**: extension in MODRM.reg field (source operand)
+- **W bit**: 1 = 64-bit operand used; 0 = default operand size; only used, when instruction doesn't default to 64-bit operands (like `mov`).
+- **R bit**: extension in MODRM.reg field (source operand) or to recognize different opcodes (like `push` and it's variants).
 - **X bit**: extension in SIB.index
 - **B bit**: extension to either MODRM.reg (destination operand) or SIB.base
 

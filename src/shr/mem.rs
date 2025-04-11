@@ -12,7 +12,8 @@ use crate::{
         error::{
             RASMError,
             ExceptionType as ExType
-        }
+        },
+        size::Size,
     },
     conf::{
         PREFIX_REG,
@@ -24,9 +25,9 @@ use crate::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Mem{
-    MemAddr(Register, u8),
-    MemAddrWOffset(Register, i64, u8),
-    MemSIB(Register, Register, i64, u8),
+    MemAddr(Register, Size),
+    MemAddrWOffset(Register, i64, Size),
+    MemSIB(Register, Register, i64, Size),
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -68,12 +69,12 @@ fn mem_par(tokens: Vec<MemToken>, size_spec: Option<Keyword>) -> Result<Mem, RAS
         }
     }
 
-    let size: u8 = if let Some(kwd) = size_spec{
+    let size: Size = if let Some(kwd) = size_spec{
         match kwd {
-            Keyword::Qword => 8,
-            Keyword::Dword => 4,
-            Keyword::Word  => 2,
-            Keyword::Byte  => 1,
+            Keyword::Qword => Size::Qword,
+            Keyword::Dword => Size::Dword,
+            Keyword::Word  => Size::Word,
+            Keyword::Byte  => Size::Byte,
             _              => return Err(RASMError::new(
                 None,
                 ExType::Error,
@@ -197,7 +198,7 @@ impl Mem {
     pub fn new(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError>{
         mem_par(mem_tok(memstr), size_spec)
     }
-    pub fn size_bytes(&self) -> u8{
+    pub fn size(&self) -> Size{
         match self{
             Self::MemSIB(_,_,_,size)|Self::MemAddrWOffset(_,_,size)|Self::MemAddr(_, size) => *size,
         }

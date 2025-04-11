@@ -4,8 +4,8 @@
 // licensed under MPL
 
 use crate::shr::{
-    reg::Register as Reg,
-    mem::Mem,
+    //reg::Register as Reg,
+    //mem::Mem,
     ast::Operand as Op
 };
 

@@ -1,14 +1,15 @@
-//  rasmx86_64   -  tok.rs
-//  ----------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// rasmx86_64 - tok.rs
+// -------------------
+// made by matissoss
+// licensed under MPL
+
 
 use std::str::FromStr;
 use crate::{
     shr::{
         reg::Register,
         kwd::Keyword,
-        ins::Instruction,
+        ins::Mnemonic as Mnm,
         num::{
             Number,
             FromStrNumberErr as NumberErr
@@ -31,7 +32,7 @@ pub enum Token {
     Register(Register),
     Immediate(Number),
     Keyword(Keyword),
-    Instruction(Instruction),
+    Mnemonic(Mnm),
     Section(String),
     MemAddr(String),
     Label(String),
@@ -156,8 +157,8 @@ impl Token{
             Some(PREFIX_LAB) => Self::LabelRef(val.to_string()),
             Some(PREFIX_REF) => Self::ConstRef(val.to_string()),
             _   => {
-                if let Ok(ins) = Instruction::from_str(val){
-                    Self::Instruction(ins)
+                if let Ok(mnm) = Mnm::from_str(val){
+                    Self::Mnemonic(mnm)
                 }
                 else {
                     Self::Unknown(val.to_string())
@@ -174,7 +175,7 @@ impl ToString for Token{
             Self::MemAddr(mem)          => mem.to_string(),
             Self::Immediate(v)          => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd)          => kwd.to_string(),
-            Self::Instruction(i)        => format!("{}", format!("{:?}", i).to_lowercase()),
+            Self::Mnemonic(m)           => format!("{}", format!("{:?}", m).to_lowercase()),
             Self::Label(lbl)            => lbl.to_string(),
             Self::LabelRef(lbl)         => format!("{}{}", PREFIX_LAB, lbl),
             Self::String(str)           => format!("\"{}\"", str),

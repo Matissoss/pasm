@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL
 use std::str::FromStr;
+use crate::shr::size::Size;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Number{
@@ -24,7 +25,6 @@ pub enum FromStrNumberErr{
     InvalidEscapeChar(char),
     InvalidHexChar(char),
     InvalidBinChar(char),
-    InvalidOctChar(char),
     Other
 }
 
@@ -71,7 +71,7 @@ impl FromStr for Number{
                     let mut number : u64 = 0;
 
                     let mut index = 0;
-                    for i in 2..bytes.len(){
+                    for i in (2..bytes.len()).rev(){
                         let nm = hexchar(bytes[i] as char) as u64;
                         if nm != 16 {
                             number += nm * (16u64.pow(index))
@@ -87,45 +87,13 @@ impl FromStr for Number{
                     let mut number : i64 = 0;
 
                     let mut index = 0;
-                    for i in 3..bytes.len(){
+                    for i in (3..bytes.len()).rev(){
                         let nm = hexchar(bytes[i] as char) as i64;
                         if nm != 16 {
                             number += nm * (16i64.pow(index))
                         }
                         else {
                             return Err(FromStrNumberErr::InvalidHexChar(bytes[i] as char));
-                        }
-                        index += 1;
-                    }
-                    return Ok(Self::squeeze_i64(-number));
-                }
-                if str.starts_with("0o"){
-                    let mut number : u64 = 0;
-                    
-                    let mut index = 0;
-                    for i in 2..bytes.len(){
-                        let nm = (bytes[i] - '0' as u8) as u64;
-                        if nm < 8 {
-                            number += nm * (8u64.pow(index))
-                        }
-                        else {
-                            return Err(FromStrNumberErr::InvalidOctChar(bytes[i] as char));
-                        }
-                        index += 1;
-                    }
-                    return Ok(Self::squeeze_u64(number));
-                }
-                if str.starts_with("-0o"){
-                    let mut number : i64 = 0;
-                    
-                    let mut index = 0;
-                    for i in 3..bytes.len(){
-                        let nm = (bytes[i] - '0' as u8) as i64;
-                        if nm < 8 {
-                            number += nm * (8i64.pow(index))
-                        }
-                        else {
-                            return Err(FromStrNumberErr::InvalidOctChar(bytes[i] as char));
                         }
                         index += 1;
                     }
@@ -138,7 +106,7 @@ impl FromStr for Number{
                     for i in 2..bytes.len(){
                         let nm = (bytes[i] - '0' as u8) as u64;
                         if nm < 2 {
-                            number += nm * (2 << index)
+                            number += nm * (1 << index)
                         }
                         else {
                             return Err(FromStrNumberErr::InvalidBinChar(bytes[i] as char));
@@ -154,7 +122,7 @@ impl FromStr for Number{
                     for i in 3..bytes.len(){
                         let nm = (bytes[i] - '0' as u8) as i64;
                         if nm < 2 {
-                            number += nm * (2 << index)
+                            number += nm * (1 << index)
                         }
                         else {
                             return Err(FromStrNumberErr::InvalidBinChar(bytes[i] as char));
@@ -191,18 +159,19 @@ const MIN_F32 : f64 = f32::MIN as f64;
 
 impl Number{
     pub fn squeeze_u64(numb: u64) -> Self{
+        #[allow(overlapping_range_endpoints)]
         match numb{
-            0..MAX_U8         => Self::UInt8(numb as u8),
-            MAX_U8..MAX_U16   => Self::UInt16(numb as u16),
-            MAX_U16..MAX_U32  => Self::UInt32(numb as u32),
-            _                 => Self::UInt64(numb)
+            0..=MAX_U8         => Self::UInt8(numb as u8),
+            MAX_U8..=MAX_U16   => Self::UInt16(numb as u16),
+            MAX_U16..=MAX_U32  => Self::UInt32(numb as u32),
+            _                  => Self::UInt64(numb)
         }
     }
     pub fn squeeze_i64(numb: i64) -> Self{
         match numb{
-            MIN_I8 ..MAX_I8     => Self::Int8 (numb as i8),
-            MIN_I16..MAX_I16    => Self::Int16(numb as i16),
-            MIN_I32..MAX_I32    => Self::Int32(numb as i32),
+            MIN_I8 ..=MAX_I8     => Self::Int8 (numb as i8),
+            MIN_I16..=MAX_I16    => Self::Int16(numb as i16),
+            MIN_I32..=MAX_I32    => Self::Int32(numb as i32),
             _                   => Self::Int64(numb)
         }
     }
@@ -231,12 +200,12 @@ impl Number{
             _ => None
         }
     }
-    pub fn size_bytes(&self) -> u8{
+    pub fn size(&self) -> Size{
         match self{
-            Self::Char(_)|Self::UInt8(_)|Self::Int8(_) => 1,
-            Self::UInt16(_)|Self::Int16(_) => 2,
-            Self::Float(_)|Self::UInt32(_)|Self::Int32(_) => 4,
-            Self::Double(_)|Self::UInt64(_)|Self::Int64(_) => 8,
+            Self::Char(_)|Self::UInt8(_)|Self::Int8(_) => Size::Byte,
+            Self::UInt16(_)|Self::Int16(_) => Size::Word,
+            Self::Float(_)|Self::UInt32(_)|Self::Int32(_) => Size::Dword,
+            Self::Double(_)|Self::UInt64(_)|Self::Int64(_) => Size::Qword,
         }
     }
     pub fn split_into_bytes(self) -> Vec<u8>{
@@ -318,5 +287,25 @@ impl ToString for Number{
             Self::UInt64(i) => i.to_string(),
             Self::Char(c)   => c.to_string()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    fn number_t() {
+        let str = "1.050"; // should parse into float
+        assert!(Number::from_str(str) == Ok(Number::Float(1.050)));
+        let str = "1.05000000001";
+        assert!(Number::from_str(str) == Ok(Number::Float(1.05000000001)));
+        let str = "0b101";
+        assert!(Number::from_str(str) == Ok(Number::UInt8(5)));
+        let str = "-0b101";
+        assert!(Number::from_str(str) == Ok(Number::Int8(-5)));
+        let str = "0x0FF";
+        assert!(Number::from_str(str) == Ok(Number::UInt8(255)));
+        let str = "-0x0FF";
+        assert!(Number::from_str(str) == Ok(Number::Int16(-255)));
     }
 }

@@ -1,7 +1,7 @@
-//  rasmx86_64   -    help.rs
-//  -------------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// rasmx86_64 - help.rs
+// --------------------
+// made by matissoss
+// licensed under MPL
 static MAIN_HELP : &str = include_str!("hlp/main.txt");
 
 pub struct Help;

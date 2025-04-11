@@ -1,21 +1,25 @@
-//  rasmx86_64  -  lex.rs
-//  ----------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// rasmx86_64 - lex.rs
+// -------------------
+// made by matissoss
+// licensed under MPL
 
 use crate::{
     pre::tok::{
         Token,
         Tokens
     },
+    conf::{
+        PREFIX_VAL
+    },
     shr::{
         mem::Mem,
         ast::{
             ASTNode,
             Operand,
-            ASTInstruction,
+            Instruction,
             VarDec,
         },
+        ins::Mnemonic as Mnm,
         num::Number,
         kwd::Keyword,
         error::{
@@ -41,77 +45,37 @@ impl Lexer{
 
             match line.get(0){
                 Some(Token::Label(lbl))             => node = Some(ASTNode::Label(lbl.to_string())),
-                Some(Token::Keyword(Keyword::End))  => node = Some(ASTNode::End),
                 Some(Token::Section(sec))           => node = Some(ASTNode::Section(sec.to_string())),
-                Some(Token::Unknown(var))           => {
-                    let size : u8 = match line.get(1) {
-                        Some(Token::Keyword(Keyword::Qword)) => 8,
-                        Some(Token::Keyword(Keyword::Dword)) => 4,
-                        Some(Token::Keyword(Keyword::Word))  => 2,
-                        Some(Token::Keyword(Keyword::Byte))  => 1,
-                        _   => {
-                            ast_tree.push(Err(RASMError::new(
-                                Some(line_count),
-                                ExType::Error,
-                                Some(Tokens(line).to_string()),
-                                Some(format!("Found wrong size specifier for memory")),
-                                Some(format!("Place either one of these after memory declaration: !byte, !word, !dword, !qword"))
-                            )));
-                            continue;
-                        }
-                    };
-
-                    let mut rest = line[2..].iter();
-                    let mut cont = String::new();
-                    
-                    while let Some(e) = rest.next(){
-                        if let Token::Immediate(n) = e{
-                            if line[2..].len() != 1{
-                                if let Number::UInt8(n) = n{
-                                    cont.push(*n as char);
-                                }
-                                else if let Number::Char(n) = n{
-                                    cont.push(*n);
-                                }
-                                else {
-                                    error = Some(RASMError::new(
-                                        Some(line_count),
-                                        ExType::Error,
-                                        Some(Tokens(line.clone()).to_string()),
-                                        Some(format!("Expected 8-bit number or characted, found: {}", n.to_string())),
-                                        Some(format!("Try changing your number from 0 to 255 (uint) or a character"))
-                                    ));
-                                }
-                            }
-                            else{
-                                cont.push_str(&n.to_string());
-                            }
-                        }
-                        else if let Token::Comma = e {continue}
-                        else if let Token::String(s) = e {
-                            cont.push_str(&s);
-                        }
-                        else if let Token::Unknown(s) = e {
-                            cont.push_str(&s);
-                        }
-                        else{
-                            error = Some(RASMError::new(
-                                Some(line_count),
-                                ExType::Error,
-                                Some(Tokens(line.clone()).to_string()),
-                                Some(format!("Unknown token {:?} found in variable declaration", e)),
-                                Some(format!("Try using string, character, uint8 instead of what you tried to use."))
-                            ));
+                Some(Token::Keyword(Keyword::Entry)) => {
+                    match line.get(1) {
+                        Some(Token::LabelRef(r)) => {
+                            node = Some(ASTNode::Entry(r.to_string()));
+                        },
+                        None => error = Some(RASMError::new(
+                            Some(line_count),
+                            ExType::Error,
+                            Some(Tokens(line.clone()).to_string()),
+                            Some(format!("Expected labelref after !entry keyword, found nothing")),
+                            Some(format!("Consider adding labelref like: `!entry &_start`"))
+                        )),
+                        Some(t) => error = Some(RASMError::new(
+                            Some(line_count),
+                            ExType::Error,
+                            Some(Tokens(line.clone()).to_string()),
+                            Some(format!("Expected labelref after !entry keyword, found: {}", t.to_string())),
+                            Some(format!("Consider changing labelref like: `!entry &_start`"))
+                        ))
+                    }
+                }
+                Some(Token::Keyword(Keyword::Data|Keyword::Bss)) => {
+                    match make_var(&line){
+                        Ok(var) => node = Some(ASTNode::VarDec(var)),
+                        Err(mut tmp_error) => {
+                            tmp_error.set_line(line_count);
+                            error = Some(tmp_error)
                         }
                     }
-                    if let None = error{
-                        node = Some(ASTNode::VarDec(VarDec{
-                            name: var.clone().to_string(),
-                            size,
-                            content: cont
-                        }));
-                    }
-                },
+                }
                 Some(Token::Keyword(Keyword::Global)) => {
                     if let Some(glob) = line.get(1){
                         node = Some(ASTNode::Global(glob.to_string()));
@@ -126,39 +90,40 @@ impl Lexer{
                         ));
                     }
                 }
-                Some(Token::Instruction(ins)) => {
-                    if let Some((dst_raw, src_raw)) = vec_split_by(&line, Token::Comma){
-                        let inst_dst = match make_op(&dst_raw[1..]){
-                            Ok(o) => Some(o),
-                            Err(mut err) => {
-                                err.set_line(line_count);
-                                err.set_cont(Tokens(line).to_string());
-                                ast_tree.push(Err(err));
-                                break;
-                            }
-                        };
-                        let inst_src = match make_op(&src_raw[1..]){
-                            Ok(o) => Some(o),
-                            Err(mut err) => {
-                                err.set_line(line_count);
-                                err.set_cont(Tokens(line).to_string());
-                                ast_tree.push(Err(err));
-                                break;
-                            }
-                        };
-                        node = Some(
-                            ASTNode::Ins(ASTInstruction {ins: *ins, dst: inst_dst, src: inst_src, lin: line_count}));
+                Some(Token::Mnemonic(mnm)) => {
+                    let mut mnems : Vec<Mnm> = Vec::new();
+                    mnems.push(*mnm);
+
+                    let mut iter = line[1..].iter();
+                    let mut index = 1;
+                    while let Some(Token::Mnemonic(tmp_mnm)) = iter.next(){
+                        mnems.push(*tmp_mnm);
+                        index += 1;
                     }
-                    else {
-                        match make_op(&line[1..]){
-                            Ok(op) => node = Some(ASTNode::Ins(ASTInstruction {ins: *ins, dst: Some(op), src: None, lin: line_count})),
-                            Err(mut err) => {
+                    let mut operands : Vec<Operand> = Vec::new();
+                    for raw_operand in split_vec(line[index..].to_vec(), Token::Comma){
+                        match make_op(&raw_operand){
+                            Ok(operand) => operands.push(operand),
+                            Err(mut err)  => {
                                 err.set_line(line_count);
                                 err.set_cont(Tokens(line).to_string());
-                                error = Some(err)
+                                ast_tree.push(Err(err));
+                                break;
                             }
                         }
                     }
+                    let addt : Option<Vec<Mnm>> = if mnems.len() == 1 {
+                        None
+                    }
+                    else{
+                        Some(mnems[1..].to_vec())
+                    };
+                    node = Some(ASTNode::Ins(Instruction{
+                        mnem: mnems[0],
+                        oprs: operands,
+                        line: line_count,
+                        addt,
+                    }))
                 },
                 s => {
                     ast_tree.push(Err(RASMError::new(
@@ -183,29 +148,20 @@ impl Lexer{
     }
 }
 
-fn vec_split_by<T>(vector: &Vec<T>, split_by: T) -> Option<(Vec<T>, Vec<T>)>
-where T: PartialEq + Clone{
-    let mut first_part : Vec<T> = Vec::new();
-    let mut second_part : Vec<T> = Vec::new();
+fn split_vec(tok_vec: Vec<Token>, by: Token) -> Vec<Vec<Token>>{
+    let mut tokens = Vec::new();
     
-    let mut f_bool : bool = true;
-    for element in vector{
-        if *element == split_by{
-            f_bool = false;
+    let mut tmp_buf = Vec::new();
+    for tok in tok_vec{
+        if tok == by {
+            tokens.push(tmp_buf);
+            tmp_buf = Vec::new();
         }
-        if f_bool{
-            first_part.push(element.clone());
-        }
-        else{
-            second_part.push(element.clone());
+        else {
+            tmp_buf.push(tok);
         }
     }
-    if first_part.is_empty() == false && second_part.is_empty() == false{
-        return Some((first_part, second_part));
-    }
-    else {
-        return None;
-    }
+    return tokens;
 }
 
 fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
@@ -258,5 +214,187 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
                 Some(format!("Expected (at most) 2 tokens, found more."))
             ))
         }
+    }
+}
+
+fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
+    match line.get(0){
+        Some(t) => {
+            match t {
+                Token::Keyword(Keyword::Bss) => {
+                    match line.get(1) {
+                        Some(Token::Unknown(var)) =>{
+                            let mut size : usize = 0;
+                            if let Some(tmp_size) = line.get(2){
+                                match tmp_size {
+                                    Token::Immediate(n) => {
+                                        if let Some(i) = n.get_uint(){
+                                            if let Ok(n) = i.try_into() {
+                                                size = n;
+                                            }
+                                            else {
+                                                return Err(RASMError::new(
+                                                    None,
+                                                    ExType::Error,
+                                                    Some(Tokens(line.to_vec()).to_string()),
+                                                    Some(format!("Size specifier doesn't fit into `usize` Rust type")),
+                                                    Some(format!(
+                                                        "Consider changing size specifier into number from {} to {}",
+                                                        usize::MIN, usize::MAX
+                                                    ))
+                                                ))
+                                            }
+                                        }
+                                        else {
+                                            return Err(RASMError::new(
+                                                None,
+                                                ExType::Error,
+                                                Some(Tokens(line.to_vec()).to_string()),
+                                                Some(format!(
+                                                    "Expected size specifier to be of type uint, found: {}", n.to_string())),
+                                                Some(format!(
+                                                    "Consider changing size specifier into uint like `{}10`", PREFIX_VAL))
+                                            ))
+                                        }
+                                    },
+                                    y => return Err(RASMError::new(
+                                        None,
+                                        ExType::Error,
+                                        Some(Tokens(line.to_vec()).to_string()),
+                                        Some(format!(
+                                            "Unexpected token at index 2; found `{}`, expected immediate",
+                                            y.to_string()
+                                        )),
+                                        Some(format!(
+                                            "Consider changing token `{}` to immediate like: `{}10`",
+                                            y.to_string(), PREFIX_VAL
+                                        ))
+                                    ))
+                                }
+                            }
+
+                            return Ok(VarDec {
+                                name: var.to_string(),
+                                size,
+                                bss: true,
+                                content: None,
+                            })
+                        },
+                        None => Err(RASMError::new(
+                            None,
+                            ExType::Error,
+                            Some(Tokens(line.to_vec()).to_string()),
+                            Some(format!("Expected string at token of index 1, found nothing.")),
+                            None
+                        )),
+                        Some(y) => Err(RASMError::new(
+                            None,
+                            ExType::Error,
+                            Some(Tokens(line.to_vec()).to_string()),
+                            Some(format!("Expected string at token of index 1, found `{}`.", y.to_string())),
+                            None
+                        )),
+                    }
+                },
+                Token::Keyword(Keyword::Data) => {
+                    match line.get(1) {
+                        Some(Token::Unknown(var)) =>{
+                            let size : usize = match line.get(1) {
+                                Some(Token::Keyword(Keyword::Qword)) => 8,
+                                Some(Token::Keyword(Keyword::Dword)) => 4,
+                                Some(Token::Keyword(Keyword::Word))  => 2,
+                                Some(Token::Keyword(Keyword::Byte))  => 1,
+                                _   => {
+                                    return Err(RASMError::new(
+                                    None,
+                                    ExType::Error,
+                                    Some(Tokens(line.to_vec()).to_string()),
+                                    Some(format!("Found wrong size specifier for memory")),
+                                    Some(format!(
+                                        "Place either one of these after memory declaration: !byte, !word, !dword, !qword"))
+                                    ));
+                                }
+                            };
+                            let mut rest = line[3..].iter();
+                            let mut cont = String::new();
+                            while let Some(e) = rest.next(){
+                                if let Token::Immediate(n) = e{
+                                    if line[2..].len() != 1{
+                                        if let Number::UInt8(n) = n{
+                                            cont.push(*n as char);
+                                        }
+                                        else if let Number::Char(n) = n{
+                                            cont.push(*n);
+                                        }
+                                        else {
+                                            return Err(RASMError::new(
+                                                None,
+                                                ExType::Error,
+                                                Some(Tokens(line.to_vec()).to_string()),
+                                                Some(format!("Expected 8-bit number or characted, found: {}", n.to_string())),
+                                                Some(format!("Try changing your number from 0 to 255 (uint) or a character"))
+                                            ));
+                                        }
+                                    }
+                                    else{
+                                        cont.push_str(&n.to_string());
+                                    }
+                                }
+                                else if let Token::Comma = e {continue}
+                                else if let Token::String(s) = e {
+                                    cont.push_str(&s);
+                                }
+                                else if let Token::Unknown(s) = e {
+                                    cont.push_str(&s);
+                                }
+                                else{
+                                    return Err(RASMError::new(
+                                        None,
+                                        ExType::Error,
+                                        Some(Tokens(line.to_vec()).to_string()),
+                                        Some(format!("Unknown token {:?} found in variable declaration", e)),
+                                        Some(format!("Try using string, character, uint8 instead of what you tried to use."))
+                                    ));
+                                }
+                            }
+                            return Ok(VarDec{
+                                name: var.to_string(),
+                                bss: false,
+                                size,
+                                content: Some(cont)
+                            })
+                        },
+                        None => Err(RASMError::new(
+                            None,
+                            ExType::Error,
+                            Some(Tokens(line.to_vec()).to_string()),
+                            Some(format!("Expected string at token of index 1, found nothing.")),
+                            None
+                        )),
+                        Some(y) => Err(RASMError::new(
+                            None,
+                            ExType::Error,
+                            Some(Tokens(line.to_vec()).to_string()),
+                            Some(format!("Expected string at token of index 1, found `{}`.", y.to_string())),
+                            None
+                        )),
+                    }
+                },
+                _ => Err(RASMError::new(
+                    None,
+                    ExType::Error,
+                    Some(Tokens(line.to_vec()).to_string()),
+                    Some(format!("Unexpected start of line: expected !data or !bss keyword.")),
+                    None
+                ))
+            }
+        }
+        None => Err(RASMError::new(
+            None,
+            ExType::Error,
+            Some(Tokens(line.to_vec()).to_string()),
+            Some(format!("Unexpected EOL")),
+            None
+        ))
     }
 }

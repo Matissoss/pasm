@@ -4,4 +4,5 @@ pub mod kwd;
 pub mod ast;
 pub mod ins;
 pub mod mem;
+pub mod size;
 pub mod error;

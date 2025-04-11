@@ -13,11 +13,12 @@ pub enum Keyword{
      Word,
      Byte,
     Global,
-    End
+    Bss,
+    Data,
+    Entry
 }
 
 // keyword is equal
-// helper for FromStr for Keyword
 #[inline(always)]
 fn kwd_ie(kwd_raw: &str, kwd_dest: &str, kwd: Keyword) -> Result<Keyword, ()>{
     if FAST_MODE{
@@ -37,11 +38,12 @@ impl FromStr for Keyword{
         let kwd_raw = kwd_str.as_bytes();
         match kwd_raw.len() {
             0|1 => return Err(()),
-            3 => kwd_ie(kwd_str, "end", Keyword::End),
+            3 => kwd_ie(kwd_str, "bss", Keyword::Bss),
             4 => {
                 return match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd_str, "byte", Keyword::Byte),
                     'o' => kwd_ie(kwd_str, "word", Keyword::Word),
+                    'a' => kwd_ie(kwd_str, "data", Keyword::Data),
                     _   => return Err(())
                 };
             },
@@ -49,6 +51,7 @@ impl FromStr for Keyword{
                 return match kwd_raw[0] as char{
                     'q' => kwd_ie(kwd_str, "qword", Keyword::Qword),
                     'd' => kwd_ie(kwd_str, "dword", Keyword::Dword),
+                    'e' => kwd_ie(kwd_str, "entry", Keyword::Entry),
                     _   => return Err(())
                 };
             },
@@ -65,9 +68,10 @@ impl ToString for Keyword{
             Self::Dword => String::from("dword"),
             Self::Word  => String::from("word"),
             Self::Byte  => String::from("byte"),
-            
+            Self::Bss   => String::from("bss"),
+            Self::Data  => String::from("data"),
+            Self::Entry => String::from("entry"),
             Self::Global  => String::from("global"),
-            Self::End     => String::from("end"),
         }
     }
 }
