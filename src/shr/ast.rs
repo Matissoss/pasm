@@ -16,10 +16,7 @@ use crate::conf::{
     PREFIX_LAB,
     PREFIX_VAL,
     PREFIX_REG,
-    PREFIX_KWD,
     PREFIX_REF,
-    MEM_START,
-    MEM_CLOSE,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -188,21 +185,7 @@ impl ToString for Operand{
         match self {
             Self::Imm(n) => format!("{}{}", PREFIX_VAL, n.to_string()),
             Self::Reg(r) => format!("{}{}", PREFIX_REG, r.to_string()),
-            Self::Mem(m) => {
-                match m {
-                    Mem::MemAddr(r, s) =>
-                        format!("{}{}{}{} {}{}", MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, s
-                    ),
-                    Mem::MemAddrWOffset(r, o, s) => 
-                        format!("{}{}{}{}{} {}{}", o, MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, s
-                        ),
-                    Mem::MemSIB(base, index, displacement, scale, size) => 
-                        format!("{}{}{}{},{}{},{}{} {}{}",
-                            displacement, MEM_START, PREFIX_REG, base.to_string(), 
-                            PREFIX_REG, *scale as u8, index.to_string(), MEM_CLOSE, PREFIX_KWD, size
-                    ),
-                }
-            },
+            Self::Mem(m) => format!("{:?}", m),
             Self::ConstRef(r) => format!("{}{}", PREFIX_REF, r),
             Self::LabelRef(l) => format!("{}{}", PREFIX_LAB, l)
         }
