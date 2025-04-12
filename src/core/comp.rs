@@ -6,7 +6,8 @@
 use crate::{
     core::{
         rex::gen_rex,
-        modrm::gen_modrm
+        modrm::gen_modrm,
+        disp::gen_disp,
     },
     shr::{
         ins::Mnemonic as Ins,
@@ -41,7 +42,7 @@ pub fn compile_instruction(ins: &Instruction) -> CompIns{
         Ins::PUSH       => ins_push(&ins),
         Ins::POP        => ins_pop(&ins),
         Ins::MOV        => ins_mov(&ins),
-        _ => invalid()
+        _ => CompIns::NeedsContext(ins.clone())
     }
 }
 
@@ -61,36 +62,27 @@ fn ins_pop(ins: &Instruction) -> CompIns{
 fn ins_push(ins: &Instruction) -> CompIns{
     match ins.dst().clone().unwrap() {
         Operand::Reg(r) => {
-            let rex = gen_rex(&ins);
-            return if let Some(rex) = rex{
-                CompIns::Compiled(vec![rex, 0x50 + r.to_byte()])
-            }
-            else {
-                CompIns::Compiled(vec![0x50 + r.to_byte()])
-            }
+            CompIns::Compiled(gen_opc(&ins, &[0x50 + r.to_byte()], None))
         },
         Operand::Imm(nb) => {
             match nb.size(){
                 Size::Byte => {
-                    CompIns::Compiled(vec![0x6A + nb.split_into_bytes()[0]])
+                    let mut opc = vec![0x6A];
+                    opc.extend(nb.split_into_bytes());
+                    CompIns::Compiled(opc)
                 },
                 Size::Word|Size::Dword => {
                     let mut b = vec![0x68];
                     let mut x = nb.split_into_bytes();
-                    extend_imm(&mut x, nb.size() as u8);
+                    extend_imm(&mut x, 4);
                     b.extend(x);
                     CompIns::Compiled(b)
                 }
                 _ => invalid()
             }
         },
-        Operand::Mem(m) => {
-            if let Some(rex) = gen_rex(&ins){
-                CompIns::Compiled(vec![rex, 0xFF, gen_modrm(Some(Operand::Mem(m.clone())), None, Some(6))])
-            }
-            else {
-                CompIns::Compiled(vec![0xFF, gen_modrm(Some(Operand::Mem(m.clone())), None, Some(6))])
-            }
+        Operand::Mem(_) => {
+            CompIns::Compiled(gen_opc(&ins, &[0xFF], Some(6)))
         },
         _ => invalid()
     }
@@ -139,13 +131,7 @@ fn ins_mov(ins: &Instruction) -> CompIns{
                         _       => invalid()
                     }
                 };
-                let modrm = gen_modrm(Some(dst.clone()), Some(src.clone()), None);
-                if let Some(rex) = rex{
-                    return CompIns::Compiled(vec![rex, opc, modrm])
-                }
-                else {
-                    return CompIns::Compiled(vec![opc, modrm])
-                }
+                return CompIns::Compiled(gen_opc(&ins, &vec![opc], None));
             }
             _ => invalid()
         }
@@ -158,13 +144,7 @@ fn ins_mov(ins: &Instruction) -> CompIns{
                     2|4|8   => 0x89,
                     _       => invalid()
                 };
-                let modrm = gen_modrm(Some(dst.clone()), Some(src.clone()), None);
-                if let Some(rex) = rex{
-                    return CompIns::Compiled(vec![rex, opc, modrm])
-                }
-                else {
-                    return CompIns::Compiled(vec![opc, modrm])
-                }
+                return CompIns::Compiled(gen_opc(&ins, &vec![opc], None));
             },
             Operand::Imm(n) => {
                 let size = dst.size() as u8;
@@ -199,4 +179,20 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8){
     while imm.len() < size{
         imm.push(0)
     }
+}
+
+fn gen_opc(ctx: &Instruction, op: &[u8], ovr: Option<u8>) -> Vec<u8>{
+    let mut base = if let Some(rex) = gen_rex(ctx){
+        let mut x = vec![rex];
+        x.extend(op.to_vec());
+        x
+    }
+    else {
+        op.to_vec()
+    };
+    base.push(gen_modrm(ctx.dst().cloned(), ctx.src().cloned(), ovr));
+    if let Some(disp) = gen_disp(ctx.dst().expect("assertion dst == Some failed").clone()){
+        base.extend(disp);
+    }
+    return base;
 }

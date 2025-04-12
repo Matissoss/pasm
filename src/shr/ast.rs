@@ -196,10 +196,10 @@ impl ToString for Operand{
                     Mem::MemAddrWOffset(r, o, s) => 
                         format!("{}{}{}{}{} {}{}", o, MEM_START, PREFIX_REG, r.to_string(), MEM_CLOSE, PREFIX_KWD, s
                         ),
-                    Mem::MemSIB(base, index, scale, displacement) => 
-                        format!("{}{}{}{},{}{}{} {}{}", 
+                    Mem::MemSIB(base, index, displacement, scale, size) => 
+                        format!("{}{}{}{},{}{},{}{} {}{}",
                             displacement, MEM_START, PREFIX_REG, base.to_string(), 
-                            PREFIX_REG, index.to_string(), MEM_CLOSE, PREFIX_KWD, scale
+                            PREFIX_REG, *scale as u8, index.to_string(), MEM_CLOSE, PREFIX_KWD, size
                     ),
                 }
             },

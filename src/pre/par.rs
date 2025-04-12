@@ -11,6 +11,7 @@ use crate::{
         Instruction,
         VarDec,
         ASTNode,
+        Label
     },
     shr::error::{
         RASMError,
@@ -50,6 +51,13 @@ impl Parser{
                             }
                         }
                         ASTNode::Label(lbl) => {
+                            if !instructions.is_empty(){
+                                ast.labels.push(Label {
+                                    name: inside_label.1,
+                                    inst: instructions,
+                                });
+                                instructions = Vec::new();
+                            }
                             inside_label = (true, lbl)
                         },
                         ASTNode::VarDec(vdc) => {
@@ -89,6 +97,13 @@ impl Parser{
                     }
                 }
             }
+        }
+
+        if !instructions.is_empty(){
+            ast.labels.push(Label {
+                name: inside_label.1,
+                inst: instructions
+            });
         }
 
         if errors.is_empty() == false{

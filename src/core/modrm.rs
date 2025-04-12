@@ -5,14 +5,24 @@
 
 use crate::shr::{
     //reg::Register as Reg,
-    //mem::Mem,
-    ast::Operand as Op
+    mem::Mem,
+    ast::Operand as Op,
+    num::Number
 };
 
 type OP = Option<Op>;
 pub fn gen_modrm(dst: OP, src: OP, reg: Option<u8>) -> u8{
-    // for now only register-direct mode
-    let mod_ = 0b11;
+    let mod_ = match (&dst, &src) {
+        (None, Some(Op::Mem(Mem::MemAddr(_, _))))|(Some(Op::Mem(Mem::MemAddr(_,_))), None) => 0b00,
+        (None, Some(Op::Mem(Mem::MemAddrWOffset(_, o, _))))|(Some(Op::Mem(Mem::MemAddrWOffset(_, o, _))), None) => {
+            let n = Number::squeeze_i64(*o as i64);
+            match n {
+                Number::Int8(_) => 0b01,
+                _ => 0b10
+            }
+        }
+        _ => 0b11
+    };
 
     let reg = if let Some(reg) = reg {reg}
     else{

@@ -161,6 +161,11 @@ fn split_vec(tok_vec: Vec<Token>, by: Token) -> Vec<Vec<Token>>{
             tmp_buf.push(tok);
         }
     }
+
+    if !tmp_buf.is_empty(){
+        tokens.push(tmp_buf);
+    }
+
     return tokens;
 }
 

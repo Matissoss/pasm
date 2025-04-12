@@ -210,48 +210,14 @@ impl Number{
     }
     pub fn split_into_bytes(self) -> Vec<u8>{
         match self{
-            Self::Int8(n)  => vec![(n as u8).to_le()],
-            Self::Int16(n) => vec![((n & 0xFF00u16 as i16) as u8).to_le(), ((n & 0xFF) as u8).to_le()],
-            Self::Int32(n) => {
-                vec![
-                    ((n & 0xFF) as u8).to_le(),
-                    ((n & 0xFF00) as u8).to_le(), 
-                    ((n & 0xFF0000) as u8).to_le(), 
-                    ((n & 0xFF000000u32 as i32) as u8).to_le(), 
-                ]
-            }
-            Self::Int64(n) => 
-                vec![
-                    ((n & 0xFF)               as u8).to_le(),
-                    ((n & 0xFF00)             as u8).to_le(), 
-                    ((n & 0xFF0000)           as u8).to_le(), 
-                    ((n & 0xFF000000)         as u8).to_le(), 
-                    ((n & 0xFF00000000)       as u8).to_le(),
-                    ((n & 0xFF0000000000)     as u8).to_le(), 
-                    ((n & 0xFF000000000000)   as u8).to_le(), 
-                    ((n & 0xFF00000000000000u64 as i64) as u8).to_le(), 
-                ],
-            Self::UInt64(n) => 
-                vec![
-                    ((n & 0xFF)               as u8).to_le(),
-                    ((n & 0xFF00)             as u8).to_le(), 
-                    ((n & 0xFF0000)           as u8).to_le(), 
-                    ((n & 0xFF000000)         as u8).to_le(), 
-                    ((n & 0xFF00000000)       as u8).to_le(),
-                    ((n & 0xFF0000000000)     as u8).to_le(), 
-                    ((n & 0xFF000000000000)   as u8).to_le(), 
-                    ((n & 0xFF00000000000000) as u8).to_le(), 
-                ],
-            Self::UInt8(n)  => vec![(n as u8).to_le()],
-            Self::UInt16(n) => vec![((n & 0xFF00) as u8).to_le(), ((n & 0xFF) as u8).to_le()],
-            Self::UInt32(n) => {
-                vec![
-                    ((n & 0xFF) as u8).to_le(),
-                    ((n & 0xFF00) as u8).to_le(), 
-                    ((n & 0xFF0000) as u8).to_le(), 
-                    ((n & 0xFF000000) as u8).to_le(), 
-                ]
-            }
+            Self::Int8(n)   => n.to_le_bytes().to_vec(),
+            Self::Int16(n)  => n.to_le_bytes().to_vec(),
+            Self::Int32(n)  => n.to_le_bytes().to_vec(),
+            Self::Int64(n)  => n.to_le_bytes().to_vec(),
+            Self::UInt64(n) => n.to_le_bytes().to_vec(),
+            Self::UInt8(n)  => n.to_le_bytes().to_vec(),
+            Self::UInt16(n) => n.to_le_bytes().to_vec(),
+            Self::UInt32(n) => n.to_le_bytes().to_vec(),
             Self::Char(c) => vec![(c as u8).to_le()],
             _ => vec![]
         }

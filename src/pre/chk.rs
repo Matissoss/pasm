@@ -42,7 +42,7 @@ fn size_check(inst: &Instruction) -> Option<RASMError>{
                     Some(inst.line),
                     ExType::Error,
                     Some(inst.to_string()),
-                    Some(format!("Destination has smaller size than immediate you tried to assign for destination!")),
+                    Some(format!("Destination has smaller size than immediate you tried to assign for destination")),
                     Some(format!("Make source (immediate) fit in range of {} number", d.size()))
                 ));
             }
@@ -56,7 +56,7 @@ fn size_check(inst: &Instruction) -> Option<RASMError>{
                     Some(inst.to_string()),
                     Some(format!("Illegal operation: tried to assign {} value from address into {} destination", 
                         m_i.size() as u16 * 8, d.size() as u16 * 8)),
-                    Some(format!("Consider using smaller register, like `{}cl` instead of `{}rcx` for 8-bit value.", PREFIX_REG, PREFIX_REG))
+                    Some(format!("Consider using smaller register, like `{}cl` instead of `{}rcx` for 8-bit value", PREFIX_REG, PREFIX_REG))
                 ))
             }
         }
@@ -126,7 +126,7 @@ fn has_operands(ins: &Instruction, dst_bool: bool, src_bool: bool) -> Option<RAS
                 Some(ins.line),
                 ExType::Error,
                 Some(ins.to_string()),
-                Some(format!("Expected destination (first operand), found nothing.")),
+                Some(format!("Expected destination (first operand), found nothing")),
                 Some(format!("Try adding first operand"))
             ));
         },
@@ -147,7 +147,7 @@ fn has_operands(ins: &Instruction, dst_bool: bool, src_bool: bool) -> Option<RAS
                 Some(ins.line),
                 ExType::Error,
                 Some(ins.to_string()),
-                Some(format!("Expected source (second operand), found nothing.")),
+                Some(format!("Expected source (second operand), found nothing")),
                 Some(format!("Try adding second operand"))
             ));
         },

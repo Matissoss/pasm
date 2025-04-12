@@ -22,6 +22,7 @@ use pre::tok::Tokenizer;
 use pre::lex::Lexer;
 use pre::par::Parser;
 use shr::ast::AST;
+use core::comp;
 
 // rasmx86_64 helper utilities
 pub mod conf ;
@@ -53,7 +54,7 @@ fn main(){
     else{
         cli.exit("src/main.rs", "main", "no input file specified; tip: try using (example) = `-i=input.asm`!", 0);
     };
-    let _outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
+    let outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
         PathBuf::from(path)
     }
     else{
@@ -62,8 +63,8 @@ fn main(){
 
     let ast = parse_file   (&infile);
 
-    println!("{:?}", ast);
-    //assemble_file(&outfile);
+    //println!("{:?}", ast);
+    assemble_file(ast, &outfile);
     
     process::exit(0);
 }
@@ -121,7 +122,21 @@ fn parse_file(inpath: &PathBuf) -> AST{
     }
 }
 
-#[allow(dead_code)]
-fn assemble_file(_outpath: &PathBuf){
-
+fn assemble_file(ast: AST, _outpath: &PathBuf){
+    for label in ast.labels{
+        let result = comp::compile_label(label);
+        for r in result{
+            match r {
+                comp::CompIns::Compiled(bytes) => {
+                    for b in bytes{
+                        print!("{:02x} ", b)
+                    }
+                    print!("| ")
+                }
+                comp::CompIns::NeedsContext(c) => {
+                    println!("NOT COMPILED: {:?}", c)
+                }
+            }
+        }
+    }
 }
