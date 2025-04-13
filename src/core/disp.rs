@@ -18,6 +18,9 @@ pub fn gen_disp(op: &Op) -> Option<Vec<u8>>{
             }
             return Some(Number::Int32(*o).split_into_bytes());
         },
+        Op::Mem(Mem::Index(_,_,_)) => {
+            return Some(vec![0;4]);
+        }
         _ => None,
     }
 }

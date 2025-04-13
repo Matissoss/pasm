@@ -19,9 +19,12 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
             (Some( &Op::Mem(Mem::SIB(_,_,_,_))), None) |
             (None, Some( &Op::Mem(Mem::SIB(_,_,_,_)))) |
             (Some( &Op::Mem(Mem::Direct(_,_))), None)|
+            (Some( &Op::Mem(Mem::Index(_,_,_))), None)|
+            (None, Some( &Op::Mem(Mem::Index(_,_,_))))|
             (None, Some( &Op::Mem(Mem::Direct(_,_)))) => 0b00,
 
             (Some( &Op::Mem(Mem::SIBOffset(_,_,_,o,_)|Mem::Offset(_,o,_))), None)|
+            (Some( &Op::Mem(Mem::IndexOffset(_,o,_,_))), None) | (None, Some(&Op::Mem(Mem::IndexOffset(_,o,_,_))))|
             (None, Some( &Op::Mem(Mem::SIBOffset(_,_,_,o,_)|Mem::Offset(_,o,_)))) => {
                 match Number::squeeze_i64(o as i64){
                     Number::Int8(_) => 0b01,

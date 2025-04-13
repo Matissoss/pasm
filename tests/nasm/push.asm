@@ -10,3 +10,4 @@ _start:
 	push qword [rax+8]
 	push qword [rax+rcx*4+20]
 	push qword [rax+rcx*4]
+	push qword [rcx*4]

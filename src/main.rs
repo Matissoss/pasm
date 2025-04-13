@@ -63,7 +63,6 @@ fn main(){
 
     let ast = parse_file   (&infile);
 
-    //println!("{:?}", ast);
     assemble_file(ast, &outfile);
     
     process::exit(0);
@@ -126,17 +125,7 @@ fn assemble_file(ast: AST, _outpath: &PathBuf){
     for label in ast.labels{
         let result = comp::compile_label(label);
         for r in result{
-            match r {
-                comp::CompIns::Compiled(bytes) => {
-                    for b in bytes{
-                        print!("{:02x} ", b)
-                    }
-                    print!("| ")
-                }
-                comp::CompIns::NeedsContext(c) => {
-                    println!("NOT COMPILED: {:?}", c)
-                }
-            }
+            print!("{:02x} ", r);
         }
     }
 }
