@@ -23,7 +23,7 @@ use crate::conf::{
     PREFIX_REF,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Operand{
     Reg(Register),
     Imm(Number),
@@ -177,10 +177,36 @@ impl Instruction{
             },
         }
     }
+    #[inline]
     pub fn dst(&self) -> Option<&Operand> {
         return self.oprs.get(0)
     }
+    #[inline]
     pub fn src(&self) -> Option<&Operand> {
         return self.oprs.get(1)
+    }
+    #[inline]
+    // operand existence
+    pub fn op_ex(&self) -> (bool, bool){
+        match (self.dst(), self.src()){
+            (Some(_), None)     => (true, false),
+            (Some(_), Some(_))  => (true, true),
+            (None, Some(_))     => (false, true),
+            (None, None)        => (false, false),
+        }
+    }
+    #[inline]
+    pub fn uses_sib(&self) -> bool {
+        match (self.dst(), self.src()){
+            (Some(Operand::Mem(
+                Mem::SIB(_,_,_,_)|Mem::SIBOffset(_,_,_,_,_)|
+                Mem::Index(_,_,_)|Mem::IndexOffset(_,_,_,_)
+            )),None) => true,
+            (None, Some(Operand::Mem(
+                Mem::SIB(_,_,_,_)|Mem::SIBOffset(_,_,_,_,_)|
+                Mem::Index(_,_,_)|Mem::IndexOffset(_,_,_,_)
+            ))) => true,
+            _ => false,
+        }
     }
 }

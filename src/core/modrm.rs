@@ -6,45 +6,56 @@
 use crate::shr::{
     //reg::Register as Reg,
     mem::Mem,
-    ast::Operand as Op,
+    ast::{
+        Instruction as Ins,
+        Operand as Op
+    },
     num::Number
 };
 
-type OP = Option<Op>;
-// to rework :)
-pub fn gen_modrm(dst: OP, src: OP, reg: Option<u8>) -> u8{
-    let mod_ = match (&dst, &src) {
-        (None, Some(Op::Mem(Mem::Direct(_, _))))|(Some(Op::Mem(Mem::Direct(_,_))), None)|
-        (Some(Op::Mem(Mem::SIB(_,_,_,_))), None)|(None, Some(Op::Mem(Mem::SIB(_,_,_,_))))
-        => 0b00,
-        (None, Some(Op::Mem(  Mem::Offset(_,o,_)|Mem::SIBOffset(_,_,_,o,_)  ))) | 
-        (Some(Op::Mem(  Mem::Offset(_,o,_)|Mem::SIBOffset(_,_,_,o,_)  )), None)
-            => {
-            let n = Number::squeeze_i64(*o as i64);
-            match n {
-                Number::Int8(_) => 0b01,
-                _ => 0b10
-            }
+pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
+    let mod_ : u8 = {
+        match (ins.dst(), ins.src()){
+            (Some( &Op::Mem(Mem::SIB(_,_,_,_))), None) |
+            (None, Some( &Op::Mem(Mem::SIB(_,_,_,_)))) |
+            (Some( &Op::Mem(Mem::Direct(_,_))), None)|
+            (None, Some( &Op::Mem(Mem::Direct(_,_)))) => 0b00,
+
+            (Some( &Op::Mem(Mem::SIBOffset(_,_,_,o,_)|Mem::Offset(_,o,_))), None)|
+            (None, Some( &Op::Mem(Mem::SIBOffset(_,_,_,o,_)|Mem::Offset(_,o,_)))) => {
+                match Number::squeeze_i64(o as i64){
+                    Number::Int8(_) => 0b01,
+                    _ => 0b10,
+                }
+            },
+            _ => 0b11,
         }
-        _ => 0b11
     };
 
     let reg = if let Some(reg) = reg {reg}
     else{
-        if let Some(Op::Reg(src)) = src{
+        if let Some(Op::Reg(src)) = ins.src(){
             src.to_byte()
         }
         else{
             0
         }   
     };
-
-    let rm  = if let Some(Op::Reg(dstreg)) = dst{
-        dstreg.to_byte()
-    }
-    else{
-        0
+    
+    let rm = {
+        if ins.uses_sib() {0b100}
+        else{
+            if let Some(rm) = rm {rm}
+            else{
+                if let Some(Op::Reg(dst)) = ins.dst(){
+                    dst.to_byte()
+                }
+                else{
+                    0
+                }
+            }
+        }
     };
 
-    return (mod_ << 6) + (reg << 3) + rm
+    return (mod_ << 6) + (reg << 3) + rm;
 }

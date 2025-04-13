@@ -9,14 +9,14 @@ use crate::shr::{
     num::Number,
 };
 
-pub fn gen_disp(op: Op) -> Option<Vec<u8>>{
+pub fn gen_disp(op: &Op) -> Option<Vec<u8>>{
     match op {
-        Op::Mem(Mem::Offset(_, o, _)) => {
+        Op::Mem(Mem::Offset(_, o, _)|Mem::SIBOffset(_,_,_,o,_)|Mem::IndexOffset(_,o,_,_))=> {
             // using type casting ;)
-            if (o as i8) as i32 == o{
-                return Some(Number::Int8(o as i8).split_into_bytes());
+            if (*o as i8) as i32 == *o{
+                return Some(Number::Int8(*o as i8).split_into_bytes());
             }
-            return Some(Number::Int32(o).split_into_bytes());
+            return Some(Number::Int32(*o).split_into_bytes());
         },
         _ => None,
     }

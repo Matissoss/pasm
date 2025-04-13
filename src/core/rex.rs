@@ -12,18 +12,8 @@ use crate::shr::{
     ins::Mnemonic as Mnm,
 };
 
-fn calc_size(ins: &Instruction) -> Size{
-    let size_dst = match &ins.dst(){
-        Some(o) => o.size(),
-        None    => Size::Unknown
-    };
-    // we can assert that both sides have equal size
-    //  check src/pre/chk.rs
-    return size_dst;
-}
-
 fn needs_rex(ins: &Instruction) -> bool{
-    if calc_size(&ins) != Size::Qword {
+    if ins.size() != Size::Qword {
         return false;
     }
     match &ins.mnem{

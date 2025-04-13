@@ -47,15 +47,10 @@ pub fn compile_instruction(ins: &Instruction) -> CompIns{
     }
 }
 
-fn invalid() -> !{
-    println!("src/core/comp.rs:invalid - unexpected;");
-    std::process::exit(1);
-}
-
 fn ins_pop(ins: &Instruction) -> CompIns{
     match ins.dst().clone().unwrap() {
-        Operand::Reg(r) => CompIns::Compiled(vec![0x58 + r.to_byte()]),
-        Operand::Mem(m) => CompIns::Compiled(vec![0x8F, gen_modrm(Some(Operand::Mem(m.clone())), None, Some(0))]),
+        Operand::Reg(r) => CompIns::Compiled(gen_base(ins, &[0x58 + r.to_byte()])),
+        Operand::Mem(_) => CompIns::Compiled(vec![0x8F, gen_modrm(&ins, None, Some(0))]),
         _ => invalid()
     }
 }
@@ -63,12 +58,7 @@ fn ins_pop(ins: &Instruction) -> CompIns{
 fn ins_push(ins: &Instruction) -> CompIns{
     match ins.dst().clone().unwrap() {
         Operand::Reg(r) => {
-            if let Some(rex) = gen_rex(&ins){
-                CompIns::Compiled(vec![rex, 0x50 + r.to_byte()])
-            }
-            else {
-                CompIns::Compiled(vec![0x50 + r.to_byte()])
-            }
+            return CompIns::Compiled(gen_base(ins, &[0x50 + r.to_byte()]));
         },
         Operand::Imm(nb) => {
             match nb.size(){
@@ -88,7 +78,7 @@ fn ins_push(ins: &Instruction) -> CompIns{
             }
         },
         Operand::Mem(_) => {
-            CompIns::Compiled(gen_opc(&ins, &[0xFF], Some(6)))
+            CompIns::Compiled(gen_opc(&ins, &[0xFF], (true, Some(6), None)))
         },
         _ => invalid()
     }
@@ -137,7 +127,8 @@ fn ins_mov(ins: &Instruction) -> CompIns{
                         _       => invalid()
                     }
                 };
-                return CompIns::Compiled(gen_opc(&ins, &vec![opc], None));
+                return CompIns::Compiled(
+                    gen_opc(&ins, &[opc], (true, None, None)));
             }
             _ => invalid()
         }
@@ -150,7 +141,7 @@ fn ins_mov(ins: &Instruction) -> CompIns{
                     2|4|8   => 0x89,
                     _       => invalid()
                 };
-                return CompIns::Compiled(gen_opc(&ins, &vec![opc], None));
+                return CompIns::Compiled(gen_opc(&ins, &[opc], (true, None, None)));
             },
             Operand::Imm(n) => {
                 let size = dst.size() as u8;
@@ -161,7 +152,7 @@ fn ins_mov(ins: &Instruction) -> CompIns{
                 };
                 let mut imm = n.split_into_bytes();
                 extend_imm(&mut imm, size);
-                let modrm = gen_modrm(Some(dst.clone()), Some(src.clone()), Some(0));
+                let modrm = gen_modrm(ins, Some(0), None);
                 
                 let mut toret = if let Some(rex) = rex{
                     vec![rex, opc, modrm]
@@ -187,21 +178,52 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8){
     }
 }
 
-fn gen_opc(ctx: &Instruction, op: &[u8], ovr: Option<u8>) -> Vec<u8>{
-    let mut base = if let Some(rex) = gen_rex(ctx){
-        let mut x = vec![rex];
-        x.extend(op.to_vec());
-        x
+fn gen_opc(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>)) -> Vec<u8> {
+    let mut base = gen_base(ins, opc);
+
+    if modrm.0{
+        base.push(gen_modrm(ins, modrm.1, modrm.2));
+
+        if let Some(dst) = ins.dst(){
+            if let Some(sib) = gen_sib(dst){
+                base.push(sib);
+            }
+        }
+        else if let Some(src) = ins.src(){
+            if let Some(sib) = gen_sib(src){
+                base.push(sib);
+            }
+        }
     }
-    else {
-        op.to_vec()
-    };
-    base.push(gen_modrm(ctx.dst().cloned(), ctx.src().cloned(), ovr));
-    if let Some(sib) = gen_sib(ctx.dst().expect("assertion dst == Some failed").clone()){
-        base.push(sib);
+
+    if let Some(dst) = ins.dst(){
+        if let Some(disp) = gen_disp(dst){
+            base.extend(disp);
+        }
     }
-    if let Some(disp) = gen_disp(ctx.dst().expect("assertion dst == Some failed").clone()){
-        base.extend(disp);
+    else if let Some(src) = ins.src(){
+        if let Some(disp) = gen_disp(src){
+            base.extend(disp);
+        }
     }
+
     return base;
 }
+
+#[inline]
+fn gen_base(ins: &Instruction, opc: &[u8]) -> Vec<u8>{
+    if let Some(rex) = gen_rex(ins){
+        let mut v = vec![rex];
+        v.extend(opc);
+        v
+    }
+    else {
+        opc.to_vec()
+    }
+}
+
+fn invalid() -> !{
+    println!("src/core/comp.rs:invalid - unexpected;");
+    std::process::exit(1);
+}
+
