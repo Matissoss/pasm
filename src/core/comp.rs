@@ -8,6 +8,7 @@ use crate::{
         rex::gen_rex,
         modrm::gen_modrm,
         disp::gen_disp,
+        sib::gen_sib,
     },
     shr::{
         ins::Mnemonic as Ins,
@@ -62,7 +63,12 @@ fn ins_pop(ins: &Instruction) -> CompIns{
 fn ins_push(ins: &Instruction) -> CompIns{
     match ins.dst().clone().unwrap() {
         Operand::Reg(r) => {
-            CompIns::Compiled(gen_opc(&ins, &[0x50 + r.to_byte()], None))
+            if let Some(rex) = gen_rex(&ins){
+                CompIns::Compiled(vec![rex, 0x50 + r.to_byte()])
+            }
+            else {
+                CompIns::Compiled(vec![0x50 + r.to_byte()])
+            }
         },
         Operand::Imm(nb) => {
             match nb.size(){
@@ -191,6 +197,9 @@ fn gen_opc(ctx: &Instruction, op: &[u8], ovr: Option<u8>) -> Vec<u8>{
         op.to_vec()
     };
     base.push(gen_modrm(ctx.dst().cloned(), ctx.src().cloned(), ovr));
+    if let Some(sib) = gen_sib(ctx.dst().expect("assertion dst == Some failed").clone()){
+        base.push(sib);
+    }
     if let Some(disp) = gen_disp(ctx.dst().expect("assertion dst == Some failed").clone()){
         base.extend(disp);
     }

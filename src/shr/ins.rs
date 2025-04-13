@@ -23,6 +23,7 @@ pub enum Mnemonic{
     XOR,
     SHR,
     SHL,
+    LEA,
 
     INC,
     DEC,
@@ -103,6 +104,7 @@ impl FromStr for Mnemonic{
                         match raw_ins[0] as char {
                             'r' => ins_ie(str_ins, "ret", Self::RET),
                             'd' => ins_ie(str_ins, "dec", Self::DEC),
+                            'l' => ins_ie(str_ins, "lea", Self::LEA),
                             _   => Err(())
                         }
                     },

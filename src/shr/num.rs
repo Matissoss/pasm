@@ -3,7 +3,13 @@
 // made by matissoss
 // licensed under MPL
 use std::str::FromStr;
-use crate::shr::size::Size;
+use crate::shr::{
+    size::Size,
+    atype::{
+        AType,
+        ToAType
+    }
+};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Number{
@@ -253,6 +259,12 @@ impl ToString for Number{
             Self::UInt64(i) => i.to_string(),
             Self::Char(c)   => c.to_string()
         }
+    }
+}
+
+impl ToAType for Number{
+    fn atype(&self) -> AType{
+        return AType::Imm(self.size())
     }
 }
 

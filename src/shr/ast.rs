@@ -11,6 +11,10 @@ use crate::shr::{
     kwd::Keyword,
     num::Number,
     size::Size,
+    atype::{
+        AType,
+        ToAType
+    },
 };
 use crate::conf::{
     PREFIX_LAB,
@@ -18,23 +22,6 @@ use crate::conf::{
     PREFIX_REG,
     PREFIX_REF,
 };
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum AsmType{
-    Imm,
-    ImmFloat,
-    ImmDouble,
-    Reg,
-    Mem,
-    ConstRef,
-    LabelRef,
-}
-
-pub struct AsmTypes(pub Vec<AsmType>);
-
-pub trait ToAsmType{
-    fn asm_type(&self) -> AsmType;
-}
 
 #[derive(Debug, Clone)]
 pub enum Operand{
@@ -107,51 +94,6 @@ impl TryFrom<Token> for Operand{
     }
 }
 
-impl ToString for AsmType{
-    fn to_string(&self) -> String{
-        match self {
-            Self::Imm   => String::from("immX"),
-            Self::ImmFloat => String::from("float"),
-            Self::ImmDouble => String::from("double"),
-            Self::Mem   => String::from("memX"),
-            Self::Reg   => String::from("regX"),
-            Self::LabelRef => String::from("labelref"),
-            Self::ConstRef => String::from("constref")
-        }
-    }
-}
-
-impl ToString for AsmTypes{
-    fn to_string(&self) -> String{
-        let mut ret = String::new();
-        ret.push_str("[");
-        for (i, t) in self.0.iter().enumerate(){
-            ret.push_str(&t.to_string());
-            if i+1 < self.0.len(){
-                ret.push_str(", ");
-            }
-        }
-        ret.push_str("]");
-        return ret;
-    }
-}
-
-impl ToAsmType for Operand{
-    fn asm_type(&self) -> AsmType{
-        match self {
-            Self::Reg(_)        => AsmType::Reg,
-            Self::Mem(_)        => AsmType::Mem,
-            Self::LabelRef(_)   => AsmType::LabelRef,
-            Self::ConstRef(_)   => AsmType::ConstRef,
-            Self::Imm(n)        => match n {
-                Number::Float(_) => AsmType::ImmFloat,
-                Number::Double(_) => AsmType::ImmDouble,
-                _ => AsmType::Imm,
-            }
-        }
-    }
-}
-
 impl ToString for Instruction{
     fn to_string(&self) -> String{
         let mut mnems : String = self.mnem.to_string();
@@ -188,6 +130,17 @@ impl ToString for Operand{
             Self::Mem(m) => format!("{:?}", m),
             Self::ConstRef(r) => format!("{}{}", PREFIX_REF, r),
             Self::LabelRef(l) => format!("{}{}", PREFIX_LAB, l)
+        }
+    }
+}
+
+impl ToAType for Operand{
+    fn atype(&self) -> AType{
+        match self {
+            Self::Mem(m) => m.atype(),
+            Self::Reg(r) => r.atype(),
+            Self::Imm(n) => n.atype(),
+            Self::ConstRef(_)|Self::LabelRef(_) => AType::Sym,
         }
     }
 }

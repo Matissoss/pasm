@@ -5,4 +5,5 @@ pub mod ast;
 pub mod ins;
 pub mod mem;
 pub mod size;
+pub mod atype;
 pub mod error;

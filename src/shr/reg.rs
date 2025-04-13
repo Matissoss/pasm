@@ -6,9 +6,9 @@
 use crate::{
     conf::FAST_MODE,
     shr::{
-        ast::{
-            ToAsmType,
-            AsmType
+        atype::{
+            ToAType,
+            AType
         },
         size::Size,
     }
@@ -381,9 +381,9 @@ impl ToString for Register{
     }
 }
 
-impl ToAsmType for Register{
-    fn asm_type(&self) -> AsmType{
-        return AsmType::Reg;
+impl ToAType for Register{
+    fn atype(&self) -> AType{
+        return AType::Reg(self.size());
     }
 }
 

@@ -14,6 +14,10 @@ use crate::{
             ExceptionType as ExType
         },
         size::Size,
+        atype::{
+            AType,
+            ToAType
+        }
     },
     conf::{
         PREFIX_REG,
@@ -73,6 +77,7 @@ pub enum Mem{
 
     SIB(Register, Register, Size, Size),
     SIBOffset(Register, Register, Size, i32, Size),
+
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -135,7 +140,8 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
             MemTok::Reg(r) => {
                 if tried_base{
                     if let None = index {
-                        index = Some(*r)
+                        index = Some(*r);
+                        tried_base = false;
                     }
                     else {
                         return Err(too_many_reg_e)
@@ -239,7 +245,17 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         (Some(b), None   , None   , None   )        => Ok(Mem::Direct(b, size)),
         (None   , Some(i), Some(s), None   )        => Ok(Mem::Index(i, s, size)),
         (None   , Some(i), Some(s), Some(o))        => Ok(Mem::IndexOffset(i, o, s, size)),
-        _ => panic!("Unexpected memory combo :)")
+        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None, ExType::Error, None,
+            Some(format!("Tried to use SIB memory addresation, but scale was not found")),
+            Some(format!("Consider adding scale. Scale can be added like this: `*<scale>`, 
+             where <scale> is number 1, 2, 4 or 8. 
+             If you had started scale with comma ',' instead of asterisk '*',
+             it got handled as displacement and not scale."))
+        )),
+        _ => {
+            println!("{:?} {:?} {:?} {:?}", base, index, scale, offset);
+            panic!("Unexpected memory combo :)")
+        }
     }
 }
 
@@ -351,6 +367,13 @@ impl ToString for MemTok{
         }
     }
 }
+
+impl ToAType for Mem{
+    fn atype(&self) -> AType{
+        return AType::Mem(self.size())
+    }
+}
+
 
 #[cfg(test)]
 mod mem_test{

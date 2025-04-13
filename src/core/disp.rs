@@ -6,7 +6,7 @@
 use crate::shr::{
     ast::Operand as Op,
     mem::Mem,
-    num::Number
+    num::Number,
 };
 
 pub fn gen_disp(op: Op) -> Option<Vec<u8>>{

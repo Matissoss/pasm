@@ -11,10 +11,15 @@ use crate::shr::{
 };
 
 type OP = Option<Op>;
+// to rework :)
 pub fn gen_modrm(dst: OP, src: OP, reg: Option<u8>) -> u8{
     let mod_ = match (&dst, &src) {
-        (None, Some(Op::Mem(Mem::Direct(_, _))))|(Some(Op::Mem(Mem::Direct(_,_))), None) => 0b00,
-        (None, Some(Op::Mem(Mem::Offset(_, o, _))))|(Some(Op::Mem(Mem::Offset(_, o, _))), None) => {
+        (None, Some(Op::Mem(Mem::Direct(_, _))))|(Some(Op::Mem(Mem::Direct(_,_))), None)|
+        (Some(Op::Mem(Mem::SIB(_,_,_,_))), None)|(None, Some(Op::Mem(Mem::SIB(_,_,_,_))))
+        => 0b00,
+        (None, Some(Op::Mem(  Mem::Offset(_,o,_)|Mem::SIBOffset(_,_,_,o,_)  ))) | 
+        (Some(Op::Mem(  Mem::Offset(_,o,_)|Mem::SIBOffset(_,_,_,o,_)  )), None)
+            => {
             let n = Number::squeeze_i64(*o as i64);
             match n {
                 Number::Int8(_) => 0b01,
@@ -34,8 +39,8 @@ pub fn gen_modrm(dst: OP, src: OP, reg: Option<u8>) -> u8{
         }   
     };
 
-    let rm  = if let Some(Op::Reg(dst)) = dst{
-        dst.to_byte()
+    let rm  = if let Some(Op::Reg(dstreg)) = dst{
+        dstreg.to_byte()
     }
     else{
         0

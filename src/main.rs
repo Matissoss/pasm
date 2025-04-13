@@ -85,7 +85,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
                         return ast
                     }
                     else {
-                        if let Some(errs) = pre::chk::check_file(&ast){
+                        if let Some(errs) = pre::chk::check_ast(&ast){
                             let mut error_count: usize = 0;
                             for (name, errors) in errs{
                                 println!("\n--- {} ---\n", ColString::new(name).set_color(BaseColor::PURPLE));
