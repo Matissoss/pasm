@@ -10,14 +10,34 @@ use crate::shr::{
     },
     size::Size,
     ins::Mnemonic as Mnm,
+    mem::Mem
 };
 
 fn needs_rex(ins: &Instruction) -> bool{
-    if ins.size() != Size::Qword {
+    if ins.size() != Size::Qword{
         return false;
     }
+
     match &ins.mnem{
-        Mnm::ADD|Mnm::MOV => true,
+        Mnm::MOV => {
+            if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))|
+                   (Some(Operand::Mem(_)), _)|
+                   (_, Some(Operand::Mem(_)))
+                = (ins.dst(), ins.src()){
+                    return true;
+            }
+            return false;
+        },
+        Mnm::SUB|Mnm::ADD => {
+            if let (_, Some(Operand::Reg(_)))|
+                   (Some(Operand::Reg(_)), _)|
+                   (Some(Operand::Mem(_)), _)|
+                   (_, Some(Operand::Mem(_)))
+                = (ins.dst(), ins.src()){
+                    return true;
+            }
+            return false;
+        }
         _        => {
             if let Some(Operand::Reg(dst)) = ins.dst(){
                 if dst.needs_rex(){
@@ -48,12 +68,33 @@ fn calc_rex(ins: &Instruction) -> u8{
     let r : u8 = if let Some(Operand::Reg(reg)) = ins.src(){
         if reg.needs_rex() {1} else {0} 
     } else {0};
-    // does some things in SIB.index, but that is for later
-    let x : u8 = 0;
-    // will be modified in sometime, because REX.B can also mean SIB.base :)
-    let b : u8 = if let Some(Operand::Reg(reg)) = ins.dst(){
+
+    let mut x : u8 = 0;
+    if let (_, Some(Operand::Mem(m)))|(Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()){
+        match m {
+            Mem::SIB(_, i, _, _)|Mem::SIBOffset(_,i,_,_,_)|Mem::Index(i, _, _)|Mem::IndexOffset(i,_,_,_) =>{
+                if i.needs_rex(){
+                    x = 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut b : u8 = if let Some(Operand::Reg(reg)) = ins.dst(){
         if reg.needs_rex() {1} else {0} 
-    } else {0};
+    } else { 0 };
+
+    if let (_, Some(Operand::Mem(m)))|(Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()){
+        match m {
+            Mem::SIB(base,_,_,_)|Mem::SIBOffset(base,_,_,_,_) =>{
+                if base.needs_rex(){
+                    b = 1;
+                }
+            }
+            _ => {}
+        }
+    }
 
     return base + (w << 3) + (r << 2) + (x << 1) + b;
 }

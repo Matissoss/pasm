@@ -77,7 +77,6 @@ pub enum Mem{
 
     SIB(Register, Register, Size, Size),
     SIBOffset(Register, Register, Size, i32, Size),
-
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -243,6 +242,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         (Some(Register::RIP), None, None, Some(o))  => Ok(Mem::RipRelative(o, size)),
         (Some(b), None   , None   , Some(o))        => Ok(Mem::Offset(b, o, size)),
         (Some(b), None   , None   , None   )        => Ok(Mem::Direct(b, size)),
+        (Some(b), Some(i), None   , None   )        => Ok(Mem::SIB(b, i, Size::Byte, size)),
         (Some(i), None   , Some(s), None   )        => Ok(Mem::Index(i, s, size)),
         (Some(i), None   , Some(s), Some(o))        => Ok(Mem::IndexOffset(i, o, s, size)),
         (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None, ExType::Error, None,

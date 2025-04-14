@@ -49,8 +49,8 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
         Mnm::POP  => ot_chk(ins, (true, false), &[R16, R64, M16, M64], &[]),
         Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
                                                 &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64]),
-        Mnm::ADD  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
-                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32]),
+        Mnm::SUB|Mnm::ADD  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
+                                                         &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32]),
         _ => Some(RASMError::new(
             Some(ins.line),
             ExType::Error,

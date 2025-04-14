@@ -8,7 +8,8 @@
 use std::{
     fs,
     path::PathBuf,
-    process
+    process,
+    io::Write,
 };
 
 // local imports go here
@@ -121,11 +122,17 @@ fn parse_file(inpath: &PathBuf) -> AST{
     }
 }
 
-fn assemble_file(ast: AST, _outpath: &PathBuf){
+fn assemble_file(ast: AST, outpath: &PathBuf){
+    if let Ok(false)|Err(_) = fs::exists(outpath){
+        let _ = fs::File::create(outpath).unwrap();
+    }
+    else {
+        let _ = fs::remove_file(outpath).unwrap();
+        let _ = fs::File::create(outpath).unwrap();
+    }
+    let mut buf = fs::OpenOptions::new().write(true).open(outpath).unwrap();
     for label in ast.labels{
         let result = comp::compile_label(label);
-        for r in result{
-            print!("{:02x} ", r);
-        }
+        let _ = buf.write_all(&result);
     }
 }

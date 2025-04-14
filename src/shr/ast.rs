@@ -160,8 +160,8 @@ impl Instruction{
             (Size::Unknown, _) => src,
             (_, Size::Unknown) => dst,
             (_, _) => {
-                if let Some(Operand::Imm(n)) = &self.src(){
-                    if dst < n.size(){
+                if let Some(Operand::Imm(_)) = &self.src(){
+                    if dst > src{
                         return dst;
                     }
                     else {
@@ -201,8 +201,8 @@ impl Instruction{
             (Some(Operand::Mem(
                 Mem::SIB(_,_,_,_)|Mem::SIBOffset(_,_,_,_,_)|
                 Mem::Index(_,_,_)|Mem::IndexOffset(_,_,_,_)
-            )),None) => true,
-            (None, Some(Operand::Mem(
+            )), _) => true,
+            (_, Some(Operand::Mem(
                 Mem::SIB(_,_,_,_)|Mem::SIBOffset(_,_,_,_,_)|
                 Mem::Index(_,_,_)|Mem::IndexOffset(_,_,_,_)
             ))) => true,

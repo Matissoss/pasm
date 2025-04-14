@@ -18,6 +18,7 @@ use crate::{
             Label
         },
         size::Size,
+        reg::Register,
     }
 };
 
@@ -37,6 +38,8 @@ pub fn compile_instruction(ins: &Instruction) -> Vec<u8>{
         Ins::PUSH       => ins_push(&ins),
         Ins::POP        => ins_pop(&ins),
         Ins::MOV        => ins_mov(&ins),
+        Ins::ADD        => ins_add(&ins),
+        Ins::SUB        => ins_sub(&ins),
         _ => Vec::new()
     }
 }
@@ -50,10 +53,8 @@ fn ins_pop(ins: &Instruction) -> Vec<u8>{
 }
 
 fn ins_push(ins: &Instruction) -> Vec<u8>{
-    match ins.dst().clone().unwrap() {
-        Operand::Reg(r) => {
-            return gen_base(ins, &[0x50 + r.to_byte()]);
-        },
+    return match ins.dst().clone().unwrap() {
+        Operand::Reg(r) => gen_base(ins, &[0x50 + r.to_byte()]),
         Operand::Imm(nb) => {
             match nb.size(){
                 Size::Byte => {
@@ -71,9 +72,7 @@ fn ins_push(ins: &Instruction) -> Vec<u8>{
                 _ => invalid()
             }
         },
-        Operand::Mem(_) => {
-            gen_opc(&ins, &[0xFF], (true, Some(6), None))
-        },
+        Operand::Mem(_) => gen_ins(&ins, &[0xFF], (true, Some(6), None), None),
         _ => invalid()
     }
 }
@@ -81,40 +80,37 @@ fn ins_push(ins: &Instruction) -> Vec<u8>{
 fn ins_mov(ins: &Instruction) -> Vec<u8>{
     let src = ins.src().clone().unwrap();
     let dst = ins.dst().clone().unwrap();
-
-    if let Operand::Reg(_) = dst{
+    if let Operand::Reg(r) = dst{
         match src{
             Operand::Imm(n) => {
                 let size = dst.size();
-                let opc = match size as u8{
-                    1 => 0xB0,
-                    2|4|8 => 0xB8,
+                let opc = match size{
+                    Size::Byte => 0xB0 + r.to_byte(),
+                    Size::Word|Size::Dword|Size::Qword => 0xB8 + r.to_byte(),
                     _ => invalid()
                 };
                 let mut imm = n.split_into_bytes();
-                extend_imm(&mut imm, size as u8);
+                extend_imm(&mut imm, size as u8 + 1);
                 let mut base = gen_base(ins, &[opc]);
                 base.extend(imm);
                 return base;
             },
             Operand::Reg(_)|Operand::Mem(_) => {
                 let opc = if let Operand::Reg(_) = src{
-                    // r r
-                    match dst.size() as u8{
-                        1 => 0x8A,
-                        2|4|8 => 0x8B,
+                    match dst.size(){
+                        Size::Byte => 0x88,
+                        Size::Word|Size::Dword|Size::Qword => 0x89,
                         _ => invalid()
                     }
                 }
                 else{
-                    // r r/m
-                    match dst.size() as u8{
-                        1       => 0x88,
-                        2|4|8   => 0x89,
+                    match dst.size(){
+                        Size::Byte => 0x8A,
+                        Size::Word|Size::Dword|Size::Qword => 0x8B,
                         _       => invalid()
                     }
                 };
-                return gen_opc(&ins, &[opc], (true, None, None));
+                return gen_ins(&ins, &[opc], (true, None, None), None);
             }
             _ => invalid()
         }
@@ -122,26 +118,23 @@ fn ins_mov(ins: &Instruction) -> Vec<u8>{
     else if let Operand::Mem(_) = dst{
         match src {
             Operand::Reg(_) => {
-                let opc = match dst.size() as u8{
-                    1       => 0x88,
-                    2|4|8   => 0x89,
+                let opc = match dst.size(){
+                    Size::Byte => 0x88,
+                    Size::Word|Size::Dword|Size::Qword => 0x89,
                     _       => invalid()
                 };
-                return gen_opc(&ins, &[opc], (true, None, None));
+                return gen_ins(&ins, &[opc], (true, None, None), None);
             },
             Operand::Imm(n) => {
-                let size = dst.size() as u8;
+                let size = dst.size();
                 let opc = match size {
-                    1 => 0xC6,
-                    2|4|8 => 0xC7,
+                    Size::Byte => 0xC6,
+                    Size::Word|Size::Dword|Size::Qword => 0xC7,
                     _ => invalid()
                 };
                 let mut imm = n.split_into_bytes();
-                extend_imm(&mut imm, size);
-                let mut base = gen_base(ins, &[opc]);
-                base.push(gen_modrm(ins, Some(0), None));
-                base.extend(imm);
-                return base;
+                extend_imm(&mut imm, size as u8 + 1);
+                return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm));
             },
             _ => invalid()
         }
@@ -151,6 +144,171 @@ fn ins_mov(ins: &Instruction) -> Vec<u8>{
     }
 }
 
+fn ins_add(ins: &Instruction) -> Vec<u8>{
+    let src = ins.src().unwrap();
+    let dst = ins.dst().unwrap();
+
+    return match (dst, src) {
+        (Operand::Reg(dstr), Operand::Imm(srci)) => {
+            if let Size::Dword|Size::Word = srci.size(){
+                if let Register::RAX|Register::EAX = dstr{
+                    let mut imm = srci.split_into_bytes();
+                    extend_imm(&mut imm, 4);
+                    return bs_imm(ins, &[0x05], &imm);
+                }
+                else if let Register::AX = dstr{
+                    let mut imm = srci.split_into_bytes();
+                    extend_imm(&mut imm, 2);
+                    return bs_imm(ins, &[0x05], &imm);
+                }
+                else if let Register::AL = dstr{
+                    let imm = srci.split_into_bytes();
+                    return bs_imm(ins, &[0x04], &imm);
+                }
+            }
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstr.size(){
+                Size::Byte => 0x80,
+                Size::Word|Size::Dword|Size::Qword => {
+                    if imm.len() == 1 {
+                        0x83
+                    }
+                    else{
+                        0x81
+                    }
+                },
+                _ => invalid()
+            };
+            let mut base = gen_base(ins, &[opc]);
+            base.push(gen_modrm(ins, None, Some(0)));
+            extend_imm(&mut imm, 1);
+            base.extend(imm);
+            return base;
+        },
+        (Operand::Mem(dstm), Operand::Imm(srci)) => {
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstm.size(){
+                Size::Byte => 0x80,
+                Size::Word|Size::Dword|Size::Qword => {
+                    if imm.len() == 1 {
+                        0x83
+                    }
+                    else{
+                        0x81
+                    }
+                },
+                _ => invalid()
+            };
+            if srci.size() != Size::Byte{
+                extend_imm(&mut imm, 4);
+            }
+            return gen_ins(ins, &[opc], (true, None, None), Some(imm));
+        },
+        (Operand::Reg(r), Operand::Mem(_)|Operand::Reg(_)) => {
+            let opc = match r.size(){
+                Size::Byte => 0x02,
+                Size::Word|Size::Dword|Size::Qword => 0x01,
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None)
+        },
+        (Operand::Mem(m), Operand::Reg(_)) => {
+            let opc = match m.size(){
+                Size::Byte => 0x00,
+                Size::Word|Size::Dword|Size::Qword => 0x01,
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None)
+        },
+        _ => invalid()
+    }
+}
+fn ins_sub(ins: &Instruction) -> Vec<u8>{
+    let src = ins.src().unwrap();
+    let dst = ins.dst().unwrap();
+
+    return match (dst, src) {
+        (Operand::Reg(dstr), Operand::Imm(srci)) => {
+            if let Size::Dword|Size::Word = srci.size(){
+                if let Register::RAX|Register::EAX = dstr{
+                    let mut imm = srci.split_into_bytes();
+                    extend_imm(&mut imm, 4);
+                    return bs_imm(ins, &[0x2D], &imm);
+                }
+                else if let Register::AX = dstr{
+                    let mut imm = srci.split_into_bytes();
+                    extend_imm(&mut imm, 2);
+                    return bs_imm(ins, &[0x2D], &imm);
+                }
+                else if let Register::AL = dstr{
+                    let imm = srci.split_into_bytes();
+                    return bs_imm(ins, &[0x2C], &imm);
+                }
+            }
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstr.size(){
+                Size::Byte => 0x80,
+                Size::Word|Size::Dword|Size::Qword => {
+                    if imm.len() == 1 {
+                        0x83
+                    }
+                    else{
+                        0x81
+                    }
+                },
+                _ => invalid()
+            };
+            let mut base = gen_base(ins, &[opc]);
+            base.push(gen_modrm(ins, Some(5), None));
+            extend_imm(&mut imm, 1);
+            base.extend(imm);
+            return base;
+        },
+        (Operand::Mem(dstm), Operand::Imm(srci)) => {
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstm.size(){
+                Size::Byte => 0x80,
+                Size::Word|Size::Dword|Size::Qword => {
+                    if imm.len() == 1 {
+                        0x83
+                    }
+                    else{
+                        0x81
+                    }
+                },
+                _ => invalid()
+            };
+            if srci.size() != Size::Byte{
+                extend_imm(&mut imm, 4);
+            }
+            return gen_ins(ins, &[opc], (true, Some(5), None), Some(imm));
+        },
+        (Operand::Reg(r), Operand::Mem(_)|Operand::Reg(_)) => {
+            let opc = match r.size(){
+                Size::Byte => 0x2A,
+                Size::Word|Size::Dword|Size::Qword => 0x29,
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None)
+        },
+        (Operand::Mem(m), Operand::Reg(_)) => {
+            let opc = match m.size(){
+                Size::Byte => 0x28,
+                Size::Word|Size::Dword|Size::Qword => 0x29,
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None)
+        },
+        _ => invalid()
+    }
+}
+
+fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8]) -> Vec<u8>{
+    let mut b = gen_base(ins, opc);
+    b.extend(imm);
+    b
+}
+
 fn extend_imm(imm: &mut Vec<u8>, size: u8){
     let size = size as usize;
     while imm.len() < size{
@@ -158,7 +316,7 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8){
     }
 }
 
-fn gen_opc(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>)) -> Vec<u8> {
+fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>), imm: Option<Vec<u8>>) -> Vec<u8> {
     let mut base = gen_base(ins, opc);
 
     if modrm.0{
@@ -187,6 +345,9 @@ fn gen_opc(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>))
         }
     }
 
+    if let Some(imm) = imm{
+        base.extend(imm);
+    }
     return base;
 }
 
