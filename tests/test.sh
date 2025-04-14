@@ -30,6 +30,8 @@ for file in ./nasm/*.asm; do
 		echo "---"
 		errors=$((errors+1))
 	fi
+	rm ${NASM_FILE/.asm/.bin}
+	rm ${RASM_FILE/.asm/.bin}
 done
 
 if [[ "$errors" == "0" ]]; then
