@@ -19,3 +19,4 @@ _start:
 	mov qword [rax+rcx*4], 10
 	mov qword [rax+r8*4+20], 10
 	mov qword [r9+r8*4+20], 10
+	mov rax, qword [r9+r8*4+20]

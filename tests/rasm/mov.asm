@@ -16,3 +16,4 @@ _start:
 	mov (%rax+%rcx*$4) !qword, $10
 	mov (%rax+%r8*$4+$20) !qword, $10
 	mov (%r9+%r8*$4+$20) !qword, $10
+	mov %rax, (%r9+%r8*$4+$20) !qword

@@ -17,23 +17,17 @@ fn needs_rex(ins: &Instruction) -> bool{
     if ins.size() != Size::Qword{
         return false;
     }
-
     match &ins.mnem{
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))|
-                   (Some(Operand::Mem(_)), _)|
-                   (_, Some(Operand::Mem(_)))
-                = (ins.dst(), ins.src()){
+            (Some(Operand::Mem(_)), _)|(_, Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
                     return true;
             }
             return false;
         },
-        Mnm::SUB|Mnm::ADD => {
-            if let (_, Some(Operand::Reg(_)))|
-                   (Some(Operand::Reg(_)), _)|
-                   (Some(Operand::Mem(_)), _)|
-                   (_, Some(Operand::Mem(_)))
-                = (ins.dst(), ins.src()){
+        Mnm::SUB|Mnm::ADD|Mnm::IMUL => {
+            if let (_, Some(Operand::Reg(_)))|(Some(Operand::Reg(_)), _)|
+            (Some(Operand::Mem(_)), _)|(_, Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
                     return true;
             }
             return false;

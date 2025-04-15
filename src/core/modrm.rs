@@ -36,7 +36,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
     };
 
     let reg = if let Some(reg) = reg {reg}
-    else{
+        else{
         if let Some(Op::Reg(src)) = ins.src(){
             src.to_byte()
         }

@@ -45,12 +45,25 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
 
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
     return match ins.mnem{
-        Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R64, M16, M64, I8, I16, I32], &[]),
-        Mnm::POP  => ot_chk(ins, (true, false), &[R16, R64, M16, M64], &[]),
+        Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R64, M16, M64, I8, I16, I32], &[], None),
+        Mnm::POP  => ot_chk(ins, (true, false), &[R16, R64, M16, M64], &[], None),
         Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
-                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64]),
+                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64], None),
         Mnm::SUB|Mnm::ADD  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
-                                                         &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32]),
+                                                         &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], None),
+        Mnm::IMUL          => {
+            if let Some(_) = ins.src(){
+                ot_chk(ins, (true, true), 
+                    &[R8, R16, R32, R64, M8, M16, M32, M64], &[R16, R32, R64, M16, M32, M64], 
+                    Some(&[I8, I16, I32]))
+            }
+            else {
+                ot_chk(ins, (true, false),  &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
+            }
+        },
+        Mnm::DIV|Mnm::IDIV|Mnm::MUL => {
+            ot_chk(ins, (true, false), &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
+        }
         _ => Some(RASMError::new(
             Some(ins.line),
             ExType::Error,
@@ -61,7 +74,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
     }
 }
 
-fn ot_chk(ins: &Instruction, ops: (bool, bool), dstt: &[AType], srct: &[AType]) -> Option<RASMError>{
+fn ot_chk(ins: &Instruction, ops: (bool, bool), dstt: &[AType], srct: &[AType], third_op: Option<&[AType]>) -> Option<RASMError>{
     if let Some(e) = operand_check(ins, ops){
         return Some(e);
     }
@@ -82,6 +95,11 @@ fn ot_chk(ins: &Instruction, ops: (bool, bool), dstt: &[AType], srct: &[AType]) 
             }
             else {
                 return size_chk(ins);
+            }
+        }
+        if let Some(thrd_types) = third_op{
+            if let Some(thrd_op) = ins.oprs.get(2){
+                return type_check(thrd_op, thrd_types, false);
             }
         }
         return None;

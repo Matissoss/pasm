@@ -40,6 +40,10 @@ pub fn compile_instruction(ins: &Instruction) -> Vec<u8>{
         Ins::MOV        => ins_mov(&ins),
         Ins::ADD        => ins_add(&ins),
         Ins::SUB        => ins_sub(&ins),
+        Ins::IMUL       => ins_imul(&ins),
+        Ins::DIV        => ins_divmul(&ins, 6),
+        Ins::IDIV       => ins_divmul(&ins, 7),
+        Ins::MUL        => ins_divmul(&ins, 4),
         _ => Vec::new()
     }
 }
@@ -303,6 +307,38 @@ fn ins_sub(ins: &Instruction) -> Vec<u8>{
     }
 }
 
+fn ins_imul(ins: &Instruction) -> Vec<u8>{
+    match ins.src(){
+        None => {
+            let opc = match ins.dst().unwrap().size(){
+                Size::Byte => &[0xF6],
+                _ => &[0xF7]
+            };
+            gen_ins(ins, opc, (true, Some(5), None), None)
+        }
+        Some(_) => {
+            match ins.oprs.get(2){
+                Some(Operand::Imm(imm)) => {
+                    let (opc, size) = match imm.size(){
+                        Size::Byte => (0x6B, 1),
+                        Size::Word => (0x69, 2),
+                        _          => (0x69, 4)
+                    };
+                    let mut imm_b = imm.split_into_bytes();
+                    extend_imm(&mut imm_b, size);
+                    let (dst, src) = if let (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) = (ins.dst(), ins.src()) {
+                        (Some(r.to_byte()), Some(r1.to_byte()))
+                    } else {(None, None)};
+                    gen_ins(ins, &[opc], (true, dst, src), Some(imm_b))
+                },
+                _ => {
+                    gen_ins(ins, &[0x0F, 0xAF], (true, None, None), None)
+                }
+            }
+        }
+    }
+}
+
 fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8]) -> Vec<u8>{
     let mut b = gen_base(ins, opc);
     b.extend(imm);
@@ -318,7 +354,6 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8){
 
 fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>), imm: Option<Vec<u8>>) -> Vec<u8> {
     let mut base = gen_base(ins, opc);
-
     if modrm.0{
         base.push(gen_modrm(ins, modrm.1, modrm.2));
 
@@ -327,7 +362,7 @@ fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>),
                 base.push(sib);
             }
         }
-        else if let Some(src) = ins.src(){
+        if let Some(src) = ins.src(){
             if let Some(sib) = gen_sib(src){
                 base.push(sib);
             }
@@ -339,21 +374,40 @@ fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>),
             base.extend(disp);
         }
     }
-    else if let Some(src) = ins.src(){
+    if let Some(src) = ins.src(){
         if let Some(disp) = gen_disp(src){
             base.extend(disp);
         }
     }
-
     if let Some(imm) = imm{
         base.extend(imm);
     }
     return base;
 }
 
+fn ins_divmul(ins: &Instruction, ovr: u8) -> Vec<u8>{
+    let opc = match ins.dst().unwrap().size(){
+        Size::Byte => [0xF6],
+        _ => [0xF7]
+    };
+    return gen_ins(ins, &opc, (true, Some(ovr), None), None);
+}
+
 #[inline]
 fn gen_base(ins: &Instruction, opc: &[u8]) -> Vec<u8>{
-    if let Some(rex) = gen_rex(ins){
+    if ins.size() < Size::Dword && ins.size() != Size::Byte{
+        if let Some(rex) = gen_rex(ins){
+            let mut v = vec![0x66, rex];
+            v.extend(opc);
+            v
+        }
+        else {
+            let mut i = vec![0x66];
+            i.extend(opc);
+            return i;
+        }
+    }
+    else if let Some(rex) = gen_rex(ins){
         let mut v = vec![rex];
         v.extend(opc);
         v
