@@ -23,50 +23,58 @@ use crate::{
     }
 };
 
-pub fn compile_label(lbl: Label) -> Vec<u8>{
-    let mut bytes = Vec::new();
-
-    for ins in &lbl.inst{
-        let res = compile_instruction(ins);
-        bytes.extend(res);
-    }
-    return bytes;
+pub enum Reallocation {
+    None
 }
 
-pub fn compile_instruction(ins: &Instruction) -> Vec<u8>{
+pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Reallocation>){
+    let mut bytes = Vec::new();
+    let mut reallocs = Vec::new();
+    for ins in &lbl.inst{
+        let res = compile_instruction(ins);
+        if let Some(rl) = res.1 {
+            reallocs.push(rl);
+        }
+        bytes.extend(res.0);
+    }
+    return (bytes, reallocs);
+}
+
+
+pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Reallocation>){
     return match ins.mnem{
-        Ins::RET        => vec![0xC3],
-        Ins::SYSCALL    => vec![0x0F, 0x05],
-        Ins::PUSH       => ins_push(&ins),
-        Ins::POP        => ins_pop(&ins),
-        Ins::MOV        => ins_mov(&ins),
-        Ins::ADD        => add_like_ins(&ins, 
-            &[0x04, 0x05, 0x80, 0x81, 0x83, 0x00, 0x01, 0x02, 0x03], 0),
-        Ins::OR         => add_like_ins(&ins,
-            &[0x0C, 0x0D, 0x80, 0x81, 0x83, 0x08, 0x09, 0x0A, 0x0B], 1),
-        Ins::AND        => add_like_ins(&ins,
-            &[0x24, 0x25, 0x80, 0x81, 0x83, 0x20, 0x21, 0x22, 0x23], 4),
-        Ins::SUB        => add_like_ins(&ins,
-            &[0x2C, 0x2D, 0x80, 0x81, 0x83, 0x28, 0x29, 0x2A, 0x2B], 5),
-        Ins::XOR        => add_like_ins(&ins,
-            &[0x34, 0x35, 0x80, 0x81, 0x83, 0x30, 0x31, 0x32, 0x33], 6),
-        Ins::SAL|Ins::SHL => ins_shllike(&ins, 
-            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 4),
-        Ins::SHR        => ins_shllike(&ins, 
-            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 5),
-        Ins::SAR        => ins_shllike(&ins, 
-            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 7),
-        Ins::TEST       => ins_test(&ins),
-        Ins::INC        => ins_inclike(&ins, &[0xFE, 0xFF], 0),
-        Ins::DEC        => ins_inclike(&ins, &[0xFE, 0xFF], 1),
-        Ins::NOT        => ins_inclike(&ins, &[0xF6, 0xF7], 2),
-        Ins::NEG        => ins_inclike(&ins, &[0xF6, 0xF7], 3),
-        Ins::CMP        => ins_cmp(&ins),
-        Ins::IMUL       => ins_imul(&ins),
-        Ins::DIV        => ins_divmul(&ins, 6),
-        Ins::IDIV       => ins_divmul(&ins, 7),
-        Ins::MUL        => ins_divmul(&ins, 4),
-        _ => Vec::new()
+        Ins::RET        => (vec![0xC3], None),
+        Ins::SYSCALL    => (vec![0x0F, 0x05], None),
+        Ins::PUSH       => (ins_push(&ins), None),
+        Ins::POP        => (ins_pop(&ins), None),
+        Ins::MOV        => (ins_mov(&ins), None),
+        Ins::ADD        => (add_like_ins(&ins, 
+            &[0x04, 0x05, 0x80, 0x81, 0x83, 0x00, 0x01, 0x02, 0x03], 0), None),
+        Ins::OR         => (add_like_ins(&ins,
+            &[0x0C, 0x0D, 0x80, 0x81, 0x83, 0x08, 0x09, 0x0A, 0x0B], 1), None),
+        Ins::AND        => (add_like_ins(&ins,
+            &[0x24, 0x25, 0x80, 0x81, 0x83, 0x20, 0x21, 0x22, 0x23], 4), None),
+        Ins::SUB        => (add_like_ins(&ins,
+            &[0x2C, 0x2D, 0x80, 0x81, 0x83, 0x28, 0x29, 0x2A, 0x2B], 5), None),
+        Ins::XOR        => (add_like_ins(&ins,
+            &[0x34, 0x35, 0x80, 0x81, 0x83, 0x30, 0x31, 0x32, 0x33], 6), None),
+        Ins::SAL|Ins::SHL => (ins_shllike(&ins, 
+            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 4), None),
+        Ins::SHR        => (ins_shllike(&ins, 
+            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 5), None),
+        Ins::SAR        => (ins_shllike(&ins, 
+            &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 7), None),
+        Ins::TEST       => (ins_test(&ins), None),
+        Ins::INC        => (ins_inclike(&ins, &[0xFE, 0xFF], 0), None),
+        Ins::DEC        => (ins_inclike(&ins, &[0xFE, 0xFF], 1), None),
+        Ins::NOT        => (ins_inclike(&ins, &[0xF6, 0xF7], 2), None),
+        Ins::NEG        => (ins_inclike(&ins, &[0xF6, 0xF7], 3), None),
+        Ins::CMP        => (ins_cmp(&ins), None),
+        Ins::IMUL       => (ins_imul(&ins), None),
+        Ins::DIV        => (ins_divmul(&ins, 6), None),
+        Ins::IDIV       => (ins_divmul(&ins, 7), None),
+        Ins::MUL        => (ins_divmul(&ins, 4), None),
+        _ => (Vec::new(), None)
     }
 }
 

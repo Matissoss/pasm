@@ -74,7 +74,7 @@ impl Cli{
     }
     #[inline(always)]
     pub fn error(&self, path: &str, function: &str, msg: &str){
-        println!("[{}:{}] (ERROR): {}", path, function, msg);
+        eprintln!("[{}:{}] (ERROR): {}", path, function, msg);
     }
     #[inline(always)]
     pub fn verbose(&self, path: &str, function: &str, msg: &str){
@@ -84,7 +84,7 @@ impl Cli{
     }
     #[inline(always)]
     pub fn exit(&self, path: &str, function: &str, cause: &str, exit_code: i32) -> !{
-        println!("[{}{}{}] ({} {}): {}", 
+        eprintln!("[{}{}{}] ({} {}): {}", 
             ColString::new(path)     .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold), 
             ColString::new(':')      .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold),
             ColString::new(function) .set_color(BaseColor::PURPLE).set_modf(Modifier::Bold), 

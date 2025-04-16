@@ -6,6 +6,10 @@
 //  global imports go here
 
 use std::{
+    fs::{
+        OpenOptions,
+        File
+    },
     fs,
     path::PathBuf,
     process,
@@ -88,7 +92,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
                         if let Some(errs) = pre::chk::check_ast(&ast){
                             let mut error_count: usize = 0;
                             for (name, errors) in errs{
-                                println!("\n--- {} ---\n", ColString::new(name).set_color(BaseColor::PURPLE));
+                                eprintln!("\n--- {} ---\n", ColString::new(name).set_color(BaseColor::PURPLE));
                                 for err in errors{
                                     error_count += 1;
                                     println!("{}", err)
@@ -106,7 +110,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
                 },
                 Err(errors) => {
                     for e in errors{
-                        println!("{}", e.to_string());
+                        eprintln!("{}", e.to_string());
                     }
                 }
             }
@@ -123,16 +127,44 @@ fn parse_file(inpath: &PathBuf) -> AST{
 }
 
 fn assemble_file(ast: AST, outpath: &PathBuf){
-    if let Ok(false)|Err(_) = fs::exists(outpath){
-        let _ = fs::File::create(outpath).unwrap();
+    match fs::exists(outpath) {
+        Ok(false) => {
+            match File::create(outpath){
+                Ok(_) => {},
+                Err(err) => {
+                    eprintln!("{}", err);
+                    process::exit(1);
+                }
+            }
+        },
+        Ok(true) => {
+            if let Err(why) = fs::remove_file(outpath){
+                eprintln!("{}", why);
+                process::exit(1);
+            }
+            if let Err(why) = File::create(outpath){
+                eprintln!("{}", why);
+                process::exit(1);
+            }
+        }
+        Err(error) => {
+            eprintln!("{}", error);
+            process::exit(1);
+        }
     }
-    else {
-        let _ = fs::remove_file(outpath).unwrap();
-        let _ = fs::File::create(outpath).unwrap();
+    let file = OpenOptions::new()
+        .write(true)
+        .open(outpath);
+    if let Err(why) = file {
+        eprintln!("{}", why);
+        process::exit(1);
     }
-    let mut buf = fs::OpenOptions::new().write(true).open(outpath).unwrap();
+    let mut file = file.unwrap();
     for label in ast.labels{
         let result = comp::compile_label(label);
-        let _ = buf.write_all(&result);
+        if let Err(why) = file.write_all(&result.0){
+            eprintln!("{}", why);
+            process::exit(1);
+        }
     }
 }
