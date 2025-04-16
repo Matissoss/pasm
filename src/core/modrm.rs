@@ -50,7 +50,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
         else{
             if let Some(rm) = rm {rm}
             else{
-                if let Some(Op::Reg(dst)) = ins.dst(){
+                if let Some(Op::Reg(dst)|Op::Mem(Mem::Direct(dst,_))) = ins.dst(){
                     dst.to_byte()
                 }
                 else{

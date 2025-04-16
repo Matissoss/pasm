@@ -20,9 +20,12 @@ pub enum Mnemonic{
     AND,
     OR,
     NOT,
+    NEG,
     XOR,
     SHR,
+    SAR,
     SHL,
+    SAL,
     LEA,
 
     INC,
@@ -105,6 +108,7 @@ impl FromStr for Mnemonic{
                             'r' => ins_ie(str_ins, "ret", Self::RET),
                             'd' => ins_ie(str_ins, "dec", Self::DEC),
                             'l' => ins_ie(str_ins, "lea", Self::LEA),
+                            'n' => ins_ie(str_ins, "neg", Self::NEG),
                             _   => Err(())
                         }
                     },
@@ -123,6 +127,13 @@ impl FromStr for Mnemonic{
                         match raw_ins[2] as char{
                             'l' => ins_ie(str_ins, "shl", Self::SHL),
                             'r' => ins_ie(str_ins, "shr", Self::SHR),
+                            _   => Err(())
+                        }
+                    }
+                    'a' => {
+                        match raw_ins[2] as char{
+                            'l' => ins_ie(str_ins, "sal", Self::SAL),
+                            'r' => ins_ie(str_ins, "sar", Self::SAR),
                             _   => Err(())
                         }
                     }

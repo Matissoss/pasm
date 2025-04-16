@@ -14,8 +14,15 @@ use crate::shr::{
 };
 
 fn needs_rex(ins: &Instruction) -> bool{
-    if ins.size() != Size::Qword{
-        return false;
+    let (size_d, size_s) = match (ins.dst(), ins.src()){
+        (Some(d), Some(s)) => (d.size(), s.size()),
+        (Some(d), None) => (d.size(), Size::Unknown),
+        (None   , Some(s)) => (Size::Unknown, s.size()),
+        _ => (Size::Unknown, Size::Unknown)
+    };
+    match (size_d, size_s) {
+        (Size::Qword, Size::Qword)|(Size::Qword, _)|(_, Size::Qword) => {},
+        _ => return false
     }
     match &ins.mnem{
         Mnm::MOV => {
@@ -25,12 +32,17 @@ fn needs_rex(ins: &Instruction) -> bool{
             }
             return false;
         },
-        Mnm::SUB|Mnm::ADD|Mnm::IMUL => {
+        Mnm::SUB|Mnm::ADD|Mnm::IMUL|Mnm::CMP|Mnm::TEST|Mnm::DEC|Mnm::INC|Mnm::OR|Mnm::AND|Mnm::NOT|Mnm::NEG|
+        Mnm::XOR
+            => {
             if let (_, Some(Operand::Reg(_)))|(Some(Operand::Reg(_)), _)|
             (Some(Operand::Mem(_)), _)|(_, Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
                     return true;
             }
             return false;
+        },
+        Mnm::SAR|Mnm::SAL|Mnm::SHL|Mnm::SHR => {
+            return true;
         }
         _        => {
             if let Some(Operand::Reg(dst)) = ins.dst(){

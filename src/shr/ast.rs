@@ -161,7 +161,7 @@ impl Instruction{
             (_, Size::Unknown) => dst,
             (_, _) => {
                 if let Some(Operand::Imm(_)) = &self.src(){
-                    if dst > src{
+                    if dst >= src{
                         return dst;
                     }
                     else {
