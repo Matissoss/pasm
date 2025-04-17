@@ -124,6 +124,10 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
         Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
             ot_chk(ins, (true, false), &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
         },
+        Mnm::JMP|Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::CALL|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
+            ot_chk(ins, (true, false), &[AType::Sym], &[], None)
+        },
+        Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32, R64], &[AType::Sym], None),
         _ => Some(RASMError::new(
             Some(ins.line),
             ExType::Error,

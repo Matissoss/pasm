@@ -67,8 +67,9 @@ fn main(){
     };
 
     let ast = parse_file   (&infile);
-
-    assemble_file(ast, &outfile);
+    if let Some(form) = cli.get_arg("-f"){
+        assemble_file(ast, &outfile, form);
+    }
     
     process::exit(0);
 }
@@ -126,7 +127,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
     }
 }
 
-fn assemble_file(ast: AST, outpath: &PathBuf){
+fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
     match fs::exists(outpath) {
         Ok(false) => {
             match File::create(outpath){
@@ -155,16 +156,45 @@ fn assemble_file(ast: AST, outpath: &PathBuf){
     let file = OpenOptions::new()
         .write(true)
         .open(outpath);
+    
     if let Err(why) = file {
         eprintln!("{}", why);
         process::exit(1);
     }
     let mut file = file.unwrap();
+    
+    let mut symbols = Vec::new();
+    let mut relocs  = Vec::new();
+
+    let mut to_write : Vec<u8> = Vec::new();
+
+
     for label in ast.labels{
-        let result = comp::compile_label(label);
-        if let Err(why) = file.write_all(&result.0){
-            eprintln!("{}", why);
-            process::exit(1);
+        symbols.push((label.name.clone(), to_write.len() as u32, 0));
+        
+        let mut res = comp::compile_label(label);
+        for r in &mut res.1{
+            r.offset += to_write.len() as u32;
         }
+
+        relocs  .extend(res.1);
+        to_write.extend(res.0);
+    }
+
+    for mut section in comp::compile_sections(ast.variab){
+        for symbol in &mut section.2{
+            symbol.1 += to_write.len() as u32;
+        }
+        to_write.extend(section.1);
+        symbols.extend (section.2);
+    }
+    
+    if form == "baremetal"{
+        CLI.debug("main.rs", "assemble_file", "relocating...");
+        core::reloc::relocate_addresses(&mut to_write, relocs, &symbols);
+    }
+    if let Err(why) = file.write_all(&to_write){
+        eprintln!("{}", why);
+        process::exit(1);
     }
 }

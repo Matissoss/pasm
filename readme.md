@@ -16,7 +16,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 - [x] Frontend for assembler (tokenizer, lexer, parser)
 - [x] AST
 - [x] Instruction encoding support (with REX, ModRM, registers, SIB, displacement and immediates) for most essential instructions
-- [ ] Basic support for relocations (for flat binaries)
+- [x] Basic support for relocations (for flat binaries)
 - [ ] Most basic support for `.o` output file.
 - [ ] Releasing MVP version
 - [ ] Supporting basic optimisations (dead code elimination)

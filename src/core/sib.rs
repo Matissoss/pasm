@@ -10,6 +10,10 @@ use crate::shr::{
 
 pub fn gen_sib(op: &Operand) -> Option<u8>{
     match op{
+        Operand::Mem(Mem::RipRelative(_, _)) => {
+                // why? because it means 32-bit displacement (no base, no index)
+            return Some(25);
+        }
         Operand::Mem(Mem::SIB(base, index, scale, _)|Mem::SIBOffset(base, index, scale, _, _)) => {
             let scale_b : u8 = (*scale as u8) << 6;
             let index_b : u8 = index.to_byte() << 3;

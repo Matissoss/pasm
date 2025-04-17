@@ -3,19 +3,25 @@
 // made by matissoss
 // licensed under MPL
 
+use std::str::FromStr;
 use crate::{
     core::{
         rex::gen_rex,
         modrm::gen_modrm,
         disp::gen_disp,
         sib::gen_sib,
+        reloc::{
+            RType,
+            Relocation
+        }
     },
     shr::{
         ins::Mnemonic as Ins,
         ast::{
             Instruction,
             Operand,
-            Label
+            Label,
+            VarDec
         },
         size::Size,
         reg::Register,
@@ -23,16 +29,64 @@ use crate::{
     }
 };
 
-pub enum Reallocation {
-    None
+pub enum Section{
+    Data,
+    Bss
 }
 
-pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Reallocation>){
+pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String, u32, u32)>)> {
+    let mut bss = Vec::new();
+    let mut data = Vec::new();
+    for v in vars{
+        if v.bss{
+            bss.push(v);
+        }
+        else {
+            data.push(v);
+        }
+    }
+
+    let mut data_bytes : Vec<u8> = Vec::new();
+    let mut data_reloc : Vec<(String, u32, u32)> = Vec::new();
+    let mut bss_bytes  : Vec<u8> = Vec::new();
+    let mut bss_reloc  : Vec<(String, u32, u32)> = Vec::new();
+
+    for d in data{
+        if let Some(c) = d.content{
+            if let Ok(n) = Number::from_str(&c){
+                data_reloc.push((d.name, data_bytes.len() as u32, n.size() as u32));
+                data_bytes.extend(n.split_into_bytes());
+            }
+            else {
+                data_bytes.extend(c.as_bytes());
+            }
+        }
+    }
+    for b in bss{
+        if let Some(c) = b.content{
+            if let Ok(n) = Number::from_str(&c){
+                bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32));
+                bss_bytes.extend(vec![0; n.size() as usize]);
+            }
+        }
+    }
+
+    let data_section : (Section, Vec<u8>, Vec<(String, u32, u32)>) = {
+        (Section::Data, data_bytes, data_reloc)
+    };
+    let bss_section : (Section, Vec<u8>, Vec<(String, u32, u32)>) = {
+        (Section::Bss, bss_bytes, bss_reloc)
+    };
+    vec![data_section, bss_section]
+}
+
+pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Relocation>){
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     for ins in &lbl.inst{
         let res = compile_instruction(ins);
-        if let Some(rl) = res.1 {
+        if let Some(mut rl) = res.1 {
+            rl.offset += bytes.len() as u32;
             reallocs.push(rl);
         }
         bytes.extend(res.0);
@@ -41,7 +95,7 @@ pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Reallocation>){
 }
 
 
-pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Reallocation>){
+pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Relocation>){
     return match ins.mnem{
         Ins::RET        => (vec![0xC3], None),
         Ins::SYSCALL    => (vec![0x0F, 0x05], None),
@@ -74,7 +128,19 @@ pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Reallocation>)
         Ins::DIV        => (ins_divmul(&ins, 6), None),
         Ins::IDIV       => (ins_divmul(&ins, 7), None),
         Ins::MUL        => (ins_divmul(&ins, 4), None),
-        _ => (Vec::new(), None)
+        Ins::JMP        => ins_jmplike(&ins, vec![0xE9]),
+        Ins::CALL       => ins_jmplike(&ins, vec![0xE8]),
+        Ins::JE |Ins::JZ         
+                        => ins_jmplike(&ins, vec![0x0F, 0x84]),
+        Ins::JNE|Ins::JNZ        
+                        => ins_jmplike(&ins, vec![0xFF, 0x85]),
+        Ins::JL         => ins_jmplike(&ins, vec![0x0F, 0x8C]),
+        Ins::JLE        => ins_jmplike(&ins, vec![0x0F, 0x8E]),
+        Ins::JG         => ins_jmplike(&ins, vec![0x0F, 0x8F]),
+        Ins::JGE        => ins_jmplike(&ins, vec![0x0F, 0x8D]),
+
+        Ins::LEA        => ins_lea(&ins),
+        //_ => (Vec::new(), None)
     }
 }
 
@@ -553,6 +619,55 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8) -> Vec<u8> {
         _          => opc[1],
     };
     gen_ins(ins, &[opc], (true, Some(ovr), None), None)
+}
+
+fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
+    let mut base = gen_base(ins, &[0x8D]);
+    let modrm = if let Operand::Reg(r) = ins.dst().unwrap(){
+        4 + r.to_byte()
+    } else {0};
+    base.push(modrm);
+    base.push(0x25);
+    let symbol = match ins.src().unwrap(){
+        Operand::ConstRef(s)|Operand::LabelRef(s) => s.to_string(),
+        _ => invalid()
+    };
+    let blen = base.len();
+    base.extend([0x00; 4]);
+    (base, Some(Relocation{
+        r_type: RType::PCRel32,
+        symbol,
+        offset: blen as u32,
+        addend: 0,
+        size: 4
+    }))
+}
+
+// opc = opcode ONLY for rel32
+fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>){
+    if let Operand::LabelRef(s)|Operand::ConstRef(s) = ins.dst().unwrap(){
+        let mut rel = Relocation{
+            r_type: RType::PCRel32,
+            symbol: s.to_string(),
+            addend: 0,
+            offset: 1,
+            size  : 4,
+        };
+        if opc.len() == 1{
+            (vec![opc[0], 0, 0, 0, 0], Some(rel))
+        }
+        else {
+            let len = opc.len();
+            let mut bs = opc;
+            bs.extend([0, 0, 0, 0]);
+            rel.offset     = len as u32 + 1;
+            rel.size       = bs.len() as u8;
+            (bs, Some(rel))
+        }
+    }
+    else {
+        invalid()
+    }
 }
 
 // ==============================

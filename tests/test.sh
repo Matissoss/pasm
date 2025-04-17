@@ -12,7 +12,7 @@ for file in ./nasm/*.asm; do
 
 	nasm $NASM_FILE -o ${NASM_FILE/.asm/.bin} -f bin
 	NASM_RES=$(xxd ${NASM_FILE/.asm/.bin})
-	cargo run -- -i=$RASM_FILE -o=${RASM_FILE/.asm/.bin}
+	cargo run -- -i=$RASM_FILE -o=${RASM_FILE/.asm/.bin} -f=baremetal
 	RASM_RES=$(xxd ${RASM_FILE/.asm/.bin})
 
 	if [[ "$NASM_RES" != "$RASM_RES" ]]; then

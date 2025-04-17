@@ -8,9 +8,7 @@ use crate::{
         Token,
         Tokens
     },
-    conf::{
-        PREFIX_VAL
-    },
+    conf::PREFIX_VAL,
     shr::{
         mem::Mem,
         ast::{
@@ -304,7 +302,7 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                 Token::Keyword(Keyword::Data) => {
                     match line.get(1) {
                         Some(Token::Unknown(var)) =>{
-                            let size : usize = match line.get(1) {
+                            let size : usize = match line.get(2) {
                                 Some(Token::Keyword(Keyword::Qword)) => 8,
                                 Some(Token::Keyword(Keyword::Dword)) => 4,
                                 Some(Token::Keyword(Keyword::Word))  => 2,
@@ -314,9 +312,9 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                     None,
                                     ExType::Error,
                                     Some(Tokens(line.to_vec()).to_string()),
-                                    Some(format!("Found wrong size specifier for memory")),
+                                    Some(format!("Found wrong size specifier for variable")),
                                     Some(format!(
-                                        "Place either one of these after memory declaration: !byte, !word, !dword, !qword"))
+                                        "Place either one of these after variable declaration: !byte, !word, !dword, !qword"))
                                     ));
                                 }
                             };

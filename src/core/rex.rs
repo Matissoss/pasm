@@ -41,9 +41,7 @@ fn needs_rex(ins: &Instruction) -> bool{
             }
             return false;
         },
-        Mnm::SAR|Mnm::SAL|Mnm::SHL|Mnm::SHR => {
-            return true;
-        }
+        Mnm::SAR|Mnm::SAL|Mnm::SHL|Mnm::SHR|Mnm::LEA => true,
         _        => {
             if let Some(Operand::Reg(dst)) = ins.dst(){
                 if dst.needs_rex(){

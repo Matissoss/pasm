@@ -105,7 +105,7 @@ impl Parser{
                 inst: instructions
             });
         }
-
+        ast.variab = vardecs;
         if errors.is_empty() == false{
             return Err(errors)
         }

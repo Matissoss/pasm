@@ -2,6 +2,7 @@ _start:
 	xor %rax, $10
 	xor %rax, $256
 	xor %rax, $65537
+	xor %rax, %rax
 	xor %rbx, %rax
 	xor %r8, %r9
 	xor %r8, $0
