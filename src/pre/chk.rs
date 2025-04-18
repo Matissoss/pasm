@@ -128,13 +128,16 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
             ot_chk(ins, (true, false), &[AType::Sym], &[], None)
         },
         Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32, R64], &[AType::Sym], None),
+        Mnm::SYSCALL|Mnm::RET => ot_chk(ins, (false, false), &[], &[], None),
+        /*
         _ => Some(RASMError::new(
             Some(ins.line),
             ExType::Error,
             Some(ins.to_string()),
             Some(format!("Tried to use unsupported instruction")),
             None
-        ))
+        )),
+        */
     }
 }
 

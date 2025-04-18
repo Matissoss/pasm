@@ -25,7 +25,7 @@ type LexTree= Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser{
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>>{
         let mut errors : Vec<RASMError> = Vec::new();
-        let mut ast = AST{variab: Vec::new(), global: Vec::new(), labels: Vec::new(), bits: 64, entry: "_start".to_string()};
+        let mut ast = AST{vars: Vec::new(), global: Vec::new(), labels: Vec::new(), bits: 64, entry: "_start".to_string()};
         
         let mut inside_label : (bool, String) = (false, String::new());
         let mut vardecs      : Vec<VarDec>         = Vec::new();
@@ -105,7 +105,7 @@ impl Parser{
                 inst: instructions
             });
         }
-        ast.variab = vardecs;
+        ast.vars = vardecs;
         if errors.is_empty() == false{
             return Err(errors)
         }

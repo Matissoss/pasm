@@ -21,7 +21,8 @@ use crate::{
             Instruction,
             Operand,
             Label,
-            VarDec
+            VarDec,
+            Section
         },
         size::Size,
         reg::Register,
@@ -29,10 +30,6 @@ use crate::{
     }
 };
 
-pub enum Section{
-    Data,
-    Bss
-}
 
 pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String, u32, u32)>)> {
     let mut bss = Vec::new();

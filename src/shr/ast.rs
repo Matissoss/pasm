@@ -68,9 +68,15 @@ pub struct Label{
 pub struct AST{
     pub global: Vec<String>,
     pub labels: Vec<Label> ,
-    pub variab: Vec<VarDec>,
+    pub vars  : Vec<VarDec>,
     pub entry : String,
     pub bits  : u8,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Section{
+    Data,
+    Bss
 }
 
 impl TryFrom<Token> for Operand{
@@ -210,3 +216,4 @@ impl Instruction{
         }
     }
 }
+

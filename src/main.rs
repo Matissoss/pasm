@@ -181,17 +181,23 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
         to_write.extend(res.0);
     }
 
-    for mut section in comp::compile_sections(ast.variab){
-        for symbol in &mut section.2{
-            symbol.1 += to_write.len() as u32;
-        }
-        to_write.extend(section.1);
-        symbols.extend (section.2);
-    }
-    
     if form == "baremetal"{
+        for mut section in comp::compile_sections(ast.vars){
+            for symbol in &mut section.2{
+                symbol.1 += to_write.len() as u32;
+            }
+            to_write.extend(section.1);
+            symbols.extend (section.2);
+        }
         CLI.debug("main.rs", "assemble_file", "relocating...");
         core::reloc::relocate_addresses(&mut to_write, relocs, &symbols);
+    }
+    else if form == "elf32"{
+        to_write = core::obj::elf::make_elf32(
+            comp::compile_sections(ast.vars),
+            &to_write,
+            relocs
+        );
     }
     if let Err(why) = file.write_all(&to_write){
         eprintln!("{}", why);
