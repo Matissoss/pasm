@@ -4,10 +4,7 @@
 // licensed under MPL
 
 use crate::{
-    pre::tok::{
-        Token,
-        Tokens
-    },
+    pre::tok::Token,
     conf::PREFIX_VAL,
     shr::{
         mem::Mem,
@@ -46,26 +43,24 @@ impl Lexer{
                 Some(Token::Section(sec))           => node = Some(ASTNode::Section(sec.to_string())),
                 Some(Token::Keyword(Keyword::Entry)) => {
                     match line.get(1) {
-                        Some(Token::LabelRef(r)) => {
+                        Some(Token::SymbolRef(r)) => {
                             node = Some(ASTNode::Entry(r.to_string()));
                         },
                         None => error = Some(RASMError::new(
                             Some(line_count),
                             ExType::Error,
-                            Some(Tokens(line.clone()).to_string()),
                             Some(format!("Expected labelref after !entry keyword, found nothing")),
                             Some(format!("Consider adding labelref like: `!entry &_start`"))
                         )),
                         Some(t) => error = Some(RASMError::new(
                             Some(line_count),
                             ExType::Error,
-                            Some(Tokens(line.clone()).to_string()),
-                            Some(format!("Expected labelref after !entry keyword, found: {}", t.to_string())),
+                            Some(format!("Expected labelref after !entry keyword, found {}", t.to_string())),
                             Some(format!("Consider changing labelref like: `!entry &_start`"))
                         ))
                     }
                 }
-                Some(Token::Keyword(Keyword::Data|Keyword::Bss)) => {
+                Some(Token::Keyword(Keyword::Const|Keyword::Uninit)) => {
                     match make_var(&line){
                         Ok(var) => node = Some(ASTNode::VarDec(var)),
                         Err(mut tmp_error) => {
@@ -75,14 +70,13 @@ impl Lexer{
                     }
                 }
                 Some(Token::Keyword(Keyword::Global)) => {
-                    if let Some(glob) = line.get(1){
+                    if let Some(Token::String(glob)|Token::Unknown(glob)) = line.get(1){
                         node = Some(ASTNode::Global(glob.to_string()));
                     }
                     else {
                         error = Some(RASMError::new(
                             Some(line_count),
                             ExType::Error,
-                            Some(Tokens(line).to_string()),
                             Some(format!("Unexpected end of line after keyword !global, expected string, found nothing")),
                             Some(format!("consider adding something after global keyword"))
                         ));
@@ -104,7 +98,6 @@ impl Lexer{
                             Ok(operand) => operands.push(operand),
                             Err(mut err)  => {
                                 err.set_line(line_count);
-                                err.set_cont(Tokens(line).to_string());
                                 ast_tree.push(Err(err));
                                 break;
                             }
@@ -127,9 +120,8 @@ impl Lexer{
                     ast_tree.push(Err(RASMError::new(
                         Some(line_count),
                         ExType::Error,
-                        Some(Tokens(line.clone()).to_string()),
                         Some(format!("Unexpected start of line: {:?}", s)),
-                        Some(format!("consider starting line with Instruction, !global, section declaration or label declaration"))
+                        Some(format!("Consider starting line with Instruction, !global, section declaration or label declaration"))
                     )));
                 }
             }
@@ -172,7 +164,6 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
         0 => return Err(RASMError::new(
             None,
             ExType::Error,
-            Some(Tokens(tok.to_vec()).to_string()),
             Some(format!("Tried to make operand from '' (blank)")),
             Some(format!("Consider adding operand to one of sides (destination or source) of instruction."))
         )),
@@ -183,7 +174,6 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
                     return Err(RASMError::new(
                         None,
                         ExType::Error,
-                        Some(Tokens(tok.to_vec()).to_string()),
                         Some(format!("Couldn't parse following tokens into operand")),
                         Some(format!("Try formatting as constref, labelref, immediate, register or memory\n\t     (or maybe you did forgot to add size specifier after memory?)"))
                     ));
@@ -201,9 +191,8 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
                 Err(RASMError::new(
                     None,
                     ExType::Error,
-                    Some(Tokens(tok.to_vec()).to_string()),
                     Some(format!("Unexpected tokens found")),
-                    Some(format!("expected memory address and size specifier"))
+                    Some(format!("Expected memory address and size specifier"))
                 ))
             }
         },
@@ -212,7 +201,6 @@ fn make_op(tok: &[Token]) -> Result<Operand, RASMError>{
             Err(RASMError::new(
                 None,
                 ExType::Error,
-                Some(Tokens(tok.to_vec()).to_string()),
                 Some(format!("Too much tokens were found")),
                 Some(format!("Expected (at most) 2 tokens, found more."))
             ))
@@ -224,7 +212,7 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
     match line.get(0){
         Some(t) => {
             match t {
-                Token::Keyword(Keyword::Bss) => {
+                Token::Keyword(Keyword::Uninit) => {
                     match line.get(1) {
                         Some(Token::Unknown(var)) =>{
                             let mut size : usize = 0;
@@ -239,7 +227,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                                 return Err(RASMError::new(
                                                     None,
                                                     ExType::Error,
-                                                    Some(Tokens(line.to_vec()).to_string()),
                                                     Some(format!("Size specifier doesn't fit into `usize` Rust type")),
                                                     Some(format!(
                                                         "Consider changing size specifier into number from {} to {}",
@@ -252,7 +239,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                             return Err(RASMError::new(
                                                 None,
                                                 ExType::Error,
-                                                Some(Tokens(line.to_vec()).to_string()),
                                                 Some(format!(
                                                     "Expected size specifier to be of type uint, found: {}", n.to_string())),
                                                 Some(format!(
@@ -263,7 +249,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                     y => return Err(RASMError::new(
                                         None,
                                         ExType::Error,
-                                        Some(Tokens(line.to_vec()).to_string()),
                                         Some(format!(
                                             "Unexpected token at index 2; found `{}`, expected immediate",
                                             y.to_string()
@@ -286,20 +271,18 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                         None => Err(RASMError::new(
                             None,
                             ExType::Error,
-                            Some(Tokens(line.to_vec()).to_string()),
                             Some(format!("Expected string at token of index 1, found nothing.")),
                             None
                         )),
                         Some(y) => Err(RASMError::new(
                             None,
                             ExType::Error,
-                            Some(Tokens(line.to_vec()).to_string()),
                             Some(format!("Expected string at token of index 1, found `{}`.", y.to_string())),
                             None
                         )),
                     }
                 },
-                Token::Keyword(Keyword::Data) => {
+                Token::Keyword(Keyword::Const) => {
                     match line.get(1) {
                         Some(Token::Unknown(var)) =>{
                             let size : usize = match line.get(2) {
@@ -311,7 +294,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                     return Err(RASMError::new(
                                     None,
                                     ExType::Error,
-                                    Some(Tokens(line.to_vec()).to_string()),
                                     Some(format!("Found wrong size specifier for variable")),
                                     Some(format!(
                                         "Place either one of these after variable declaration: !byte, !word, !dword, !qword"))
@@ -333,7 +315,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                             return Err(RASMError::new(
                                                 None,
                                                 ExType::Error,
-                                                Some(Tokens(line.to_vec()).to_string()),
                                                 Some(format!("Expected 8-bit number or characted, found: {}", n.to_string())),
                                                 Some(format!("Try changing your number from 0 to 255 (uint) or a character"))
                                             ));
@@ -354,7 +335,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                                     return Err(RASMError::new(
                                         None,
                                         ExType::Error,
-                                        Some(Tokens(line.to_vec()).to_string()),
                                         Some(format!("Unknown token {:?} found in variable declaration", e)),
                                         Some(format!("Try using string, character, uint8 instead of what you tried to use."))
                                     ));
@@ -370,14 +350,12 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                         None => Err(RASMError::new(
                             None,
                             ExType::Error,
-                            Some(Tokens(line.to_vec()).to_string()),
                             Some(format!("Expected string at token of index 1, found nothing.")),
                             None
                         )),
                         Some(y) => Err(RASMError::new(
                             None,
                             ExType::Error,
-                            Some(Tokens(line.to_vec()).to_string()),
                             Some(format!("Expected string at token of index 1, found `{}`.", y.to_string())),
                             None
                         )),
@@ -386,7 +364,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
                 _ => Err(RASMError::new(
                     None,
                     ExType::Error,
-                    Some(Tokens(line.to_vec()).to_string()),
                     Some(format!("Unexpected start of line: expected !data or !bss keyword.")),
                     None
                 ))
@@ -395,7 +372,6 @@ fn make_var(line: &[Token]) -> Result<VarDec, RASMError>{
         None => Err(RASMError::new(
             None,
             ExType::Error,
-            Some(Tokens(line.to_vec()).to_string()),
             Some(format!("Unexpected EOL")),
             None
         ))

@@ -38,7 +38,6 @@ impl Mem {
                 _ => return Err(RASMError::new(
                     None,
                     ExType::Error,
-                    None,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
                     Some(format!("Consider changing size specifier to either one: !qword, !dword, !word, !byte"))
                 ))
@@ -47,7 +46,6 @@ impl Mem {
             return Err(RASMError::new(
                 None,
                 ExType::Error,
-                None,
                 Some(format!("No size specifier found in memory declaration")),
                 Some(format!("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte"))
             ))
@@ -104,7 +102,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         return Err(RASMError::new(
             None,
             ExType::Error,
-            None,
             Some(format!("Expected memory to start with: {}, found unexpected token", MEM_START)),
             Some(format!("Consider starting memory with {}", MEM_START))
         ))
@@ -113,7 +110,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         return Err(RASMError::new(
             None,
             ExType::Error,
-            None,
             Some(format!("Expected memory closing symbol '{}'", MEM_CLOSE)),
             Some(format!("Consider ending memory with '{}' character", MEM_CLOSE)),
         ))
@@ -122,7 +118,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
     let too_many_reg_e : RASMError = RASMError::new(
         None,
         ExType::Error,
-        None,
         Some(format!("Too many registers found in one memory declaration")),
         Some(format!("maximum amount of registers is 2"))
     );
@@ -169,7 +164,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                             return Err(RASMError::new(
                                 None,
                                 ExType::Error,
-                                None,
                                 Some(format!("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)")),
                                 Some(format!("Consider removing last scale (prefixed with '*')"))
                             ))
@@ -179,7 +173,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                         return Err(RASMError::new(
                             None,
                             ExType::Error,
-                            None,
                             Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
                             Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
                         ))
@@ -197,7 +190,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                             return Err(RASMError::new(
                                 None,
                                 ExType::Error,
-                                None,
                                 Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
                                 Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
                             ))
@@ -207,7 +199,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                         return Err(RASMError::new(
                             None,
                             ExType::Error,
-                            None,
                             Some(format!("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)")),
                             Some(format!("Consider removing last scale (prefixed with '+' or '-')"))
                         ))
@@ -222,14 +213,12 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
             MemTok::Unknown(s) => return Err(RASMError::new(
                 None,
                 ExType::Error,
-                None,
                 Some(format!("Found unknown token inside memory declaration: `{}`", s)),
                 Some(format!("Consider changing this token into number, register, ',' or '_'"))
             )),
             MemTok::Start|MemTok::End => return Err(RASMError::new(
                 None,
                 ExType::Error,
-                None,
                 Some(format!("Found memory closing/starting delimeter inside memory declaration")),
                 Some(format!("Consider removing closing/starting delimeter from memory declaration"))
             )),
@@ -245,7 +234,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         (Some(b), Some(i), None   , None   )        => Ok(Mem::SIB(b, i, Size::Byte, size)),
         (Some(i), None   , Some(s), None   )        => Ok(Mem::Index(i, s, size)),
         (Some(i), None   , Some(s), Some(o))        => Ok(Mem::IndexOffset(i, o, s, size)),
-        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None, ExType::Error, None,
+        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None, ExType::Error,
             Some(format!("Tried to use SIB memory addresation, but scale was not found")),
             Some(format!("Consider adding scale. Scale can be added like this: `*<scale>`, 
              where <scale> is number 1, 2, 4 or 8. 
@@ -349,22 +338,6 @@ impl Into<MemTok> for i32{
 impl Into<MemTok> for Register{
     fn into(self) -> MemTok{
         return MemTok::Reg(self)
-    }
-}
-
-impl ToString for MemTok{
-    fn to_string(&self) -> String{
-        match self {
-            Self::Reg(r)        => r.to_string(),
-            Self::End           => MEM_CLOSE.to_string(),
-            Self::Start         => MEM_START.to_string(),
-            Self::Num(n)        => n.to_string(),
-            Self::Underline     => '_'.to_string(),
-            Self::Unknown(s)    => s.to_string(),
-            Self::Star          => '*'.to_string(),
-            Self::Minus         => '-'.to_string(),
-            Self::Plus          => '+'.to_string()
-        }
     }
 }
 

@@ -46,9 +46,4 @@ pub const PREFIX_VAL : char = '$';
 //  default = '@'
 pub const PREFIX_REF : char = '@';
 
-//  PREFIX_LAB defines prefix for labels/functions
-//  ---------------------------------------
-//  default = '&'
-pub const PREFIX_LAB : char = '&';
-
 pub const PREFIX_KWD : char = '!';

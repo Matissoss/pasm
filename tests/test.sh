@@ -8,12 +8,16 @@ errors=0
 
 for file in ./nasm/*.asm; do
 	NASM_FILE=$file
-	RASM_FILE="${file/nasm/rasm}"
+	RASM_FILE=${file/nasm/rasm}
 
-	nasm $NASM_FILE -o ${NASM_FILE/.asm/.bin} -f bin
-	NASM_RES=$(xxd ${NASM_FILE/.asm/.bin})
-	cargo run -- -i=$RASM_FILE -o=${RASM_FILE/.asm/.bin} -f=baremetal
-	RASM_RES=$(xxd ${RASM_FILE/.asm/.bin})
+	NASM_FILE_RES=${NASM_FILE/.asm/.bin}
+	RASM_FILE_RES=${RASM_FILE/.asm/.bin}
+
+	nasm $NASM_FILE -o $NASM_FILE_RES -f bin
+	cargo run -- -i=$RASM_FILE -o=$RASM_FILE_RES -f=baremetal
+	
+	NASM_RES=$(xxd $NASM_FILE_RES)
+	RASM_RES=$(xxd $RASM_FILE_RES)
 
 	if [[ "$NASM_RES" != "$RASM_RES" ]]; then
 		echo ""
@@ -26,12 +30,13 @@ for file in ./nasm/*.asm; do
 		echo "NASM HEX DUMP: "
 		xxd ${NASM_FILE/.asm/.bin}
 		echo "---"
+		echo "RASM HEX DUMP: "
 		xxd ${RASM_FILE/.asm/.bin}
 		echo "---"
 		errors=$((errors+1))
 	fi
-	rm ${NASM_FILE/.asm/.bin}
-	rm ${RASM_FILE/.asm/.bin}
+	rm $NASM_FILE_RES
+	rm $RASM_FILE_RES
 done
 
 if [[ "$errors" == "0" ]]; then

@@ -62,7 +62,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                                 errors.push(RASMError::new(
                                     None,
                                     ExType::Error,
-                                    None,
                                     Some(format!("Tried to use string - forbidden in `baremetal`")),
                                     None
                                 ));
@@ -78,7 +77,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                         errors.push(RASMError::new(
                             None,
                             ExType::Error,
-                            None,
                             Some(format!("Tried to use unitialized variable (`!bss` one)")),
                             Some(format!("Unitialized variables currently cannot be used in `baremetal` target"))
                         ));
@@ -89,7 +87,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                 errors.push(RASMError::new(
                     None,
                     ExType::Error,
-                    None,
                     Some(format!("couldn't find symbol {} in current file", reloc.symbol)),
                     Some(format!("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section"))
                 ))
@@ -99,7 +96,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
             errors.push(RASMError::new(
                 None,
                 ExType::Error,
-                None,
                 Some(format!("tried to use currently unsupported relocation type: {:?}", reloc.rtype)),
                 None
             ))

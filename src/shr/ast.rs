@@ -16,12 +16,6 @@ use crate::shr::{
         ToAType
     },
 };
-use crate::conf::{
-    PREFIX_LAB,
-    PREFIX_VAL,
-    PREFIX_REG,
-    PREFIX_REF,
-};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand{
@@ -73,10 +67,25 @@ pub struct AST{
     pub bits  : u8,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct SymbolDeclaration{
+    name: String,
+    size: Option<u32>,
+    cont: Option<SymbolValue>,
+    stype: Section,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum SymbolValue{
+    Number(Number),
+    String(String)
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Section{
     Data,
-    Bss
+    Bss ,
+    Readonly,
 }
 
 impl TryFrom<Token> for Operand{
@@ -93,26 +102,9 @@ impl TryFrom<Token> for Operand{
                     return Err(())
                 }
             }
-            Token::ConstRef(val) => Ok(Self::ConstRef(val)),
-            Token::LabelRef(val) => Ok(Self::LabelRef(val)),
+            Token::SymbolRef(val) => Ok(Self::ConstRef(val)),
             _                    => Err(())
         }
-    }
-}
-
-impl ToString for Instruction{
-    fn to_string(&self) -> String{
-        let mut mnems : String = self.mnem.to_string();
-        if let Some(addt) = &self.addt{
-            for mnm in addt {
-                mnems.push_str(&format!(" {}", mnm.to_string()))
-            }
-        }
-        let mut oprs = String::new();
-        for operand in &self.oprs{
-            oprs.push_str(&format!(" {}", operand.to_string()))
-        }
-        return format!("{} {}", mnems, oprs)
     }
 }
 
@@ -124,18 +116,6 @@ impl Operand{
             Self::Mem(m) => m.size(),
             Self::LabelRef(_) => Size::Unknown,
             Self::ConstRef(_) => Size::Unknown,
-        }
-    }
-}
-
-impl ToString for Operand{
-    fn to_string(&self) -> String{
-        match self {
-            Self::Imm(n) => format!("{}{}", PREFIX_VAL, n.to_string()),
-            Self::Reg(r) => format!("{}{}", PREFIX_REG, r.to_string()),
-            Self::Mem(m) => format!("{:?}", m),
-            Self::ConstRef(r) => format!("{}{}", PREFIX_REF, r),
-            Self::LabelRef(l) => format!("{}{}", PREFIX_LAB, l)
         }
     }
 }
@@ -216,4 +196,3 @@ impl Instruction{
         }
     }
 }
-

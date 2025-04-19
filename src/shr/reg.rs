@@ -375,12 +375,6 @@ impl FromStr for Register{
     }
 }
 
-impl ToString for Register{
-    fn to_string(&self) -> String {
-        return format!("{:?}", self).to_lowercase()
-    }
-}
-
 impl ToAType for Register{
     fn atype(&self) -> AType{
         return AType::Reg(self.size());

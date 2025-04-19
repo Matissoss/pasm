@@ -8,6 +8,10 @@ use crate::shr::{
     atype::{
         AType,
         ToAType
+    },
+    error::{
+        RASMError,
+        ExceptionType as ExType,
     }
 };
 
@@ -26,16 +30,8 @@ pub enum Number{
     Char    (char)
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum FromStrNumberErr{
-    InvalidEscapeChar(char),
-    InvalidHexChar(char),
-    InvalidBinChar(char),
-    Other
-}
-
 impl FromStr for Number{
-    type Err = FromStrNumberErr;
+    type Err = RASMError;
     fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err>{
         let bytes = str.as_bytes();
 
@@ -60,10 +56,20 @@ impl FromStr for Number{
                         'n' => return Ok(Self::Char('\n')),
                         'r' => return Ok(Self::Char('\r')),
                         't' => return Ok(Self::Char('\t')),
-                        _   => return Err(FromStrNumberErr::InvalidEscapeChar(bytes[1] as char)),
+                        _   => return Err(RASMError::new(
+                            None,
+                            ExType::Error,
+                            Some(format!("'\\{}' is invalid escape code!", bytes[1] as char)),
+                            None
+                        )),
                     }
                 }
-                return Err(FromStrNumberErr::Other);
+                return Err(RASMError::new(
+                    None,
+                    ExType::Error,
+                    Some(format!("Couldn't parse string into number: {}", str)),
+                    None
+                ));
             }
             _ => {
                 if let Ok(n) = str.parse::<u64>(){
@@ -83,7 +89,12 @@ impl FromStr for Number{
                             number += nm * (16u64.pow(index))
                         }
                         else {
-                            return Err(FromStrNumberErr::InvalidHexChar(bytes[i] as char));
+                            return Err(RASMError::new(
+                                None,
+                                ExType::Error,
+                                Some(format!("Invalid hexadecimal character was found inside number: {}", bytes[i] as char)),
+                                Some(format!("Consider changing {} to either 0 to 9 and A to F", bytes[i] as char))
+                            ));
                         }
                         index += 1;
                     }
@@ -99,7 +110,12 @@ impl FromStr for Number{
                             number += nm * (16i64.pow(index))
                         }
                         else {
-                            return Err(FromStrNumberErr::InvalidHexChar(bytes[i] as char));
+                            return Err(RASMError::new(
+                                None,
+                                ExType::Error,
+                                Some(format!("Invalid hexadecimal character was found inside number: {}", bytes[i] as char)),
+                                Some(format!("Consider changing {} to either 0 to 9 and A to F", bytes[i] as char))
+                            ));
                         }
                         index += 1;
                     }
@@ -115,7 +131,12 @@ impl FromStr for Number{
                             number += nm * (1 << index)
                         }
                         else {
-                            return Err(FromStrNumberErr::InvalidBinChar(bytes[i] as char));
+                            return Err(RASMError::new(
+                                None,
+                                ExType::Error,
+                                Some(format!("Invalid binary character was found inside number: {}", bytes[i] as char)),
+                                Some(format!("Consider changing {} to either 1 or 0", bytes[i] as char))
+                            ));
                         }
                         index += 1;
                     }
@@ -131,7 +152,12 @@ impl FromStr for Number{
                             number += nm * (1 << index)
                         }
                         else {
-                            return Err(FromStrNumberErr::InvalidBinChar(bytes[i] as char));
+                            return Err(RASMError::new(
+                                None,
+                                ExType::Error,
+                                Some(format!("Invalid binary character was found inside number: {}", bytes[i] as char)),
+                                Some(format!("Consider changing {} to either 1 or 0", bytes[i] as char))
+                            ));
                         }
                         index += 1;
                     }
@@ -142,7 +168,12 @@ impl FromStr for Number{
                     return Ok(Self::squeeze_f64(db));
                 }
 
-                Err(FromStrNumberErr::Other)
+                return Err(RASMError::new(
+                    None,
+                    ExType::Error,
+                    Some(format!("Couldn't parse string into number: {}", str)),
+                    None
+                ));
             }
         }
     }

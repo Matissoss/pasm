@@ -3,17 +3,14 @@
 // made by matissoss
 // licensed under MPL
 
-
 use std::str::FromStr;
 use crate::{
     shr::{
         reg::Register,
         kwd::Keyword,
         ins::Mnemonic as Mnm,
-        num::{
-            Number,
-            FromStrNumberErr as NumberErr
-        },
+        num::Number,
+        error::RASMError,
     },
     conf::{
         MEM_START,
@@ -22,7 +19,6 @@ use crate::{
         PREFIX_REG,
         PREFIX_VAL,
         PREFIX_REF,
-        PREFIX_LAB,
         PREFIX_KWD
     }
 };
@@ -36,18 +32,16 @@ pub enum Token {
     Section(String),
     MemAddr(String),
     Label(String),
-    LabelRef(String),
+    SymbolRef(String),
     String(String),
-    ConstRef(String),
     UnknownKeyword(String),
     UnknownReg(String),
-    UnknownVal(String, NumberErr),
+    UnknownVal(String, RASMError),
     Unknown(String),
     Comma,
 }
 
 pub struct Tokenizer;
-pub struct Tokens(pub Vec<Token>);
 
 impl Tokenizer{
     pub fn tokenize_line(line: &str) -> Vec<Token>{
@@ -102,7 +96,7 @@ impl Tokenizer{
                     }
                     inside_closure = None;
                 },
-                (None, PREFIX_REG|PREFIX_VAL|PREFIX_KWD|PREFIX_LAB|'.') => inside_closure = Some(c),
+                (None, PREFIX_REG|PREFIX_VAL|PREFIX_KWD|'.') => inside_closure = Some(c),
                 
                 
                 (None, MEM_START|MEM_CLOSE) => {
@@ -154,8 +148,7 @@ impl Token{
                     Self::UnknownKeyword(val.to_string())
                 }
             }
-            Some(PREFIX_LAB) => Self::LabelRef(val.to_string()),
-            Some(PREFIX_REF) => Self::ConstRef(val.to_string()),
+            Some(PREFIX_REF) => Self::SymbolRef(val.to_string()),
             _   => {
                 if let Ok(mnm) = Mnm::from_str(val){
                     Self::Mnemonic(mnm)
@@ -171,34 +164,20 @@ impl Token{
 impl ToString for Token{
     fn to_string(&self) -> String{
         match self{
-            Self::Register(reg)         => format!("{}{}", PREFIX_REG, reg.to_string()),
+            Self::Register(reg)         => format!("{}{}", PREFIX_REG, format!("{:?}", reg).to_lowercase()),
             Self::MemAddr(mem)          => mem.to_string(),
             Self::Immediate(v)          => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd)          => kwd.to_string(),
             Self::Mnemonic(m)           => format!("{}", format!("{:?}", m).to_lowercase()),
             Self::Label(lbl)            => lbl.to_string(),
-            Self::LabelRef(lbl)         => format!("{}{}", PREFIX_LAB, lbl),
+            Self::SymbolRef(lbl)         => format!("{}{}", PREFIX_REF, lbl),
             Self::String(str)           => format!("\"{}\"", str),
             Self::UnknownReg(str)       => format!("{}{}", PREFIX_REG, str.to_string()),
             Self::UnknownVal(str, _)    => format!("{}{}", PREFIX_VAL, str.to_string()),
             Self::Unknown(val)          => val.to_string(),
-            Self::ConstRef(cref)        => format!("{}{}", PREFIX_REF, cref),
             Self::UnknownKeyword(kwd)   => format!("{}{}", PREFIX_KWD, kwd),
             Self::Comma                 => format!("{}", ','),
             Self::Section(sec)          => format!(".{}", sec)
         }
-    }
-}
-
-impl ToString for Tokens{
-    fn to_string(&self) -> String{
-        let mut to_return = String::new();
-        for (i, token) in self.0.iter().enumerate(){
-            to_return.push_str(&token.to_string());
-            if i + 1 < self.0.len(){
-                to_return.push(' ');
-            }
-        }
-        return to_return;
     }
 }

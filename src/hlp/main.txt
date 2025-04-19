@@ -14,8 +14,8 @@ rasmx86_64 [FLAG(s)]
 	-f=[FORMAT]	; specifies output format
 
 [FORMAT]:
-	out		; classical out format, can be used with linkers
-	elf64		; compiles into standalone 64-bit version of ELF
+	elf32		; compiles file into 32-bit version of ELF - relocatable file
+	elf64		; compiles file into 64-bit version of ELF - relocatable file
 	baremetal	; compiles file into 'flat binary' (only instructions, nothing else)
 [PATH]: path :)
 -------------------------

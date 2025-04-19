@@ -3,11 +3,35 @@
 // made by matissoss
 // licensed under MPL
 
-use std::fmt::{
-    Formatter,
-    Display,
-    Error,
+use crate::CLI;
+use std::{
+    fs::{
+        File,
+        OpenOptions
+    },
+    path::PathBuf,
+    fmt::{
+        Formatter,
+        Display,
+        Error,
+    },
+    io::Read,
+    sync::LazyLock
 };
+
+static ERR_CTX: LazyLock<(File, PathBuf)> = LazyLock::new(|| {
+    let path = PathBuf::from(CLI.get_arg("-i").unwrap());
+    (OpenOptions::new()
+        .write(false)
+        .append(false)
+        .truncate(false)
+        .create_new(false)
+        .create(false)
+        .read(true)
+        .open(&path)
+        .unwrap(), path)
+});
+
 use crate::color::{
     ColString,
     BaseColor,
@@ -24,41 +48,38 @@ pub enum ExceptionType{
 #[derive(Debug, Clone, PartialEq)]
 pub struct RASMError{
     line    : Option<usize>,
-    cont    : Option<String>,
     etype   : ExceptionType,
-    tip     : Option<String>,
     msg     : Option<String>,
+    tip     : Option<String>,
 }
 
 impl Display for RASMError{
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error>{
-        writeln!(frm, 
-            "{}:\n\tAt line {}:\n\t{}\n\t---\n\t{}!\n\t===\n\ttip: {}", 
+        let ctx = {
+            let mut buf = String::new();
+            (&ERR_CTX.0).read_to_string(&mut buf).unwrap();
+            buf.lines().map(|l| l.to_string()).collect::<Vec<String>>()[self.line.unwrap()-1].clone()
+        };
+
+        writeln!(frm,
+            "{}:\n\t{} at line {}\n\t{}{}{}",
             self.etype,
-            if let Some(line) = self.line{
-                ColString::new(line).set_modf(Modifier::Bold).set_color(BaseColor::YELLOW)
-            }
-            else{
-                ColString::new("unknown")
-            },
-            if let Some(cont) = &self.cont {
-                ColString::new(cont).set_modf(Modifier::Bold).set_color(BaseColor::GREEN)
-            }
-            else {
-                ColString::new("unknown")
-            },
-            if let Some(msg) = &self.msg {
-                msg.as_str()
-            }
-            else {
-                "unknown"
-            },
+            ColString::new(ERR_CTX.1.to_string_lossy()).set_color(BaseColor::YELLOW),
+            ColString::new(self.line.unwrap()).set_color(BaseColor::YELLOW),
+            ColString::new(ctx).set_color(BaseColor::GREEN).set_modf(Modifier::Bold),
+            if let Some(msg) = &self.msg{
+                format!("\n\t---\n\t{}", msg)
+            } else {"".to_string()},
             if let Some(tip) = &self.tip {
-                ColString::new(tip).set_color(BaseColor::BLUE)
-            }
-            else {
-                ColString::new("unknown")
-            },
+                format!("\n\t{} {}",
+                    ColString::new("tip:")
+                        .set_color(BaseColor::BLUE)
+                        .set_modf (Modifier::Bold),
+                    ColString::new(tip)
+                        .set_color(BaseColor::BLUE)
+                        .set_modf (Modifier::Bold)
+                )
+            } else {"".to_string()}
         )
     }
 }
@@ -81,11 +102,10 @@ impl Display for ExceptionType{
 
 type OS = Option<String>;
 impl RASMError{
-    pub fn new(line: Option<usize>, etype: ExceptionType, cont: OS, msg: OS, tip: OS) -> Self{
+    pub fn new(line: Option<usize>, etype: ExceptionType, msg: OS, tip: OS) -> Self{
         return Self{
             line,
             etype,
-            cont,
             msg,
             tip
         }
@@ -96,13 +116,7 @@ impl RASMError{
     pub fn get_line(&self) -> Option<&usize>{
         return self.line.as_ref();
     }
-    pub fn get_context(&self) -> Option<&String>{
-        return self.cont.as_ref();
-    }
     pub fn set_line(&mut self, newline: usize){
         self.line = Some(newline);
-    }
-    pub fn set_cont(&mut self, cont: String){
-        self.cont = Some(cont);
     }
 }

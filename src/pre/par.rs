@@ -44,7 +44,6 @@ impl Parser{
                                 errors.push(RASMError::new(
                                     Some(node.1),
                                     ExType::Error,
-                                    Some(format!("{:?}", node)),
                                     Some(format!("Entry was already defined!")),
                                     Some(format!("Consider removing entry."))
                                 ))
@@ -68,7 +67,6 @@ impl Parser{
                                 errors.push(RASMError::new(
                                     Some(node.1),
                                     ExType::Error,
-                                    Some(format!("{:?} {:?} {:?}", ins.mnem, ins.dst(), ins.src())),
                                     Some(format!("This instruction was outside of label!")),
                                     Some(format!("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this"))
                                 ));
@@ -82,7 +80,6 @@ impl Parser{
                                 errors.push(RASMError::new(
                                     Some(node.1),
                                     ExType::Error,
-                                    Some(format!("{}", glob)),
                                     Some(format!("This global statement was outside of section!")),
                                     Some(format!("RASM doesn't support globals outside of section. Consider adding it to section .text"))
                                 ));
