@@ -2,6 +2,7 @@ section .text
 	bits 64
 
 _start:
+	mov eax, 1
 	mov rax, 1
 	mov rbx, 256
 	mov rcx, 65536

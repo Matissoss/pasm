@@ -35,6 +35,13 @@ pub mod color;
 pub mod cli  ;
 pub mod help ;
 
+use core::obj::elf::make_elf32;
+use shr::symbol::{
+    Symbol,
+    SymbolType,
+    Visibility
+};
+
 use color::{
     ColString,
     BaseColor,
@@ -170,7 +177,15 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
 
 
     for label in ast.labels{
-        symbols.push((label.name.clone(), to_write.len() as u32, 0));
+        let mut symb = Symbol{ 
+            name: label.name.clone(), 
+            offset: to_write.len() as u32, 
+            size: None,
+            sindex: 0,
+            visibility: Visibility::Global,
+            stype: SymbolType::Func,
+            content: None,
+        };
         
         let mut res = comp::compile_label(label);
         for r in &mut res.1{
@@ -179,24 +194,44 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
 
         relocs  .extend(res.1);
         to_write.extend(res.0);
+        symb.size = Some(to_write.len() as u32 - symb.offset);
+        symbols.push(symb);
     }
 
     if form == "baremetal"{
-        for mut section in comp::compile_sections(ast.vars){
-            for symbol in &mut section.2{
-                symbol.1 += to_write.len() as u32;
+        for section in comp::compile_sections(ast.vars){
+            let mut to_extend = Vec::new();
+            for symbol in section.2{
+                to_extend.push(Symbol{
+                    name: symbol.0,
+                    offset: symbol.1 + to_write.len() as u32,
+                    size: Some(symbol.2),
+                    stype: SymbolType::Object,
+                    sindex: 0,
+                    visibility: Visibility::Local,
+                    content: symbol.3,
+                });
             }
             to_write.extend(section.1);
-            symbols.extend (section.2);
+            symbols.extend (to_extend);
         }
         CLI.debug("main.rs", "assemble_file", "relocating...");
-        core::reloc::relocate_addresses(&mut to_write, relocs, &symbols);
+        match core::reloc::relocate_addresses(&mut to_write, relocs, &symbols){
+            Some(errs) => {
+                for e in errs{
+                    eprintln!("{}", e);
+                }
+            },
+            None => {}
+        }
     }
     else if form == "elf32"{
-        to_write = core::obj::elf::make_elf32(
-            comp::compile_sections(ast.vars),
+        to_write = make_elf32(
+            //comp::compile_sections(ast.vars),
             &to_write,
-            relocs
+            &relocs,
+            &symbols,
+            &outpath
         );
     }
     if let Err(why) = file.write_all(&to_write){

@@ -12,7 +12,8 @@ use crate::{
         sib::gen_sib,
         reloc::{
             RType,
-            Relocation
+            Relocation,
+            RCategory,
         }
     },
     shr::{
@@ -31,7 +32,7 @@ use crate::{
 };
 
 
-pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String, u32, u32)>)> {
+pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>)> {
     let mut bss = Vec::new();
     let mut data = Vec::new();
     for v in vars{
@@ -44,14 +45,14 @@ pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String
     }
 
     let mut data_bytes : Vec<u8> = Vec::new();
-    let mut data_reloc : Vec<(String, u32, u32)> = Vec::new();
+    let mut data_reloc : Vec<(String, u32, u32, Option<String>)> = Vec::new();
     let mut bss_bytes  : Vec<u8> = Vec::new();
-    let mut bss_reloc  : Vec<(String, u32, u32)> = Vec::new();
+    let mut bss_reloc  : Vec<(String, u32, u32, Option<String>)> = Vec::new();
 
     for d in data{
         if let Some(c) = d.content{
             if let Ok(n) = Number::from_str(&c){
-                data_reloc.push((d.name, data_bytes.len() as u32, n.size() as u32));
+                data_reloc.push((d.name, data_bytes.len() as u32, n.size() as u32, Some(n.to_string())));
                 data_bytes.extend(n.split_into_bytes());
             }
             else {
@@ -62,16 +63,16 @@ pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String
     for b in bss{
         if let Some(c) = b.content{
             if let Ok(n) = Number::from_str(&c){
-                bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32));
+                bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32, None));
                 bss_bytes.extend(vec![0; n.size() as usize]);
             }
         }
     }
 
-    let data_section : (Section, Vec<u8>, Vec<(String, u32, u32)>) = {
+    let data_section : (Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>) = {
         (Section::Data, data_bytes, data_reloc)
     };
-    let bss_section : (Section, Vec<u8>, Vec<(String, u32, u32)>) = {
+    let bss_section : (Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>) = {
         (Section::Bss, bss_bytes, bss_reloc)
     };
     vec![data_section, bss_section]
@@ -187,7 +188,12 @@ fn ins_mov(ins: &Instruction) -> Vec<u8>{
                     _ => invalid()
                 };
                 let mut imm = n.split_into_bytes();
-                extend_imm(&mut imm, size as u8 + 1);
+                if size == Size::Qword{
+                    extend_imm(&mut imm, 4);
+                }
+                else{
+                    extend_imm(&mut imm, size.into());
+                }
                 let mut base = gen_base(ins, &[opc]);
                 base.extend(imm);
                 return base;
@@ -632,11 +638,12 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     let blen = base.len();
     base.extend([0x00; 4]);
     (base, Some(Relocation{
-        r_type: RType::PCRel32,
+        rtype: RType::PCRel32,
         symbol,
         offset: blen as u32,
         addend: 0,
-        size: 4
+        size: 4,
+        catg: RCategory::Lea,
     }))
 }
 
@@ -644,11 +651,12 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
 fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>){
     if let Operand::LabelRef(s)|Operand::ConstRef(s) = ins.dst().unwrap(){
         let mut rel = Relocation{
-            r_type: RType::PCRel32,
+            rtype: RType::PCRel32,
             symbol: s.to_string(),
             addend: 0,
             offset: 1,
             size  : 4,
+            catg  : RCategory::Jump,
         };
         if opc.len() == 1{
             (vec![opc[0], 0, 0, 0, 0], Some(rel))

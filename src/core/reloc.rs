@@ -3,9 +3,14 @@
 // made by matissoss
 // licensed under MPL
 
-use crate::shr::error::{
-    RASMError,
-    ExceptionType as ExType
+use std::str::FromStr;
+use crate::shr::{
+    symbol::Symbol,
+    error::{
+        RASMError,
+        ExceptionType as ExType
+    },
+    num::Number
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -16,29 +21,68 @@ pub enum RType{
     None   , 
 }
 
+// idk how to name it
+#[derive(Debug, PartialEq, Clone)]
+pub enum RCategory{
+    Jump,
+    Lea,
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Relocation {
-    pub r_type: RType,
     pub symbol: String,
+    pub rtype: RType,
     pub offset: u32,
     pub addend: i32,
+    pub catg  : RCategory,
     pub size  : u8,
 }
 
-// currently without support for constants that would be found in .bss/.data section :(
-pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[(String, u32, u32)]) -> Option<Vec<RASMError>>{
+pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Symbol]) -> Option<Vec<RASMError>>{ 
     let mut errors = Vec::new();
     for reloc in relocs{
-        if reloc.r_type == RType::PCRel32{
-            if let Some(offset) = find(symbols, &reloc.symbol){
+        if reloc.rtype == RType::PCRel32{
+            if let Some(symbol) = find(symbols, &reloc.symbol){
                 //  rel32       = symb_addr - (inst_addr + inst_size);
-                let rel32       = (offset as i32) - ((reloc.offset + reloc.size as u32) as i32);
+                let rel32       = (symbol.offset as i32) - ((reloc.offset + reloc.size as u32) as i32);
                 let rel32_bytes = rel32.to_le_bytes(); 
                 let mut tmp : usize = 0;
                 let offs = reloc.offset;
-                while tmp < rel32_bytes.len(){
-                    buf[offs as usize + tmp] = rel32_bytes[tmp];
-                    tmp += 1;
+                if reloc.catg == RCategory::Jump{
+                    while tmp < rel32_bytes.len(){
+                        buf[offs as usize + tmp] = rel32_bytes[tmp];
+                        tmp += 1;
+                    }
+                }
+                else {
+                    if let Some(str) = &symbol.content{
+                        let immbytes = match Number::from_str(&str){
+                            Ok(n) => n.split_into_bytes(),
+                            Err(_) => {
+                                errors.push(RASMError::new(
+                                    None,
+                                    ExType::Error,
+                                    None,
+                                    Some(format!("Tried to use string - forbidden in `baremetal`")),
+                                    None
+                                ));
+                                break
+                            }
+                        };
+                        while tmp < immbytes.len(){
+                            buf[offs as usize + tmp] = immbytes[tmp];
+                            tmp += 1;
+                        }
+                    }
+                    else {
+                        errors.push(RASMError::new(
+                            None,
+                            ExType::Error,
+                            None,
+                            Some(format!("Tried to use unitialized variable (`!bss` one)")),
+                            Some(format!("Unitialized variables currently cannot be used in `baremetal` target"))
+                        ));
+                    }
                 }
             }
             else {
@@ -56,7 +100,7 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[(S
                 None,
                 ExType::Error,
                 None,
-                Some(format!("tried to use currently unsupported relocation type: {:?}", reloc.r_type)),
+                Some(format!("tried to use currently unsupported relocation type: {:?}", reloc.rtype)),
                 None
             ))
         }
@@ -70,10 +114,10 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[(S
 }
 
 #[inline]
-fn find(table: &[(String, u32, u32)], object: &str) -> Option<u32>{
+fn find<'a>(table: &'a [Symbol], object: &'a str) -> Option<&'a Symbol>{
     for e in table{
-        if &e.0 == object{
-            return Some(e.1);
+        if &e.name == object{
+            return Some(e);
         }
     }
     return None;
