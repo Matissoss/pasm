@@ -7,4 +7,5 @@ pub mod mem;
 pub mod size;
 pub mod atype;
 pub mod error;
+pub mod rpanic;
 pub mod symbol;

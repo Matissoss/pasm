@@ -86,7 +86,9 @@ impl Tokenizer{
                     }
                     tokens.push(Token::Comma)
                 },
-                
+
+                (None, PREFIX_REF) => inside_closure = Some(PREFIX_REF),
+
                 (Some(MEM_START), ' ') => continue,
                 
                 (None|Some(PREFIX_VAL|PREFIX_REG|PREFIX_KWD), ' '|'\t'|'\n') => {

@@ -50,13 +50,13 @@ impl Lexer{
                             Some(line_count),
                             ExType::Error,
                             Some(format!("Expected labelref after !entry keyword, found nothing")),
-                            Some(format!("Consider adding labelref like: `!entry &_start`"))
+                            Some(format!("Consider adding labelref like: `!entry @_start`"))
                         )),
                         Some(t) => error = Some(RASMError::new(
                             Some(line_count),
                             ExType::Error,
                             Some(format!("Expected labelref after !entry keyword, found {}", t.to_string())),
-                            Some(format!("Consider changing labelref like: `!entry &_start`"))
+                            Some(format!("Consider changing labelref like: `!entry @_start`"))
                         ))
                     }
                 }

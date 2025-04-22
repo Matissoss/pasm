@@ -1,7 +1,7 @@
 # Core.md
 
 ## About
-This note contains info about instruction encoding for x86_64 architecture.
+This note contains info about instruction encoding for x86_64 architecture (helped me with creating this assembler).
 
 # Content
 

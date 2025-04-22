@@ -27,7 +27,8 @@ use crate::{
         },
         size::Size,
         reg::Register,
-        num::Number
+        num::Number,
+        rpanic::rpanic,
     }
 };
 
@@ -61,14 +62,12 @@ pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String
         }
     }
     for b in bss{
-        if let Some(c) = b.content{
-            if let Ok(n) = Number::from_str(&c){
-                bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32, None));
-                bss_bytes.extend(vec![0; n.size() as usize]);
-            }
+        if let None = b.content{
+            bss_bytes.extend(vec![0; b.size]);
+            bss_reloc.push((b.name, (bss_bytes.len()).abs_diff(b.size) as u32, b.size as u32, None));
+            //bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32, None));
         }
     }
-
     let data_section : (Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>) = {
         (Section::Data, data_bytes, data_reloc)
     };
@@ -632,7 +631,7 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     base.push(modrm);
     base.push(0x25);
     let symbol = match ins.src().unwrap(){
-        Operand::ConstRef(s)|Operand::LabelRef(s) => s.to_string(),
+        Operand::SymbolRef(s) => s.to_string(),
         _ => invalid()
     };
     let blen = base.len();
@@ -649,7 +648,7 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
 
 // opc = opcode ONLY for rel32
 fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>){
-    if let Operand::LabelRef(s)|Operand::ConstRef(s) = ins.dst().unwrap(){
+    if let Operand::SymbolRef(s) = ins.dst().unwrap(){
         let mut rel = Relocation{
             rtype: RType::PCRel32,
             symbol: s.to_string(),
@@ -756,7 +755,5 @@ fn gen_base(ins: &Instruction, opc: &[u8]) -> Vec<u8>{
 }
 
 fn invalid() -> !{
-    println!("src/core/comp.rs:invalid - unexpected;");
-    std::process::exit(1);
+    rpanic("comp.rs", "some function", 1, "Unexpected thing that should not happen")
 }
-

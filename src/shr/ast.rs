@@ -22,8 +22,7 @@ pub enum Operand{
     Reg(Register),
     Imm(Number),
     Mem(Mem),
-    LabelRef(String),
-    ConstRef(String),
+    SymbolRef(String),
 }
 
 #[derive(Debug, Clone)]
@@ -102,7 +101,7 @@ impl TryFrom<Token> for Operand{
                     return Err(())
                 }
             }
-            Token::SymbolRef(val) => Ok(Self::ConstRef(val)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
             _                    => Err(())
         }
     }
@@ -114,8 +113,7 @@ impl Operand{
             Self::Imm(n) => n.size(),
             Self::Reg(r) => r.size(),
             Self::Mem(m) => m.size(),
-            Self::LabelRef(_) => Size::Unknown,
-            Self::ConstRef(_) => Size::Unknown,
+            Self::SymbolRef(_) => Size::Unknown,
         }
     }
 }
@@ -126,7 +124,7 @@ impl ToAType for Operand{
             Self::Mem(m) => m.atype(),
             Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
-            Self::ConstRef(_)|Self::LabelRef(_) => AType::Sym,
+            Self::SymbolRef(_) => AType::Sym,
         }
     }
 }

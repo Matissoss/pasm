@@ -13,12 +13,12 @@ use crate::shr::{
     num::Number
 };
 
+#[repr(u32)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum RType{
-    Rel32  , // relative 32-bit ; jmp's and call's
-    PCRel32, // same as previous, but relative to RIP/EIP
-    Abs64  , // absolute 64-bit ; global vars and pointers
-    None   , 
+    PCRel32   = 2, // relative 32-bit ; jmp's and call's
+    Abs64   = 1,   // absolute 64-bit ; global vars and pointers
+    None    = 0, 
 }
 
 // idk how to name it

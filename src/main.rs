@@ -35,6 +35,8 @@ pub mod color;
 pub mod cli  ;
 pub mod help ;
 
+pub use shr::rpanic::rpanic;
+
 use core::obj::elf::make_elf32;
 use shr::symbol::{
     Symbol,
@@ -58,19 +60,20 @@ fn main(){
 
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
+        process::exit(0)
     }
 
     let infile : PathBuf   = if let Some(path) = cli.get_arg("-i"){
         PathBuf::from(path)
     }
     else{
-        cli.exit("src/main.rs", "main", "no input file specified; tip: try using (example) = `-i=input.asm`!", 0);
+        cli.exit("src/main.rs", "main", "no input file specified; tip: try using (example) = `-i=input.asm`!", 1);
     };
     let outfile : PathBuf   = if let Some(path) = cli.get_arg("-o"){
         PathBuf::from(path)
     }
     else{
-        cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 0);
+        cli.exit("src/main.rs", "main", "no output file specified; tip: try using (example): `-o=file.asm`!", 1);
     };
 
     let ast = parse_file   (&infile);
@@ -227,11 +230,11 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
     }
     else if form == "elf32"{
         to_write = make_elf32(
-            //comp::compile_sections(ast.vars),
             &to_write,
-            &relocs,
+            relocs,
             &symbols,
-            &outpath
+            &outpath,
+            comp::compile_sections(ast.vars),
         );
     }
     if let Err(why) = file.write_all(&to_write){
