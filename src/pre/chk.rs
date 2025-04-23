@@ -11,7 +11,6 @@ use crate::shr::{
     },
     atype::*,
     error::RASMError,
-    error::ExceptionType as ExType,
     num::Number,
     reg::Register
 };
@@ -19,7 +18,7 @@ use crate::shr::{
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
     let mut errors : Vec<(String, Vec<RASMError>)> = Vec::new();
 
-    let chk_ins : fn(&Instruction) -> Option<RASMError> = match file.bits{
+    let chk_ins : fn(&Instruction) -> Option<RASMError> = match true{
         _ => check_ins64bit
     };
 
@@ -79,7 +78,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                                 Number::UInt8(_) => None,
                                 _ => Some(RASMError::new(
                                     Some(ins.line),
-                                    ExType::Error,
                                     Some(format!("expected to found 8-bit number, found larger one instead")),
                                     Some(format!("sal/shl/shr/sar expect 8-bit number (like 1) or cl register"))
                                 ))
@@ -90,7 +88,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                                 Number::Int8(_) => None,
                                 _ => Some(RASMError::new(
                                     Some(ins.line),
-                                    ExType::Error,
                                     Some(format!("expected to found 8-bit number, found larger one instead")),
                                     Some(format!("sal/shl/shr/sar expect 8-bit number (like 1) or cl register"))
                                 ))
@@ -99,7 +96,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                         else {
                             Some(RASMError::new(
                                 Some(ins.line),
-                                ExType::Error,
                                 Some(format!("found non-compatible immediate for sal/shl/shr/sar instruction")),
                                 Some(format!("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register"))
                             ))
@@ -107,7 +103,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                     },
                     _ => return Some(RASMError::new(
                         Some(ins.line),
-                        ExType::Error,
                         Some(format!("source operand type mismatch, expected 8-bit number or cl register")),
                         Some(format!("consider changing source operand to 8-bit number or cl register"))
                     ))
@@ -173,13 +168,11 @@ fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError>{
         (None, false)|(Some(_), true) => {},
         (Some(_), false) => return Some(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Unexpected destination operand found: expected none, found some")),
             Some(format!("Consider removing destination operand"))
         )),
         (None, true) => return Some(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Expected destination operand, found nothing")),
             Some(format!("Consider adding destination operand"))
         ))
@@ -188,13 +181,11 @@ fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError>{
         (None, false)|(Some(_), true) => return None,
         (Some(_), false) => return Some(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Unexpected source operand found: expected none, found some")),
             Some(format!("Consider removing source operand"))
         )),
         (None, true) => return Some(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Expected source operand, found nothing")),
             Some(format!("Consider adding source operand"))
         ))
@@ -208,7 +199,6 @@ fn type_check(operand: &Operand, accepted: &[AType], src_op: bool) -> Option<RAS
     else {
         let err = RASMError::new(
             None,
-            ExType::Error,
             Some(format!("{} operand doesn't match any of expected types: {:?}",
                     if src_op {"Source"} else {"Destination"}, accepted
             )),
@@ -248,7 +238,6 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                 return if !ins.mnem.allows_diff_size(Some(s0), Some(s1)){
                     Some(RASMError::new(
                         Some(ins.line),
-                        ExType::Error,
                         Some(format!("Tried to use immediate that is too large for destination operand")),
                         Some(format!("Consider changing immediate to fit inside {} bytes", s0 as u8))
                     ))
@@ -266,7 +255,6 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                 return if !ins.mnem.allows_diff_size(Some(s0), Some(s1)){
                     Some(RASMError::new(
                         Some(ins.line),
-                        ExType::Error,
                         Some(format!("Tried to use operand that cannot be used for destination operand")),
                         Some(format!("Consider changing operand to be {} byte", s0 as u8))
                     ))
@@ -289,7 +277,6 @@ fn prev_mm(ins: &Instruction) -> Option<RASMError>{
     if let (Some(Operand::Mem(_)), Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
         return Some(RASMError::new(
             Some(ins.line),
-            ExType::Error,
             Some(format!("Tried to perform illegal operation on instruction that doesn't support memory-memory operand combo")),
             Some(format!("Consider using register to store memory and then using with other memory instead"))
         ))

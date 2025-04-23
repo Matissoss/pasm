@@ -38,8 +38,9 @@ use crate::color::{
     Modifier
 };
 
+#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExceptionType{
+enum ExceptionType{
     Warn,
     Error,
     Info,
@@ -102,16 +103,13 @@ impl Display for ExceptionType{
 
 type OS = Option<String>;
 impl RASMError{
-    pub fn new(line: Option<usize>, etype: ExceptionType, msg: OS, tip: OS) -> Self{
+    pub fn new(line: Option<usize>, msg: OS, tip: OS) -> Self{
         return Self{
             line,
-            etype,
+            etype: ExceptionType::Error,
             msg,
             tip
         }
-    }
-    pub fn get_type(&self) -> &ExceptionType{
-        return &self.etype;
     }
     pub fn get_line(&self) -> Option<&usize>{
         return self.line.as_ref();

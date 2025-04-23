@@ -3,12 +3,16 @@
 // made by matissoss
 // licensed under MPL
 
+use crate::shr::var::VarContent;
+
+#[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Visibility{
     Local = 0,
     Global = 1,
 }
 
+#[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SymbolType{
     NoType = 0,
@@ -26,12 +30,12 @@ pub struct Symbol{
     pub sindex: u16,
     pub stype: SymbolType,
     pub visibility: Visibility,
-    pub content: Option<String>
+    pub content: Option<VarContent>
 }
 
 impl Symbol{
     pub fn new(name: String, offset: u32, size: Option<u32>, sindex: u16, 
-               stype: SymbolType, visibility: Visibility) -> Self
+               stype: SymbolType, visibility: Visibility, content: Option<VarContent>) -> Self
     {
         Self{
             name,
@@ -40,7 +44,7 @@ impl Symbol{
             sindex,
             stype,
             visibility,
-            content: None
+            content
         }
     }
 }

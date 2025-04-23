@@ -15,6 +15,10 @@ use crate::shr::{
         AType,
         ToAType
     },
+    var::{
+        Variable,
+        VType,
+    }
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -33,21 +37,13 @@ pub struct Instruction{
     pub line : usize,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct VarDec{
-    pub name: String,
-    pub size: usize,
-    pub bss : bool,
-    pub content: Option<String>
-}
-
 #[derive(Debug, Clone)]
 pub enum ASTNode{
     Ins(Instruction),
     Label(String),
     Global(String),
     Section(String),
-    VarDec(VarDec),
+    Variable(Variable),
     Entry(String),
 }
 
@@ -61,9 +57,7 @@ pub struct Label{
 pub struct AST{
     pub global: Vec<String>,
     pub labels: Vec<Label> ,
-    pub vars  : Vec<VarDec>,
-    pub entry : String,
-    pub bits  : u8,
+    pub vars  : Vec<Variable>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -192,5 +186,31 @@ impl Instruction{
             ))) => true,
             _ => false,
         }
+    }
+}
+
+impl AST{
+    pub fn filter_vars(self) -> Vec<(u32, Vec<Variable>)>{
+        let mut ronly = Vec::new();
+        let mut consts = Vec::new();
+        let mut uninits = Vec::new();
+        for v in self.vars{
+            match v.vtype{
+                VType::Readonly => ronly.push(v),
+                VType::Uninit   => uninits.push(v),
+                VType::Const    => consts.push(v),
+            }
+        }
+        let mut toret = Vec::new();
+        if !consts.is_empty(){
+            toret.push((0xFD, consts));
+        }
+        if !ronly.is_empty(){
+            toret.push((0xFE, ronly));
+        }
+        if !uninits.is_empty(){
+            toret.push((0xFF, uninits));
+        }
+        return toret;
     }
 }

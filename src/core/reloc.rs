@@ -3,14 +3,10 @@
 // made by matissoss
 // licensed under MPL
 
-use std::str::FromStr;
 use crate::shr::{
     symbol::Symbol,
-    error::{
-        RASMError,
-        ExceptionType as ExType
-    },
-    num::Number
+    error::RASMError,
+    var::VarContent
 };
 
 #[repr(u32)]
@@ -55,17 +51,24 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                     }
                 }
                 else {
-                    if let Some(str) = &symbol.content{
-                        let immbytes = match Number::from_str(&str){
-                            Ok(n) => n.split_into_bytes(),
-                            Err(_) => {
+                    if let Some(con) = &symbol.content{
+                        let immbytes = match con{
+                            VarContent::Number(n) => n.split_into_bytes(),
+                            VarContent::String(_) => {
                                 errors.push(RASMError::new(
                                     None,
-                                    ExType::Error,
                                     Some(format!("Tried to use string - forbidden in `baremetal`")),
                                     None
                                 ));
-                                break
+                                break;
+                            },
+                            VarContent::Uninit => {
+                                errors.push(RASMError::new(
+                                    None,
+                                    Some(format!("Tried to use uninitialized variable - forbidden in `baremetal`")),
+                                    None
+                                ));
+                                break;
                             }
                         };
                         while tmp < immbytes.len(){
@@ -76,7 +79,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                     else {
                         errors.push(RASMError::new(
                             None,
-                            ExType::Error,
                             Some(format!("Tried to use unitialized variable (`!bss` one)")),
                             Some(format!("Unitialized variables currently cannot be used in `baremetal` target"))
                         ));
@@ -86,7 +88,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
             else {
                 errors.push(RASMError::new(
                     None,
-                    ExType::Error,
                     Some(format!("couldn't find symbol {} in current file", reloc.symbol)),
                     Some(format!("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section"))
                 ))
@@ -95,7 +96,6 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
         else {
             errors.push(RASMError::new(
                 None,
-                ExType::Error,
                 Some(format!("tried to use currently unsupported relocation type: {:?}", reloc.rtype)),
                 None
             ))

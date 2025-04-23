@@ -9,10 +9,7 @@ use crate::{
         reg::Register,
         kwd::Keyword,
         num::Number,
-        error::{
-            RASMError,
-            ExceptionType as ExType
-        },
+        error::RASMError,
         size::Size,
         atype::{
             AType,
@@ -37,7 +34,6 @@ impl Mem {
                 Keyword::Byte  => Size::Byte,
                 _ => return Err(RASMError::new(
                     None,
-                    ExType::Error,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
                     Some(format!("Consider changing size specifier to either one: !qword, !dword, !word, !byte"))
                 ))
@@ -45,7 +41,6 @@ impl Mem {
         } else {
             return Err(RASMError::new(
                 None,
-                ExType::Error,
                 Some(format!("No size specifier found in memory declaration")),
                 Some(format!("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte"))
             ))
@@ -101,7 +96,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
     if !toks.starts_with(&[MemTok::Start]){
         return Err(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Expected memory to start with: {}, found unexpected token", MEM_START)),
             Some(format!("Consider starting memory with {}", MEM_START))
         ))
@@ -109,7 +103,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
     if !toks.ends_with(&[MemTok::End]){
         return Err(RASMError::new(
             None,
-            ExType::Error,
             Some(format!("Expected memory closing symbol '{}'", MEM_CLOSE)),
             Some(format!("Consider ending memory with '{}' character", MEM_CLOSE)),
         ))
@@ -117,7 +110,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
 
     let too_many_reg_e : RASMError = RASMError::new(
         None,
-        ExType::Error,
         Some(format!("Too many registers found in one memory declaration")),
         Some(format!("maximum amount of registers is 2"))
     );
@@ -163,7 +155,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)")),
                                 Some(format!("Consider removing last scale (prefixed with '*')"))
                             ))
@@ -172,7 +163,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                     else {
                         return Err(RASMError::new(
                             None,
-                            ExType::Error,
                             Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
                             Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
                         ))
@@ -189,7 +179,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
                                 Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
                             ))
@@ -198,7 +187,6 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                     else {
                         return Err(RASMError::new(
                             None,
-                            ExType::Error,
                             Some(format!("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)")),
                             Some(format!("Consider removing last scale (prefixed with '+' or '-')"))
                         ))
@@ -212,13 +200,11 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
             MemTok::Star     => variant = NumberVariant::Multiply,
             MemTok::Unknown(s) => return Err(RASMError::new(
                 None,
-                ExType::Error,
                 Some(format!("Found unknown token inside memory declaration: `{}`", s)),
                 Some(format!("Consider changing this token into number, register, ',' or '_'"))
             )),
             MemTok::Start|MemTok::End => return Err(RASMError::new(
                 None,
-                ExType::Error,
                 Some(format!("Found memory closing/starting delimeter inside memory declaration")),
                 Some(format!("Consider removing closing/starting delimeter from memory declaration"))
             )),
@@ -234,7 +220,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         (Some(b), Some(i), None   , None   )        => Ok(Mem::SIB(b, i, Size::Byte, size)),
         (Some(i), None   , Some(s), None   )        => Ok(Mem::Index(i, s, size)),
         (Some(i), None   , Some(s), Some(o))        => Ok(Mem::IndexOffset(i, o, s, size)),
-        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None, ExType::Error,
+        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None,
             Some(format!("Tried to use SIB memory addresation, but scale was not found")),
             Some(format!("Consider adding scale. Scale can be added like this: `*<scale>`, 
              where <scale> is number 1, 2, 4 or 8. 

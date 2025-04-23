@@ -1,4 +1,5 @@
 pub mod reg;
+pub mod var;
 pub mod num;
 pub mod kwd;
 pub mod ast;

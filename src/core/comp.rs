@@ -3,7 +3,6 @@
 // made by matissoss
 // licensed under MPL
 
-use std::str::FromStr;
 use crate::{
     core::{
         rex::gen_rex,
@@ -22,59 +21,72 @@ use crate::{
             Instruction,
             Operand,
             Label,
-            VarDec,
-            Section
         },
         size::Size,
         reg::Register,
         num::Number,
         rpanic::rpanic,
+        var::{
+            Variable,
+            VarContent
+        },
+        symbol::{
+            Symbol,
+            SymbolType,
+            Visibility
+        }
     }
 };
 
+#[inline]
+pub fn make_globals(symbols: &mut [Symbol], globals: &[String]){
+    for s in symbols{
+        for g in globals{
+            if &s.name == g {
+                s.visibility = Visibility::Global;
+                break;
+            }
+        }
+    }
+}
 
-pub fn compile_sections(vars: Vec<VarDec>) -> Vec<(Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>)> {
-    let mut bss = Vec::new();
-    let mut data = Vec::new();
+pub fn compile_section(vars: Vec<Variable>, sindex: u16) -> (Vec<u8>, Vec<Symbol>){
+    let mut buf: Vec<u8> = Vec::new();
+    let mut symbols: Vec<Symbol> = Vec::new();
+
+    let mut offset : u32 = 0;
+
     for v in vars{
-        if v.bss{
-            bss.push(v);
-        }
-        else {
-            data.push(v);
+        match v.content{
+            VarContent::Uninit => {
+                symbols.push(Symbol{
+                    name: v.name,
+                    size: Some(v.size),
+                    sindex,
+                    stype: SymbolType::Object,
+                    offset,
+                    content: None,
+                    visibility: v.visibility,
+                });
+                offset += v.size;
+            },
+            _ => {
+                buf.extend(v.content.bytes());
+                symbols.push(Symbol{
+                    name: v.name,
+                    size: Some(v.size),
+                    sindex,
+                    stype: SymbolType::Object,
+                    offset,
+                    content: Some(v.content),
+                    visibility: v.visibility,
+                });
+                offset += v.size;
+            }
         }
     }
 
-    let mut data_bytes : Vec<u8> = Vec::new();
-    let mut data_reloc : Vec<(String, u32, u32, Option<String>)> = Vec::new();
-    let mut bss_bytes  : Vec<u8> = Vec::new();
-    let mut bss_reloc  : Vec<(String, u32, u32, Option<String>)> = Vec::new();
-
-    for d in data{
-        if let Some(c) = d.content{
-            if let Ok(n) = Number::from_str(&c){
-                data_reloc.push((d.name, data_bytes.len() as u32, n.size() as u32, Some(n.to_string())));
-                data_bytes.extend(n.split_into_bytes());
-            }
-            else {
-                data_bytes.extend(c.as_bytes());
-            }
-        }
-    }
-    for b in bss{
-        if let None = b.content{
-            bss_bytes.extend(vec![0; b.size]);
-            bss_reloc.push((b.name, (bss_bytes.len()).abs_diff(b.size) as u32, b.size as u32, None));
-            //bss_reloc.push((b.name, bss_bytes.len() as u32, n.size() as u32, None));
-        }
-    }
-    let data_section : (Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>) = {
-        (Section::Data, data_bytes, data_reloc)
-    };
-    let bss_section : (Section, Vec<u8>, Vec<(String, u32, u32, Option<String>)>) = {
-        (Section::Bss, bss_bytes, bss_reloc)
-    };
-    vec![data_section, bss_section]
+    (buf, symbols)
 }
 
 pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Relocation>){

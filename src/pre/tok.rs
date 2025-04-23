@@ -29,7 +29,6 @@ pub enum Token {
     Immediate(Number),
     Keyword(Keyword),
     Mnemonic(Mnm),
-    Section(String),
     MemAddr(String),
     Label(String),
     SymbolRef(String),
@@ -138,7 +137,6 @@ impl Token{
                     Err(err) => Self::UnknownVal(val.to_string(), err),
                 }
             },
-            Some('.') => Self::Section(val.to_string()),
             Some(MEM_START) => {
                 Self::MemAddr(val.to_string())
             },
@@ -179,7 +177,6 @@ impl ToString for Token{
             Self::Unknown(val)          => val.to_string(),
             Self::UnknownKeyword(kwd)   => format!("{}{}", PREFIX_KWD, kwd),
             Self::Comma                 => format!("{}", ','),
-            Self::Section(sec)          => format!(".{}", sec)
         }
     }
 }

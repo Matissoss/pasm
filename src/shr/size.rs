@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL
 
+use crate::shr::kwd::Keyword;
+
 use std::fmt::{
     Formatter,
     Display,
@@ -93,6 +95,19 @@ impl PartialOrd for Size{
         }
         else {
             return Some(Ordering::Greater);
+        }
+    }
+}
+
+impl TryFrom<Keyword> for Size{
+    type Error = ();
+    fn try_from(kwd: Keyword) -> Result<Self, <Self as TryFrom<Keyword>>::Error>{
+        match kwd {
+            Keyword::Byte => Ok(Self::Byte),
+            Keyword::Word => Ok(Self::Word),
+            Keyword::Dword => Ok(Self::Dword),
+            Keyword::Qword => Ok(Self::Qword),
+            _ => Err(()),
         }
     }
 }

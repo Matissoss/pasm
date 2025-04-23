@@ -9,10 +9,7 @@ use crate::shr::{
         AType,
         ToAType
     },
-    error::{
-        RASMError,
-        ExceptionType as ExType,
-    }
+    error::RASMError
 };
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -58,7 +55,6 @@ impl FromStr for Number{
                         't' => return Ok(Self::Char('\t')),
                         _   => return Err(RASMError::new(
                             None,
-                            ExType::Error,
                             Some(format!("'\\{}' is invalid escape code!", bytes[1] as char)),
                             None
                         )),
@@ -66,7 +62,6 @@ impl FromStr for Number{
                 }
                 return Err(RASMError::new(
                     None,
-                    ExType::Error,
                     Some(format!("Couldn't parse string into number: {}", str)),
                     None
                 ));
@@ -91,7 +86,6 @@ impl FromStr for Number{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Invalid hexadecimal character was found inside number: {}", bytes[i] as char)),
                                 Some(format!("Consider changing {} to either 0 to 9 and A to F", bytes[i] as char))
                             ));
@@ -112,7 +106,6 @@ impl FromStr for Number{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Invalid hexadecimal character was found inside number: {}", bytes[i] as char)),
                                 Some(format!("Consider changing {} to either 0 to 9 and A to F", bytes[i] as char))
                             ));
@@ -133,7 +126,6 @@ impl FromStr for Number{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Invalid binary character was found inside number: {}", bytes[i] as char)),
                                 Some(format!("Consider changing {} to either 1 or 0", bytes[i] as char))
                             ));
@@ -154,7 +146,6 @@ impl FromStr for Number{
                         else {
                             return Err(RASMError::new(
                                 None,
-                                ExType::Error,
                                 Some(format!("Invalid binary character was found inside number: {}", bytes[i] as char)),
                                 Some(format!("Consider changing {} to either 1 or 0", bytes[i] as char))
                             ));
@@ -170,7 +161,6 @@ impl FromStr for Number{
 
                 return Err(RASMError::new(
                     None,
-                    ExType::Error,
                     Some(format!("Couldn't parse string into number: {}", str)),
                     None
                 ));

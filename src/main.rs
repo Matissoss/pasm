@@ -179,7 +179,7 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
     let mut to_write : Vec<u8> = Vec::new();
 
 
-    for label in ast.labels{
+    for label in &ast.labels{
         let mut symb = Symbol{ 
             name: label.name.clone(), 
             offset: to_write.len() as u32, 
@@ -190,7 +190,7 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
             content: None,
         };
         
-        let mut res = comp::compile_label(label);
+        let mut res = comp::compile_label(label.clone());
         for r in &mut res.1{
             r.offset += to_write.len() as u32;
         }
@@ -202,39 +202,35 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
     }
 
     if form == "baremetal"{
-        for section in comp::compile_sections(ast.vars){
-            let mut to_extend = Vec::new();
-            for symbol in section.2{
-                to_extend.push(Symbol{
-                    name: symbol.0,
-                    offset: symbol.1 + to_write.len() as u32,
-                    size: Some(symbol.2),
-                    stype: SymbolType::Object,
-                    sindex: 0,
-                    visibility: Visibility::Local,
-                    content: symbol.3,
-                });
-            }
-            to_write.extend(section.1);
-            symbols.extend (to_extend);
+        let filtered_vars = ast.filter_vars();
+
+        for v in filtered_vars{
+            let section = comp::compile_section(v.1, v.0 as u16);
+            symbols.extend(section.1);
         }
-        CLI.debug("main.rs", "assemble_file", "relocating...");
+
         match core::reloc::relocate_addresses(&mut to_write, relocs, &symbols){
             Some(errs) => {
-                for e in errs{
-                    eprintln!("{}", e);
+                for e in &errs{
+                    eprintln!("{e}");
                 }
+                CLI.exit("main.rs", "assemble_file", &format!("Assembling ended with {} errors!", errs.len()), 1);
             },
             None => {}
         }
     }
     else if form == "elf32"{
+        let filtered_vars = ast.filter_vars();
+
+        for v in filtered_vars{
+            let section = comp::compile_section(v.1, v.0 as u16);
+            symbols.extend(section.1);
+        }
         to_write = make_elf32(
             &to_write,
             relocs,
             &symbols,
             &outpath,
-            comp::compile_sections(ast.vars),
         );
     }
     if let Err(why) = file.write_all(&to_write){
