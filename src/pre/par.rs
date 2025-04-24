@@ -5,15 +5,16 @@
 
 const EMPTY_STRING : &str = "";
 
-use crate::{
-    shr::ast::{
+use crate::shr::{
+    ast::{
         AST,
         Instruction,
         ASTNode,
         Label
     },
-    shr::var::Variable,
-    shr::error::RASMError
+    var::Variable,
+    error::RASMError,
+    symbol::Visibility
 };
 
 pub struct Parser;
@@ -38,6 +39,7 @@ impl Parser{
                                 ast.labels.push(Label {
                                     name: inside_label.1,
                                     inst: instructions,
+                                    visibility: Visibility::Local,
                                 });
                                 instructions = Vec::new();
                             }
@@ -80,7 +82,8 @@ impl Parser{
         if !instructions.is_empty(){
             ast.labels.push(Label {
                 name: inside_label.1,
-                inst: instructions
+                inst: instructions,
+                visibility: Visibility::Local,
             });
         }
         ast.vars = vardecs;

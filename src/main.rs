@@ -41,7 +41,6 @@ use core::obj::elf::make_elf32;
 use shr::symbol::{
     Symbol,
     SymbolType,
-    Visibility
 };
 
 use color::{
@@ -137,7 +136,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
     }
 }
 
-fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
+fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
     match fs::exists(outpath) {
         Ok(false) => {
             match File::create(outpath){
@@ -178,6 +177,7 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
 
     let mut to_write : Vec<u8> = Vec::new();
 
+    ast.make_globals();
 
     for label in &ast.labels{
         let mut symb = Symbol{ 
@@ -185,9 +185,10 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
             offset: to_write.len() as u32, 
             size: None,
             sindex: 0,
-            visibility: Visibility::Global,
+            visibility: label.visibility,
             stype: SymbolType::Func,
             content: None,
+            addt: 0
         };
         
         let mut res = comp::compile_label(label.clone());
@@ -205,7 +206,7 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
         let filtered_vars = ast.filter_vars();
 
         for v in filtered_vars{
-            let section = comp::compile_section(v.1, v.0 as u16);
+            let section = comp::compile_section(v.1, 0, v.0 as u8);
             symbols.extend(section.1);
         }
 
@@ -223,7 +224,7 @@ fn assemble_file(ast: AST, outpath: &PathBuf, form: &str){
         let filtered_vars = ast.filter_vars();
 
         for v in filtered_vars{
-            let section = comp::compile_section(v.1, v.0 as u16);
+            let section = comp::compile_section(v.1, 0, v.0 as u8);
             symbols.extend(section.1);
         }
         to_write = make_elf32(

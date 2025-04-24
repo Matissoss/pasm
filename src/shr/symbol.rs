@@ -6,8 +6,9 @@
 use crate::shr::var::VarContent;
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub enum Visibility{
+    #[default]
     Local = 0,
     Global = 1,
 }
@@ -30,7 +31,8 @@ pub struct Symbol{
     pub sindex: u16,
     pub stype: SymbolType,
     pub visibility: Visibility,
-    pub content: Option<VarContent>
+    pub content: Option<VarContent>,
+    pub addt: u8
 }
 
 impl Symbol{
@@ -44,7 +46,8 @@ impl Symbol{
             sindex,
             stype,
             visibility,
-            content
+            content,
+            addt: 0
         }
     }
 }

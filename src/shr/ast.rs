@@ -11,6 +11,7 @@ use crate::shr::{
     kwd::Keyword,
     num::Number,
     size::Size,
+    symbol::Visibility,
     atype::{
         AType,
         ToAType
@@ -50,7 +51,8 @@ pub enum ASTNode{
 #[derive(Debug, Clone, Default)]
 pub struct Label{
     pub name : String,
-    pub inst : Vec<Instruction>
+    pub inst : Vec<Instruction>,
+    pub visibility: Visibility
 }
 
 #[derive(Debug, Clone, Default)]
@@ -190,6 +192,27 @@ impl Instruction{
 }
 
 impl AST{
+    pub fn make_globals(&mut self){
+        for g in &self.global{
+            let mut finished = false;
+            for l in &mut self.labels{
+                if &l.name == g{
+                    finished = true;
+                    l.visibility = Visibility::Global;
+                    break;
+                }
+            }
+            if !finished{
+                for s in &mut self.vars{
+                    if &s.name == g{
+                        s.visibility = Visibility::Global;
+                        break;
+                    }
+                }
+            }
+            else {continue}
+        }
+    }
     pub fn filter_vars(self) -> Vec<(u32, Vec<Variable>)>{
         let mut ronly = Vec::new();
         let mut consts = Vec::new();
@@ -203,13 +226,13 @@ impl AST{
         }
         let mut toret = Vec::new();
         if !consts.is_empty(){
-            toret.push((0xFD, consts));
+            toret.push((0x1, consts));
         }
         if !ronly.is_empty(){
-            toret.push((0xFE, ronly));
+            toret.push((0x2, ronly));
         }
         if !uninits.is_empty(){
-            toret.push((0xFF, uninits));
+            toret.push((0x3, uninits));
         }
         return toret;
     }

@@ -250,7 +250,7 @@ fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
     let size = match line.get(2){
         Some(Token::Keyword(k)) => {
             match Size::try_from(*k){
-                Ok(s) => <Size as Into<u8>>::into(s),
+                Ok(s) => <Size as Into<u8>>::into(s) as u32,
                 Err(_) => return Err(RASMError::new(
                     None,
                     Some(format!("Couldn't parse keyword `{}` into size specifier", k.to_string())),
@@ -258,11 +258,34 @@ fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
                 )),
             }
         },
-        Some(_) => return Err(RASMError::new(
-            None,
-            Some(format!("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword)")),
-            None
-        )),
+        Some(t) => {
+            if vtype == VType::Uninit{
+                if let Token::Immediate(n) = t{
+                    match n.get_uint(){
+                        Some(n) => n as u32,
+                        None    => return Err(RASMError::new(
+                            None,
+                            Some(format!("Invalid size specifier at index 2; expected 32-bit unsigned integer")),
+                            None
+                        ))
+                    }
+                }
+                else {
+                    return Err(RASMError::new(
+                        None,
+                        Some(format!("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword) or 32-bit unsigned integer")),
+                        None
+                    ));
+                }
+            }
+            else{
+                return Err(RASMError::new(
+                    None,
+                    Some(format!("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword)")),
+                    None
+                ));
+            }
+        },
         None => return Err(RASMError::new(
             None,
             Some(format!("Expected variable name at index 2; found nothing")),

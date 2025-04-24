@@ -50,7 +50,7 @@ pub fn make_globals(symbols: &mut [Symbol], globals: &[String]){
     }
 }
 
-pub fn compile_section(vars: Vec<Variable>, sindex: u16) -> (Vec<u8>, Vec<Symbol>){
+pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol>){
     let mut buf: Vec<u8> = Vec::new();
     let mut symbols: Vec<Symbol> = Vec::new();
 
@@ -67,6 +67,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16) -> (Vec<u8>, Vec<Symbol
                     offset,
                     content: None,
                     visibility: v.visibility,
+                    addt
                 });
                 offset += v.size;
             },
@@ -80,6 +81,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16) -> (Vec<u8>, Vec<Symbol
                     offset,
                     content: Some(v.content),
                     visibility: v.visibility,
+                    addt
                 });
                 offset += v.size;
             }

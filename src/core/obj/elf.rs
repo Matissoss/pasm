@@ -59,7 +59,7 @@ struct Elf32Shdr{
     entsize: Elf32Word
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Elf32Sym{
     name: Elf32Word,
     value: Elf32Addr,
@@ -191,7 +191,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                 addralign   : 0,
                 offset      : 0,
                 size        : (size_of::<Elf32Rel>() * rels.len()) as u32,
-                entsize     : 0,
+                entsize     : 8,
             });
             shstrtab.extend(b".rel.text\0");
         }
@@ -207,7 +207,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                 addralign: 0,
                 offset: 0,
                 size: (size_of::<Elf32Rela>() * relas.len()) as u32,
-                entsize: 0,
+                entsize: 8,
             });
             shstrtab.extend(b".rela.text\0");
         }
@@ -300,11 +300,12 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
     let (mut bss, mut data, mut _rodata) = (false, false, false);
     let (mut bss_r, mut data_r, mut _rodata_r) : (Vec<usize>, Vec<usize>, Vec<usize>)
         = (Vec::new(), Vec::new(), Vec::new());
-    let (mut bss_b, mut data_b) = (Vec::new(), Vec::new());
+    let (mut bss_b, mut data_b) : (Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new());
 
     // symbols
     let mut strtab : Vec<UnsignedChar> = vec![0];
-    let mut symbols : Vec<Elf32Sym> = {
+    let mut symbols : Vec<Elf32Sym> = 
+    {
         let mut elf_symbs = Vec::new();
         // null symbol
         elf_symbs.push(Elf32Sym{
@@ -335,69 +336,77 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         strtab.extend(b".text\0");
 
         let mut global_symbols = Vec::new();
-        
+
+        let elfsymlen = elf_symbs.len();
+        let mut glob_num = 0;
         for (index, symbol) in symbols.iter().enumerate(){
             if symbol.visibility == Visibility::Local{
-                match symbol.sindex{
-                    /*  .data  */ 0xFD => {
-                        data_r.push(index);
+                match symbol.addt{
+                    /*  .data  */ 0x1 => {
+                        data_r.push(index + elfsymlen - glob_num);
                         data_b.extend(symbol.content.clone().unwrap().bytes());
                         data   = true;
                     },
-                    /* .rodata */ 0xFE => {
+                    /* .rodata */ 0x2 => {
                         //rodata_r.push(index);
                         //rodata = true;
                     },
-                    /*   .bss  */ 0xFF => {
-                        bss_r.push(index);
+                    /*   .bss  */ 0x3 => {
+                        bss_r.push(index + elfsymlen - glob_num);
+                        bss_b.extend(vec![0; symbol.size.unwrap() as usize]);
                         bss    = true;
                     },
                     _ => {}
                 }
             }
-            if symbol.sindex == 0xFD{
-                data_b.extend(symbol.content.clone().unwrap().bytes());
+            if symbol.visibility == Visibility::Global{
+                glob_num += 1;
+                global_symbols.push(symbol);
             }
-            else if symbol.sindex == 0xFF{
-                bss_b.extend(vec![0; symbol.size.unwrap() as usize]);
+            else{
+                elf_symbs.push(Elf32Sym{
+                    name: strtab.len() as u32,
+                    value: symbol.offset,
+                    size: if let Some(s) = symbol.size {s} else {0},
+                    info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
+                    other: 0,
+                    shndx: symbol.sindex,
+                });
+                strtab.extend(symbol.name.as_bytes());
+                strtab.extend(b"\0");
             }
-            let elfsymbol = Elf32Sym{
+        }
+        symtab_hdr.info = elf_symbs.len() as u32;
+
+        let base_len = elf_symbs.len();
+        for (index, symbol) in global_symbols.iter().enumerate(){
+            match symbol.addt{
+                /*  .data  */ 0x1 => {
+                    data_r.push(index + base_len);
+                    data_b.extend(symbol.content.clone().unwrap().bytes());
+                    data   = true;
+                },
+                /* .rodata */ 0x2 => {
+                    //rodata_r.push(index);
+                    //rodata = true;
+                },
+                /*   .bss  */ 0x3 => {
+                    bss_r.push(index + base_len);
+                    bss_b.extend(vec![0; symbol.size.unwrap() as usize]);
+                    bss    = true;
+                },
+                _ => {}
+            }
+            elf_symbs.push(Elf32Sym{
                 name: strtab.len() as u32,
                 value: symbol.offset,
                 size: if let Some(s) = symbol.size {s} else {0},
                 info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                 other: 0,
                 shndx: symbol.sindex,
-            }; 
-            if symbol.visibility == Visibility::Global{
-                global_symbols.push(elfsymbol);
-            }
-            else{
-                elf_symbs.push(elfsymbol);
-            }
+            });
             strtab.extend(symbol.name.as_bytes());
             strtab.extend(b"\0");
-        }
-        symtab_hdr.info = elf_symbs.len() as u32;
-        let base_len = elf_symbs.len();
-        for (index, symb) in global_symbols.iter().enumerate() {
-            let index = index + base_len;
-            match symb.shndx{
-                /*  .data  */ 0xFD => {
-                    data_r.push(index);
-                    data   = true;
-                },
-                /* .rodata */ 0xFE => {
-                    //rodata_r.push(index);
-                    //rodata = true;
-                },
-                /*   .bss  */ 0xFF => {
-                    bss_r.push(index);
-                    bss    = true;
-                },
-                _ => {}
-            }
-            elf_symbs.push(*symb);
         }
         elf_symbs
     };
@@ -410,12 +419,12 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
 
     let modf = {
         let mut modf = 0;
-        if bss {modf+=1}
+        if bss  {modf+=1}
         if data {modf+=1}
         modf
     };
     if bss  {
-        symbols_offset   += data_b.len() as u32 + size_of::<Elf32Shdr>() as u32;
+        symbols_offset   += size_of::<Elf32Shdr>() as u32;
         elf_header.shnum += 1;
     }
     if data {
@@ -423,6 +432,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         elf_header.shoff += data_b.len() as u32;
         symbols_offset   += data_b.len() as u32 + size_of::<Elf32Shdr>() as u32;
     }
+    
     elf_header.shstrndx += modf;
     bytes.extend(elf_header.bytes());
     bytes.extend(code);
@@ -432,7 +442,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
     bytes.extend(null_shdr.bytes());
     bytes.extend(text_shdr.bytes());
 
-    let mut addt = 0;
+    let mut addt_section = 0;
     if data{
         data_shdr.name = shstrtab.len() as u32;
         data_shdr.offset = (size_of::<Elf32Ehdr>() + code.len()) as u32;
@@ -440,8 +450,8 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
 
         let mut data_symb = Vec::new();
         for i in data_r{
-            symbols[i].shndx = 2;
-            let symb = &symbols[i];
+            let symb = &mut symbols[i];
+            symb.shndx = 2 + addt_section as u16;
             let name = collect_asciiz(&strtab, symb.name as usize).unwrap();
             
             data_symb.push((name, symb.value, symb.size, None));
@@ -450,7 +460,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         data_shdr.addralign = calc_lsize(&data_symb);
         shstrtab.extend(b".data\0");
         bytes.extend(data_shdr.bytes());
-        addt += 1;
+        addt_section += 1;
     }
     if bss {
         bss_shdr.name = shstrtab.len() as u32;
@@ -459,8 +469,8 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
 
         let mut bss_symb = Vec::new();
         for i in bss_r{
-            symbols[i].shndx = 2 + addt;
-            let symb = &symbols[i];
+            let symb = &mut symbols[i];
+            symb.shndx = 2 + addt_section as u16;
             let name = collect_asciiz(&strtab, symb.name as usize).unwrap();
             
             bss_symb.push((name, symb.value, symb.size, None));
@@ -473,6 +483,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
 
     symtab_hdr.offset = symbols_offset;
     symtab_hdr.size = (symbols.len() * size_of::<Elf32Sym>()) as u32;
+    symtab_hdr.link += modf as u32;
     bytes.extend(symtab_hdr.bytes());
 
     // .shstrtab section header
@@ -499,28 +510,21 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         bytes.extend(shdr.bytes());
     }
 
+
     // .symtab
     for s in &symbols{
         bytes.extend(s.bytes());
     }
 
-    bytes.extend(shstrtab);
+    bytes.extend(&shstrtab);
     bytes.extend(&strtab);
+    
     if let Some(_) = rel_text_shdr{
         let mut index = 0;
         for mut rel in rel_text_symb{
             let mut symb_index = 0;
             for s in &symbols{
-                let mut iter = strtab[s.name as usize..].iter();
-                let mut s_name = String::new();
-                while let Some(c) = iter.next(){
-                    if c != &('\0' as u8){
-                        s_name.push(*c as char);
-                    }
-                    else {
-                        break;
-                    }
-                }
+                let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
                 if rel_text_symbref[index] == s_name{
                     rel.info = (symb_index << 8) as u32 + rel.info;
                     break;
@@ -536,16 +540,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         for mut rela in rela_text_symb{
             let mut symb_index = 0;
             for s in &symbols{
-                let mut iter = strtab[s.name as usize..].iter();
-                let mut s_name = String::new();
-                while let Some(c) = iter.next(){
-                    if c != &('\0' as u8){
-                        s_name.push(*c as char);
-                    }
-                    else {
-                        break;
-                    }
-                }
+                let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
                 if rel_text_symbref[index] == s_name{
                     rela.info += (symb_index << 8) as u32;
                     break;
