@@ -1,7 +1,8 @@
-// rasmx86_64 - num.rs
-// -------------------
+// rasmx86_64 - src/shr/num.rs
+// ---------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
+
 use std::str::FromStr;
 use crate::shr::{
     size::Size,

@@ -1,7 +1,7 @@
-// rasmx86_64 - size.rs
-// --------------------
+// rasmx86_64 - src/shr/size.rs
+// ----------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use crate::shr::kwd::Keyword;
 

@@ -1,7 +1,7 @@
-// rasmx86_64 - ins.rs
-// -------------------
+// rasmx86_64 - src/shr/ins.rs
+// ---------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use std::str::FromStr;
 use crate::shr::size::Size;

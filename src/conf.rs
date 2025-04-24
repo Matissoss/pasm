@@ -1,8 +1,7 @@
-//  rasmx86_64  -  conf.rs
-//  ----------------------
+//  rasmx86_64 - src/conf.rs
+//  --------------------------
 //  made by matissoss
 //  licensed under MPL 2.0
-
 
 // FAST_MODE means that assembler will skip 
 // the *_ie part and return the value immediately;
@@ -13,7 +12,7 @@
 pub const FAST_MODE : bool = false;
 
 // MEM_START and MEM_CLOSE defines character that will begin/end memory address
-// p.e. (if MEM_START == '(' and MEM_CLOSE == ')'): movd %rax, dword (%rsi-$4)
+// p.e. (if MEM_START == '(' and MEM_CLOSE == ')'): mov %rax, !dword (%rsi-$4)
 // means that: destination = %rsi - $4 
 // -------------------------------------
 // default : MEM_START = '(', MEM_CLOSE = ')'
@@ -46,4 +45,7 @@ pub const PREFIX_VAL : char = '$';
 //  default = '@'
 pub const PREFIX_REF : char = '@';
 
+//  PREFIX_KWD defines prefix for keywords like `!global`
+//  ---------------------------------------
+//  default = '!'
 pub const PREFIX_KWD : char = '!';

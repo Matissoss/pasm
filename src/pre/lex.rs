@@ -1,7 +1,7 @@
-// rasmx86_64 - lex.rs
-// -------------------
+// rasmx86_64 - src/core/lex.rs
+// ----------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use std::str::FromStr;
 use crate::{

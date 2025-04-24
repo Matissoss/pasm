@@ -1,7 +1,7 @@
-// rasmx86_64 - disp.rs
-// --------------------
+// rasmx86_64 - src/core/disp.rs
+// -----------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use crate::shr::{
     ast::Operand as Op,

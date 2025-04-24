@@ -1,7 +1,7 @@
-//  rasmx86_64  -   main.rs
-//  -----------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// rasmx86_64 - src/main.rs
+// -----------------------
+// made by matissoss
+// licensed under MPL 2.0
 
 //  global imports go here
 

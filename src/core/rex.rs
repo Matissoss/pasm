@@ -1,7 +1,7 @@
-// rasmx86_64 - rex.rs
-// -------------------
+// rasmx86_64 - src/core/rex.rs
+// ----------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use crate::shr::{
     ast::{

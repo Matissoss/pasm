@@ -1,7 +1,8 @@
-// rasmx86_64 - chk.rs
-// -------------------
+// rasmx86_64 - src/pre/chk.rs
+// ---------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
+
 use crate::shr::{
     ins::Mnemonic as Mnm,
     ast::{

@@ -1,7 +1,7 @@
-// rasmx86_64 - modrm.rs
-// ---------------------
+// rasmx86_64 - src/core/modrm.rs
+// ------------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use crate::shr::{
     //reg::Register as Reg,

@@ -1,7 +1,7 @@
-// rasmx86_64 - tok.rs
-// -------------------
+// rasmx86_64 - src/pre/tok.rs
+// ---------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use std::str::FromStr;
 use crate::{

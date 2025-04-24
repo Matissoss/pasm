@@ -1,7 +1,7 @@
-// rasmx86_64 - reg.rs
-// --------------------
+// rasmx86_64 - src/shr/reg.rs
+// ---------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use crate::{
     conf::FAST_MODE,

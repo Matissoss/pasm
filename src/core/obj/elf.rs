@@ -1,7 +1,7 @@
-// rasmx86_64 - elf.rs
-// -------------------
+// rasmx86_64 - src/core/obj/elf.rs
+// --------------------------------
 // made by matissoss
-// licensed under MPL
+// licensed under MPL 2.0
 
 use std::path::PathBuf;
 
