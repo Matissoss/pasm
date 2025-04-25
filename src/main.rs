@@ -5,6 +5,7 @@
 
 //  global imports go here
 
+
 use std::{
     fs::{
         OpenOptions,
@@ -35,9 +36,22 @@ pub mod color;
 pub mod cli  ;
 pub mod help ;
 
-pub use shr::rpanic::rpanic;
+pub use shr::rpanic::{
+    rpanic,
+    switch_panichandler
+};
 
-use core::obj::elf::make_elf32;
+use core::obj::{
+    elf32::{
+        make_elf32,
+        ELF32_EHDR_SIZE
+    },
+    elf64::{
+        make_elf64,
+        ELF64_EHDR_SIZE
+    }
+};
+
 use shr::symbol::{
     Symbol,
     SymbolType,
@@ -53,6 +67,7 @@ use help::Help;
 // start
 
 fn main(){
+    switch_panichandler();
     let cli = &*CLI;
     cli.verbose("src/main.rs", "main", "initialized CLI");
     cli.debug("src/main.rs", "main", &format!("FAST_MODE = {}", conf::FAST_MODE.to_string()));
@@ -170,19 +185,24 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
         eprintln!("{}", why);
         process::exit(1);
     }
+
     let mut file = file.unwrap();
-    
     let mut symbols = Vec::new();
     let mut relocs  = Vec::new();
-
     let mut to_write : Vec<u8> = Vec::new();
 
     ast.make_globals();
 
+    let f_offset = match form{
+        "elf32" => ELF32_EHDR_SIZE,
+        "elf64" => ELF64_EHDR_SIZE,
+        _ => 0
+    };
+
     for label in &ast.labels{
         let mut symb = Symbol{ 
             name: label.name.clone(), 
-            offset: to_write.len() as u32, 
+            offset: (f_offset + to_write.len()) as u64, 
             size: None,
             sindex: 0,
             visibility: label.visibility,
@@ -190,15 +210,15 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
             content: None,
             addt: 0
         };
-        
+
         let mut res = comp::compile_label(label.clone());
         for r in &mut res.1{
-            r.offset += to_write.len() as u32;
+            r.offset += to_write.len() as u64;
         }
 
         relocs  .extend(res.1);
         to_write.extend(res.0);
-        symb.size = Some(to_write.len() as u32 - symb.offset);
+        symb.size = Some(((to_write.len() + f_offset) as u64 - symb.offset) as u32);
         symbols.push(symb);
     }
 
@@ -222,12 +242,24 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
     }
     else if form == "elf32"{
         let filtered_vars = ast.filter_vars();
-
         for v in filtered_vars{
             let section = comp::compile_section(v.1, 0, v.0 as u8);
             symbols.extend(section.1);
         }
         to_write = make_elf32(
+            &to_write,
+            relocs,
+            &symbols,
+            &outpath,
+        );
+    }
+    else if form == "elf64"{
+        let filtered_vars = ast.filter_vars();
+        for v in filtered_vars{
+            let section = comp::compile_section(v.1, 0, v.0 as u8);
+            symbols.extend(section.1);
+        }
+        to_write = make_elf64(
             &to_write,
             relocs,
             &symbols,

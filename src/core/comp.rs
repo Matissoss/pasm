@@ -54,7 +54,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
     let mut buf: Vec<u8> = Vec::new();
     let mut symbols: Vec<Symbol> = Vec::new();
 
-    let mut offset : u32 = 0;
+    let mut offset : u64 = 0;
 
     for v in vars{
         match v.content{
@@ -69,7 +69,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
                     visibility: v.visibility,
                     addt
                 });
-                offset += v.size;
+                offset += v.size as u64;
             },
             _ => {
                 buf.extend(v.content.bytes());
@@ -83,7 +83,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
                     visibility: v.visibility,
                     addt
                 });
-                offset += v.size;
+                offset += v.size as u64;
             }
         }
     }
@@ -97,7 +97,7 @@ pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Relocation>){
     for ins in &lbl.inst{
         let res = compile_instruction(ins);
         if let Some(mut rl) = res.1 {
-            rl.offset += bytes.len() as u32;
+            rl.offset += bytes.len() as u64;
             reallocs.push(rl);
         }
         bytes.extend(res.0);
@@ -653,7 +653,7 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     (base, Some(Relocation{
         rtype: RType::PCRel32,
         symbol,
-        offset: blen as u32,
+        offset: blen as u64,
         addend: 0,
         size: 4,
         catg: RCategory::Lea,
@@ -678,7 +678,7 @@ fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>)
             let len = opc.len();
             let mut bs = opc;
             bs.extend([0, 0, 0, 0]);
-            rel.offset     = len as u32 + 1;
+            rel.offset     = len as u64 + 1;
             rel.size       = bs.len() as u8;
             (bs, Some(rel))
         }

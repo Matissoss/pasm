@@ -306,7 +306,8 @@ fn mem_tok_make(tmp_buf : &[char], pfx: Option<char>) -> Option<MemTok>{
 }
 
 
-// allows me to save up to 4 lines
+// allows me to save up to 4 lines...
+// ... by adding 8 more lines (ok, maybe 4 lines are saved)
 #[inline]
 fn res2op<T, Y, E>(res: Result<T, Y>) -> Option<E>
 where T: Into<E>{

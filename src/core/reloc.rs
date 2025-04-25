@@ -28,7 +28,7 @@ pub enum RCategory{
 pub struct Relocation {
     pub symbol: String,
     pub rtype: RType,
-    pub offset: u32,
+    pub offset: u64,
     pub addend: i32,
     pub catg  : RCategory,
     pub size  : u8,
@@ -40,7 +40,7 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
         if reloc.rtype == RType::PCRel32{
             if let Some(symbol) = find(symbols, &reloc.symbol){
                 //  rel32       = symb_addr - (inst_addr + inst_size);
-                let rel32       = (symbol.offset as i32) - ((reloc.offset + reloc.size as u32) as i32);
+                let rel32       = (symbol.offset as i32) - ((reloc.offset + reloc.size as u64) as i32);
                 let rel32_bytes = rel32.to_le_bytes(); 
                 let mut tmp : usize = 0;
                 let offs = reloc.offset;

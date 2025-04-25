@@ -1,10 +1,11 @@
-// rasmx86_64 - src/core/obj/elf.rs
-// --------------------------------
+// rasmx86_64 - src/core/obj/elf32.rs
+// ----------------------------------
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::path::PathBuf;
+pub const ELF32_EHDR_SIZE : usize = size_of::<Elf32Ehdr>();
 
+use std::path::PathBuf;
 use crate::{
     shr::symbol::{
         Symbol,
@@ -128,10 +129,22 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
     };
     let mut shstrtab : Vec<UnsignedChar> = vec![0];
 
-    // =====================
-    //    .data and .bss
-    // =====================
+    // ==========================
+    //  .data, .rodata and .bss
+    // ==========================
 
+    let mut rodata_shdr = Elf32Shdr{
+        name: 0,
+        etype: 1,
+        flags: SHF_ALLOC,
+        addr: 0,
+        offset: 0,
+        size: 0,
+        link: 0,
+        info: 0,
+        addralign: 0,
+        entsize: 0
+    };
     let mut bss_shdr = Elf32Shdr{
         name: 0,
         etype: 8,
@@ -191,7 +204,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                 addralign   : 0,
                 offset      : 0,
                 size        : (size_of::<Elf32Rel>() * rels.len()) as u32,
-                entsize     : 8,
+                entsize     : size_of::<Elf32Rel>() as u32,
             });
             shstrtab.extend(b".rel.text\0");
         }
@@ -207,19 +220,19 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                 addralign: 0,
                 offset: 0,
                 size: (size_of::<Elf32Rela>() * relas.len()) as u32,
-                entsize: 8,
+                entsize: size_of::<Elf32Rela>() as u32,
             });
             shstrtab.extend(b".rela.text\0");
         }
         for rel in rels{
             rel_text_symb.push(Elf32Rel{
-                offset: rel.offset,
+                offset: rel.offset as u32,
                 info  : rel.rtype.clone() as u32
             });
         }
         for rela in relas{
             rela_text_symb.push(Elf32Rela{
-                offset: rela.offset,
+                offset: rela.offset as u32,
                 info  : rela.rtype.clone() as u32,
                 addend: rela.addend
             });
@@ -261,7 +274,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         link        : 4,
         info        : 0,
         addralign   : 0,
-        entsize     : 16
+        entsize     : size_of::<Elf32Sym>() as u32
     };
     elf_header.shnum += 1;
     shstrtab.extend(b".symtab\0");
@@ -297,10 +310,10 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
     elf_header.shnum += 1;
     shstrtab.extend(b".strtab\0");
 
-    let (mut bss, mut data, mut _rodata) = (false, false, false);
-    let (mut bss_r, mut data_r, mut _rodata_r) : (Vec<usize>, Vec<usize>, Vec<usize>)
+    let (mut bss, mut data, mut rodata) = (false, false, false);
+    let (mut bss_r, mut data_r, mut rodata_r) : (Vec<usize>, Vec<usize>, Vec<usize>)
         = (Vec::new(), Vec::new(), Vec::new());
-    let (mut bss_b, mut data_b) : (Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new());
+    let (mut bss_b, mut data_b, mut rodata_b) : (Vec<u8>, Vec<u8>, Vec<u8>) = (Vec::new(), Vec::new(), Vec::new());
 
     // symbols
     let mut strtab : Vec<UnsignedChar> = vec![0];
@@ -348,8 +361,9 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                         data   = true;
                     },
                     /* .rodata */ 0x2 => {
-                        //rodata_r.push(index);
-                        //rodata = true;
+                        rodata_r.push(index + elfsymlen - glob_num);
+                        rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                        rodata = true;
                     },
                     /*   .bss  */ 0x3 => {
                         bss_r.push(index + elfsymlen - glob_num);
@@ -366,7 +380,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             else{
                 elf_symbs.push(Elf32Sym{
                     name: strtab.len() as u32,
-                    value: symbol.offset,
+                    value: symbol.offset as u32,
                     size: if let Some(s) = symbol.size {s} else {0},
                     info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                     other: 0,
@@ -387,8 +401,9 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                     data   = true;
                 },
                 /* .rodata */ 0x2 => {
-                    //rodata_r.push(index);
-                    //rodata = true;
+                    rodata_r.push(index + base_len);
+                    rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                    rodata = true;
                 },
                 /*   .bss  */ 0x3 => {
                     bss_r.push(index + base_len);
@@ -399,7 +414,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             }
             elf_symbs.push(Elf32Sym{
                 name: strtab.len() as u32,
-                value: symbol.offset,
+                value: symbol.offset as u32,
                 size: if let Some(s) = symbol.size {s} else {0},
                 info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                 other: 0,
@@ -421,6 +436,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         let mut modf = 0;
         if bss  {modf+=1}
         if data {modf+=1}
+        if rodata {modf+=1}
         modf
     };
     if bss  {
@@ -432,12 +448,20 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         elf_header.shoff += data_b.len() as u32;
         symbols_offset   += data_b.len() as u32 + size_of::<Elf32Shdr>() as u32;
     }
+    if rodata{
+        elf_header.shnum += 1;
+        elf_header.shoff += rodata_b.len() as u32;
+        symbols_offset   += rodata_b.len() as u32 + size_of::<Elf32Shdr>() as u32;
+    }
     
     elf_header.shstrndx += modf;
     bytes.extend(elf_header.bytes());
     bytes.extend(code);
     if data {
         bytes.extend(&data_b);
+    }
+    if rodata{
+        bytes.extend(&rodata_b);
     }
     bytes.extend(null_shdr.bytes());
     bytes.extend(text_shdr.bytes());
@@ -453,13 +477,30 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             let symb = &mut symbols[i];
             symb.shndx = 2 + addt_section as u16;
             let name = collect_asciiz(&strtab, symb.name as usize).unwrap();
-            
             data_symb.push((name, symb.value, symb.size, None));
         }
 
         data_shdr.addralign = calc_lsize(&data_symb);
         shstrtab.extend(b".data\0");
         bytes.extend(data_shdr.bytes());
+        addt_section += 1;
+    }
+    if rodata{
+        rodata_shdr.name = shstrtab.len() as u32;
+        rodata_shdr.offset = (size_of::<Elf32Ehdr>() + code.len() + data_b.len()) as u32;
+        rodata_shdr.size = data_b.len() as u32;
+
+        let mut rodata_symb = Vec::new();
+        for i in rodata_r{
+            let symb = &mut symbols[i];
+            symb.shndx = 2 + addt_section as u16;
+            let name = collect_asciiz(&strtab, symb.name as usize).unwrap();
+            rodata_symb.push((name, symb.value, symb.size, None));
+        }
+        rodata_shdr.addralign = calc_lsize(&rodata_symb);
+        shstrtab.extend(b".rodata\0");
+        bytes.extend(rodata_shdr.bytes());
+
         addt_section += 1;
     }
     if bss {
@@ -633,7 +674,7 @@ fn calc_lsize(symbs: &[(String, u32, u32, Option<String>)]) -> u32{
     let mut prvoff = 0;
     while let Some(i) = iter.next(){
         let tsize = i.1 - prvoff;
-        if i.0.starts_with("str") {
+        if i.0.starts_with("str_") {
             lsize = lsize.max(1);
         }
         else {

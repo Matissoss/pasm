@@ -26,7 +26,7 @@ pub enum SymbolType{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol{
     pub name: String,
-    pub offset: u32,
+    pub offset: u64,
     pub size: Option<u32>,
     pub sindex: u16,
     pub stype: SymbolType,
@@ -36,7 +36,7 @@ pub struct Symbol{
 }
 
 impl Symbol{
-    pub fn new(name: String, offset: u32, size: Option<u32>, sindex: u16, 
+    pub fn new(name: String, offset: u64, size: Option<u32>, sindex: u16, 
                stype: SymbolType, visibility: Visibility, content: Option<VarContent>) -> Self
     {
         Self{

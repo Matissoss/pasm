@@ -13,7 +13,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 
 - [x] MVP
 - [x] Better variable support
-- [ ] Support for 64-bit ELF
+- [x] Support for 64-bit ELF
 - [ ] Support for basic code optimisations
 - [ ] Full support for 32-bit (`protected`) and 16-bit (`real`) modes; `cr`, `dr`, `eflags` and `segments` (`cs`, `fs`, etc.)
 - [ ] Support for AVX, FPU and SSE x86 (and x86-64) extensions (with AVX-512)
