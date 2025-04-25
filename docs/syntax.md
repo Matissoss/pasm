@@ -56,7 +56,7 @@ where `!size` can be one of these: `!byte` (for 8-bit value), `!word` (for 16-bi
 (%index * $scale +- displacement)
 ```
 
-> [!WARN]
+> [!WARNING]
 > `*` must be used, otherwise you will get error
 
 ### base + index * scale
@@ -108,9 +108,6 @@ Example:
 _start: 
     ; [...]
 ```
-
-> [!WARN]
-> Currently working on
 
 ## externs
 
