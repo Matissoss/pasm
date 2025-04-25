@@ -42,14 +42,8 @@ pub use shr::rpanic::{
 };
 
 use core::obj::{
-    elf32::{
-        make_elf32,
-        ELF32_EHDR_SIZE
-    },
-    elf64::{
-        make_elf64,
-        ELF64_EHDR_SIZE
-    }
+    elf32::make_elf32,
+    elf64::make_elf64,
 };
 
 use shr::symbol::{
@@ -193,18 +187,12 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
 
     ast.make_globals();
 
-    let f_offset = match form{
-        "elf32" => ELF32_EHDR_SIZE,
-        "elf64" => ELF64_EHDR_SIZE,
-        _ => 0
-    };
-
     for label in &ast.labels{
         let mut symb = Symbol{ 
             name: label.name.clone(), 
-            offset: (f_offset + to_write.len()) as u64, 
+            offset: to_write.len() as u64, 
             size: None,
-            sindex: 0,
+            sindex: 1,
             visibility: label.visibility,
             stype: SymbolType::Func,
             content: None,
@@ -218,7 +206,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
 
         relocs  .extend(res.1);
         to_write.extend(res.0);
-        symb.size = Some(((to_write.len() + f_offset) as u64 - symb.offset) as u32);
+        symb.size = Some((to_write.len() as u64 - symb.offset) as u32);
         symbols.push(symb);
     }
 

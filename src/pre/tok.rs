@@ -62,7 +62,7 @@ impl Tokenizer{
                     inside_closure = None;
                 }
 
-                (Some('"'), c  ) => tmp_buf.push(c),
+                (Some('"'), c) => tmp_buf.push(c),
 
                 (None, ':') => {
                     tokens.push(Token::Label(String::from_iter(tmp_buf.iter())));
@@ -171,7 +171,7 @@ impl ToString for Token{
             Self::Mnemonic(m)           => format!("{}", format!("{:?}", m).to_lowercase()),
             Self::Label(lbl)            => lbl.to_string(),
             Self::SymbolRef(lbl)         => format!("{}{}", PREFIX_REF, lbl),
-            Self::String(str)           => format!("\"{}\"", str),
+            Self::String(str)           => format!("{}", str),
             Self::UnknownReg(str)       => format!("{}{}", PREFIX_REG, str.to_string()),
             Self::UnknownVal(str, _)    => format!("{}{}", PREFIX_VAL, str.to_string()),
             Self::Unknown(val)          => val.to_string(),

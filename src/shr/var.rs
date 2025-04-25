@@ -45,11 +45,14 @@ impl VarContent{
         match self{
             Self::Number(n) => n.split_into_bytes(),
             Self::String(s) => {
+                s.to_vec()
+                /*
                 let mut tmp_buf = Vec::new();
                 for b in s.iter().rev(){
                     tmp_buf.push(b.to_le());
                 }
                 tmp_buf
+                    */
             },
             Self::Uninit    => Vec::new(),
         }

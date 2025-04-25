@@ -3,8 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-pub const ELF32_EHDR_SIZE : usize = size_of::<Elf32Ehdr>();
-
 use std::path::PathBuf;
 use crate::{
     shr::symbol::{

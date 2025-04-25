@@ -12,9 +12,10 @@ use crate::shr::{
 #[repr(u32)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum RType{
+    S32       = 11,
     PCRel32   = 2, // relative 32-bit ; jmp's and call's
-    Abs64   = 1,   // absolute 64-bit ; global vars and pointers
-    None    = 0, 
+    Abs64     = 1,   // absolute 64-bit ; global vars and pointers
+    None      = 0, 
 }
 
 // idk how to name it
@@ -83,6 +84,51 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                             Some(format!("Unitialized variables currently cannot be used in `baremetal` target"))
                         ));
                     }
+                }
+            }
+            else {
+                errors.push(RASMError::new(
+                    None,
+                    Some(format!("couldn't find symbol {} in current file", reloc.symbol)),
+                    Some(format!("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section"))
+                ))
+            }
+        }
+        else if let RType::S32 = reloc.rtype{
+            if let Some(symbol) = find(&symbols, &reloc.symbol){
+                let _s32 = symbol.offset;
+                if let Some(con) = &symbol.content{
+                    let immbytes = match con{
+                        VarContent::Number(n) => n.split_into_bytes(),
+                        VarContent::String(_) => {
+                            errors.push(RASMError::new(
+                                None,
+                                Some(format!("Tried to use string - forbidden in `baremetal`")),
+                                None
+                            ));
+                            break;
+                        },
+                        VarContent::Uninit => {
+                            errors.push(RASMError::new(
+                                None,
+                                Some(format!("Tried to use uninitialized variable - forbidden in `baremetal`")),
+                                None
+                            ));
+                            break;
+                        }
+                    };
+                    let mut tmp = 0;
+                    while tmp < immbytes.len(){
+                        buf[reloc.offset as usize + tmp] = immbytes[tmp];
+                        tmp += 1;
+                    }
+                }
+                else {
+                    errors.push(RASMError::new(
+                        None,
+                        Some(format!("Tried to use unitialized variable (`!bss` one)")),
+                        Some(format!("Unitialized variables currently cannot be used in `baremetal` target"))
+                    ));
                 }
             }
             else {

@@ -640,7 +640,7 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8) -> Vec<u8> {
 fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     let mut base = gen_base(ins, &[0x8D]);
     let modrm = if let Operand::Reg(r) = ins.dst().unwrap(){
-        4 + r.to_byte()
+        0b100 + (r.to_byte() << 3)
     } else {0};
     base.push(modrm);
     base.push(0x25);
@@ -651,7 +651,7 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     let blen = base.len();
     base.extend([0x00; 4]);
     (base, Some(Relocation{
-        rtype: RType::PCRel32,
+        rtype: RType::S32,
         symbol,
         offset: blen as u64,
         addend: 0,
