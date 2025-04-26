@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
+
 use crate::{
     core::{
         rex::gen_rex,
@@ -42,31 +44,33 @@ use crate::{
 pub fn make_globals(symbols: &mut [Symbol], globals: &[String]){
     for s in symbols{
         for g in globals{
-            if &s.name == g {
+            if s.name == Cow::Borrowed(g) {
                 s.visibility = Visibility::Global;
                 break;
             }
         }
     }
 }
+#[inline]
 pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol>{
     let mut symbols = Vec::new();
     for extern_ in externs{
         symbols.push(Symbol{
-            name        : extern_.to_string(),
+            name        : Cow::Borrowed(extern_),
             offset      : 0,
             size        : None,
             sindex      : 0,
             stype       : SymbolType::NoType,
             visibility  : Visibility::Global,
             content     : None,
+            addend      : 0,
             addt        : 0,
         });
     }
     return symbols;
 }
 
-pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol>){
+pub fn compile_section<'a>(vars: Vec<&'a Variable>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol<'a>>){
     let mut buf: Vec<u8> = Vec::new();
     let mut symbols: Vec<Symbol> = Vec::new();
 
@@ -76,13 +80,14 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
         match v.content{
             VarContent::Uninit => {
                 symbols.push(Symbol{
-                    name: v.name,
+                    name: Cow::Borrowed(&v.name),
                     size: Some(v.size),
                     sindex,
                     stype: SymbolType::Object,
                     offset,
                     content: None,
                     visibility: v.visibility,
+                    addend: 0,
                     addt
                 });
                 offset += v.size as u64;
@@ -90,13 +95,14 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
             _ => {
                 buf.extend(v.content.bytes());
                 symbols.push(Symbol{
-                    name: v.name,
+                    name: Cow::Borrowed(&v.name),
                     size: Some(v.size),
                     sindex,
                     stype: SymbolType::Object,
                     offset,
-                    content: Some(v.content),
+                    content: Some(v.content.clone()),
                     visibility: v.visibility,
+                    addend: 0,
                     addt
                 });
                 offset += v.size as u64;
@@ -107,7 +113,7 @@ pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, 
     (buf, symbols)
 }
 
-pub fn compile_label(lbl: Label) -> (Vec<u8>, Vec<Relocation>){
+pub fn compile_label<'a>(lbl: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>){
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     for ins in &lbl.inst{
@@ -661,14 +667,14 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     base.push(modrm);
     base.push(0x25);
     let symbol = match ins.src().unwrap(){
-        Operand::SymbolRef(s) => s.to_string(),
+        Operand::SymbolRef(s) => s,
         _ => invalid()
     };
     let blen = base.len();
     base.extend([0x00; 4]);
     (base, Some(Relocation{
         rtype: RType::S32,
-        symbol,
+        symbol: Cow::Owned(symbol),
         offset: blen as u64,
         addend: 0,
         size: 4,
@@ -682,7 +688,7 @@ fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>)
     if let Operand::SymbolRef(s) = ins.dst().unwrap(){
         let mut rel = Relocation{
             rtype: RType::PCRel32,
-            symbol: s.to_string(),
+            symbol: Cow::Owned(s),
             addend: -4,
             offset: 1,
             size  : 4,

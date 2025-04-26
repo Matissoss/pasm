@@ -14,7 +14,7 @@ for file in ./nasm/*.asm; do
 	RASM_FILE_RES=${RASM_FILE/.asm/.bin}
 
 	nasm $NASM_FILE -o $NASM_FILE_RES -f bin
-	cargo run -- -i=$RASM_FILE -o=$RASM_FILE_RES -f=baremetal
+	cargo run -- -i=$RASM_FILE -o=$RASM_FILE_RES -f=bin
 	
 	NASM_RES=$(xxd $NASM_FILE_RES)
 	RASM_RES=$(xxd $RASM_FILE_RES)

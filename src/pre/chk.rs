@@ -13,14 +13,15 @@ use crate::shr::{
     atype::*,
     error::RASMError,
     num::Number,
-    reg::Register
+    reg::Register,
 };
 
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
     let mut errors : Vec<(String, Vec<RASMError>)> = Vec::new();
 
-    let chk_ins : fn(&Instruction) -> Option<RASMError> = match true{
-        _ => check_ins64bit
+    let chk_ins : fn(&Instruction) -> Option<RASMError> = match file.bits{
+        Some(32)   => check_ins32bit,
+        Some(64)|_ => check_ins64bit
     };
 
     for label in &file.labels{
@@ -41,6 +42,94 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
     }
     else {
         return Some(errors);
+    }
+}
+
+fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
+    return match ins.mnem{
+        Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R32, M16, M32, I8, I16, I32], &[], None),
+        Mnm::POP  => ot_chk(ins, (true, false), &[R16, R32, M16, M32], &[], None),
+        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, M8, M16, M32], 
+                                                &[R8, R16, R32, M8, M16, M32, I8, I16, I32], None),
+        Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR  => ot_chk(ins, (true, true),  
+            &[R8, R16, R32, M8, M16, M32], 
+            &[R8, R16, R32, M8, M16, M32, I8, I16, I32], None),
+        Mnm::IMUL          => {
+            if let Some(_) = ins.src(){
+                ot_chk(ins, (true, true), 
+                    &[R8, R16, R32, M8, M16, M32], &[R16, R32, M16, M32], 
+                    Some(&[I8, I16, I32]))
+            }
+            else {
+                ot_chk(ins, (true, false),  &[R8, R16, R32, M8, M16, M32], &[], None)
+            }
+        },
+        Mnm::SAL|Mnm::SHL|Mnm::SHR|Mnm::SAR => {
+            if let Some(err) = operand_check(ins, (true, true)){
+                return Some(err);
+            }
+            else {
+                if let Some(err) = type_check(ins.dst().unwrap(), &[R8, R16, R32, M8, M16, M32], 1){
+                    return Some(err);
+                }
+                match ins.src().unwrap(){
+                    Operand::Reg(Register::CL) => return None,
+                    Operand::Imm(i) => {
+                        return if let Some(u) = i.get_uint(){
+                            match Number::squeeze_u64(u) {
+                                Number::UInt8(_) => None,
+                                _ => Some(RASMError::new(
+                                    Some(ins.line),
+                                    Some(format!("expected to found 8-bit number, found larger one instead")),
+                                    Some(format!("sal/shl/shr/sar expect 8-bit number (like 1) or cl register"))
+                                ))
+                            }
+                        }
+                        else if let Some(i) = i.get_int(){
+                            match Number::squeeze_i64(i) {
+                                Number::Int8(_) => None,
+                                _ => Some(RASMError::new(
+                                    Some(ins.line),
+                                    Some(format!("expected to found 8-bit number, found larger one instead")),
+                                    Some(format!("sal/shl/shr/sar expect 8-bit number (like 1) or cl register"))
+                                ))
+                            }
+                        }
+                        else {
+                            Some(RASMError::new(
+                                Some(ins.line),
+                                Some(format!("found non-compatible immediate for sal/shl/shr/sar instruction")),
+                                Some(format!("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register"))
+                            ))
+                        }
+                    },
+                    _ => return Some(RASMError::new(
+                        Some(ins.line),
+                        Some(format!("source operand type mismatch, expected 8-bit number or cl register")),
+                        Some(format!("consider changing source operand to 8-bit number or cl register"))
+                    ))
+                }
+            }
+        }
+        Mnm::TEST => ot_chk(ins, (true, true), 
+            &[R8, R16, R32, M8, M16, M32], &[I8, I16, I32, R8, R16, R32], None),
+        Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
+            ot_chk(ins, (true, false), &[R8, R16, R32, M8, M16, M32], &[], None)
+        },
+        Mnm::JMP|Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::CALL|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
+            ot_chk(ins, (true, false), &[AType::Sym], &[], None)
+        },
+        Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32], &[AType::Sym], None),
+        Mnm::SYSCALL|Mnm::RET => ot_chk(ins, (false, false), &[], &[], None),
+        /*
+        _ => Some(RASMError::new(
+            Some(ins.line),
+            ExType::Error,
+            Some(ins.to_string()),
+            Some(format!("Tried to use unsupported instruction")),
+            None
+        )),
+        */
     }
 }
 
@@ -68,7 +157,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                 return Some(err);
             }
             else {
-                if let Some(err) = type_check(ins.dst().unwrap(), &[R8, R16, R32, R64, M8, M16, M32, M64], false){
+                if let Some(err) = type_check(ins.dst().unwrap(), &[R8, R16, R32, R64, M8, M16, M32, M64], 1){
                     return Some(err);
                 }
                 match ins.src().unwrap(){
@@ -138,18 +227,18 @@ fn ot_chk(ins: &Instruction, ops: (bool, bool), dstt: &[AType], srct: &[AType], 
     }
     else {
         if ops.0 {
-            if let Some(err) = type_check(ins.dst().unwrap(), dstt, false){
+            if let Some(err) = type_check(ins.dst().unwrap(), dstt, 1){
                 return Some(err);
             }
         }
         if ops.1{
-            if let Some(err) = type_check(ins.src().unwrap(), srct, true){
+            if let Some(err) = type_check(ins.src().unwrap(), srct, 2){
                 return Some(err);
             }
         }
         if let Some(thrd_types) = third_op{
             if let Some(thrd_op) = ins.oprs.get(2){
-                return type_check(thrd_op, thrd_types, false);
+                return type_check(thrd_op, thrd_types, 3);
             }
         }
         if ops == (true, true){
@@ -193,7 +282,7 @@ fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError>{
     }
 }
 
-fn type_check(operand: &Operand, accepted: &[AType], src_op: bool) -> Option<RASMError>{
+fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASMError>{
     if accepted.contains(&operand.atype()){
         return None;
     }
@@ -201,10 +290,18 @@ fn type_check(operand: &Operand, accepted: &[AType], src_op: bool) -> Option<RAS
         let err = RASMError::new(
             None,
             Some(format!("{} operand doesn't match any of expected types: {:?}",
-                    if src_op {"Source"} else {"Destination"}, accepted
+                 match idx {
+                     1 => "Destination".to_string(),
+                     2 => "Source".to_string(),
+                     _ => idx.to_string()
+                 }, accepted
             )),
             Some(format!("Consider changing {} operand to expected type or removing instruction",
-                    if src_op {"source"} else {"destination"}
+                 match idx {
+                     1 => "Destination".to_string(),
+                     2 => "Source".to_string(),
+                     _ => idx.to_string()
+                 }
             ))
         );
         

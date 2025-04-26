@@ -1,4 +1,4 @@
-rasmx86_64 	   v0.1.0
+rasmx86_64 	    25.04
 -------------------------
 DISCLAIMER:
  This is MVP version of rasm asssembler and it doesn't support 100% of functionality.
@@ -16,7 +16,7 @@ rasmx86_64 [FLAG(s)]
 [FORMAT]:
 	elf32		; compiles file into 32-bit version of ELF - relocatable file
 	elf64		; compiles file into 64-bit version of ELF - relocatable file
-	baremetal	; compiles file into 'flat binary' (only instructions, nothing else)
+	bin		; compiles file into 'flat binary' (only instructions, nothing else)
 [PATH]: path :)
 -------------------------
 made by matissoss <matissossgamedev@proton.me>

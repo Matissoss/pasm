@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
 use crate::shr::{
     symbol::Symbol,
     error::RASMError,
@@ -10,7 +11,7 @@ use crate::shr::{
 };
 
 #[repr(u32)]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum RType{
     S32       = 11,
     PCRel32   = 2, // relative 32-bit ; jmp's and call's
@@ -26,9 +27,9 @@ pub enum RCategory{
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Relocation {
-    pub symbol: String,
-    pub rtype: RType,
+pub struct Relocation<'a> {
+    pub symbol: Cow<'a, &'a String>,
+    pub rtype : RType,
     pub offset: u64,
     pub addend: i32,
     pub catg  : RCategory,
@@ -40,8 +41,8 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
     for reloc in relocs{
         if reloc.rtype == RType::PCRel32{
             if let Some(symbol) = find(symbols, &reloc.symbol){
-                //  rel32       = symb_addr - (inst_addr + inst_size);
-                let rel32       = (symbol.offset as i32) - ((reloc.offset + reloc.size as u64) as i32);
+                //  rel32       = S + A - P
+                let rel32       = (symbol.offset as i32) + (symbol.addend as i32) - ((reloc.offset + reloc.size as u64) as i32);
                 let rel32_bytes = rel32.to_le_bytes(); 
                 let mut tmp : usize = 0;
                 let offs = reloc.offset;
@@ -156,9 +157,9 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
 }
 
 #[inline]
-fn find<'a>(table: &'a [Symbol], object: &'a str) -> Option<&'a Symbol>{
+fn find<'a>(table: &'a [Symbol], object: &'a str) -> Option<&'a Symbol<'a>>{
     for e in table{
-        if &e.name == object{
+        if e.name == Cow::Borrowed(object){
             return Some(e);
         }
     }

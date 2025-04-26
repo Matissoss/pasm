@@ -3,8 +3,9 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-const EMPTY_STRING : &str = "";
+use std::borrow::Cow;
 
+const EMPTY_STRING : &str = "";
 use crate::shr::{
     ast::{
         AST,
@@ -19,7 +20,7 @@ use crate::shr::{
 
 pub struct Parser;
 
-type LexTree= Vec<Result<(ASTNode, usize), RASMError>>;
+type LexTree<'a>= Vec<Result<(ASTNode<'a>, usize), RASMError>>;
 impl Parser{
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>>{
         let mut errors : Vec<RASMError> = Vec::new();
@@ -44,7 +45,7 @@ impl Parser{
                         ASTNode::Label(lbl) => {
                             if !instructions.is_empty(){
                                 ast.labels.push(Label {
-                                    name: inside_label.1,
+                                    name: Cow::Owned(inside_label.1),
                                     inst: instructions,
                                     visibility: Visibility::Local,
                                 });
@@ -146,7 +147,7 @@ impl Parser{
 
         if !instructions.is_empty(){
             ast.labels.push(Label {
-                name: inside_label.1,
+                name: Cow::Owned(inside_label.1),
                 inst: instructions,
                 visibility: Visibility::Local,
             });

@@ -176,7 +176,4 @@ impl Mnemonic{
     pub fn allows_mem_mem(&self) -> bool{
         return false;
     }
-    pub fn is_jump(&self) -> bool{
-        format!("{:?}", self).starts_with('J')
-    }
 }

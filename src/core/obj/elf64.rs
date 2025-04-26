@@ -3,14 +3,18 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use crate::{
     core::reloc::Relocation,
-    shr::symbol::{
-        Symbol, 
-        SymbolType as SType, 
-        Visibility
+    shr::{
+        var::VarContent,
+        symbol::{
+            Symbol, 
+            SymbolType as SType, 
+            Visibility
+        }
     },
 };
 
@@ -122,18 +126,12 @@ pub fn make_elf64(
             ei_version,
             ei_osabi,
             ei_osabiversion,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0,0,0,0,0,0,0,
         ],
         etype,
         machine,
         version: 1,
-        entry: 0,                                     // not used
+        entry: 0,                                            // not used
         phoff: 0,                                            // not used
         shoff: (size_of::<Elf64Ehdr>() + code.len()) as u64, // section header offset
         flags: 0,                                            // not used
@@ -201,10 +199,10 @@ pub fn make_elf64(
         let mut rels = Vec::new();
         for reloc in relocs {
             if reloc.addend == 0 {
-                rel_text_symbref.push(reloc.symbol.clone());
+                rel_text_symbref.push(Cow::Owned::<&String>(&reloc.symbol));
                 rels.push(reloc);
             } else {
-                rela_text_symbref.push(reloc.symbol.clone());
+                rela_text_symbref.push(Cow::Owned::<&String>(&reloc.symbol));
                 relas.push(reloc);
             }
         }
@@ -243,13 +241,13 @@ pub fn make_elf64(
         for rel in rels {
             rel_text_symb.push(Elf64Rel {
                 offset: rel.offset,
-                info: rel.rtype.clone() as u64,
+                info: rel.rtype as u64,
             });
         }
         for rela in relas {
             rela_text_symb.push(Elf64Rela {
                 offset: rela.offset,
-                info: rela.rtype.clone() as u64,
+                info: rela.rtype as u64,
                 addend: rela.addend as i64,
             });
         }
@@ -386,13 +384,13 @@ pub fn make_elf64(
                     /*  .data  */
                     0x1 => {
                         data_r.push(index + elfsymlen - glob_num);
-                        data_b.extend(symbol.content.clone().unwrap().bytes());
+                        data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                         data = true;
                     }
                     /* .rodata */
                     0x2 => {
                         rodata_r.push(index + elfsymlen - glob_num);
-                        rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                        rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                         rodata = true;
                     }
                     /*   .bss  */
@@ -432,13 +430,13 @@ pub fn make_elf64(
                 /*  .data  */
                 0x1 => {
                     data_r.push(index + base_len);
-                    data_b.extend(symbol.content.clone().unwrap().bytes());
+                    data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                     data = true;
                 }
                 /* .rodata */
                 0x2 => {
                     rodata_r.push(index + base_len);
-                    rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                    rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                     rodata = true;
                 }
                 /*   .bss  */
@@ -620,7 +618,7 @@ pub fn make_elf64(
             let mut symb_index = 0;
             for s in &symbols {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if rel_text_symbref[index] == s_name {
+                if **rel_text_symbref[index] == *Cow::Borrowed(&s_name) {
                     rel.info = ((symb_index as u64) << 32) as u64 + rel.info;
                     break;
                 }
@@ -636,7 +634,7 @@ pub fn make_elf64(
             let mut symb_index = 0;
             for s in &symbols {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if rela_text_symbref[index] == s_name {
+                if **rela_text_symbref[index] == *Cow::Borrowed(&s_name) {
                     rela.info += ((symb_index as u64) << 32) as u64;
                     break;
                 }

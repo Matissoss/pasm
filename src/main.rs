@@ -14,6 +14,7 @@ use std::{
     path::PathBuf,
     process,
     io::Write,
+    borrow::Cow
 };
 
 // local imports go here
@@ -62,8 +63,6 @@ use help::Help;
 fn main(){
     switch_panichandler();
     let cli = &*CLI;
-    cli.verbose("src/main.rs", "main", "initialized CLI");
-    cli.debug("src/main.rs", "main", &format!("FAST_MODE = {}", conf::FAST_MODE.to_string()));
 
     if let Some(_) = cli.get_arg("-h"){
         Help::main_help();
@@ -183,23 +182,24 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
     let mut symbols = Vec::new();
     let mut relocs  = Vec::new();
     let mut to_write : Vec<u8> = Vec::new();
-
+    
     ast.make_globals();
     ast.fix_entry();
 
     for label in &ast.labels{
+        let mut res = comp::compile_label(&label);
         let mut symb = Symbol{ 
-            name: label.name.clone(), 
+            name: Cow::Borrowed(&label.name),
             offset: to_write.len() as u64, 
             size: None,
             sindex: 1,
             visibility: label.visibility,
             stype: SymbolType::Func,
             content: None,
+            addend: -4,
             addt: 0
         };
-
-        let mut res = comp::compile_label(label.clone());
+        
         for r in &mut res.1{
             r.offset += to_write.len() as u64;
         }
@@ -210,54 +210,55 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
         symbols.push(symb);
     }
 
-    if form == "baremetal"{
-        let filtered_vars = ast.filter_vars();
-
-        for v in filtered_vars{
-            let section = comp::compile_section(v.1, 0, v.0 as u8);
-            symbols.extend(section.1);
+    match form {
+        "bin" => {
+            let filtered_vars = ast.filter_vars();
+            for v in filtered_vars{
+                let section = comp::compile_section(v.1, 0, v.0 as u8);
+                symbols.extend(section.1);
+            }
+            match core::reloc::relocate_addresses(&mut to_write, relocs, &symbols){
+                Some(errs) => {
+                    for e in &errs{
+                        eprintln!("{e}");
+                    }
+                    CLI.exit("main.rs", "assemble_file", &format!("Assembling ended with {} errors!", errs.len()), 1);
+                },
+                None => {}
+            }
+        },
+        "elf32" => {
+            symbols.extend(comp::extern_trf(&ast.externs));
+            let filtered_vars = ast.filter_vars();
+            for v in filtered_vars{
+                let section = comp::compile_section(v.1, 0, v.0 as u8);
+                symbols.extend(section.1);
+            }
+            to_write = make_elf32(
+                &to_write,
+                relocs,
+                &symbols,
+                &outpath,
+            );
+        },
+        "elf64" => {
+            symbols.extend(comp::extern_trf(&ast.externs));
+            let filtered_vars = ast.filter_vars();
+            for v in filtered_vars{
+                let section = comp::compile_section(v.1, 0, v.0 as u8);
+                symbols.extend(section.1);
+            }
+            to_write = make_elf64(
+                &to_write,
+                relocs,
+                &symbols,
+                &outpath,
+            );
         }
-
-        match core::reloc::relocate_addresses(&mut to_write, relocs, &symbols){
-            Some(errs) => {
-                for e in &errs{
-                    eprintln!("{e}");
-                }
-                CLI.exit("main.rs", "assemble_file", &format!("Assembling ended with {} errors!", errs.len()), 1);
-            },
-            None => {}
-        }
-    }
-    else if form == "elf32"{
-        symbols.extend(comp::extern_trf(&ast.externs));
-        let filtered_vars = ast.filter_vars();
-        for v in filtered_vars{
-            let section = comp::compile_section(v.1, 0, v.0 as u8);
-            symbols.extend(section.1);
-        }
-        to_write = make_elf32(
-            &to_write,
-            relocs,
-            &symbols,
-            &outpath,
-        );
-    }
-    else if form == "elf64"{
-        symbols.extend(comp::extern_trf(&ast.externs));
-        let filtered_vars = ast.filter_vars();
-        for v in filtered_vars{
-            let section = comp::compile_section(v.1, 0, v.0 as u8);
-            symbols.extend(section.1);
-        }
-        to_write = make_elf64(
-            &to_write,
-            relocs,
-            &symbols,
-            &outpath,
-        );
+        _ => CLI.exit("main.rs", "assemble_file", &format!("Unknown format `{}`!", form), 1)
     }
     if let Err(why) = file.write_all(&to_write){
-        eprintln!("{}", why);
+        eprintln!("Couldn't save output to file: {}", why);
         process::exit(1);
     }
 }

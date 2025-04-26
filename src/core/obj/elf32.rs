@@ -3,12 +3,17 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
+
 use std::path::PathBuf;
 use crate::{
-    shr::symbol::{
-        Symbol,
-        SymbolType as SType,
-        Visibility
+    shr::{
+        var::VarContent,
+        symbol::{
+            Symbol,
+            SymbolType as SType,
+            Visibility
+        }
     },
     core::reloc::Relocation,
 };
@@ -180,14 +185,14 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
     if !relocs.is_empty(){
         let mut relas = Vec::new();
         let mut rels  = Vec::new();
-        for reloc in relocs{       
-            if reloc.addend == 0 {
-                rel_text_symbref.push(reloc.symbol.clone());
-                rels.push(reloc);
+        for index in 0..relocs.len(){       
+            if relocs[index].addend == 0 {
+                rel_text_symbref.push(Cow::Owned::<&String>(&relocs[index].symbol));
+                rels.push(Cow::Borrowed(&relocs[index]));
             }
             else {
-                rela_text_symbref.push(reloc.symbol.clone());
-                relas.push(reloc);
+                rela_text_symbref.push(Cow::Borrowed(&relocs[index].symbol));
+                relas.push(Cow::Borrowed(&relocs[index]));
             }
         }
         if !rels.is_empty(){
@@ -225,13 +230,13 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
         for rel in rels{
             rel_text_symb.push(Elf32Rel{
                 offset: rel.offset as u32,
-                info  : rel.rtype.clone() as u32
+                info  : rel.rtype as u32
             });
         }
         for rela in relas{
             rela_text_symb.push(Elf32Rela{
                 offset: rela.offset as u32,
-                info  : rela.rtype.clone() as u32,
+                info  : rela.rtype as u32,
                 addend: rela.addend
             });
         }
@@ -355,12 +360,15 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                 match symbol.addt{
                     /*  .data  */ 0x1 => {
                         data_r.push(index + elfsymlen - glob_num);
-                        data_b.extend(symbol.content.clone().unwrap().bytes());
+                        data_b.extend(
+                            Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref())
+                            .unwrap().bytes()
+                        );
                         data   = true;
                     },
                     /* .rodata */ 0x2 => {
                         rodata_r.push(index + elfsymlen - glob_num);
-                        rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                        rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                         rodata = true;
                     },
                     /*   .bss  */ 0x3 => {
@@ -395,12 +403,12 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             match symbol.addt{
                 /*  .data  */ 0x1 => {
                     data_r.push(index + base_len);
-                    data_b.extend(symbol.content.clone().unwrap().bytes());
+                    data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                     data   = true;
                 },
                 /* .rodata */ 0x2 => {
                     rodata_r.push(index + base_len);
-                    rodata_b.extend(symbol.content.clone().unwrap().bytes());
+                    rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
                     rodata = true;
                 },
                 /*   .bss  */ 0x3 => {
@@ -564,7 +572,8 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             let mut symb_index = 0;
             for s in &symbols{
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if rel_text_symbref[index] == s_name{
+                // what is that?
+                if ***rel_text_symbref[index] == *Cow::Borrowed(&s_name){
                     rel.info = (symb_index << 8) as u32 + rel.info;
                     break;
                 }
@@ -580,7 +589,7 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             let mut symb_index = 0;
             for s in &symbols{
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if rel_text_symbref[index] == s_name{
+                if ***rel_text_symbref[index] == *Cow::Borrowed(&s_name){
                     rela.info += (symb_index << 8) as u32;
                     break;
                 }

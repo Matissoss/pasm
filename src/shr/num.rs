@@ -42,32 +42,13 @@ impl FromStr for Number{
                     Ok(Self::Char(bytes[0] as char))
                 }
             },
-            2 => {
-                if let Ok(n) = str.parse::<u64>(){
-                    return Ok(Self::squeeze_u64(n));
-                }
-                if let Ok(n) = str.parse::<i64>(){
-                    return Ok(Self::squeeze_i64(n));
-                }
-                if bytes[0] as char == '\\'{
-                    match bytes[1] as char {
-                        'n' => return Ok(Self::Char('\n')),
-                        'r' => return Ok(Self::Char('\r')),
-                        't' => return Ok(Self::Char('\t')),
-                        _   => return Err(RASMError::new(
-                            None,
-                            Some(format!("'\\{}' is invalid escape code!", bytes[1] as char)),
-                            None
-                        )),
+            _ => {
+                if str.starts_with("'"){
+                    return match parse_char(str.as_bytes()){
+                        Ok(c) => Ok(Self::Char(c)),
+                        Err(e) => Err(e),
                     }
                 }
-                return Err(RASMError::new(
-                    None,
-                    Some(format!("Couldn't parse string into number: {}", str)),
-                    None
-                ));
-            }
-            _ => {
                 if let Ok(n) = str.parse::<u64>(){
                     return Ok(Self::squeeze_u64(n));
                 }
@@ -265,6 +246,47 @@ fn hexchar(c: char) -> u8{
         _ => 16
     }
 }
+
+const ESCAPE : u8 = '\\' as u8;
+fn parse_char(txt: &[u8]) -> Result<char, RASMError>{
+    return if !(txt.starts_with(&[('\'' as u8)]) && txt.ends_with(&[('\'' as u8)])){
+        return Err(RASMError::new(
+            None,
+            Some(format!("Invalidly formatted char: {}", String::from_utf8_lossy(txt))),
+            None
+        ));
+    }
+    else{
+        if txt.len() == 4 {
+            if txt[1] == ESCAPE{
+                match txt[2] as char {
+                    't' => Ok('\t'),
+                    'n' => Ok('\n'),
+                    'r' => Ok('\r'),
+                    '0' => Ok('\0'),
+                    '\\'=> Ok('\\'),
+                    '\''=> Ok('\''),
+                    _   => Err(RASMError::new(
+                        None,
+                        Some(format!("Invalid escape character \\{}", txt[2] as char)),
+                        None
+                    ))
+                }
+            }
+            else {
+                return Err(RASMError::new(
+                    None,
+                    Some(format!("Character declaration has more than 1 character inside closure `'`.")),
+                    None
+                ))
+            }
+        }
+        else {
+            Ok(txt[1] as char)
+        }
+    }
+}
+
 
 impl ToString for Number{
     fn to_string(&self) -> String{

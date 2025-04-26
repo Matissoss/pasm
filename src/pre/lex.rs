@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
 use std::str::FromStr;
 use crate::{
     pre::tok::Token,
@@ -29,7 +30,7 @@ use crate::{
 
 pub struct Lexer;
 impl Lexer{
-    pub fn parse_file(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode, usize), RASMError>>{
+    pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>>{
         let mut line_count : usize = 0;
         let mut ast_tree   : Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
         for line in file {
@@ -41,9 +42,9 @@ impl Lexer{
             let mut node  : Option<ASTNode> = None;
             let mut error : Option<RASMError>  = None;
             match line.get(0){
-                Some(Token::Label(lbl))             => node = Some(ASTNode::Label(lbl.to_string())),
+                Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string())),
                 Some(Token::Keyword(Keyword::Const|Keyword::Uninit|Keyword::Ronly)) => {
-                    match make_var(&line){
+                    match make_var(Cow::Owned(line)){
                         Ok(var) => node = Some(ASTNode::Variable(var)),
                         Err(mut tmp_error) => {
                             tmp_error.set_line(line_count);
@@ -202,7 +203,7 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
     }
 
     if line.len() == 1{
-        match Operand::try_from(line[0].clone()){
+        match Operand::try_from(line[0]){
             Ok(o) => return Ok(o),
             Err(_) => return Err(RASMError::new(
                 None,
@@ -213,10 +214,10 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
     }
 
     if line.len() == 2 {
-        match (line[0].clone(), line[1].clone()){
+        match (&line[0], &line[1]){
              (Token::MemAddr(m), Token::Keyword(k))
             |(Token::Keyword(k), Token::MemAddr(m)) => {
-                match Mem::new(&m, Some(k)){
+                match Mem::new(&m, Some(*k)){
                     Ok(m) => return Ok(Operand::Mem(m)),
                     Err(e) => return Err(e),
                 }
@@ -236,7 +237,7 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
     ))
 }
 
-fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
+fn make_var<'a>(line: Cow<'a, Vec<Token>>) -> Result<Variable<'a>, RASMError>{
     let vtype = match line.get(0) {
         Some(Token::Keyword(k)) => {
             match k {
@@ -322,7 +323,7 @@ fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
     while let Some(i) = iter.next(){
         content.push_str(&i.to_string());
     }
-    let content = par_str(&content);
+    let content = par_str(content);
     match (&vtype, &content){
         (VType::Const|VType::Readonly, VarContent::String(_)|VarContent::Number(_))|
         (VType::Uninit, VarContent::Uninit) => {},
@@ -340,7 +341,7 @@ fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
         ))
     }
     return Ok(Variable{
-        name: vname,
+        name: std::borrow::Cow::Owned(vname),
         vtype,
         size: size as u32,
         content,
@@ -349,14 +350,14 @@ fn make_var(line: &[Token]) -> Result<Variable, RASMError>{
 }
 
 #[inline]
-fn par_str(cont: &str) -> VarContent{
-    if let Ok(n) = Number::from_str(cont){
+fn par_str<'a>(cont: String) -> VarContent<'a>{
+    if let Ok(n) = Number::from_str(&cont){
         return VarContent::Number(n);
     }
     else if cont.is_empty(){
         return VarContent::Uninit;
     }
     else {
-        return VarContent::String(cont.as_bytes().to_vec());
+        return VarContent::String(Cow::Owned(cont.as_bytes().to_vec()));
     }
 }

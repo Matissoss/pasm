@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
+
 use crate::shr::var::VarContent;
 
 #[repr(u8)]
@@ -24,20 +26,21 @@ pub enum SymbolType{
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Symbol{
-    pub name: String,
+pub struct Symbol<'a>{
+    pub name: Cow<'a, String>,
     pub offset: u64,
     pub size: Option<u32>,
     pub sindex: u16,
     pub stype: SymbolType,
     pub visibility: Visibility,
-    pub content: Option<VarContent>,
+    pub content: Option<VarContent<'a>>,
+    pub addend : i64,
     pub addt: u8
 }
 
-impl Symbol{
-    pub fn new(name: String, offset: u64, size: Option<u32>, sindex: u16, 
-               stype: SymbolType, visibility: Visibility, content: Option<VarContent>) -> Self
+impl<'b> Symbol<'b>{
+    pub fn new(name: Cow<'b, String>, offset: u64, addend: i64, size: Option<u32>, sindex: u16, 
+               stype: SymbolType, visibility: Visibility, content: Option<VarContent<'b>>) -> Self
     {
         Self{
             name,
@@ -47,6 +50,7 @@ impl Symbol{
             stype,
             visibility,
             content,
+            addend,
             addt: 0
         }
     }

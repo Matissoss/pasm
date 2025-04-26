@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
+
 use crate::pre::tok::Token;
 use crate::shr::{
     reg::Register,
@@ -39,27 +41,27 @@ pub struct Instruction{
 }
 
 #[derive(Debug, Clone)]
-pub enum ASTNode{
+pub enum ASTNode<'a>{
     Ins         (Instruction),
     Bits        (u8),
     Entry       (String),
     Label       (String),
     Extern      (String),
     Global      (String),
-    Variable    (Variable),
+    Variable    (Variable<'a>),
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Label{
-    pub name : String,
+pub struct Label<'a>{
+    pub name : Cow<'a, String>,
     pub inst : Vec<Instruction>,
     pub visibility: Visibility
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AST{
-    pub labels : Vec<Label> ,
-    pub vars   : Vec<Variable>,
+pub struct AST<'a>{
+    pub labels : Vec<Label<'a>> ,
+    pub vars   : Vec<Variable<'a>>,
     pub globals: Vec<String>,
     pub externs: Vec<String>,
     pub bits   : Option<u8>,
@@ -87,12 +89,12 @@ pub enum Section{
     Readonly,
 }
 
-impl TryFrom<Token> for Operand{
+impl TryFrom<&Token> for Operand{
     type Error = ();
-    fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error>{
+    fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error>{
         match tok {
-            Token::Register(reg) => Ok(Self::Reg(reg)),
-            Token::Immediate(nm) => Ok(Self::Imm(nm )),
+            Token::Register(reg) => Ok(Self::Reg(*reg)),
+            Token::Immediate(nm) => Ok(Self::Imm(*nm )),
             Token::MemAddr(mm)   => {
                 if let Ok(mem) = Mem::new(&mm, Some(Keyword::Byte)){
                     return Ok(Self::Mem(mem));
@@ -101,7 +103,7 @@ impl TryFrom<Token> for Operand{
                     return Err(())
                 }
             }
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(val.to_string())),
             _                    => Err(())
         }
     }
@@ -195,11 +197,11 @@ impl Instruction{
     }
 }
 
-impl AST{
+impl AST<'_>{
     pub fn fix_entry(&mut self) {
         if let Some(entry) = &self.entry{
             for index in 0..self.labels.len(){
-                if &self.labels[index].name == entry{
+                if self.labels[index].name == Cow::Borrowed(entry){
                     if index == 0{
                         return;
                     }
@@ -214,7 +216,7 @@ impl AST{
         for g in &self.globals{
             let mut finished = false;
             for l in &mut self.labels{
-                if &l.name == g{
+                if l.name == Cow::Borrowed(g){
                     finished = true;
                     l.visibility = Visibility::Global;
                     break;
@@ -222,7 +224,7 @@ impl AST{
             }
             if !finished{
                 for s in &mut self.vars{
-                    if &s.name == g{
+                    if s.name == Cow::Borrowed(g){
                         s.visibility = Visibility::Global;
                         break;
                     }
@@ -231,11 +233,11 @@ impl AST{
             else {continue}
         }
     }
-    pub fn filter_vars(self) -> Vec<(u32, Vec<Variable>)>{
+    pub fn filter_vars(&self) -> Vec<(u32, Vec<&Variable>)>{
         let mut ronly = Vec::new();
         let mut consts = Vec::new();
         let mut uninits = Vec::new();
-        for v in self.vars{
+        for v in &self.vars{
             match v.vtype{
                 VType::Readonly => ronly.push(v),
                 VType::Uninit   => uninits.push(v),

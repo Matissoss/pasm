@@ -13,9 +13,11 @@ use crate::color::{
     Modifier,
     BaseColor
 };
+
 pub static CLI : LazyLock<Cli> = LazyLock::new(|| {
     Cli::new(env::args().collect::<Vec<String>>())
 });
+
 const VERBOSE : (&str, &str) = ("--verbose"     , "-v");
 const DEBUG   : (&str, &str) = ("--debug"       , "-d");
 const NOCOL   : (&str, &str) = ("--nocolor"     , "-n");
@@ -65,22 +67,6 @@ impl Cli{
             }
         }
         return None;
-    }
-    #[inline(always)]
-    pub fn debug(&self, path: &str, function: &str, msg: &str){
-        if self.debug{
-            println!("[{}:{}] (DEBUG): {}", path, function, msg);
-        }
-    }
-    #[inline(always)]
-    pub fn error(&self, path: &str, function: &str, msg: &str){
-        eprintln!("[{}:{}] (ERROR): {}", path, function, msg);
-    }
-    #[inline(always)]
-    pub fn verbose(&self, path: &str, function: &str, msg: &str){
-        if self.verbose{
-            println!("[{}:{}] (VERBOSE): {}", path, function, msg);
-        }
     }
     #[inline(always)]
     pub fn exit(&self, path: &str, function: &str, cause: &str, exit_code: i32) -> !{

@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::borrow::Cow;
+
 use crate::shr::{
     num::Number,
     symbol::Visibility
@@ -16,31 +18,31 @@ pub enum VType{
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Variable{
-    pub name: String,
+pub struct Variable<'a>{
+    pub name: Cow<'a, String>,
     pub vtype: VType,
     pub size: u32,
-    pub content: VarContent,
+    pub content: VarContent<'a>,
     pub visibility: Visibility,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum VarContent{
+pub enum VarContent<'a>{
     Number(Number),
-    String(Vec<u8>),
+    String(Cow<'a, Vec<u8>>),
     Uninit,
 }
 
-impl Variable{
-    pub fn new(name: String, vtype: VType, size: u32, content: VarContent, visibility: Visibility) -> Self{
-        Self{name,vtype,size,content,visibility}
+impl<'a> Variable<'a>{
+    pub fn new(name: String, vtype: VType, size: u32, content: VarContent<'a>, visibility: Visibility) -> Self{
+        Self{name:Cow::Owned(name),vtype,size,content,visibility}
     }
     pub fn bytes(&self) -> Vec<u8>{
         return self.content.bytes();
     }
 }
 
-impl VarContent{
+impl<'a> VarContent<'a>{
     pub fn bytes(&self) -> Vec<u8>{
         match self{
             Self::Number(n) => n.split_into_bytes(),

@@ -16,7 +16,7 @@ use std::{
         Error,
     },
     io::Read,
-    sync::LazyLock
+    sync::LazyLock,
 };
 
 static ERR_CTX: LazyLock<(File, PathBuf)> = LazyLock::new(|| {
@@ -30,6 +30,12 @@ static ERR_CTX: LazyLock<(File, PathBuf)> = LazyLock::new(|| {
         .read(true)
         .open(&path)
         .unwrap(), path)
+});
+
+static FILE : LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut buf = String::new();
+    (&ERR_CTX.0).read_to_string(&mut buf).unwrap();
+    buf.lines().map(|s| s.to_string()).collect::<Vec<String>>()
 });
 
 use crate::color::{
@@ -56,11 +62,7 @@ pub struct RASMError{
 
 impl Display for RASMError{
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error>{
-        let ctx = {
-            let mut buf = String::new();
-            (&ERR_CTX.0).read_to_string(&mut buf).unwrap();
-            buf.lines().map(|l| l.to_string()).collect::<Vec<String>>()[self.line.unwrap()-1].clone()
-        };
+        let ctx = &FILE[self.line.unwrap()];
 
         writeln!(frm,
             "{}:\n\t{} at line {}\n\t{}{}{}",
