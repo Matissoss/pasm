@@ -377,7 +377,10 @@ impl FromStr for Register{
 
 impl ToAType for Register{
     fn atype(&self) -> AType{
-        return AType::Reg(self.size());
+        match self {
+            Self::RIP|Self::EIP|Self::IP => AType::RIP(self.size()),
+            _ => AType::Reg(self.size()),
+        }
     }
 }
 
@@ -484,12 +487,6 @@ impl Register{
             Self::DIL | Self::RDI  |
             Self::YMM7| Self::XMM15| Self::YMM15 => 0b111,
             _ => 0,
-        }
-    }
-    pub fn variant_of_ax(&self) -> bool{
-        match self{
-            Self::EAX|Self::AX|Self::AL|Self::RAX => true,
-            _ => false
         }
     }
 }

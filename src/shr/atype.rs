@@ -25,6 +25,7 @@ pub enum AType{
     Imm(Size),
     Reg(Size),
     Mem(Size),
+    RIP(Size),
     Sym,
 }
 

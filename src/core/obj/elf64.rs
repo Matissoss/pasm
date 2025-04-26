@@ -7,13 +7,16 @@ use std::path::PathBuf;
 
 use crate::{
     core::reloc::Relocation,
-    shr::symbol::{Symbol, SymbolType as SType, Visibility},
+    shr::symbol::{
+        Symbol, 
+        SymbolType as SType, 
+        Visibility
+    },
 };
 
 type Elf64Addr = u64;
 type Elf64Half = u16;
 type Elf64Off = u64;
-type Elf64Sword = i64;
 type Elf64Word = u32;
 type UnsignedChar = u8;
 
@@ -72,9 +75,9 @@ struct Elf64Rel {
 }
 
 struct Elf64Rela {
-    offset: Elf64Addr,
-    info: Elf64Word,
-    addend: Elf64Sword,
+    offset  : u64,
+    info    : u64,
+    addend  : i64,
 }
 
 pub fn make_elf64(
@@ -246,7 +249,7 @@ pub fn make_elf64(
         for rela in relas {
             rela_text_symb.push(Elf64Rela {
                 offset: rela.offset,
-                info: rela.rtype.clone() as Elf64Word,
+                info: rela.rtype.clone() as u64,
                 addend: rela.addend as i64,
             });
         }
@@ -633,8 +636,8 @@ pub fn make_elf64(
             let mut symb_index = 0;
             for s in &symbols {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if rel_text_symbref[index] == s_name {
-                    rela.info += ((symb_index as u64) << 32) as Elf64Word;
+                if rela_text_symbref[index] == s_name {
+                    rela.info += ((symb_index as u64) << 32) as u64;
                     break;
                 }
                 symb_index += 1;

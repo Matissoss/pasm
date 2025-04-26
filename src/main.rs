@@ -5,7 +5,6 @@
 
 //  global imports go here
 
-
 use std::{
     fs::{
         OpenOptions,
@@ -186,6 +185,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
     let mut to_write : Vec<u8> = Vec::new();
 
     ast.make_globals();
+    ast.fix_entry();
 
     for label in &ast.labels{
         let mut symb = Symbol{ 
@@ -229,6 +229,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
         }
     }
     else if form == "elf32"{
+        symbols.extend(comp::extern_trf(&ast.externs));
         let filtered_vars = ast.filter_vars();
         for v in filtered_vars{
             let section = comp::compile_section(v.1, 0, v.0 as u8);
@@ -242,6 +243,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
         );
     }
     else if form == "elf64"{
+        symbols.extend(comp::extern_trf(&ast.externs));
         let filtered_vars = ast.filter_vars();
         for v in filtered_vars{
             let section = comp::compile_section(v.1, 0, v.0 as u8);

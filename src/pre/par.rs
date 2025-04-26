@@ -23,7 +23,14 @@ type LexTree= Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser{
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>>{
         let mut errors : Vec<RASMError> = Vec::new();
-        let mut ast = AST{vars: Vec::new(), global: Vec::new(), labels: Vec::new()};
+        let mut ast = AST{
+            bits    : None,
+            entry   : None,
+            vars    : Vec::new(), 
+            labels  : Vec::new(),
+            globals : Vec::new(), 
+            externs : Vec::new(),
+        };
         
         let mut inside_label : (bool, String)   = (false, String::new());
         let mut vardecs      : Vec<Variable>    = Vec::new();
@@ -45,7 +52,6 @@ impl Parser{
                             }
                             inside_label = (true, lbl)
                         },
-                        ASTNode::Entry(_) => {}
                         ASTNode::Variable(var) => vardecs.push(var),
                         ASTNode::Ins(ins) => {
                             if !inside_label.0{
@@ -61,7 +67,7 @@ impl Parser{
                         },
                         ASTNode::Global(glob) => {
                             if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING){
-                                ast.global.push(glob);
+                                ast.globals.push(glob);
                             }
                             else {
                                 errors.push(RASMError::new(
@@ -71,8 +77,67 @@ impl Parser{
                                 ));
                             }
                         },
-                        ASTNode::Section(sec) => {
-                            inside_label = (false, sec)
+                        ASTNode::Extern(extrn) => {
+                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING){
+                                ast.externs.push(extrn);
+                            }
+                            else {
+                                errors.push(RASMError::new(
+                                    Some(node.1),
+                                    Some(format!("Externs can be only declared outside of labels, not inside of")),
+                                    None
+                                ));
+                            }
+                        },
+                        ASTNode::Entry(entry) => {
+                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING){
+                                if let None = ast.entry{
+                                    ast.entry = Some(entry);
+                                }
+                                else {
+                                    errors.push(RASMError::new(
+                                        Some(node.1),
+                                        Some(format!("Entry point declared twice!")),
+                                        None
+                                    ));
+                                }
+                            }
+                            else {
+                                errors.push(RASMError::new(
+                                    Some(node.1),
+                                    Some(format!("Externs can be only declared outside of labels, not inside of")),
+                                    None
+                                ));
+                            }
+                        },
+                        ASTNode::Bits(bits) => {
+                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING){
+                                if let None = ast.bits{
+                                    match bits{
+                                        16|32|64 => ast.bits = Some(bits),
+                                        n        => 
+                                            errors.push(RASMError::new(
+                                                Some(node.1),
+                                                Some(format!("Invalid bits specifier; expected 16, 32, 64, found {}", n)),
+                                                None
+                                            ))
+                                    }
+                                }
+                                else {
+                                    errors.push(RASMError::new(
+                                        Some(node.1),
+                                        Some(format!("Program bits declared twice!")),
+                                        None
+                                    ));
+                                }
+                            }
+                            else {
+                                errors.push(RASMError::new(
+                                    Some(node.1),
+                                    Some(format!("Externs can be only declared outside of labels, not inside of")),
+                                    None
+                                ));
+                            }
                         },
                     }
                 }

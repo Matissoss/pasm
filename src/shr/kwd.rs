@@ -8,15 +8,16 @@ use crate::conf::FAST_MODE;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Keyword{
+    Word,
+    Byte,
     Qword,
     Dword,
-     Word,
-     Byte,
-    Global,
-    Uninit,
     Const,
     Ronly,
-    Entry
+    Entry,
+    Global,
+    Uninit,
+    Extern,
 }
 
 // keyword is equal
@@ -60,6 +61,7 @@ impl FromStr for Keyword{
                 return match kwd_raw[0] as char {
                     'u' => kwd_ie(kwd_str, "uninit", Keyword::Uninit),
                     'g' => kwd_ie(kwd_str, "global", Keyword::Global),
+                    'e' => kwd_ie(kwd_str, "extern", Keyword::Extern),
                     _   => Err(())
                 }
             },
@@ -80,6 +82,7 @@ impl ToString for Keyword{
             Self::Const  => String::from("data"),
             Self::Entry  => String::from("entry"),
             Self::Global => String::from("global"),
+            Self::Extern => String::from("extern"),
         }
     }
 }

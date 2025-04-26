@@ -49,6 +49,22 @@ pub fn make_globals(symbols: &mut [Symbol], globals: &[String]){
         }
     }
 }
+pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol>{
+    let mut symbols = Vec::new();
+    for extern_ in externs{
+        symbols.push(Symbol{
+            name        : extern_.to_string(),
+            offset      : 0,
+            size        : None,
+            sindex      : 0,
+            stype       : SymbolType::NoType,
+            visibility  : Visibility::Global,
+            content     : None,
+            addt        : 0,
+        });
+    }
+    return symbols;
+}
 
 pub fn compile_section(vars: Vec<Variable>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol>){
     let mut buf: Vec<u8> = Vec::new();
@@ -661,12 +677,13 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
 }
 
 // opc = opcode ONLY for rel32
+// why? because i'm too lazy to implement other rel's
 fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>){
     if let Operand::SymbolRef(s) = ins.dst().unwrap(){
         let mut rel = Relocation{
             rtype: RType::PCRel32,
             symbol: s.to_string(),
-            addend: 0,
+            addend: -4,
             offset: 1,
             size  : 4,
             catg  : RCategory::Jump,

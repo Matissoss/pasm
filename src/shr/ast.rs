@@ -24,10 +24,10 @@ use crate::shr::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand{
-    Reg(Register),
-    Imm(Number),
-    Mem(Mem),
-    SymbolRef(String),
+    Reg         (Register),
+    Imm         (Number),
+    Mem         (Mem),
+    SymbolRef   (String),
 }
 
 #[derive(Debug, Clone)]
@@ -40,12 +40,13 @@ pub struct Instruction{
 
 #[derive(Debug, Clone)]
 pub enum ASTNode{
-    Ins(Instruction),
-    Label(String),
-    Global(String),
-    Section(String),
-    Variable(Variable),
-    Entry(String),
+    Ins         (Instruction),
+    Bits        (u8),
+    Entry       (String),
+    Label       (String),
+    Extern      (String),
+    Global      (String),
+    Variable    (Variable),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -57,9 +58,12 @@ pub struct Label{
 
 #[derive(Debug, Clone, Default)]
 pub struct AST{
-    pub global: Vec<String>,
-    pub labels: Vec<Label> ,
-    pub vars  : Vec<Variable>,
+    pub labels : Vec<Label> ,
+    pub vars   : Vec<Variable>,
+    pub globals: Vec<String>,
+    pub externs: Vec<String>,
+    pub bits   : Option<u8>,
+    pub entry  : Option<String>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -72,8 +76,8 @@ pub struct SymbolDeclaration{
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolValue{
-    Number(Number),
-    String(String)
+    Number  (Number),
+    String  (String)
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -192,8 +196,22 @@ impl Instruction{
 }
 
 impl AST{
+    pub fn fix_entry(&mut self) {
+        if let Some(entry) = &self.entry{
+            for index in 0..self.labels.len(){
+                if &self.labels[index].name == entry{
+                    if index == 0{
+                        return;
+                    }
+                    let (flabel, llabel) = self.labels.split_at_mut(index);
+                    std::mem::swap(&mut flabel[0], &mut llabel[0]);
+                    return;
+                }
+            }
+        }
+    }
     pub fn make_globals(&mut self){
-        for g in &self.global{
+        for g in &self.globals{
             let mut finished = false;
             for l in &mut self.labels{
                 if &l.name == g{

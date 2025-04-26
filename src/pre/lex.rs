@@ -50,6 +50,30 @@ impl Lexer{
                             error = Some(tmp_error)
                         }
                     }
+                },
+                Some(Token::Keyword(Keyword::Entry)) => {
+                    if let Some(Token::String(entr)|Token::Unknown(entr)) = line.get(1){
+                        node = Some(ASTNode::Entry(entr.to_string()));
+                    }
+                    else {
+                        error = Some(RASMError::new(
+                            Some(line_count),
+                            Some(format!("Unexpected end of line after entry keyword, expected string, found nothing")),
+                            Some(format!("Consider adding something after entry keyword"))
+                        ));
+                    }
+                }
+                Some(Token::Keyword(Keyword::Extern)) => {
+                    if let Some(Token::String(etrn)|Token::Unknown(etrn)) = line.get(1){
+                        node = Some(ASTNode::Extern(etrn.to_string()));
+                    }
+                    else {
+                        error = Some(RASMError::new(
+                            Some(line_count),
+                            Some(format!("Unexpected end of line after extern keyword, expected string, found nothing")),
+                            Some(format!("Consider adding something after extern keyword"))
+                        ));
+                    }
                 }
                 Some(Token::Keyword(Keyword::Global)) => {
                     if let Some(Token::String(glob)|Token::Unknown(glob)) = line.get(1){
@@ -58,8 +82,8 @@ impl Lexer{
                     else {
                         error = Some(RASMError::new(
                             Some(line_count),
-                            Some(format!("Unexpected end of line after keyword !global, expected string, found nothing")),
-                            Some(format!("consider adding something after global keyword"))
+                            Some(format!("Unexpected end of line after global keyword, expected string, found nothing")),
+                            Some(format!("Consider adding something after global keyword"))
                         ));
                     }
                 }
@@ -75,10 +99,10 @@ impl Lexer{
                         }
                     }
                 },
-                s => {
+                _ => {
                     ast_tree.push(Err(RASMError::new(
                         Some(line_count),
-                        Some(format!("Unexpected start of line: {:?}", s)),
+                        Some(format!("Unexpected start of line!")),
                         Some(format!("Consider starting line with Instruction, !global, section declaration or label declaration"))
                     )));
                 }
