@@ -32,7 +32,7 @@ use crate::{
 pub struct Lexer;
 impl Lexer{
     pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>>{
-        let mut line_count : usize = 0;
+        let mut line_count : i32 = -1;
         let mut ast_tree   : Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
         for line in file {
             line_count += 1;
@@ -48,18 +48,51 @@ impl Lexer{
                     match make_var(Cow::Owned(line)){
                         Ok(var) => node = Some(ASTNode::Variable(var)),
                         Err(mut tmp_error) => {
-                            tmp_error.set_line(line_count);
+                            tmp_error.set_line(line_count as usize);
                             error = Some(tmp_error)
                         }
                     }
                 },
+                Some(Token::Keyword(Keyword::Bits)) => {
+                    if let Some(Token::Immediate(bits)) = line.get(1){
+                        let uint8 = match bits.get_uint(){
+                            Some(n) => match Number::squeeze_u64(n){
+                                Number::UInt8(n) => n,
+                                _ => {
+                                    ast_tree.push(Err(RASMError::new(
+                                        Some(line_count as usize),
+                                        Some(format!("Couldn't fit number {} in 8-bits", n)),
+                                        None
+                                    )));
+                                    continue
+                                }
+                            },
+                            _ => {
+                                ast_tree.push(Err(RASMError::new(
+                                    Some(line_count as usize),
+                                    Some(format!("Couldn't fit number {} in 8-bit unsigned integer", bits.to_string())),
+                                    None
+                                )));
+                                continue
+                            }
+                        };
+                        node = Some(ASTNode::Bits(uint8));
+                    }
+                    else {
+                        error = Some(RASMError::new(
+                            Some(line_count as usize),
+                            Some(format!("Unexpected end of line after entry keyword, expected string, found nothing")),
+                            Some(format!("Consider adding something after entry keyword"))
+                        ));
+                    }
+                }
                 Some(Token::Keyword(Keyword::Entry)) => {
                     if let Some(Token::String(entr)|Token::Unknown(entr)) = line.get(1){
                         node = Some(ASTNode::Entry(entr.to_string()));
                     }
                     else {
                         error = Some(RASMError::new(
-                            Some(line_count),
+                            Some(line_count as usize),
                             Some(format!("Unexpected end of line after entry keyword, expected string, found nothing")),
                             Some(format!("Consider adding something after entry keyword"))
                         ));
@@ -71,7 +104,7 @@ impl Lexer{
                     }
                     else {
                         error = Some(RASMError::new(
-                            Some(line_count),
+                            Some(line_count as usize),
                             Some(format!("Unexpected end of line after extern keyword, expected string, found nothing")),
                             Some(format!("Consider adding something after extern keyword"))
                         ));
@@ -83,7 +116,7 @@ impl Lexer{
                     }
                     else {
                         error = Some(RASMError::new(
-                            Some(line_count),
+                            Some(line_count as usize),
                             Some(format!("Unexpected end of line after global keyword, expected string, found nothing")),
                             Some(format!("Consider adding something after global keyword"))
                         ));
@@ -92,18 +125,19 @@ impl Lexer{
                 Some(Token::Mnemonic(_)) => {
                     match make_ins(&line){
                         Ok(mut i) => {
-                            i.line = line_count;
+                            i.line = line_count as usize;
                             node = Some(ASTNode::Ins(i));
                         }
                         Err(mut e) => {
-                            e.set_line(line_count);
+                            e.set_line(line_count as usize);
                             error = Some(e);
                         }
                     }
                 },
-                _ => {
+                t => {
+                    println!("{:?}", t);
                     ast_tree.push(Err(RASMError::new(
-                        Some(line_count),
+                        Some(line_count as usize),
                         Some(format!("Unexpected start of line!")),
                         Some(format!("Consider starting line with Instruction, !global, section declaration or label declaration"))
                     )));
@@ -111,7 +145,7 @@ impl Lexer{
             }
 
             if let Some(node_t) = node{
-                ast_tree.push(Ok((node_t, line_count)));
+                ast_tree.push(Ok((node_t, line_count as usize)));
             }
             else if let Some(error_t) = error{
                 ast_tree.push(Err(error_t));

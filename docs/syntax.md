@@ -57,7 +57,7 @@ where `!size` can be one of these: `!byte` (for 8-bit value), `!word` (for 16-bi
 ```
 
 > [!WARNING]
-> `*` must be used, otherwise you will get error
+> `*` must be used if without displacement, otherwise you will get error or it will be treated as `base`
 
 ### base + index * scale
 
@@ -111,12 +111,18 @@ _start:
 
 ## externs
 
-This feature is planned, but currently isn't implemented in RASM assembler.
+To use extern do:
+```
+!extern symbol_name
+```
 
-Basically tells assembler that symbol used in this file cannot be found in this file.
+Basically tells assembler that symbol used in this file cannot be found in this file, doesn't work in `bin` format
 
 ## entry
 
-File entry (ussually `_start` in UNIX-like systems) ***MUST BE GLOBAL***. 
+To change entry do:
+```
+!entry label_name
+```
 
-Option to change default entry will be added soon in RASM Assembler
+Entry label ***MUST BE SET AS GLOBAL***. 

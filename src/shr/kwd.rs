@@ -10,6 +10,7 @@ use crate::conf::FAST_MODE;
 pub enum Keyword{
     Word,
     Byte,
+    Bits,
     Qword,
     Dword,
     Const,
@@ -44,6 +45,7 @@ impl FromStr for Keyword{
                 return match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd_str, "byte", Keyword::Byte),
                     'o' => kwd_ie(kwd_str, "word", Keyword::Word),
+                    'i' => kwd_ie(kwd_str, "bits", Keyword::Bits),
                     _   => return Err(())
                 };
             },
@@ -83,6 +85,7 @@ impl ToString for Keyword{
             Self::Entry  => String::from("entry"),
             Self::Global => String::from("global"),
             Self::Extern => String::from("extern"),
+            Self::Bits   => String::from("bits")
         }
     }
 }

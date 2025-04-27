@@ -39,6 +39,18 @@ for file in ./nasm/*.asm; do
 	rm $RASM_FILE_RES
 done
 
+for file in ./elf/*.asm; do
+	rm -f main.o
+	cargo r -- -i=$file -o=main -f=elf64
+	readelf_res=$(readelf -a "main" | grep -i "error" || true)
+	if [[ $readelf_res != "" ]]; then
+		errors=$((errors+1))
+		echo "Invalid output in ${file}:"
+		readelf -a "main"
+	fi
+	rm main
+done
+
 if [[ "$errors" == "0" ]]; then
 	echo "No errors found!"
 	exit 0
