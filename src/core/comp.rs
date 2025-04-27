@@ -22,7 +22,6 @@ use crate::{
         ast::{
             Instruction,
             Operand,
-            Label,
         },
         size::Size,
         reg::Register,
@@ -37,7 +36,7 @@ use crate::{
             SymbolType,
             Visibility
         }
-    }
+    },
 };
 
 #[inline]
@@ -70,7 +69,7 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol>{
     return symbols;
 }
 
-pub fn compile_section<'a>(vars: Vec<&'a Variable>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol<'a>>){
+pub fn compile_section<'a>(vars: &'a Vec<&'a Variable<'a>>, sindex: u16, addt: u8) -> (Vec<u8>, Vec<Symbol<'a>>){
     let mut buf: Vec<u8> = Vec::new();
     let mut symbols: Vec<Symbol> = Vec::new();
 
@@ -100,7 +99,7 @@ pub fn compile_section<'a>(vars: Vec<&'a Variable>, sindex: u16, addt: u8) -> (V
                     sindex,
                     stype: SymbolType::Object,
                     offset,
-                    content: Some(v.content.clone()),
+                    content: Some(Cow::Borrowed(&v.content)),
                     visibility: v.visibility,
                     addend: 0,
                     addt
@@ -113,10 +112,10 @@ pub fn compile_section<'a>(vars: Vec<&'a Variable>, sindex: u16, addt: u8) -> (V
     (buf, symbols)
 }
 
-pub fn compile_label<'a>(lbl: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>){
+pub fn compile_label<'a>(lbl: &'a Vec<Instruction>) -> (Vec<u8>, Vec<Relocation<'a>>){
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
-    for ins in &lbl.inst{
+    for ins in lbl{
         let res = compile_instruction(ins);
         if let Some(mut rl) = res.1 {
             rl.offset += bytes.len() as u64;
@@ -178,7 +177,7 @@ pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Relocation>){
 }
 
 fn ins_pop(ins: &Instruction) -> Vec<u8>{
-    match ins.dst().clone().unwrap() {
+    match ins.dst().unwrap() {
         Operand::Reg(r) => gen_base(ins, &[0x58 + r.to_byte()]),
         Operand::Mem(_) => vec![0x8F, gen_modrm(&ins, None, Some(0))],
         _ => invalid()
@@ -186,7 +185,7 @@ fn ins_pop(ins: &Instruction) -> Vec<u8>{
 }
 
 fn ins_push(ins: &Instruction) -> Vec<u8>{
-    return match ins.dst().clone().unwrap() {
+    return match ins.dst().unwrap() {
         Operand::Reg(r) => gen_base(ins, &[0x50 + r.to_byte()]),
         Operand::Imm(nb) => {
             match nb.size(){
@@ -211,8 +210,8 @@ fn ins_push(ins: &Instruction) -> Vec<u8>{
 }
 
 fn ins_mov(ins: &Instruction) -> Vec<u8>{
-    let src = ins.src().clone().unwrap();
-    let dst = ins.dst().clone().unwrap();
+    let src = ins.src().unwrap();
+    let dst = ins.dst().unwrap();
     if let Operand::Reg(r) = dst{
         match src{
             Operand::Imm(n) => {

@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 //  global imports go here
-
 use std::{
     fs::{
         OpenOptions,
@@ -14,7 +13,8 @@ use std::{
     path::PathBuf,
     process,
     io::Write,
-    borrow::Cow
+    borrow::Cow,
+    rc::Rc
 };
 
 // local imports go here
@@ -143,7 +143,7 @@ fn parse_file(inpath: &PathBuf) -> AST{
     }
 }
 
-fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
+fn assemble_file<'a>(mut ast: AST<'a>, outpath: &PathBuf, form: &str){
     match fs::exists(outpath) {
         Ok(false) => {
             match File::create(outpath){
@@ -182,22 +182,32 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
     let mut symbols = Vec::new();
     let mut relocs  = Vec::new();
     let mut to_write : Vec<u8> = Vec::new();
-    
+
     ast.make_globals();
     ast.fix_entry();
 
-    for label in &ast.labels{
-        let mut res = comp::compile_label(&label);
+    let astrc = Rc::new(ast);
+    let astrc_ref = Rc::clone(&astrc);
+
+    let filtered_vars = &AST::filter_vars(&astrc_ref.vars);
+    for v in filtered_vars{
+        let section = comp::compile_section(&v.1, 0, v.0 as u8);
+        symbols.extend(section.1);
+    }
+    
+
+    for label in &astrc_ref.labels{
+        let mut res = comp::compile_label(&label.inst);
         let mut symb = Symbol{ 
-            name: Cow::Borrowed(&label.name),
-            offset: to_write.len() as u64, 
-            size: None,
-            sindex: 1,
-            visibility: label.visibility,
-            stype: SymbolType::Func,
-            content: None,
-            addend: -4,
-            addt: 0
+            name        : Cow::Borrowed(&label.name),
+            offset      : to_write.len() as u64, 
+            size        : None,
+            sindex      : 1,
+            visibility  : label.visibility,
+            stype       : SymbolType::Func,
+            content     : None,
+            addend      : -4,
+            addt        : 0
         };
         
         for r in &mut res.1{
@@ -212,11 +222,6 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
 
     match form {
         "bin" => {
-            let filtered_vars = ast.filter_vars();
-            for v in filtered_vars{
-                let section = comp::compile_section(v.1, 0, v.0 as u8);
-                symbols.extend(section.1);
-            }
             match core::reloc::relocate_addresses(&mut to_write, relocs, &symbols){
                 Some(errs) => {
                     for e in &errs{
@@ -228,32 +233,26 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
             }
         },
         "elf32" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            let filtered_vars = ast.filter_vars();
-            for v in filtered_vars{
-                let section = comp::compile_section(v.1, 0, v.0 as u8);
-                symbols.extend(section.1);
-            }
+            let astref = Rc::clone(&astrc);
+            symbols.extend(comp::extern_trf(&astref.externs));
             to_write = make_elf32(
                 &to_write,
                 relocs,
                 &symbols,
                 &outpath,
             );
+            drop(astref);
         },
         "elf64" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            let filtered_vars = ast.filter_vars();
-            for v in filtered_vars{
-                let section = comp::compile_section(v.1, 0, v.0 as u8);
-                symbols.extend(section.1);
-            }
+            let astref = Rc::clone(&astrc);
+            symbols.extend(comp::extern_trf(&astref.externs));
             to_write = make_elf64(
                 &to_write,
                 relocs,
                 &symbols,
                 &outpath,
             );
+            drop(astref);
         }
         _ => CLI.exit("main.rs", "assemble_file", &format!("Unknown format `{}`!", form), 1)
     }
@@ -261,4 +260,5 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str){
         eprintln!("Couldn't save output to file: {}", why);
         process::exit(1);
     }
+    process::exit(0);
 }

@@ -197,7 +197,7 @@ impl Instruction{
     }
 }
 
-impl AST<'_>{
+impl<'a> AST<'a>{
     pub fn fix_entry(&mut self) {
         if let Some(entry) = &self.entry{
             for index in 0..self.labels.len(){
@@ -233,11 +233,11 @@ impl AST<'_>{
             else {continue}
         }
     }
-    pub fn filter_vars(&self) -> Vec<(u32, Vec<&Variable>)>{
+    pub fn filter_vars(vars: &'a Vec<Variable<'a>>) -> Vec<(u32, Vec<&'a Variable<'a>>)>{
         let mut ronly = Vec::new();
         let mut consts = Vec::new();
         let mut uninits = Vec::new();
-        for v in &self.vars{
+        for v in vars{
             match v.vtype{
                 VType::Readonly => ronly.push(v),
                 VType::Uninit   => uninits.push(v),

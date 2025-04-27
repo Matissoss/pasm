@@ -73,14 +73,14 @@ impl Tokenizer{
                 
                 (Some(PREFIX_REG|PREFIX_KWD|PREFIX_VAL), ',') => {
                     if tmp_buf.is_empty() == false {
-                        tokens.push(Token::make_from(inside_closure, &String::from_iter(tmp_buf.iter())));
+                        tokens.push(Token::make_from(inside_closure, String::from_iter(tmp_buf.iter())));
                         tmp_buf = Vec::new();
                     }
                     tokens.push(Token::Comma)
                 },
                 (None, ',') => {
                     if tmp_buf.is_empty() == false {
-                        tokens.push(Token::make_from(inside_closure, &String::from_iter(tmp_buf.iter())));
+                        tokens.push(Token::make_from(inside_closure, String::from_iter(tmp_buf.iter())));
                         tmp_buf = Vec::new();
                     }
                     tokens.push(Token::Comma)
@@ -92,7 +92,7 @@ impl Tokenizer{
                 
                 (None|Some(PREFIX_VAL|PREFIX_REG|PREFIX_KWD), ' '|'\t'|'\n') => {
                     if tmp_buf.is_empty() == false {
-                        tokens.push(Token::make_from(inside_closure, &String::from_iter(tmp_buf.iter())));
+                        tokens.push(Token::make_from(inside_closure, String::from_iter(tmp_buf.iter())));
                         tmp_buf = Vec::new();
                     }
                     inside_closure = None;
@@ -107,7 +107,7 @@ impl Tokenizer{
                 
                 (Some(MEM_START), MEM_CLOSE) => {
                     tmp_buf.push(MEM_CLOSE);
-                    tokens.push(Token::make_from(Some(MEM_START), &String::from_iter(tmp_buf.iter())));
+                    tokens.push(Token::make_from(Some(MEM_START), String::from_iter(tmp_buf.iter())));
                     inside_closure = None;
                     tmp_buf = Vec::new();
                 }
@@ -116,45 +116,45 @@ impl Tokenizer{
             }
         }
         if tmp_buf.is_empty() == false {
-            tokens.push(Token::make_from(inside_closure, &String::from_iter(tmp_buf.iter())));
+            tokens.push(Token::make_from(inside_closure, String::from_iter(tmp_buf.iter())));
         }
         return tokens;
     }
 }
 
 impl Token{
-    fn make_from(prefix: Option<char>, val: &str) -> Self{
+    fn make_from(prefix: Option<char>, val: String) -> Self{
         return match prefix {
             Some(PREFIX_REG) => {
-                match Register::from_str(val){
+                match Register::from_str(&val){
                     Ok(reg) => Self::Register(reg),
-                    Err(_)  => Self::UnknownReg(val.to_string()),
+                    Err(_)  => Self::UnknownReg(val),
                 }
             },
             Some(PREFIX_VAL) => {
-                match Number::from_str(val){
+                match Number::from_str(&val){
                     Ok(val) => Self::Immediate(val),
-                    Err(err) => Self::UnknownVal(val.to_string(), err),
+                    Err(err) => Self::UnknownVal(val, err),
                 }
             },
             Some(MEM_START) => {
-                Self::MemAddr(val.to_string())
+                Self::MemAddr(val)
             },
             Some(PREFIX_KWD) => {
                 if let Ok(kwd) = Keyword::from_str(val.trim()){
                     Self::Keyword(kwd)
                 }
                 else {
-                    Self::UnknownKeyword(val.to_string())
+                    Self::UnknownKeyword(val)
                 }
             }
-            Some(PREFIX_REF) => Self::SymbolRef(val.to_string()),
+            Some(PREFIX_REF) => Self::SymbolRef(val),
             _   => {
-                if let Ok(mnm) = Mnm::from_str(val){
+                if let Ok(mnm) = Mnm::from_str(&val){
                     Self::Mnemonic(mnm)
                 }
                 else {
-                    Self::Unknown(val.to_string())
+                    Self::Unknown(val)
                 }
             }
         }
@@ -170,7 +170,7 @@ impl ToString for Token{
             Self::Keyword(kwd)          => kwd.to_string(),
             Self::Mnemonic(m)           => format!("{}", format!("{:?}", m).to_lowercase()),
             Self::Label(lbl)            => lbl.to_string(),
-            Self::SymbolRef(lbl)         => format!("{}{}", PREFIX_REF, lbl),
+            Self::SymbolRef(lbl)        => format!("{}{}", PREFIX_REF, lbl),
             Self::String(str)           => format!("{}", str),
             Self::UnknownReg(str)       => format!("{}{}", PREFIX_REG, str.to_string()),
             Self::UnknownVal(str, _)    => format!("{}{}", PREFIX_VAL, str.to_string()),

@@ -24,6 +24,11 @@ pub const MEM_CLOSE : char = ')';
 // default = ';'
 pub const COMMENT_S : char = ';';
 
+// Allows you to utilize cores of your CPU to compile labels
+// ---------------------------------------------------------
+// default = true
+pub const MULTI_THREADED : bool = true;
+
 //  ---------------------------------------------------------------------------
 //                              PREFIXES WARNING:
 //      assembler is programmed to recognize different values, so do not

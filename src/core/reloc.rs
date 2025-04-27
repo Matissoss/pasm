@@ -36,7 +36,7 @@ pub struct Relocation<'a> {
     pub size  : u8,
 }
 
-pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Symbol]) -> Option<Vec<RASMError>>{ 
+pub fn relocate_addresses<'a>(buf: &mut [u8], relocs: Vec<Relocation<'a>>, symbols: &'a [Symbol<'a>]) -> Option<Vec<RASMError>>{ 
     let mut errors = Vec::new();
     for reloc in relocs{
         if reloc.rtype == RType::PCRel32{
@@ -54,7 +54,7 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
                 }
                 else {
                     if let Some(con) = &symbol.content{
-                        let immbytes = match con{
+                        let immbytes = match **con{
                             VarContent::Number(n) => n.split_into_bytes(),
                             VarContent::String(_) => {
                                 errors.push(RASMError::new(
@@ -99,7 +99,7 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
             if let Some(symbol) = find(&symbols, &reloc.symbol){
                 let _s32 = symbol.offset;
                 if let Some(con) = &symbol.content{
-                    let immbytes = match con{
+                    let immbytes = match **con{
                         VarContent::Number(n) => n.split_into_bytes(),
                         VarContent::String(_) => {
                             errors.push(RASMError::new(
@@ -157,7 +157,7 @@ pub fn relocate_addresses(buf: &mut [u8], relocs: Vec<Relocation>, symbols: &[Sy
 }
 
 #[inline]
-fn find<'a>(table: &'a [Symbol], object: &'a str) -> Option<&'a Symbol<'a>>{
+fn find<'a>(table: &'a [Symbol<'a>], object: &'a str) -> Option<&'a Symbol<'a>>{
     for e in table{
         if e.name == Cow::Borrowed(object){
             return Some(e);

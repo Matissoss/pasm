@@ -33,14 +33,14 @@ pub struct Symbol<'a>{
     pub sindex: u16,
     pub stype: SymbolType,
     pub visibility: Visibility,
-    pub content: Option<VarContent<'a>>,
+    pub content: Option<Cow<'a, VarContent<'a>>>,
     pub addend : i64,
     pub addt: u8
 }
 
 impl<'b> Symbol<'b>{
     pub fn new(name: Cow<'b, String>, offset: u64, addend: i64, size: Option<u32>, sindex: u16, 
-               stype: SymbolType, visibility: Visibility, content: Option<VarContent<'b>>) -> Self
+               stype: SymbolType, visibility: Visibility, content: Option<Cow<'b, VarContent<'b>>>) -> Self
     {
         Self{
             name,

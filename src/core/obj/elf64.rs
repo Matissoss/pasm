@@ -384,13 +384,13 @@ pub fn make_elf64(
                     /*  .data  */
                     0x1 => {
                         data_r.push(index + elfsymlen - glob_num);
-                        data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                        data_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                         data = true;
                     }
                     /* .rodata */
                     0x2 => {
                         rodata_r.push(index + elfsymlen - glob_num);
-                        rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                        rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                         rodata = true;
                     }
                     /*   .bss  */
@@ -430,13 +430,13 @@ pub fn make_elf64(
                 /*  .data  */
                 0x1 => {
                     data_r.push(index + base_len);
-                    data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                    data_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                     data = true;
                 }
                 /* .rodata */
                 0x2 => {
                     rodata_r.push(index + base_len);
-                    rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                    rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                     rodata = true;
                 }
                 /*   .bss  */

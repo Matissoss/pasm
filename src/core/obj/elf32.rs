@@ -361,14 +361,14 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
                     /*  .data  */ 0x1 => {
                         data_r.push(index + elfsymlen - glob_num);
                         data_b.extend(
-                            Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref())
+                            Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref())
                             .unwrap().bytes()
                         );
                         data   = true;
                     },
                     /* .rodata */ 0x2 => {
                         rodata_r.push(index + elfsymlen - glob_num);
-                        rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                        rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                         rodata = true;
                     },
                     /*   .bss  */ 0x3 => {
@@ -403,12 +403,12 @@ pub fn make_elf32(code: &[u8], relocs: Vec<Relocation>, symbols: &[Symbol], outp
             match symbol.addt{
                 /*  .data  */ 0x1 => {
                     data_r.push(index + base_len);
-                    data_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                    data_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                     data   = true;
                 },
                 /* .rodata */ 0x2 => {
                     rodata_r.push(index + base_len);
-                    rodata_b.extend(Cow::Owned::<Option<&VarContent>>(symbol.content.as_ref()).unwrap().bytes());
+                    rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
                     rodata = true;
                 },
                 /*   .bss  */ 0x3 => {
