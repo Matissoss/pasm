@@ -24,16 +24,16 @@ pub const MEM_CLOSE : char = ')';
 // default = ';'
 pub const COMMENT_S : char = ';';
 
-// Allows you to utilize cores of your CPU to compile labels
-// ---------------------------------------------------------
-// default = true
-pub const MULTI_THREADED : bool = true;
-
 //  ---------------------------------------------------------------------------
 //                              PREFIXES WARNING:
 //      assembler is programmed to recognize different values, so do not
 //      be shocked if you set every PREFIX* to same value and it does not work.
 //  ---------------------------------------------------------------------------
+
+//  PREFIX_REG defines prefix for segments
+//  ---------------------------------------
+//  default = '#'
+pub const PREFIX_SEG : char = '#';
 
 //  PREFIX_REG defines prefix for registers
 //  ---------------------------------------

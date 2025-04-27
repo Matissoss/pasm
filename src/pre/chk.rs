@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::core::rex::gen_rex;
 use crate::shr::{
     ins::Mnemonic as Mnm,
     ast::{
@@ -46,6 +47,13 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
 }
 
 fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
+    if let Some(_) = gen_rex(ins){
+        return Some(RASMError::new(
+            Some(ins.line),
+            Some(format!("Tried to use 64-bit operand/extended register in 32-bit mode!")),
+            None
+        ));
+    };
     return match ins.mnem{
         Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R32, M16, M32, I8, I16, I32], &[], None),
         Mnm::POP  => ot_chk(ins, (true, false), &[R16, R32, M16, M32], &[], None),
@@ -116,7 +124,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
         Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
             ot_chk(ins, (true, false), &[R8, R16, R32, M8, M16, M32], &[], None)
         },
-        Mnm::JMP|Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::CALL|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
+        Mnm::JMP|Mnm::CALL => ot_chk(ins, (true, false), &[AType::Sym, M16, M32, R16, R32], &[], None),
+        Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
             ot_chk(ins, (true, false), &[AType::Sym], &[], None)
         },
         Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32], &[AType::Sym], None),
@@ -204,7 +213,8 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
         Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
             ot_chk(ins, (true, false), &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
         },
-        Mnm::JMP|Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::CALL|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
+        Mnm::JMP|Mnm::CALL => ot_chk(ins, (true, false), &[AType::Sym, R64, M64], &[], None),
+        Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
             ot_chk(ins, (true, false), &[AType::Sym], &[], None)
         },
         Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32, R64], &[AType::Sym], None),

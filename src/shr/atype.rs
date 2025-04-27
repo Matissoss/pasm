@@ -27,6 +27,8 @@ pub enum AType{
     Mem(Size),
     RIP(Size),
     Sym,
+    Segment(Size),
+    SegmentReg
 }
 
 pub trait ToAType{

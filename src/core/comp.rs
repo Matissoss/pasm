@@ -160,16 +160,16 @@ pub fn compile_instruction(ins: &Instruction) -> (Vec<u8>, Option<Relocation>){
         Ins::DIV        => (ins_divmul(&ins, 6), None),
         Ins::IDIV       => (ins_divmul(&ins, 7), None),
         Ins::MUL        => (ins_divmul(&ins, 4), None),
-        Ins::JMP        => ins_jmplike(&ins, vec![0xE9]),
-        Ins::CALL       => ins_jmplike(&ins, vec![0xE8]),
+        Ins::JMP        => ins_jmplike(&ins, [vec![0xE9], vec![0xFF]], 4),
+        Ins::CALL       => ins_jmplike(&ins, [vec![0xE8], vec![0xFF]], 2),
         Ins::JE |Ins::JZ         
-                        => ins_jmplike(&ins, vec![0x0F, 0x84]),
+                        => ins_jmplike(&ins, [vec![0x0F, 0x84], vec![]], 0),
         Ins::JNE|Ins::JNZ        
-                        => ins_jmplike(&ins, vec![0xFF, 0x85]),
-        Ins::JL         => ins_jmplike(&ins, vec![0x0F, 0x8C]),
-        Ins::JLE        => ins_jmplike(&ins, vec![0x0F, 0x8E]),
-        Ins::JG         => ins_jmplike(&ins, vec![0x0F, 0x8F]),
-        Ins::JGE        => ins_jmplike(&ins, vec![0x0F, 0x8D]),
+                        => ins_jmplike(&ins, [vec![0xFF, 0x85], vec![]], 0),
+        Ins::JL         => ins_jmplike(&ins, [vec![0x0F, 0x8C], vec![]], 0),
+        Ins::JLE        => ins_jmplike(&ins, [vec![0x0F, 0x8E], vec![]], 0),
+        Ins::JG         => ins_jmplike(&ins, [vec![0x0F, 0x8F], vec![]], 0),
+        Ins::JGE        => ins_jmplike(&ins, [vec![0x0F, 0x8D], vec![]], 0),
 
         Ins::LEA        => ins_lea(&ins),
         //_ => (Vec::new(), None)
@@ -683,30 +683,28 @@ fn ins_lea(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
 
 // opc = opcode ONLY for rel32
 // why? because i'm too lazy to implement other rel's
-fn ins_jmplike(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>){
-    if let Operand::SymbolRef(s) = ins.dst().unwrap(){
-        let mut rel = Relocation{
-            rtype: RType::PCRel32,
-            symbol: Cow::Owned(s),
-            addend: -4,
-            offset: 1,
-            size  : 4,
-            catg  : RCategory::Jump,
-        };
-        if opc.len() == 1{
-            (vec![opc[0], 0, 0, 0, 0], Some(rel))
+//
+// opc[0] = rel32
+// opc[1] = r/m
+fn ins_jmplike(ins: &Instruction, opc: [Vec<u8>; 2], addt: u8) -> (Vec<u8>, Option<Relocation>){
+    match ins.dst().unwrap(){
+        Operand::SymbolRef(s) => {
+            let rel = Relocation{
+                rtype: RType::PCRel32,
+                symbol: Cow::Owned(s),
+                addend: -4,
+                offset: opc[0].len() as u64,
+                size  : 4,
+                catg  : RCategory::Jump,
+            };
+            let mut opc = opc[0].clone();
+            opc.extend([0; 4]);
+            return (opc, Some(rel))
+        },
+        Operand::Reg(_)|Operand::Mem(_) => {
+            return (gen_ins(ins, &opc[1], (true, Some(addt), None), None), None)
         }
-        else {
-            let len = opc.len();
-            let mut bs = opc;
-            bs.extend([0, 0, 0, 0]);
-            rel.offset     = len as u64 + 1;
-            rel.size       = bs.len() as u8;
-            (bs, Some(rel))
-        }
-    }
-    else {
-        invalid()
+        _ => invalid()
     }
 }
 

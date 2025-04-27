@@ -11,6 +11,7 @@ use crate::{
         ins::Mnemonic as Mnm,
         num::Number,
         error::RASMError,
+        segment::Segment
     },
     conf::{
         MEM_START,
@@ -19,24 +20,27 @@ use crate::{
         PREFIX_REG,
         PREFIX_VAL,
         PREFIX_REF,
-        PREFIX_KWD
+        PREFIX_KWD,
+        PREFIX_SEG,
     }
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Register(Register),
-    Immediate(Number),
-    Keyword(Keyword),
-    Mnemonic(Mnm),
-    MemAddr(String),
-    Label(String),
-    SymbolRef(String),
-    String(String),
-    UnknownKeyword(String),
-    UnknownReg(String),
-    UnknownVal(String, RASMError),
-    Unknown(String),
+    Register        (Register),
+    Immediate       (Number),
+    Keyword         (Keyword),
+    Mnemonic        (Mnm),
+    MemAddr         (String),
+    Label           (String),
+    SymbolRef       (String),
+    String          (String),
+    Segment         (Segment),
+    UnknownSegment  (String, RASMError),
+    UnknownKeyword  (String),
+    UnknownReg      (String),
+    UnknownVal      (String, RASMError),
+    Unknown         (String),
     Comma,
 }
 
@@ -97,7 +101,7 @@ impl Tokenizer{
                     }
                     inside_closure = None;
                 },
-                (None, PREFIX_REG|PREFIX_VAL|PREFIX_KWD|'.') => inside_closure = Some(c),
+                (None, PREFIX_REG|PREFIX_VAL|PREFIX_KWD|PREFIX_SEG) => inside_closure = Some(c),
                 
                 
                 (None, MEM_START|MEM_CLOSE) => {
@@ -147,6 +151,12 @@ impl Token{
                 else {
                     Self::UnknownKeyword(val)
                 }
+            },
+            Some(PREFIX_SEG) => {
+                match Segment::from_str(&val){
+                    Ok(s) => Self::Segment(s),
+                    Err(e) => Self::UnknownSegment(val, e),
+                }
             }
             Some(PREFIX_REF) => Self::SymbolRef(val),
             _   => {
@@ -176,7 +186,9 @@ impl ToString for Token{
             Self::UnknownVal(str, _)    => format!("{}{}", PREFIX_VAL, str.to_string()),
             Self::Unknown(val)          => val.to_string(),
             Self::UnknownKeyword(kwd)   => format!("{}{}", PREFIX_KWD, kwd),
+            Self::Segment(s)            => format!("{}", s.to_string()), 
             Self::Comma                 => format!("{}", ','),
+            Self::UnknownSegment(s,_)   => format!("{}", s),
         }
     }
 }

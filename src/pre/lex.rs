@@ -24,7 +24,8 @@ use crate::{
         num::Number,
         kwd::Keyword,
         error::RASMError,
-        size::Size
+        size::Size,
+        segment::Segment
     }
 };
 
@@ -222,6 +223,30 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
                     Err(e) => return Err(e),
                 }
             },
+             (Token::Segment(s), Token::Keyword(k))
+            |(Token::Keyword(k), Token::Segment(s)) => {
+                let size = match Size::try_from(*k){
+                    Ok(s) => s,
+                    Err(_) => return Err(RASMError::new(
+                        None,
+                        Some(format!("Couldn't parse size specifier `{}`", k.to_string())),
+                        None
+                    ))
+                };
+                let mem_new = match s.address{
+                    Mem::Offset(b, o, _)        => Mem::Offset(b, o, size),
+                    Mem::Direct(b, _)           => Mem::Direct(b, size),
+                    Mem::Index (i, s, _)        => Mem::Index (i, s, size),
+                    Mem::IndexOffset(i, s,o, _) => Mem::IndexOffset(i, s,o, size),
+                    Mem::SIB   (b,i,s,_)        => Mem::SIB   (b, i, s, size),
+                    Mem::RipRelative(o,_)       => Mem::RipRelative(o, size),
+                    Mem::SIBOffset(b,i,s,o,_)   => Mem::SIBOffset(b,i,s,o,size),
+                };
+                return Ok(Operand::Segment(Segment{
+                    segment: s.segment,
+                    address: mem_new
+                }));
+            }
             _ => return Err(RASMError::new(
                 None,
                 Some(format!("Tried to make unexpected operand from two tokens; expected memory address along with size specifier")),

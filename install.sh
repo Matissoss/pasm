@@ -8,9 +8,9 @@ set -e
 
 if [[ $1 == "" ]] || [[ $1 == "-h" ]]; then
 	echo "help:"
-	echo "	- l : local install (installs binary inside of ~/.local/bin)"
-	echo "	- d : dev build (building for ALL supported targets; not recommended)"
-	echo " 	- h : help"
+	echo "	-l : local install (installs binary inside of ~/.local/bin)"
+	echo "	-d : dev build (building for ALL supported targets; not recommended)"
+	echo " 	-h : help"
 fi
 
 if [[ $1 == "-l" ]]; then

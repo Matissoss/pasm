@@ -10,3 +10,4 @@ pub mod atype;
 pub mod error;
 pub mod rpanic;
 pub mod symbol;
+pub mod segment;

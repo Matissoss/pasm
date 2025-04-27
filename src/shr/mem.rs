@@ -145,7 +145,9 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                     }
                 }
             },
-            MemTok::Underline => tried_base = true,
+            MemTok::Underline => {
+                tried_base = true
+            },
             MemTok::Num(n) => {
                 if variant == NumberVariant::Multiply{
                     if let Ok(s) = Size::try_from(*n as u16){
@@ -215,6 +217,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
         (Some(b), Some(i), Some(s), Some(o))        => Ok(Mem::SIBOffset(b, i, s, o, size)),
         (Some(b), Some(i), Some(s), None)           => Ok(Mem::SIB(b, i, s, size)),
         (Some(Register::RIP), None, None, Some(o))  => Ok(Mem::RipRelative(o, size)),
+        (None   , Some(b), None   , Some(o))|
         (Some(b), None   , None   , Some(o))        => Ok(Mem::Offset(b, o, size)),
         (Some(b), None   , None   , None   )        => Ok(Mem::Direct(b, size)),
         (Some(b), Some(i), None   , None   )        => Ok(Mem::SIB(b, i, Size::Byte, size)),
@@ -274,6 +277,7 @@ fn mem_tok(str: &str) -> Vec<MemTok>{
             },
             (None, PREFIX_REG) => pfx = Some(PREFIX_REG),
             (None, PREFIX_VAL) => pfx = Some(PREFIX_VAL),
+            (_, ' ') => continue,
             (_, _) => tmp_buf.push(c),
         }
     }
@@ -334,7 +338,6 @@ impl ToAType for Mem{
     }
 }
 
-
 #[cfg(test)]
 mod mem_test{
     use super::*;
@@ -360,5 +363,13 @@ mod mem_test{
             MemTok::End,
         ];
         assert!(Ok(Mem::Offset(Register::RAX, 20, Size::Dword)) == mem_par(&memtoks, Size::Dword));
+        let memtoks = vec![
+            MemTok::Start,
+            MemTok::Underline,
+            MemTok::Reg(Register::RAX),
+            MemTok::Num(8),
+            MemTok::End
+        ];
+        assert!(Ok(Mem::Offset(Register::RAX, 8, Size::Byte)) == mem_par(&memtoks, Size::Byte));
     }
 }

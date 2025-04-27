@@ -21,7 +21,8 @@ use crate::shr::{
     var::{
         Variable,
         VType,
-    }
+    },
+    segment::Segment
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -30,6 +31,7 @@ pub enum Operand{
     Imm         (Number),
     Mem         (Mem),
     SymbolRef   (String),
+    Segment     (Segment)
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +118,7 @@ impl Operand{
             Self::Reg(r) => r.size(),
             Self::Mem(m) => m.size(),
             Self::SymbolRef(_) => Size::Unknown,
+            Self::Segment(s) => s.address.size()
         }
     }
 }
@@ -127,6 +130,7 @@ impl ToAType for Operand{
             Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Sym,
+            Self::Segment(s)   => AType::Segment(s.address.size())
         }
     }
 }

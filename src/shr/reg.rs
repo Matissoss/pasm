@@ -47,6 +47,7 @@ pub enum Register{
     DR3 , DR6 , DR7 , 
 
     RIP , EIP , IP  ,
+    
     // CURRENTLY UNSUPPORTED:
     //  SIMD
     XMM0 , XMM1 , XMM2 , XMM3 , 
@@ -229,6 +230,7 @@ impl FromStr for Register{
                         }
                     }
                     'b' => reg_ie(str, "bpl", Register::BPL),
+                    /*
                     'c' => {
                         match byte_str[2] as char {
                             '0' => reg_ie(str,"cr0",Register::CR0),
@@ -239,15 +241,18 @@ impl FromStr for Register{
                             _ => Err(())
                         }
                     }
+                    */
                     'd' => {
                         match byte_str[2] as char{
                             'i' => reg_ie(str,"dil",Register::DIL),
+                            /*
                             '0' => reg_ie(str,"dr0",Register::DR0),
                             '1' => reg_ie(str,"dr1",Register::DR1),
                             '2' => reg_ie(str,"dr2",Register::DR2),
                             '3' => reg_ie(str,"dr3",Register::DR3),
                             '6' => reg_ie(str,"dr6",Register::DR6),
                             '7' => reg_ie(str,"dr7",Register::DR7),
+                            */
                             _ => Err(())
                         }
                     },
@@ -423,7 +428,6 @@ impl Register{
             Self::YMM4 |Self::YMM5 |Self::YMM6 |Self::YMM7  |
             Self::YMM8 |Self::YMM9 |Self::YMM10|Self::YMM11 |
             Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => Size::Yword,
-
         }
     }
     pub fn needs_rex(&self) -> bool{
