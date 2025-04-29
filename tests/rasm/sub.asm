@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	sub %rax, $10
 	sub %rax, $256

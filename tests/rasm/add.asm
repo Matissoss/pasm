@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	add %rax, $10
 	add %rax, $256

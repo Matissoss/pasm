@@ -176,4 +176,10 @@ impl Mnemonic{
     pub fn allows_mem_mem(&self) -> bool{
         return false;
     }
+    pub fn defaults_to_64bit(&self) -> bool{
+        return match self {
+            Self::PUSH|Self::POP => true,
+            _ => false
+        }
+    }
 }

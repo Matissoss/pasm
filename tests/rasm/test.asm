@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	test %al, $255
 	test %ax, $256

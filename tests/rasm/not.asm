@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	not %rax
 	not %rax

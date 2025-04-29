@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	mov %eax, $1
 	mov %rax, $1

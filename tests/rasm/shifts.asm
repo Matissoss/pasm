@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	shl %al, $1
 	shl %al, %cl

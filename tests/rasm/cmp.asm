@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	cmp %al, $8
 	cmp %ax, $256

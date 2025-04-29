@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	imul %al
 	imul %ax

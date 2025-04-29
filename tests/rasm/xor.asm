@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	xor %rax, $10
 	xor %rax, $256

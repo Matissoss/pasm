@@ -54,6 +54,18 @@ impl Mem {
             Self::SIB(_,_,_,size)|Self::Offset(_,_,size)|Self::Direct(_, size) => *size,
         }
     }
+    // address size
+    pub fn x86_addr_size(&self) -> Size{
+        match self{
+             Self::IndexOffset(b,_,_,_)
+            |Self::Index(b,_,_)
+            |Self::SIBOffset(b,_,_,_,_)
+            |Self::SIB(b,_,_,_)
+            |Self::Offset(b, _, _)|
+             Self::Direct(b, _) => b.size(),
+             Self::RipRelative(_,_) => Size::Unknown
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]

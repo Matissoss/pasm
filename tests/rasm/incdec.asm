@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	inc %al
 	inc (%rax) !byte

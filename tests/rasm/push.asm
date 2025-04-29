@@ -1,3 +1,4 @@
+!bits $64
 _start:
 	push %rax
 	push %r8

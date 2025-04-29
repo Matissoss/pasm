@@ -58,17 +58,10 @@ fn needs_rex(ins: &Instruction) -> bool{
     }
 }
 
-fn defaults_to_64bit(ins: &Mnm) -> bool{
-    return match ins {
-        Mnm::PUSH|Mnm::POP => true,
-        _ => false
-    }
-}
-
 fn calc_rex(ins: &Instruction) -> u8{
     // fixed pattern
     let base = 0b0100_0000;
-    let w : u8 = if defaults_to_64bit(&ins.mnem) {0} else {1};
+    let w : u8 = if ins.mnem.defaults_to_64bit() {0} else {1};
     let r : u8 = if let Some(Operand::Reg(reg)) = ins.src(){
         if reg.needs_rex() {1} else {0} 
     } else {0};
