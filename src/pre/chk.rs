@@ -22,8 +22,8 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
     let mut errors : Vec<(String, Vec<RASMError>)> = Vec::new();
 
     let chk_ins : fn(&Instruction) -> Option<RASMError> = match file.bits{
-        Some(32)   => check_ins32bit,
-        Some(64)|_ => check_ins64bit
+        Some(16)|Some(32) => check_ins32bit,
+        Some(64)|_        => check_ins64bit
     };
 
     for label in &file.labels{

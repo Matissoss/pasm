@@ -42,9 +42,14 @@ pub enum Register{
     R8B , R9B , R10B, R11B,
     R12B, R13B, R14B, R15B,
 
-    CR0 , CR2 , CR3 , CR4 , 
-    CR8 , DR0 , DR1 , DR2 , 
-    DR3 , DR6 , DR7 , 
+    CR0 , CR1 , CR2 , CR3 , 
+    CR4 , CR5 , CR6 , CR7 ,
+    CR8 , CR9 , CR10, CR11,
+    CR12, CR13, CR14, CR15,
+    DR0 , DR1 , DR2 , DR3,
+    DR4 , DR5 , DR6 , DR7,
+    DR8 , DR9 , DR10, DR11,
+    DR12, DR13, DR14, DR15,
 
     RIP , EIP , IP  ,
     
@@ -230,29 +235,34 @@ impl FromStr for Register{
                         }
                     }
                     'b' => reg_ie(str, "bpl", Register::BPL),
-                    /*
                     'c' => {
                         match byte_str[2] as char {
                             '0' => reg_ie(str,"cr0",Register::CR0),
+                            '1' => reg_ie(str,"cr1",Register::CR1),
                             '2' => reg_ie(str,"cr2",Register::CR2),
                             '3' => reg_ie(str,"cr3",Register::CR3),
                             '4' => reg_ie(str,"cr4",Register::CR4),
+                            '5' => reg_ie(str,"cr5",Register::CR5),
+                            '6' => reg_ie(str,"cr6",Register::CR6),
+                            '7' => reg_ie(str,"cr7",Register::CR7),
                             '8' => reg_ie(str,"cr8",Register::CR8),
+                            '9' => reg_ie(str,"cr9",Register::CR9),
                             _ => Err(())
                         }
                     }
-                    */
                     'd' => {
                         match byte_str[2] as char{
                             'i' => reg_ie(str,"dil",Register::DIL),
-                            /*
                             '0' => reg_ie(str,"dr0",Register::DR0),
                             '1' => reg_ie(str,"dr1",Register::DR1),
                             '2' => reg_ie(str,"dr2",Register::DR2),
                             '3' => reg_ie(str,"dr3",Register::DR3),
+                            '4' => reg_ie(str,"dr4",Register::DR4),
+                            '5' => reg_ie(str,"dr5",Register::DR5),
                             '6' => reg_ie(str,"dr6",Register::DR6),
                             '7' => reg_ie(str,"dr7",Register::DR7),
-                            */
+                            '8' => reg_ie(str,"dr8",Register::DR8),
+                            '9' => reg_ie(str,"dr9",Register::DR9),
                             _ => Err(())
                         }
                     },
@@ -262,6 +272,28 @@ impl FromStr for Register{
             // prev = 3; byte_str.len()
             4 => {
                 match byte_str[0] as char {
+                    'c' => {
+                        match byte_str[3] as char{
+                            '0' => reg_ie(str, "cr10", Register::CR10),
+                            '1' => reg_ie(str, "cr11", Register::CR11),
+                            '2' => reg_ie(str, "cr12", Register::CR12),
+                            '3' => reg_ie(str, "cr13", Register::CR13),
+                            '4' => reg_ie(str, "cr14", Register::CR14),
+                            '5' => reg_ie(str, "cr15", Register::CR15),
+                            _   => Err(()),
+                        }
+                    },
+                    'd' => {
+                        match byte_str[3] as char{
+                            '0' => reg_ie(str, "dr10", Register::DR10),
+                            '1' => reg_ie(str, "dr11", Register::DR11),
+                            '2' => reg_ie(str, "dr12", Register::DR12),
+                            '3' => reg_ie(str, "dr13", Register::DR13),
+                            '4' => reg_ie(str, "dr14", Register::DR14),
+                            '5' => reg_ie(str, "dr15", Register::DR15),
+                            _   => Err(()),
+                        }
+                    }
                     'r' => {
                         match byte_str[2] as char{
                             '0' => {
@@ -407,9 +439,14 @@ impl Register{
             Self::EAX |Self::EBX |Self::ECX |Self::EDX  |
             Self::ESP |Self::EBP |Self::ESI |Self::EDI  |
             Self::EIP |
-            Self::CR0 |Self::CR2 |Self::CR3 |Self::CR4  |
-            Self::CR8 |Self::DR0 |Self::DR1 |Self::DR2  |
-            Self::DR3 |Self::DR6 |Self::DR7 |
+            Self::CR0 |Self::CR1 |Self::CR2 |Self::CR3  |
+            Self::CR4 |Self::CR5 |Self::CR6 |Self::CR7  |
+            Self::CR8 |Self::CR9 |Self::CR10|Self::CR11 |
+            Self::CR12|Self::CR13|Self::CR14|Self::CR15 |
+            Self::DR0 |Self::DR1 |Self::DR2 |Self::DR3  |
+            Self::DR4 |Self::DR5 |Self::DR6 |Self::DR7  |
+            Self::DR8 |Self::DR9 |Self::DR10|Self::DR11 |
+            Self::DR12|Self::DR13|Self::DR14|Self::DR15 |
             Self::R8D |Self::R9D |Self::R10D|Self::R11D |
             Self::R12D|Self::R13D|Self::R14D|Self::R15D => Size::Dword,
 
@@ -432,7 +469,6 @@ impl Register{
     }
     pub fn needs_rex(&self) -> bool{
         match self {
-            Self::CR8  |
             Self::R8   |Self::R9   |Self::R10  |Self::R11  |
             Self::R12  |Self::R13  |Self::R14  |Self::R15  |
             Self::R8B  |Self::R9B  |Self::R10B |Self::R11B |
@@ -445,6 +481,10 @@ impl Register{
             Self::XMM12|Self::XMM13|Self::XMM14|Self::XMM15|
             Self::YMM8 |Self::YMM9 |Self::YMM10|Self::YMM11|
             Self::SIL  |Self::DIL  |Self::BPL  |Self::SPL  |
+            Self::CR8  |Self::CR9  |Self::CR10 |Self::CR11 |
+            Self::CR12 |Self::CR13 |Self::CR14 |Self::CR15 |
+            Self::DR8  |Self::DR9  |Self::DR10 |Self::DR11 |
+            Self::DR12 |Self::DR13 |Self::DR14 |Self::DR15 |
             Self::YMM12|Self::YMM13|Self::YMM14|Self::YMM15 => true,
             _ => false
         }
