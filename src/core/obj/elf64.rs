@@ -719,15 +719,16 @@ impl Elf64Rela {
     }
 }
 
-fn calc_lsize(symbs: &[(String, u64, u64, Option<String>)]) -> u64 {
+fn calc_lsize(symbs: &[(String, u64, u64, Option<VarContent>)]) -> u64 {
     let mut iter = symbs.iter();
     let mut lsize = 1;
     let mut prvoff = 0;
     while let Some(i) = iter.next() {
         let tsize = i.1 - prvoff;
-        if i.0.starts_with("str_") {
+        if let Some(VarContent::String(_)) = i.3 {
             lsize = lsize.max(1);
-        } else {
+        }
+        else {
             if tsize % 4 == 0 {
                 lsize = lsize.max(4);
             } else if tsize % 8 == 0 {

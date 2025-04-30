@@ -11,7 +11,6 @@ use crate::{
         ins::Mnemonic as Mnm,
         num::Number,
         error::RASMError,
-        segment::Segment
     },
     conf::{
         MEM_START,
@@ -35,7 +34,7 @@ pub enum Token {
     Label           (String),
     SymbolRef       (String),
     String          (String),
-    Segment         (Segment),
+    Segment         (String),
     UnknownSegment  (String, RASMError),
     UnknownKeyword  (String),
     UnknownReg      (String),
@@ -104,18 +103,17 @@ impl Tokenizer{
                 (None, PREFIX_REG|PREFIX_VAL|PREFIX_KWD|PREFIX_SEG) => inside_closure = Some(c),
                 
                 
-                (None, MEM_START|MEM_CLOSE) => {
+                (None, MEM_START) => {
                     tmp_buf.push(MEM_START);
                     inside_closure = Some(c);
                 },
                 
-                (Some(MEM_START), MEM_CLOSE) => {
+                (Some(MEM_START|PREFIX_SEG), MEM_CLOSE) => {
                     tmp_buf.push(MEM_CLOSE);
-                    tokens.push(Token::make_from(Some(MEM_START), String::from_iter(tmp_buf.iter())));
+                    tokens.push(Token::make_from(inside_closure, String::from_iter(tmp_buf.iter())));
                     inside_closure = None;
                     tmp_buf = Vec::new();
                 }
-
                 _ => tmp_buf.push(c),
             }
         }
@@ -153,10 +151,7 @@ impl Token{
                 }
             },
             Some(PREFIX_SEG) => {
-                match Segment::from_str(&val){
-                    Ok(s) => Self::Segment(s),
-                    Err(e) => Self::UnknownSegment(val, e),
-                }
+                Self::Segment(val)
             }
             Some(PREFIX_REF) => Self::SymbolRef(val),
             _   => {

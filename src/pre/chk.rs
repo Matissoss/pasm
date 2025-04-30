@@ -15,6 +15,7 @@ use crate::shr::{
     error::RASMError,
     num::Number,
     reg::Register,
+    size::Size
 };
 
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
@@ -57,8 +58,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
     return match ins.mnem{
         Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R32, M16, M32, I8, I16, I32], &[], None),
         Mnm::POP  => ot_chk(ins, (true, false), &[R16, R32, M16, M32], &[], None),
-        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, M8, M16, M32], 
-                                                &[R8, R16, R32, M8, M16, M32, I8, I16, I32], None),
+        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, M8, M16, M32, AType::SegmentReg], 
+                                                &[R8, R16, R32, M8, M16, M32, I8, I16, I32, AType::SegmentReg], None),
         Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR  => ot_chk(ins, (true, true),  
             &[R8, R16, R32, M8, M16, M32], 
             &[R8, R16, R32, M8, M16, M32, I8, I16, I32], None),
@@ -146,8 +147,8 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
     return match ins.mnem{
         Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R64, M16, M64, I8, I16, I32], &[], None),
         Mnm::POP  => ot_chk(ins, (true, false), &[R16, R64, M16, M64], &[], None),
-        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64], 
-                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64], None),
+        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64, AType::SegmentReg], 
+                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64, AType::SegmentReg], None),
         Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR  => ot_chk(ins, (true, true),  
             &[R8, R16, R32, R64, M8, M16, M32, M64], 
             &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], None),
@@ -347,14 +348,14 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                     Some(RASMError::new(
                         Some(ins.line),
                         Some(format!("Tried to use immediate that is too large for destination operand")),
-                        Some(format!("Consider changing immediate to fit inside {} bytes", s0 as u8))
+                        Some(format!("Consider changing immediate to fit inside {} bytes",<Size as Into<u8>>::into(s0)))
                     ))
                 }
                 else {
                     None
                 }
             }
-        }
+        },
         (AType::Reg(s0)|AType::Mem(s0), AType::Reg(s1)|AType::Mem(s1)) => {
             if s1 == s0{
                 None
@@ -364,7 +365,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                     Some(RASMError::new(
                         Some(ins.line),
                         Some(format!("Tried to use operand that cannot be used for destination operand")),
-                        Some(format!("Consider changing operand to be {} byte", s0 as u8))
+                        Some(format!("Consider changing operand to be {} byte", <Size as Into<u8>>::into(s0)))
                     ))
                 }
                 else {

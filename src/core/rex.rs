@@ -27,7 +27,7 @@ fn needs_rex(ins: &Instruction) -> bool{
     match &ins.mnem{
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))|
-            (Some(Operand::Mem(_)), _)|(_, Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
+            (Some(Operand::Mem(_)|Operand::Segment(_)), _)|(_, Some(Operand::Mem(_)|Operand::Segment(_))) = (ins.dst(), ins.src()){
                     return true;
             }
             return false;
@@ -36,7 +36,7 @@ fn needs_rex(ins: &Instruction) -> bool{
         Mnm::XOR
             => {
             if let (_, Some(Operand::Reg(_)))|(Some(Operand::Reg(_)), _)|
-            (Some(Operand::Mem(_)), _)|(_, Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
+            (Some(Operand::Mem(_)|Operand::Segment(_)), _)|(_, Some(Operand::Mem(_)|Operand::Segment(_))) = (ins.dst(), ins.src()){
                     return true;
             }
             return false;
@@ -66,7 +66,22 @@ fn calc_rex(ins: &Instruction) -> u8{
         if reg.needs_rex() {1} else {0} 
     } else {0};
 
+    let mut b : u8 = if let Some(Operand::Reg(reg)) = ins.dst(){
+        if reg.needs_rex() {1} else {0} 
+    } else { 0 };
+    
     let mut x : u8 = 0;
+    if let (_, Some(Operand::Segment(m)))|(Some(Operand::Segment(m)), _) = (ins.dst(), ins.src()){
+        match m.address {
+            Mem::SIB(_, i, _, _)|Mem::SIBOffset(_,i,_,_,_)|
+            Mem::Index(i, _, _)|Mem::IndexOffset(i,_,_,_) =>{
+                if i.needs_rex(){
+                    x = 1;
+                }
+            }
+            _ => {}
+        }
+    }
     if let (_, Some(Operand::Mem(m)))|(Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()){
         match m {
             Mem::SIB(_, i, _, _)|Mem::SIBOffset(_,i,_,_,_)|Mem::Index(i, _, _)|Mem::IndexOffset(i,_,_,_) =>{
@@ -78,12 +93,18 @@ fn calc_rex(ins: &Instruction) -> u8{
         }
     }
 
-    let mut b : u8 = if let Some(Operand::Reg(reg)) = ins.dst(){
-        if reg.needs_rex() {1} else {0} 
-    } else { 0 };
-
     if let (_, Some(Operand::Mem(m)))|(Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()){
         match m {
+            Mem::SIB(base,_,_,_)|Mem::SIBOffset(base,_,_,_,_) =>{
+                if base.needs_rex(){
+                    b = 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    if let (_, Some(Operand::Segment(m)))|(Some(Operand::Segment(m)), _) = (ins.dst(), ins.src()){
+        match m.address {
             Mem::SIB(base,_,_,_)|Mem::SIBOffset(base,_,_,_,_) =>{
                 if base.needs_rex(){
                     b = 1;

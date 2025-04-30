@@ -96,13 +96,26 @@ impl ToString for Segment{
 
 impl ToAType for Segment{
     fn atype(&self) -> AType{
-        AType::Segment(self.address.size())
+        AType::Mem(self.address.size())
     }
 }
 
 impl ToAType for SegmentReg{
     fn atype(&self) -> AType{
         AType::SegmentReg
+    }
+}
+
+impl SegmentReg{
+    pub fn to_byte(&self) -> u8{
+        match self{
+            Self::ES => 0b000,
+            Self::CS => 0b001,
+            Self::SS => 0b010,
+            Self::DS => 0b011,
+            Self::FS => 0b100,
+            Self::GS => 0b101,
+        }
     }
 }
 

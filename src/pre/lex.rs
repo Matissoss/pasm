@@ -240,11 +240,13 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
     if line.len() == 1{
         match Operand::try_from(line[0]){
             Ok(o) => return Ok(o),
-            Err(_) => return Err(RASMError::new(
-                None,
-                Some(format!("Failed to create operand from {}", line[0].to_string())),
-                None
-            ))
+            Err(_) => {
+                return Err(RASMError::new(
+                    None,
+                    Some(format!("Failed to create operand from {}", line[0].to_string())),
+                    None
+                ))
+            }
         }
     }
 
@@ -267,17 +269,21 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError>{
                         None
                     ))
                 };
-                let mem_new = match s.address{
+                let segment = match Segment::from_str(s){
+                    Ok(s) => s,
+                    Err(e) => return Err(e),
+                };
+                let mem_new = match segment.address{
                     Mem::Offset(b, o, _)        => Mem::Offset(b, o, size),
                     Mem::Direct(b, _)           => Mem::Direct(b, size),
                     Mem::Index (i, s, _)        => Mem::Index (i, s, size),
                     Mem::IndexOffset(i, s,o, _) => Mem::IndexOffset(i, s,o, size),
                     Mem::SIB   (b,i,s,_)        => Mem::SIB   (b, i, s, size),
-                    Mem::RipRelative(o,_)       => Mem::RipRelative(o, size),
+                    //Mem::RipRelative(o,_)       => Mem::RipRelative(o, size),
                     Mem::SIBOffset(b,i,s,o,_)   => Mem::SIBOffset(b,i,s,o,size),
                 };
                 return Ok(Operand::Segment(Segment{
-                    segment: s.segment,
+                    segment: segment.segment,
                     address: mem_new
                 }));
             }

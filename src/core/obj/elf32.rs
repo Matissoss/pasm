@@ -675,13 +675,13 @@ impl Elf32Rela{
     }
 }
 
-fn calc_lsize(symbs: &[(String, u32, u32, Option<String>)]) -> u32{
+fn calc_lsize(symbs: &[(String, u32, u32, Option<VarContent>)]) -> u32{
     let mut iter   = symbs.iter();
     let mut lsize  = 1;
     let mut prvoff = 0;
     while let Some(i) = iter.next(){
         let tsize = i.1 - prvoff;
-        if i.0.starts_with("str_") {
+        if let Some(VarContent::String(_)) = i.3{
             lsize = lsize.max(1);
         }
         else {

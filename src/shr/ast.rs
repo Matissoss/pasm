@@ -10,7 +10,6 @@ use crate::shr::{
     reg::Register,
     mem::Mem,
     ins::Mnemonic as Mnm,
-    kwd::Keyword,
     num::Number,
     size::Size,
     symbol::Visibility,
@@ -22,12 +21,16 @@ use crate::shr::{
         Variable,
         VType,
     },
-    segment::Segment
+    segment::{
+        Segment,
+        SegmentReg,
+    }
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand{
     Reg         (Register),
+    SegReg      (SegmentReg),
     Imm         (Number),
     Mem         (Mem),
     SymbolRef   (String),
@@ -97,14 +100,6 @@ impl TryFrom<&Token> for Operand{
         match tok {
             Token::Register(reg) => Ok(Self::Reg(*reg)),
             Token::Immediate(nm) => Ok(Self::Imm(*nm )),
-            Token::MemAddr(mm)   => {
-                if let Ok(mem) = Mem::new(&mm, Some(Keyword::Byte)){
-                    return Ok(Self::Mem(mem));
-                }
-                else{
-                    return Err(())
-                }
-            }
             Token::SymbolRef(val) => Ok(Self::SymbolRef(val.to_string())),
             _                    => Err(())
         }
@@ -118,7 +113,8 @@ impl Operand{
             Self::Reg(r) => r.size(),
             Self::Mem(m) => m.size(),
             Self::SymbolRef(_) => Size::Unknown,
-            Self::Segment(s) => s.address.size()
+            Self::Segment(s) => s.address.size(),
+            Self::SegReg(_)  => Size::Word,
         }
     }
 }
@@ -130,7 +126,8 @@ impl ToAType for Operand{
             Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Sym,
-            Self::Segment(s)   => AType::Segment(s.address.size())
+            Self::Segment(s)   => AType::Mem(s.address.size()),
+            Self::SegReg(_)    => AType::SegmentReg,
         }
     }
 }

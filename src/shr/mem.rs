@@ -49,21 +49,9 @@ impl Mem {
     }
     pub fn size(&self) -> Size{
         match self{
-            Self::Index(_, _, size) |Self::IndexOffset(_, _, _, size)| Self::RipRelative(_, size)|
+            Self::Index(_, _, size) |Self::IndexOffset(_, _, _, size)|/*Self::RipRelative(_, size)|*/
             Self::SIBOffset(_, _, _, _, size)|
             Self::SIB(_,_,_,size)|Self::Offset(_,_,size)|Self::Direct(_, size) => *size,
-        }
-    }
-    // address size
-    pub fn x86_addr_size(&self) -> Size{
-        match self{
-             Self::IndexOffset(b,_,_,_)
-            |Self::Index(b,_,_)
-            |Self::SIBOffset(b,_,_,_,_)
-            |Self::SIB(b,_,_,_)
-            |Self::Offset(b, _, _)|
-             Self::Direct(b, _) => b.size(),
-             Self::RipRelative(_,_) => Size::Unknown
         }
     }
 }
@@ -78,7 +66,7 @@ pub enum Mem{
     Index(Register, Size, Size),
     IndexOffset(Register, i32, Size, Size),
     // example: (%rip+20) !dword
-    RipRelative(i32, Size),
+    // RipRelative(i32, Size),
 
     SIB(Register, Register, Size, Size),
     SIBOffset(Register, Register, Size, i32, Size),
@@ -184,7 +172,12 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
                 }
                 else {
                     if let None = offset {
-                        offset = Some(*n);
+                        if variant == NumberVariant::Minus{
+                            offset = Some(-n);
+                        }
+                        else {
+                            offset = Some(*n);
+                        }
                     }
                     else if let None = scale{
                         if let Ok(s) = Size::try_from(*n as u16){
@@ -228,7 +221,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
     match (base, index, scale, offset){
         (Some(b), Some(i), Some(s), Some(o))        => Ok(Mem::SIBOffset(b, i, s, o, size)),
         (Some(b), Some(i), Some(s), None)           => Ok(Mem::SIB(b, i, s, size)),
-        (Some(Register::RIP), None, None, Some(o))  => Ok(Mem::RipRelative(o, size)),
+        //(Some(Register::RIP), None, None, Some(o))  => Ok(Mem::RipRelative(o, size)),
         (None   , Some(b), None   , Some(o))|
         (Some(b), None   , None   , Some(o))        => Ok(Mem::Offset(b, o, size)),
         (Some(b), None   , None   , None   )        => Ok(Mem::Direct(b, size)),

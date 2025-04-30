@@ -212,8 +212,8 @@ impl FromStr for Register{
                             }
                             's' => {
                                 match byte_str[2] as char {
-                                    'i' => reg_ie(str,"edi",Register::ESI),
-                                    'p' => reg_ie(str,"edx",Register::ESP),
+                                    'i' => reg_ie(str,"esi",Register::ESI),
+                                    'p' => reg_ie(str,"esp",Register::ESP),
                                     _ => Err(())
                                 }
                             }

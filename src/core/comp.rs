@@ -23,6 +23,7 @@ use crate::{
             Instruction,
             Operand,
         },
+        segment::SegmentReg,
         size::Size,
         reg::Register,
         num::Number,
@@ -179,7 +180,7 @@ pub fn compile_instruction(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relo
 fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8>{
     match ins.dst().unwrap() {
         Operand::Reg(r) => gen_base(ins, &[0x58 + r.to_byte()], bits),
-        Operand::Mem(_) => vec![0x8F, gen_modrm(&ins, None, Some(0))],
+        Operand::Mem(_)|Operand::Segment(_) => vec![0x8F, gen_modrm(&ins, None, Some(0))],
         _ => invalid()
     }
 }
@@ -204,7 +205,7 @@ fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8>{
                 _ => invalid()
             }
         },
-        Operand::Mem(_) => gen_ins(&ins, &[0xFF], (true, Some(6), None), None, bits),
+        Operand::Mem(_)|Operand::Segment(_) => gen_ins(&ins, &[0xFF], (true, Some(6), None), None, bits),
         _ => invalid()
     }
 }
@@ -214,6 +215,9 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
     let dst = ins.dst().unwrap();
     if let Operand::Reg(r) = dst{
         match src{
+            Operand::SegReg(_) => {
+                gen_ins(ins, &[0x8E], (true, None, None), None, bits)
+            }
             Operand::Imm(n) => {
                 let size = dst.size();
                 let opc = match size{
@@ -232,7 +236,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                 base.extend(imm);
                 return base;
             },
-            Operand::Reg(_)|Operand::Mem(_) => {
+            Operand::Reg(_)|Operand::Mem(_)|Operand::Segment(_) => {
                 let opc = if let Operand::Reg(_) = src{
                     match dst.size(){
                         Size::Byte => 0x88,
@@ -248,11 +252,19 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                     }
                 };
                 return gen_ins(&ins, &[opc], (true, None, None), None, bits);
-            }
+            },
             _ => invalid()
         }
     }
-    else if let Operand::Mem(_) = dst{
+    else if let Operand::SegReg(_) = dst{
+        match src{
+            Operand::Reg(_)|Operand::Mem(_) => {
+                gen_ins(&ins, &[0x8E], (true, None, None), None, bits)
+            },
+            _ => invalid()
+        }
+    }
+    else if let Operand::Mem(_)|Operand::Segment(_) = dst{
         match src {
             Operand::Reg(_) => {
                 let opc = match dst.size(){
@@ -337,6 +349,37 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
             base.extend(imm);
             return base;
         },
+        (Operand::Segment(dstm), Operand::Imm(srci)) => {
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstm.address.size(){
+                Size::Byte => opc[2],
+                Size::Word => opc[3],
+                Size::Dword => opc[3],
+                Size::Qword => {
+                    if imm.len() == 1 {
+                        opc[4]
+                    }
+                    else{
+                        opc[3]
+                    }
+                },
+                _ => invalid()
+            };
+            if let (Size::Word|Size::Byte, Size::Word) = (srci.size(), dstm.address.size()){
+                extend_imm(&mut imm, 2);
+            }
+            else if let (Size::Byte, Size::Dword) = (srci.size(), dstm.address.size()){
+                extend_imm(&mut imm, 4);
+            }
+            else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) = (ins.mnem, srci.size(), dstm.address.size()){
+                extend_imm(&mut imm, 4);
+            }
+            else if srci.size() != Size::Byte{
+                extend_imm(&mut imm, 4);
+            }
+
+            return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits);
+        },
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
             let opc = match dstm.size(){
@@ -368,8 +411,16 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
 
             return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits);
         },
-        (Operand::Reg(r), Operand::Mem(_)|Operand::Reg(_)) => {
+        (Operand::Reg(r), Operand::Segment(_)|Operand::Mem(_)|Operand::Reg(_)) => {
             let opc = match r.size(){
+                Size::Byte => opc[7],
+                Size::Word|Size::Dword|Size::Qword => opc[6],
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None, bits)
+        },
+        (Operand::Segment(m), Operand::Reg(_)) => {
+            let opc = match m.address.size(){
                 Size::Byte => opc[7],
                 Size::Word|Size::Dword|Size::Qword => opc[6],
                 _ => invalid()
@@ -440,6 +491,37 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
             base.extend(imm);
             return base;
         },
+        (Operand::Segment(dstm), Operand::Imm(srci)) => {
+            let mut imm = srci.split_into_bytes();
+            let opc = match dstm.address.size(){
+                Size::Byte => 0x80,
+                Size::Qword|Size::Word|Size::Dword => { 
+                    if imm.len() == 1 {
+                        if imm[0] <= 127{
+                            0x83
+                        }
+                        else {
+                            0x81
+                        }
+                    }
+                    else{
+                        0x81
+                    }
+                },
+                _ => invalid()
+            };
+            if let (Size::Word|Size::Byte, Size::Word) = (srci.size(), dstm.address.size()){
+                extend_imm(&mut imm, 2);
+            }
+            else if let (Size::Byte, Size::Dword|Size::Qword) = (srci.size(), dstm.address.size()){
+                extend_imm(&mut imm, 4);
+            }
+            else if srci.size() != Size::Byte{
+                extend_imm(&mut imm, 4);
+            }
+
+            return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits);
+        },
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
             let opc = match dstm.size(){
@@ -471,7 +553,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
 
             return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits);
         },
-        (Operand::Reg(r), Operand::Mem(_)|Operand::Reg(_)) => {
+        (Operand::Reg(r), Operand::Segment(_)|Operand::Mem(_)|Operand::Reg(_)) => {
             let opc = match r.size(){
                 Size::Byte => 0x3A,
                 Size::Word|Size::Dword|Size::Qword => 0x3B,
@@ -481,6 +563,14 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
         },
         (Operand::Mem(m), Operand::Reg(_)) => {
             let opc = match m.size(){
+                Size::Byte => 0x38,
+                Size::Word|Size::Dword|Size::Qword => 0x39,
+                _ => invalid()
+            };
+            gen_ins(ins, &[opc], (true, None, None), None, bits)
+        },
+        (Operand::Segment(m), Operand::Reg(_)) => {
+            let opc = match m.address.size(){
                 Size::Byte => 0x38,
                 Size::Word|Size::Dword|Size::Qword => 0x39,
                 _ => invalid()
@@ -532,6 +622,25 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
             base.extend(imm);
             return base;
         },
+        (Operand::Segment(dsts), Operand::Imm(srci)) => {
+            let mut imm = srci.split_into_bytes();
+            let opc = match dsts.address.size(){
+                Size::Byte => 0xF6,
+                Size::Qword|Size::Word|Size::Dword => 0xF7,
+                _ => invalid()
+            };
+            if let (Size::Word|Size::Byte, Size::Word) = (srci.size(), dsts.address.size()){
+                extend_imm(&mut imm, 2);
+            }
+            else if let (Size::Byte, Size::Dword|Size::Qword) = (srci.size(), dsts.address.size()){
+                extend_imm(&mut imm, 4);
+            }
+            else if srci.size() != Size::Byte{
+                extend_imm(&mut imm, 4);
+            }
+
+            return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits);
+        }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
             let opc = match dstm.size(){
@@ -551,7 +660,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
 
             return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits);
         },
-        (Operand::Reg(_)|Operand::Mem(_), Operand::Reg(_)) => {
+        (Operand::Reg(_)|Operand::Mem(_)|Operand::Segment(_), Operand::Reg(_)) => {
             let opc = match dst.size(){
                 Size::Byte => 0x84,
                 Size::Word|Size::Dword|Size::Qword => 0x85,
@@ -794,7 +903,11 @@ fn gen_base(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8>{
         }
     }
     let mut base = size_ovr;
-    
+
+    if let Some(s) = gen_segm_pref(ins){
+        base.push(s);
+    }
+
     if let Some(rex) = rex{
         base.push(rex);
     }
@@ -807,7 +920,7 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
     let (size, is_mem) = match op{
         Operand::Reg(r) => (r.size(), false),
         Operand::Mem(m) => (m.size(), false),
-        Operand::Segment(s) => (s.address.x86_addr_size(), true),
+        Operand::Segment(s) => (s.address.size(), true),
         _ => return None
     };
     if size == Size::Byte {
@@ -843,6 +956,36 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
             }
         },
         _ => invalid()
+    }
+}
+
+fn gen_segm_pref(ins: &Instruction) -> Option<u8>{
+    if let Some(d) = ins.dst(){
+        if let Some(s) = gen_segm_pref_op(d){
+            return Some(s);
+        }
+    }
+    if let Some(d) = ins.src(){
+        if let Some(s) = gen_segm_pref_op(d){
+            return Some(s);
+        }
+    }
+    return None;
+}
+
+fn gen_segm_pref_op(op: &Operand) -> Option<u8>{
+    if let Operand::Segment(s) = op{
+        return match s.segment{
+            SegmentReg::CS => Some(0x2E),
+            SegmentReg::SS => Some(0x36),
+            SegmentReg::DS => Some(0x3E),
+            SegmentReg::ES => Some(0x26),
+            SegmentReg::FS => Some(0x64),
+            SegmentReg::GS => Some(0x65),
+        }
+    }
+    else {
+        return None
     }
 }
 
