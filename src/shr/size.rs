@@ -21,13 +21,13 @@ pub enum Size{
     Xword, // xmm0-15
     Yword, // ymm0-15
     #[default]
-    Unknown,
+    Any,
 }
 
 impl Into<u8> for Size{
     fn into(self) -> u8 {
         match self{
-            Self::Unknown   => 0,
+            Self::Any       => 0,
             Self::Byte      => 1,
             Self::Word      => 2,
             Self::Dword     => 4,
@@ -77,13 +77,17 @@ impl Display for Size{
             Self::Qword     => write!(form, "qword"),
             Self::Xword     => write!(form, "xword"),
             Self::Yword     => write!(form, "yword"),
-            Self::Unknown   => write!(form, "{}unknown{}", '{', '}'),
+            Self::Any       => write!(form, "{}any{}", '{', '}'),
         }
     }
 }
 
 impl PartialOrd for Size{
     fn partial_cmp(&self, oth: &Size) -> Option<Ordering>{
+        if self == &Size::Any || oth == &Size::Any{
+            return Some(Ordering::Equal);
+        }
+
         let s = *self as u16;
         let o = *oth  as u16;
 

@@ -31,6 +31,8 @@ use crate::shr::{
 pub enum Operand{
     Reg         (Register),
     SegReg      (SegmentReg),
+    CtrReg      (Register),
+    DbgReg      (Register),
     Imm         (Number),
     Mem         (Mem),
     SymbolRef   (String),
@@ -98,10 +100,21 @@ impl TryFrom<&Token> for Operand{
     type Error = ();
     fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error>{
         match tok {
-            Token::Register(reg) => Ok(Self::Reg(*reg)),
-            Token::Immediate(nm) => Ok(Self::Imm(*nm )),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(val.to_string())),
-            _                    => Err(())
+            Token::Register(reg)   => {
+                if reg.is_ctrl_reg(){
+                    Ok(Self::CtrReg(*reg))
+                }
+                else if reg.is_dbg_reg(){
+                    Ok(Self::DbgReg(*reg))
+                }
+                else {
+                    Ok(Self::Reg(*reg))
+                }
+            },
+            Token::SegmentReg(reg) => Ok(Self::SegReg(*reg)),
+            Token::Immediate(nm)   => Ok(Self::Imm(*nm )),
+            Token::SymbolRef(val)  => Ok(Self::SymbolRef(val.to_string())),
+            _                      => Err(())
         }
     }
 }
@@ -111,8 +124,10 @@ impl Operand{
         match self {
             Self::Imm(n) => n.size(),
             Self::Reg(r) => r.size(),
+            Self::CtrReg(r) => r.size(),
+            Self::DbgReg(r) => r.size(),
             Self::Mem(m) => m.size(),
-            Self::SymbolRef(_) => Size::Unknown,
+            Self::SymbolRef(_) => Size::Any,
             Self::Segment(s) => s.address.size(),
             Self::SegReg(_)  => Size::Word,
         }
@@ -125,6 +140,8 @@ impl ToAType for Operand{
             Self::Mem(m) => m.atype(),
             Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
+            Self::CtrReg(_) => AType::ControlReg,
+            Self::DbgReg(_) => AType::DebugReg,
             Self::SymbolRef(_) => AType::Sym,
             Self::Segment(s)   => AType::Mem(s.address.size()),
             Self::SegReg(_)    => AType::SegmentReg,
@@ -136,33 +153,57 @@ impl Instruction{
     pub fn size(&self) -> Size{
         let dst = match &self.dst(){
             Some(o) => o.size(),
-            None    => Size::Unknown,
+            None    => Size::Any,
         };
         let src = match &self.src(){
             Some(o) => o.size(),
-            None => Size::Unknown,
+            None => Size::Any,
         };
 
         return match (dst, src) {
-            (Size::Unknown, _) => src,
-            (_, Size::Unknown) => dst,
+            (Size::Any, _) => src,
+            (_, Size::Any) => dst,
             (_, _) => {
                 if let Some(Operand::Imm(_)) = &self.src(){
                     if dst >= src{
                         return dst;
                     }
                     else {
-                        return Size::Unknown;
+                        return Size::Any;
                     }
                 }
                 if dst != src {
-                    return Size::Unknown;
+                    return Size::Any;
                 }
                 else {
                     return dst;
                 }
             },
         }
+    }
+    pub fn uses_cr(&self) -> bool{
+        let dst = if let Some(dst) = self.dst(){dst} else {return false};
+
+        if let Operand::CtrReg(_) = dst{
+            return true;
+        }
+        let src = if let Some(src) = self.src(){src} else {return false};
+        if let Operand::CtrReg(_) = src{
+            return true;
+        }
+        return false;
+    }
+    pub fn uses_dr(&self) -> bool{
+        let dst = if let Some(dst) = self.dst(){dst} else {return false};
+
+        if let Operand::DbgReg(_) = dst{
+            return true;
+        }
+        let src = if let Some(src) = self.src(){src} else {return false};
+        if let Operand::DbgReg(_) = src{
+            return true;
+        }
+        return false;
     }
     #[inline]
     pub fn dst(&self) -> Option<&Operand> {

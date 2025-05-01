@@ -16,9 +16,9 @@ use crate::shr::{
 fn needs_rex(ins: &Instruction) -> bool{
     let (size_d, size_s) = match (ins.dst(), ins.src()){
         (Some(d), Some(s)) => (d.size(), s.size()),
-        (Some(d), None) => (d.size(), Size::Unknown),
-        (None   , Some(s)) => (Size::Unknown, s.size()),
-        _ => (Size::Unknown, Size::Unknown)
+        (Some(d), None) => (d.size(), Size::Any),
+        (None   , Some(s)) => (Size::Any, s.size()),
+        _ => (Size::Any, Size::Any)
     };
     match (size_d, size_s) {
         (Size::Qword, Size::Qword)|(Size::Qword, _)|(_, Size::Qword) => {},
@@ -28,7 +28,10 @@ fn needs_rex(ins: &Instruction) -> bool{
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))|
             (Some(Operand::Mem(_)|Operand::Segment(_)), _)|(_, Some(Operand::Mem(_)|Operand::Segment(_))) = (ins.dst(), ins.src()){
-                    return true;
+                return true;
+            }
+            if let (Some(Operand::CtrReg(r)|Operand::DbgReg(r)), _)|(_, Some(Operand::CtrReg(r)|Operand::DbgReg(r))) = (ins.dst(), ins.src()){
+                return r.needs_rex();
             }
             return false;
         },
@@ -58,17 +61,25 @@ fn needs_rex(ins: &Instruction) -> bool{
     }
 }
 
-fn calc_rex(ins: &Instruction) -> u8{
+fn get_wb(op: Option<&Operand>) -> u8{
+    match op {
+        Some(Operand::Reg(reg)|Operand::CtrReg(reg)|Operand::DbgReg(reg)) => if reg.needs_rex() {1} else {0},
+        _ => 0
+    }
+}
+
+fn calc_rex(ins: &Instruction, rev: bool) -> u8{
     // fixed pattern
     let base = 0b0100_0000;
-    let w : u8 = if ins.mnem.defaults_to_64bit() {0} else {1};
-    let r : u8 = if let Some(Operand::Reg(reg)) = ins.src(){
-        if reg.needs_rex() {1} else {0} 
-    } else {0};
 
-    let mut b : u8 = if let Some(Operand::Reg(reg)) = ins.dst(){
-        if reg.needs_rex() {1} else {0} 
-    } else { 0 };
+    let w : u8 = if ins.uses_cr() ||  ins.uses_dr() || ins.mnem.defaults_to_64bit() {0} else {1};
+
+    let r = if !rev {
+        get_wb(ins.src())
+    } else {get_wb(ins.dst())};
+    let mut b = if !rev {
+        get_wb(ins.dst())
+    } else {get_wb(ins.src())};
     
     let mut x : u8 = 0;
     if let (_, Some(Operand::Segment(m)))|(Some(Operand::Segment(m)), _) = (ins.dst(), ins.src()){
@@ -117,9 +128,9 @@ fn calc_rex(ins: &Instruction) -> u8{
     return base + (w << 3) + (r << 2) + (x << 1) + b;
 }
 
-pub fn gen_rex(ins: &Instruction) -> Option<u8>{
+pub fn gen_rex(ins: &Instruction, rev: bool) -> Option<u8>{
     if needs_rex(ins) {
-        return Some(calc_rex(ins));
+        return Some(calc_rex(ins, rev));
     }
     else {
         return None;

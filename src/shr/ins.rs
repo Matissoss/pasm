@@ -49,7 +49,8 @@ pub enum Mnemonic{
     JGE,
 
     SYSCALL,
-    RET
+    RET,
+    NOP
 }
 
 #[inline(always)]
@@ -88,7 +89,13 @@ impl FromStr for Mnemonic{
                     'o' => {
                         match raw_ins[0] as char {
                             'm' => ins_ie(str_ins, "mov", Self::MOV),
-                            'n' => ins_ie(str_ins, "not", Self::NOT),
+                            'n' => {
+                                match raw_ins[2] as char {
+                                    't' => Ok(Self::NOT),
+                                    'p' => Ok(Self::NOP),
+                                    _   => Err(()),
+                                }
+                            },
                             'x' => ins_ie(str_ins, "xor", Self::XOR),
                             'p' => ins_ie(str_ins, "pop", Self::POP),
                             _   => Err(())

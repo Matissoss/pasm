@@ -173,21 +173,41 @@ pub fn compile_instruction(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relo
         Ins::JGE        => ins_jmplike(&ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
 
         Ins::LEA        => ins_lea(&ins, bits),
+
+        Ins::NOP        => (vec![0x90], None)
         //_ => (Vec::new(), None)
     }
 }
 
 fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8>{
     match ins.dst().unwrap() {
-        Operand::Reg(r) => gen_base(ins, &[0x58 + r.to_byte()], bits),
-        Operand::Mem(_)|Operand::Segment(_) => vec![0x8F, gen_modrm(&ins, None, Some(0))],
+        Operand::Reg(r) => gen_base(ins, &[0x58 + r.to_byte()], bits, false),
+        Operand::SegReg(r) => match r {
+            SegmentReg::DS => vec![0x1F],
+            SegmentReg::ES => vec![0x07],
+            SegmentReg::SS => vec![0x17],
+            SegmentReg::FS => vec![0x0F, 0xA1],
+            SegmentReg::GS => vec![0x0F, 0xA9],
+            SegmentReg::CS => vec![0x90]
+        },
+        Operand::Mem(_)|Operand::Segment(_) => vec![0x8F, gen_modrm(&ins, None, Some(0), false)],
         _ => invalid()
     }
 }
 
 fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8>{
     return match ins.dst().unwrap() {
-        Operand::Reg(r) => gen_base(ins, &[0x50 + r.to_byte()], bits),
+        Operand::Reg(r) => gen_base(ins, &[0x50 + r.to_byte()], bits, false),
+        Operand::SegReg(r) => {
+            return match r {
+                SegmentReg::CS => vec![0x0E],
+                SegmentReg::SS => vec![0x16],
+                SegmentReg::DS => vec![0x1E],
+                SegmentReg::ES => vec![0x06],
+                SegmentReg::FS => vec![0x0F, 0xA0],
+                SegmentReg::GS => vec![0x0F, 0xA8]
+            };
+        }
         Operand::Imm(nb) => {
             match nb.size(){
                 Size::Byte => {
@@ -205,7 +225,7 @@ fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8>{
                 _ => invalid()
             }
         },
-        Operand::Mem(_)|Operand::Segment(_) => gen_ins(&ins, &[0xFF], (true, Some(6), None), None, bits),
+        Operand::Mem(_)|Operand::Segment(_) => gen_ins(&ins, &[0xFF], (true, Some(6), None), None, bits, false),
         _ => invalid()
     }
 }
@@ -216,8 +236,14 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
     if let Operand::Reg(r) = dst{
         match src{
             Operand::SegReg(_) => {
-                gen_ins(ins, &[0x8E], (true, None, None), None, bits)
-            }
+                gen_ins(ins, &[0x8C], (true, None, None), None, bits, false)
+            },
+            Operand::CtrReg(_) => {
+                gen_ins(ins, &[0x0F, 0x20], (true, None, None), None, bits, false)
+            },
+            Operand::DbgReg(_) => {
+                gen_ins(ins, &[0x0F, 0x21], (true, None, None), None, bits, false)
+            },
             Operand::Imm(n) => {
                 let size = dst.size();
                 let opc = match size{
@@ -232,7 +258,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                 else{
                     extend_imm(&mut imm, size.into());
                 }
-                let mut base = gen_base(ins, &[opc], bits);
+                let mut base = gen_base(ins, &[opc], bits, false);
                 base.extend(imm);
                 return base;
             },
@@ -251,15 +277,21 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                         _       => invalid()
                     }
                 };
-                return gen_ins(&ins, &[opc], (true, None, None), None, bits);
+                return gen_ins(&ins, &[opc], (true, None, None), None, bits, false);
             },
             _ => invalid()
         }
     }
+    else if let Operand::CtrReg(_) = dst{
+        gen_ins(&ins, &[0x0F, 0x22], (true, None, None), None, bits, true)
+    }
+    else if let Operand::DbgReg(_) = dst{
+        gen_ins(&ins, &[0x0F, 0x23], (true, None, None), None, bits, true)
+    }
     else if let Operand::SegReg(_) = dst{
         match src{
             Operand::Reg(_)|Operand::Mem(_) => {
-                gen_ins(&ins, &[0x8E], (true, None, None), None, bits)
+                gen_ins(&ins, &[0x8E], (true, None, None), None, bits, false)
             },
             _ => invalid()
         }
@@ -272,7 +304,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                     Size::Word|Size::Dword|Size::Qword => 0x89,
                     _       => invalid()
                 };
-                return gen_ins(&ins, &[opc], (true, None, None), None, bits);
+                return gen_ins(&ins, &[opc], (true, None, None), None, bits, false);
             },
             Operand::Imm(n) => {
                 let size = dst.size();
@@ -283,7 +315,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8>{
                 };
                 let mut imm = n.split_into_bytes();
                 extend_imm(&mut imm, size as u8 + 1);
-                return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits);
+                return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false);
             },
             _ => invalid()
         }
@@ -312,22 +344,22 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
             if let Size::Dword|Size::Word = srci.size(){
                 if let Register::RAX|Register::EAX = dstr{
                     extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[opc[1]], &imm, bits);
+                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
                 }
                 else if let Register::AX = dstr{
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[opc[1]], &imm, bits);
+                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
                 }
             }
             if let Register::AL = dstr{
                 if let Size::Byte = srci.size(){
-                    return bs_imm(ins, &[opc[0]], &imm, bits);
+                    return bs_imm(ins, &[opc[0]], &imm, bits, false);
                 }
             }
             else if let Register::AX = dstr{
                 if let Size::Byte = srci.size(){
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[opc[1]], &imm, bits);
+                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
                 }
             }
 
@@ -343,8 +375,8 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 },
                 _ => invalid()
             };
-            let mut base = gen_base(ins, &[opc], bits);
-            base.push(gen_modrm(ins, Some(ovrreg), None));
+            let mut base = gen_base(ins, &[opc], bits, false);
+            base.push(gen_modrm(ins, Some(ovrreg), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             return base;
@@ -378,7 +410,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits, false);
         },
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
@@ -409,7 +441,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(ovrreg), None), Some(imm), bits, false);
         },
         (Operand::Reg(r), Operand::Segment(_)|Operand::Mem(_)|Operand::Reg(_)) => {
             let opc = match r.size(){
@@ -417,7 +449,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word|Size::Dword|Size::Qword => opc[6],
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         (Operand::Segment(m), Operand::Reg(_)) => {
             let opc = match m.address.size(){
@@ -425,7 +457,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word|Size::Dword|Size::Qword => opc[6],
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         (Operand::Mem(m), Operand::Reg(_)) => {
             let opc = match m.size(){
@@ -433,7 +465,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word|Size::Dword|Size::Qword => opc[6],
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         _ => invalid()
     }
@@ -449,22 +481,22 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
             if let Size::Dword|Size::Word = srci.size(){
                 if let Register::RAX|Register::EAX = dstr{
                     extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[0x3D], &imm, bits);
+                    return bs_imm(ins, &[0x3D], &imm, bits, false);
                 }
                 else if let Register::AX = dstr{
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0x3D], &imm, bits);
+                    return bs_imm(ins, &[0x3D], &imm, bits, false);
                 }
             }
             if let Register::AL = dstr{
                 if let Size::Byte = srci.size(){
-                    return bs_imm(ins, &[0x3C], &imm, bits);
+                    return bs_imm(ins, &[0x3C], &imm, bits, false);
                 }
             }
             else if let Register::AX = dstr{
                 if let Size::Byte = srci.size(){
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0x3D], &imm, bits);
+                    return bs_imm(ins, &[0x3D], &imm, bits, false);
                 }
             }
 
@@ -485,8 +517,8 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 },
                 _ => invalid()
             };
-            let mut base = gen_base(ins, &[opc], bits);
-            base.push(gen_modrm(ins, Some(7), None));
+            let mut base = gen_base(ins, &[opc], bits, false);
+            base.push(gen_modrm(ins, Some(7), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             return base;
@@ -520,7 +552,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits, false);
         },
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
@@ -551,7 +583,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits, false);
         },
         (Operand::Reg(r), Operand::Segment(_)|Operand::Mem(_)|Operand::Reg(_)) => {
             let opc = match r.size(){
@@ -559,7 +591,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Word|Size::Dword|Size::Qword => 0x3B,
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         (Operand::Mem(m), Operand::Reg(_)) => {
             let opc = match m.size(){
@@ -567,7 +599,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Word|Size::Dword|Size::Qword => 0x39,
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         (Operand::Segment(m), Operand::Reg(_)) => {
             let opc = match m.address.size(){
@@ -575,7 +607,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Word|Size::Dword|Size::Qword => 0x39,
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         _ => invalid()
     }
@@ -592,22 +624,22 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
             if let Size::Dword|Size::Word = srci.size(){
                 if let Register::RAX|Register::EAX = dstr{
                     extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[0xA9], &imm, bits);
+                    return bs_imm(ins, &[0xA9], &imm, bits, false);
                 }
                 else if let Register::AX = dstr{
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0xA9], &imm, bits);
+                    return bs_imm(ins, &[0xA9], &imm, bits, false);
                 }
             }
             if let Register::AL = dstr{
                 if let Size::Byte = srci.size(){
-                    return bs_imm(ins, &[0xA8], &imm, bits);
+                    return bs_imm(ins, &[0xA8], &imm, bits, false);
                 }
             }
             else if let Register::AX = dstr{
                 if let Size::Byte = srci.size(){
                     extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0xA9], &imm, bits);
+                    return bs_imm(ins, &[0xA9], &imm, bits, false);
                 }
             }
 
@@ -616,8 +648,8 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Dword|Size::Qword|Size::Word => 0xF7,
                 _ => invalid()
             };
-            let mut base = gen_base(ins, &[opc], bits);
-            base.push(gen_modrm(ins, Some(0), None));
+            let mut base = gen_base(ins, &[opc], bits, false);
+            base.push(gen_modrm(ins, Some(0), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             return base;
@@ -639,7 +671,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false);
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
@@ -658,7 +690,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
                 extend_imm(&mut imm, 4);
             }
 
-            return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits);
+            return gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false);
         },
         (Operand::Reg(_)|Operand::Mem(_)|Operand::Segment(_), Operand::Reg(_)) => {
             let opc = match dst.size(){
@@ -666,7 +698,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Word|Size::Dword|Size::Qword => 0x85,
                 _ => invalid()
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits)
+            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         },
         _ => invalid()
     }
@@ -680,7 +712,7 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8>{
                 Size::Byte => &[0xF6],
                 _ => &[0xF7]
             };
-            gen_ins(ins, opc, (true, Some(5), None), None, bits)
+            gen_ins(ins, opc, (true, Some(5), None), None, bits, false)
         }
         Some(_) => {
             match ins.oprs.get(2){
@@ -695,10 +727,10 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8>{
                     let (dst, src) = if let (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) = (ins.dst(), ins.src()) {
                         (Some(r.to_byte()), Some(r1.to_byte()))
                     } else {(None, None)};
-                    gen_ins(ins, &[opc], (true, dst, src), Some(imm_b), bits)
+                    gen_ins(ins, &[opc], (true, dst, src), Some(imm_b), bits, false)
                 },
                 _ => {
-                    gen_ins(ins, &[0x0F, 0xAF], (true, None, None), None, bits)
+                    gen_ins(ins, &[0x0F, 0xAF], (true, None, None), None, bits, false)
                 }
             }
         }
@@ -739,14 +771,14 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8>{
         _ => invalid()
     };
     let mut base = if dst.size() == Size::Word {vec![0x66]} else {vec![]};
-    let gen_b = gen_base(&ins, &[opcd], bits);
+    let gen_b = gen_base(&ins, &[opcd], bits, false);
     if gen_b[0] == 0x66{
         base = gen_b;
     }
     else {
         base.extend(gen_b);
     }
-    base.push(gen_modrm(&ins, Some(ovr), None));
+    base.push(gen_modrm(&ins, Some(ovr), None, false));
     if let Some(sib) = gen_sib(dst){
         base.push(sib);
     }
@@ -764,11 +796,11 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {
         Size::Byte => opc[0],
         _          => opc[1],
     };
-    gen_ins(ins, &[opc], (true, Some(ovr), None), None, bits)
+    gen_ins(ins, &[opc], (true, Some(ovr), None), None, bits, false)
 }
 
 fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
-    let mut base = gen_base(ins, &[0x8D], bits);
+    let mut base = gen_base(ins, &[0x8D], bits, false);
     let modrm = if let Operand::Reg(r) = ins.dst().unwrap(){
         0b100 + (r.to_byte() << 3)
     } else {0};
@@ -811,7 +843,7 @@ fn ins_jmplike(ins: &Instruction, opc: [Vec<u8>; 2], addt: u8, bits: u8) -> (Vec
             return (opc, Some(rel))
         },
         Operand::Reg(_)|Operand::Mem(_) => {
-            return (gen_ins(ins, &opc[1], (true, Some(addt), None), None, bits), None)
+            return (gen_ins(ins, &opc[1], (true, Some(addt), None), None, bits, false), None)
         }
         _ => invalid()
     }
@@ -820,8 +852,8 @@ fn ins_jmplike(ins: &Instruction, opc: [Vec<u8>; 2], addt: u8, bits: u8) -> (Vec
 // ==============================
 // Utils
 
-fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8], bits: u8) -> Vec<u8>{
-    let mut b = gen_base(ins, opc, bits);
+fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8], bits: u8, rev: bool) -> Vec<u8>{
+    let mut b = gen_base(ins, opc, bits, rev);
     b.extend(imm);
     b
 }
@@ -833,10 +865,10 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8){
     }
 }
 
-fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>), imm: Option<Vec<u8>>, bits: u8) -> Vec<u8> {
-    let mut base = gen_base(ins, opc, bits);
+fn gen_ins(ins: &Instruction, opc: &[u8], modrm: (bool, Option<u8>, Option<u8>), imm: Option<Vec<u8>>, bits: u8, rev: bool) -> Vec<u8> {
+    let mut base = gen_base(ins, opc, bits, rev);
     if modrm.0{
-        base.push(gen_modrm(ins, modrm.1, modrm.2));
+        base.push(gen_modrm(ins, modrm.1, modrm.2, rev));
 
         if let Some(dst) = ins.dst(){
             if let Some(sib) = gen_sib(dst){
@@ -871,17 +903,17 @@ fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8>{
         Size::Byte => [0xF6],
         _ => [0xF7]
     };
-    return gen_ins(ins, &opc, (true, Some(ovr), None), None, bits);
+    return gen_ins(ins, &opc, (true, Some(ovr), None), None, bits, false);
 }
 
-fn gen_base(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8>{
+fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8>{
     // how does this even work? (probably doesn't)
     let (rex_bool, rex) = 
     if bits == 64 {
-        if let Some(rex) = gen_rex(ins){
+        if let Some(rex) = gen_rex(ins, rev){
             (rex & 0x08 == 8, Some(rex))
         } else {
-            (ins.size() == Size::Qword, None)
+            (ins.size() == Size::Qword || ins.size() == Size::Any, None)
         }
     } else {
         (false, None)
@@ -918,8 +950,9 @@ fn gen_base(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8>{
 
 fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option<u8>{
     let (size, is_mem) = match op{
-        Operand::Reg(r) => (r.size(), false),
-        Operand::Mem(m) => (m.size(), false),
+        Operand::Reg(r)     => (r.size(), false),
+        Operand::CtrReg(r)  => (r.size(), false),
+        Operand::Mem(m)     => (m.size(), false),
         Operand::Segment(s) => (s.address.size(), true),
         _ => return None
     };
@@ -930,7 +963,7 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
         16 => {
             match (size, is_mem){
                 (Size::Word, _) => return None,
-                (Size::Dword, true)  => return Some(0x67),
+                (Size::Dword,  true)  => return Some(0x67),
                 (Size::Dword, false) => return Some(0x66),
                 _ => inv_osop(&format!("{:?}", op)),
             }
@@ -945,13 +978,13 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
         },
         64 => {
             match (size, is_mem){
-                (Size::Qword, false) => if ins.mnem.defaults_to_64bit() || rexw{
+                (Size::Qword, false) => if ins.mnem.defaults_to_64bit() || rexw || ins.uses_cr() || ins.uses_dr(){
                     return None;
                 } else { return Some(0x66) },
                 (Size::Dword, false)|(Size::Qword, true) => return None,
-                (Size::Word, false) => return Some(0x66),
-                (Size::Word,  true) => return Some(0x67),
-                (Size::Dword, true) => return Some(0x67),
+                (Size::Word,  false) => return Some(0x66),
+                (Size::Word,   true) => return Some(0x67),
+                (Size::Dword,  true) => return Some(0x67),
                 _ => inv_osop(&format!("{:?}", op)),
             }
         },

@@ -7,6 +7,7 @@ use std::str::FromStr;
 use crate::{
     shr::{
         reg::Register,
+        segment::SegmentReg,
         kwd::Keyword,
         ins::Mnemonic as Mnm,
         num::Number,
@@ -27,6 +28,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Register        (Register),
+    SegmentReg      (SegmentReg),
     Immediate       (Number),
     Keyword         (Keyword),
     Mnemonic        (Mnm),
@@ -130,7 +132,12 @@ impl Token{
             Some(PREFIX_REG) => {
                 match Register::from_str(&val){
                     Ok(reg) => Self::Register(reg),
-                    Err(_)  => Self::UnknownReg(val),
+                    Err(_)  => {
+                        match SegmentReg::from_str(&val){
+                            Ok(reg) => Self::SegmentReg(reg),
+                            Err(_) => Self::UnknownReg(val),
+                        }
+                    },
                 }
             },
             Some(PREFIX_VAL) => {
@@ -170,6 +177,7 @@ impl ToString for Token{
     fn to_string(&self) -> String{
         match self{
             Self::Register(reg)         => format!("{}{}", PREFIX_REG, format!("{:?}", reg).to_lowercase()),
+            Self::SegmentReg(reg)       => format!("{}{}", PREFIX_REG, format!("{:?}", reg).to_lowercase()),
             Self::MemAddr(mem)          => mem.to_string(),
             Self::Immediate(v)          => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd)          => kwd.to_string(),

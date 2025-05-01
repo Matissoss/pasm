@@ -48,31 +48,38 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>>{
 }
 
 fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
-    if let Some(_) = gen_rex(ins){
+    if gen_rex(ins, false).is_some(){
         return Some(RASMError::new(
             Some(ins.line),
-            Some(format!("Tried to use 64-bit operand/extended register in 32-bit mode!")),
+            Some("Instruction needs rex prefix, which is forbidden in protected/compat mode (bits 32)".to_string()),
             None
         ));
-    };
+    }
     return match ins.mnem{
-        Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R32, M16, M32, I8, I16, I32], &[], None),
-        Mnm::POP  => ot_chk(ins, (true, false), &[R16, R32, M16, M32], &[], None),
-        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, M8, M16, M32, AType::SegmentReg], 
-                                                &[R8, R16, R32, M8, M16, M32, I8, I16, I32, AType::SegmentReg], None),
-        Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR  => ot_chk(ins, (true, true),  
-            &[R8, R16, R32, M8, M16, M32], 
-            &[R8, R16, R32, M8, M16, M32, I8, I16, I32], None),
-        Mnm::IMUL          => {
-            if let Some(_) = ins.src(){
-                ot_chk(ins, (true, true), 
-                    &[R8, R16, R32, M8, M16, M32], &[R16, R32, M16, M32], 
-                    Some(&[I8, I16, I32]))
-            }
-            else {
-                ot_chk(ins, (true, false),  &[R8, R16, R32, M8, M16, M32], &[], None)
-            }
-        },
+        Mnm::PUSH => ot_chk(ins, &[
+            (&[R16,R32,M16,M32,I8,I16,I32,SR], Optional::Needed)
+        ], &[], &[]),
+        Mnm::POP => ot_chk(ins, &[(&[R16, R32, M16, M32, SR], Optional::Needed)], &[], &[]),
+        Mnm::MOV  => ot_chk(ins, &[
+            (&[R8,R16,R32,M8,M16,M32,SR,CR], Optional::Needed),
+            (&[R8,R16,R32,M8,M16,M32,I8,I16,I32,SR,CR], Optional::Needed)],
+            &[(MA, MA), (R32, SR), (M32, SR), (M8, SR), 
+              (R8, SR), (SR, R32), (SR, R8), (SR, IA),
+              (SR, M32), (SR, M8), (CR, IA), (CR, R8), (CR, R16),
+              (R16, CR), (R8, CR), (CR, MA), (MA, CR), (DR, IA), (DR, R8), (DR, R16),
+              (DR, R32), (R16, DR), (R8, DR), (DR, MA), 
+              (MA, DR), (R8, DR), (DR, MA), (MA, DR)
+            ],
+            &[]
+        ),
+        Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR => ot_chk(ins, 
+            &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+              (&[R8, R16, R32, M8, M16, M32, I8, I16, I32], Optional::Needed)
+            ], &[(MA, MA)], &[]),
+        Mnm::IMUL => ot_chk(ins, &[
+            (&[R8, R16, R32, M8, M16, M32], Optional::Needed), (&[R16, R32, M16, M32], Optional::Optional),
+            (&[I8, I16, I32], Optional::Optional)
+        ], &[(MA, MA)], &[]),
         Mnm::SAL|Mnm::SHL|Mnm::SHR|Mnm::SAR => {
             if let Some(err) = operand_check(ins, (true, true)){
                 return Some(err);
@@ -119,18 +126,24 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
                     ))
                 }
             }
-        }
-        Mnm::TEST => ot_chk(ins, (true, true), 
-            &[R8, R16, R32, M8, M16, M32], &[I8, I16, I32, R8, R16, R32], None),
+        },
+        Mnm::TEST => ot_chk(ins, 
+            &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+              (&[I8, I16, I32, R8, R16, R32], Optional::Needed)],
+            &[], &[]
+        ),
         Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
-            ot_chk(ins, (true, false), &[R8, R16, R32, M8, M16, M32], &[], None)
+            ot_chk(ins, &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed)
+            ], &[], &[])
         },
-        Mnm::JMP|Mnm::CALL => ot_chk(ins, (true, false), &[AType::Sym, M16, M32, R16, R32], &[], None),
+        Mnm::JMP|Mnm::CALL => ot_chk(ins, 
+            &[(&[AType::Sym, R32, R16, M32, M16], Optional::Needed)], &[], &[]),
         Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
-            ot_chk(ins, (true, false), &[AType::Sym], &[], None)
+            ot_chk(ins, &[(&[AType::Sym], Optional::Needed)], &[], &[])
         },
-        Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32], &[AType::Sym], None),
-        Mnm::SYSCALL|Mnm::RET => ot_chk(ins, (false, false), &[], &[], None),
+        Mnm::LEA => ot_chk(ins, &[(&[R16, R32], Optional::Needed), (&[AType::Sym], Optional::Needed)], &[], &[]),
+        Mnm::SYSCALL|Mnm::RET|Mnm::NOP => ot_chk(ins, &[], &[], &[]),
         /*
         _ => Some(RASMError::new(
             Some(ins.line),
@@ -145,23 +158,30 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
 
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
     return match ins.mnem{
-        Mnm::PUSH => ot_chk(ins, (true, false), &[R16, R64, M16, M64, I8, I16, I32], &[], None),
-        Mnm::POP  => ot_chk(ins, (true, false), &[R16, R64, M16, M64], &[], None),
-        Mnm::MOV  => ot_chk(ins, (true, true),  &[R8, R16, R32, R64, M8, M16, M32, M64, AType::SegmentReg], 
-                                                &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64, AType::SegmentReg], None),
-        Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR  => ot_chk(ins, (true, true),  
-            &[R8, R16, R32, R64, M8, M16, M32, M64], 
-            &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], None),
-        Mnm::IMUL          => {
-            if let Some(_) = ins.src(){
-                ot_chk(ins, (true, true), 
-                    &[R8, R16, R32, R64, M8, M16, M32, M64], &[R16, R32, R64, M16, M32, M64], 
-                    Some(&[I8, I16, I32]))
-            }
-            else {
-                ot_chk(ins, (true, false),  &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
-            }
-        },
+        Mnm::PUSH => ot_chk(ins, &[
+            (&[R16,R64,M16,M64,I8,I16,I32, SR], Optional::Needed)
+        ], &[], &[]),
+        Mnm::POP => ot_chk(ins, &[(&[R16, R64, M16, M64, SR], Optional::Needed)], &[], &[]),
+        Mnm::MOV  => ot_chk(ins, &[
+            (&[R8,R16,R32,R64,M8,M16,M32,M64,SR,CR,DR], Optional::Needed),
+            (&[R8,R16,R32,R64,M8,M16,M32,M64,I8,I16,I32,I64,SR,CR, DR], Optional::Needed)],
+            &[(MA, MA), (R32, SR), (M32, SR), (M8, SR), 
+              (R8, SR), (SR, R32), (SR, R8), (SR, IA),
+              (SR, M32), (SR, M8), (CR, IA), (CR, R8), (CR, R16),
+              (CR, R32), (R16, CR), (DR, IA), (DR, R8), (DR, R16),
+              (DR, R32), (R16, DR), (R8, DR), (DR, MA), 
+              (MA, DR), (R8, DR), (DR, MA), (MA, DR)
+            ],
+            &[]
+        ),
+        Mnm::SUB|Mnm::ADD|Mnm::CMP|Mnm::AND|Mnm::OR|Mnm::XOR => ot_chk(ins, 
+            &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+              (&[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], Optional::Needed)
+            ], &[(MA, MA)], &[]),
+        Mnm::IMUL => ot_chk(ins, &[
+            (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed), (&[R16, R32, R64, M16, M32, M64], Optional::Optional),
+            (&[I8, I16, I32], Optional::Optional)
+        ], &[(MA, MA)], &[]),
         Mnm::SAL|Mnm::SHL|Mnm::SHR|Mnm::SAR => {
             if let Some(err) = operand_check(ins, (true, true)){
                 return Some(err);
@@ -208,18 +228,24 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
                     ))
                 }
             }
-        }
-        Mnm::TEST => ot_chk(ins, (true, true), 
-            &[R8, R16, R32, R64, M8, M16, M32, M64], &[I8, I16, I32, R8, R16, R32, R64], None),
+        },
+        Mnm::TEST => ot_chk(ins, 
+            &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+              (&[I8, I16, I32, R8, R16, R32, R64], Optional::Needed)],
+            &[], &[]
+        ),
         Mnm::DIV|Mnm::IDIV|Mnm::MUL|Mnm::DEC|Mnm::INC|Mnm::NEG|Mnm::NOT => {
-            ot_chk(ins, (true, false), &[R8, R16, R32, R64, M8, M16, M32, M64], &[], None)
+            ot_chk(ins, &[
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed)
+            ], &[], &[])
         },
-        Mnm::JMP|Mnm::CALL => ot_chk(ins, (true, false), &[AType::Sym, R64, M64], &[], None),
+        Mnm::JMP|Mnm::CALL => ot_chk(ins, 
+            &[(&[AType::Sym, R64, M64], Optional::Needed)], &[], &[]),
         Mnm::JE|Mnm::JNE|Mnm::JZ|Mnm::JNZ|Mnm::JL|Mnm::JLE|Mnm::JG|Mnm::JGE => {
-            ot_chk(ins, (true, false), &[AType::Sym], &[], None)
+            ot_chk(ins, &[(&[AType::Sym], Optional::Needed)], &[], &[])
         },
-        Mnm::LEA => ot_chk(ins, (true, true), &[R16, R32, R64], &[AType::Sym], None),
-        Mnm::SYSCALL|Mnm::RET => ot_chk(ins, (false, false), &[], &[], None),
+        Mnm::LEA => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed), (&[AType::Sym], Optional::Needed)], &[], &[]),
+        Mnm::SYSCALL|Mnm::RET|Mnm::NOP => ot_chk(ins, &[], &[], &[]),
         /*
         _ => Some(RASMError::new(
             Some(ins.line),
@@ -232,36 +258,69 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
     }
 }
 
-fn ot_chk(ins: &Instruction, ops: (bool, bool), dstt: &[AType], srct: &[AType], third_op: Option<&[AType]>) -> Option<RASMError>{
-    if let Some(e) = operand_check(ins, ops){
-        return Some(e);
+#[derive(PartialEq)]
+enum Optional{
+    Needed,
+    Optional,
+}
+
+fn ot_chk(ins: &Instruction, ops: &[(&[AType], Optional)], forb: &[(AType, AType)], addt: &[Mnm]) -> Option<RASMError>{
+    if let Some(err) = addt_chk(ins, addt){
+        return Some(err);
     }
-    else {
-        if ops.0 {
-            if let Some(err) = type_check(ins.dst().unwrap(), dstt, 1){
-                return Some(err);
-            }
-        }
-        if ops.1{
-            if let Some(err) = type_check(ins.src().unwrap(), srct, 2){
-                return Some(err);
-            }
-        }
-        if let Some(thrd_types) = third_op{
-            if let Some(thrd_op) = ins.oprs.get(2){
-                return type_check(thrd_op, thrd_types, 3);
-            }
-        }
-        if ops == (true, true){
-            if let Some(err) = prev_mm(ins){
-                return Some(err);
-            }
-            else {
-                return size_chk(ins);
-            }
-        }
-        return None;
+    let mut idx = 0;
+    if ops.len() == 0  && ins.oprs.len() != 0{
+        return Some(RASMError::new(
+            Some(ins.line),
+            Some("Instruction doesn't accept any operand, but you tried to use one anyways".to_string()),
+            None
+        ));
     }
+    for allowed in ops{
+        if let Some(op) = ins.oprs.get(idx){
+            if let Some(err) = type_check(op, allowed.0, idx){
+                return Some(err);
+            }
+        }
+        else {
+            if allowed.1 == Optional::Needed{
+                return Some(RASMError::new(
+                    Some(ins.line),
+                    Some(format!("Needed operand not found at index {}", idx)),
+                    None
+                ));
+            }
+        }
+        idx += 1;
+    }
+    if ops.len() == 2{
+        if let Some(err) = size_chk(ins){
+            return Some(err);
+        }
+    }
+    if let Some(err) = forb_chk(ins, forb){
+        return Some(err);
+    }
+    None
+}
+
+fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError>{
+    let dst_t = if let Some(dst) = ins.dst(){
+        dst.atype()
+    } else {return None};
+    let src_t = if let Some(src) = ins.src(){
+        src.atype()
+    } else {return None};
+    for f in forb{
+        if (dst_t, src_t) == *f{
+            return Some(RASMError::new(
+                Some(ins.line),
+                Some(format!("Destination and Source operand have forbidden combination: ({:?}, {:?})", f.0, f.1)),
+                None
+            ));
+        }
+    }
+    None
 }
 
 fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError>{
@@ -337,9 +396,16 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
 fn size_chk(ins: &Instruction) -> Option<RASMError>{
     let dst = ins.dst().unwrap();
     let src = ins.src().unwrap();
+
+    if let Operand::CtrReg(_) = dst{
+        return None;
+    }
+    if let Operand::CtrReg(_) = src{
+        return None;
+    }
     // should work (i hope so)
     return match (dst.atype(), src.atype()){
-        (AType::Reg(s0)|AType::Mem(s0), AType::Imm(s1)) => {
+        (AType::Reg(s0)|AType::Mem(s0)|AType::Segment(s0), AType::Imm(s1)) => {
             if s1 <= s0{
                 None
             }
@@ -348,7 +414,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                     Some(RASMError::new(
                         Some(ins.line),
                         Some(format!("Tried to use immediate that is too large for destination operand")),
-                        Some(format!("Consider changing immediate to fit inside {} bytes",<Size as Into<u8>>::into(s0)))
+                        Some(format!("Consider changing immediate to fit inside {} bits",<Size as Into<u8>>::into(s0) as u16 * 8))
                     ))
                 }
                 else {
@@ -356,7 +422,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                 }
             }
         },
-        (AType::Reg(s0)|AType::Mem(s0), AType::Reg(s1)|AType::Mem(s1)) => {
+        (AType::Reg(s0)|AType::Mem(s0)|AType::Segment(s0), AType::Reg(s1)|AType::Mem(s1)|AType::Segment(s1)) => {
             if s1 == s0{
                 None
             }
@@ -365,7 +431,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
                     Some(RASMError::new(
                         Some(ins.line),
                         Some(format!("Tried to use operand that cannot be used for destination operand")),
-                        Some(format!("Consider changing operand to be {} byte", <Size as Into<u8>>::into(s0)))
+                        Some(format!("Consider changing operand to be {}-bit", <Size as Into<u8>>::into(s0) as u16 * 8))
                     ))
                 }
                 else {
@@ -377,18 +443,26 @@ fn size_chk(ins: &Instruction) -> Option<RASMError>{
     }
 }
 
-// prevent memory-memory
-fn prev_mm(ins: &Instruction) -> Option<RASMError>{
-    if ins.mnem.allows_mem_mem(){
-        return None;
+fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError>{
+    if let Some(addt) = &ins.addt{
+        for a in addt {
+            if !find_bool(accpt_addt, &a){
+                return Some(RASMError::new(
+                    Some(ins.line),
+                    Some(format!("Use of forbidden additional mnemonic: {}", a.to_string())),
+                    None
+                ));
+            }
+        }
     }
+    None
+}
 
-    if let (Some(Operand::Mem(_)), Some(Operand::Mem(_))) = (ins.dst(), ins.src()){
-        return Some(RASMError::new(
-            Some(ins.line),
-            Some(format!("Tried to perform illegal operation on instruction that doesn't support memory-memory operand combo")),
-            Some(format!("Consider using register to store memory and then using with other memory instead"))
-        ))
+fn find_bool(addts: &[Mnm], searched: &Mnm) -> bool{
+    for addt in addts{
+        if searched == addt{
+            return true;
+        }
     }
-    return None;
+    false
 }

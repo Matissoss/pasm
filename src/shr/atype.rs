@@ -5,16 +5,23 @@
 
 use crate::shr::size::Size;
 
+pub const CR  : AType = AType::ControlReg;
+pub const DR  : AType = AType::DebugReg;
+pub const SR  : AType = AType::SegmentReg;
+
+pub const IA  : AType = AType::Imm(Size::Any);
 pub const I64 : AType = AType::Imm(Size::Qword);
 pub const I32 : AType = AType::Imm(Size::Dword);
 pub const I16 : AType = AType::Imm(Size::Word);
 pub const I8  : AType = AType::Imm(Size::Byte);
 
+pub const RA  : AType = AType::Reg(Size::Any);
 pub const R64 : AType = AType::Reg(Size::Qword);
 pub const R32 : AType = AType::Reg(Size::Dword);
 pub const R16 : AType = AType::Reg(Size::Word);
 pub const R8  : AType = AType::Reg(Size::Byte);
 
+pub const MA  : AType = AType::Mem(Size::Any);
 pub const M64 : AType = AType::Mem(Size::Qword);
 pub const M32 : AType = AType::Mem(Size::Dword);
 pub const M16 : AType = AType::Mem(Size::Word);
@@ -28,7 +35,9 @@ pub enum AType{
     RIP(Size),
     Sym,
     Segment(Size),
-    SegmentReg
+    SegmentReg, // fs, ds, ..
+    ControlReg, // cr
+    DebugReg  , // dr
 }
 
 pub trait ToAType{

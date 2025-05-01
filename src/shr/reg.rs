@@ -422,6 +422,24 @@ impl ToAType for Register{
 }
 
 impl Register{
+    pub fn is_dbg_reg(&self) -> bool{
+        match self{
+            Self::DR0 |Self::DR1 |Self::DR2 |Self::DR3 |
+            Self::DR4 |Self::DR5 |Self::DR6 |Self::DR7 |
+            Self::DR8 |Self::DR9 |Self::DR10|Self::DR11|
+            Self::DR12|Self::DR13|Self::DR14|Self::DR15 => true,
+            _ => false
+        }
+    }
+    pub fn is_ctrl_reg(&self) -> bool {
+        match self{
+            Self::CR0 |Self::CR1 |Self::CR2 |Self::CR3 |
+            Self::CR4 |Self::CR5 |Self::CR6 |Self::CR7 |
+            Self::CR8 |Self::CR9 |Self::CR10|Self::CR11|
+            Self::CR12|Self::CR13|Self::CR14|Self::CR15 => true,
+            _ => false
+        }
+    }
     pub fn size(&self) -> Size {
         match self{
             Self::AL  |Self::BL  |Self::CL  |Self::DL   |
@@ -494,41 +512,49 @@ impl Register{
              Self::R8 |Self::R8B |Self::R8W
             |Self::R8D|Self::XMM8|Self::YMM8
             |Self::AL |Self::AX  |Self::EAX
+            |Self::CR0|Self::CR8 |Self::DR0
+            |Self::DR8
             |Self::RAX|Self::XMM0|Self::YMM0 => 0,
 
             Self::R9   | Self::R9B | Self::R9W | Self::R9D |
             Self::CL   | Self::CX  | Self::ECX | Self::RCX |
-            Self::XMM1 | Self::YMM1| Self::XMM9|
-            Self::YMM9 => 1,
+            Self::XMM1 | Self::YMM1| Self::XMM9| Self::CR1 |
+            Self::YMM9 | Self::CR9 | Self::DR1 | Self::DR9 => 1,
 
             Self::R10 | Self::R10B | Self::R10W | Self::R10D |
             Self::DL  | Self::DX   | Self::EDX  | Self::XMM2 |
-            Self::RDX |
+            Self::RDX | Self::CR2  | Self::CR10 | Self::DR2  |
+            Self::DR10|
             Self::YMM2| Self::XMM10| Self::YMM10 => 0b10,
 
             Self::R11 | Self::R11B | Self::R11W | Self::R11D |
             Self::BL  | Self::BX   | Self::EBX  | Self::XMM3 |
-            Self::RBX |
+            Self::RBX | Self::CR3  | Self::CR11 | Self::DR3  |
+            Self::DR11|
             Self::YMM3| Self::XMM11| Self::YMM11 => 0b11,
             
             Self::R12 | Self::R12B | Self::R12W | Self::R12D |
             Self::AH  | Self::SP   | Self::ESP  | Self::XMM4 |
-            Self::SPL | Self::RSP  |
+            Self::SPL | Self::RSP  | Self::CR4  | Self::CR12 |
+            Self::DR4 | Self::DR12 |
             Self::YMM4| Self::XMM12| Self::YMM12 => 0b100,
             
             Self::R13 | Self::R13B | Self::R13W | Self::R13D |
             Self::CH  | Self::BP   | Self::EBP  | Self::XMM5 |
-            Self::BPL | Self::RBP  |
+            Self::BPL | Self::RBP  | Self::CR5  | Self::CR13 |
+            Self::DR5 | Self::DR13 |
             Self::YMM5| Self::XMM13| Self::YMM13 => 0b101,
             
             Self::R14 | Self::R14B | Self::R14W | Self::R14D |
             Self::DH  | Self::SI   | Self::ESI  | Self::XMM6 |
-            Self::SIL | Self::RSI  |
+            Self::SIL | Self::RSI  | Self::CR6  | Self::CR14 |
+            Self::DR6 | Self::DR14 |
             Self::YMM6| Self::XMM14| Self::YMM14 => 0b110,
             
             Self::R15 | Self::R15B | Self::R15W | Self::R15D |
             Self::BH  | Self::DI   | Self::EDI  | Self::XMM7 |
-            Self::DIL | Self::RDI  |
+            Self::DIL | Self::RDI  | Self::CR7  | Self::CR15 |
+            Self::DR7 | Self::DR15 |
             Self::YMM7| Self::XMM15| Self::YMM15 => 0b111,
             _ => 0,
         }

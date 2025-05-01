@@ -2,6 +2,19 @@ section .text
 	bits 64
 
 _start:
+	mov rax, dr0
+	mov rax, dr8
+	mov rax, dr9
+	mov dr0, rax
+	mov dr8, rax
+	mov dr9, rax
+	mov rax, cr0
+	mov rax, cr8
+	mov rax, cr9
+	mov cr0, rax
+	mov cr8, rax
+	mov cr9, rax
+	mov rax, fs
 	mov eax, 1
 	mov rax, 1
 	mov rax, 60

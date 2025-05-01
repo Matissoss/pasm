@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    //reg::Register as Reg,
     mem::Mem,
     ast::{
         Instruction as Ins,
@@ -14,7 +13,7 @@ use crate::shr::{
 };
 
 // man, i love pattern matching and how readable it is...
-pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
+pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8{
     let mod_ : u8 = {
         match (ins.dst(), ins.src()){
             (Some( &Op::Mem(Mem::SIB(_,_,_,_))), _) |
@@ -51,40 +50,33 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
         }
     };
 
-    let mut rev = false;
+    let mut rev = rev;
+
     let reg = if let Some(reg) = reg {reg}
-    else{
-        if let Some(src) = ins.src(){
-            if let Op::Mem(_)|Op::Segment(_)|Op::SegReg(_) = src {
+    else {
+        if rev {
+            gen_rmreg(ins.dst())
+        }
+        else {
+            if let Some(Op::Mem(_)|Op::Segment(_)) = ins.src(){
                 rev = true;
-                if let Some(dst) = ins.dst(){
-                    gen_rmreg(dst)
-                }
-                else {0}
+                gen_rmreg(ins.dst())
             }
             else {
-                gen_rmreg(src)
+                gen_rmreg(ins.src())
             }
         }
-        else {0}
     };
-    
     let rm = {
         if ins.uses_sib() {0b100}
         else{
             if let Some(rm) = rm {rm}
             else{
-                if !rev{
-                    if let Some(dst) = ins.dst(){
-                        gen_rmreg(dst)
-                    }
-                    else {0}
+                if rev{
+                    gen_rmreg(ins.src())
                 }
                 else {
-                    if let Some(src) = ins.src(){
-                        gen_rmreg(src)
-                    }
-                    else {0}
+                    gen_rmreg(ins.dst())
                 }
             }
         }
@@ -93,9 +85,10 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>) -> u8{
     return (mod_ << 6) + (reg << 3) + rm;
 }
 
-fn gen_rmreg(op: &Op) -> u8{
-    match op {
-        Op::Reg(r)|Op::Mem(Mem::Direct(r,_)) => r.to_byte(),
+fn gen_rmreg(op: Option<&Op>) -> u8{
+    if op.is_none() {return 0};
+    match op.unwrap() {
+        Op::DbgReg(r)|Op::CtrReg(r)|Op::Reg(r)|Op::Mem(Mem::Direct(r,_)) => r.to_byte(),
         Op::SegReg(r) => r.to_byte(),
         Op::Segment(s) => {
             match s.address{
