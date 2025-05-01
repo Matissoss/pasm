@@ -32,7 +32,13 @@ pub enum Mnemonic{
     DEC,
 
     POP,
+    POPF,
+    POPFD,
+    POPFQ,
     PUSH,
+    PUSHF,
+    PUSHFD,
+    PUSHFQ,
 
     CMP,
     TEST,
@@ -160,10 +166,26 @@ impl FromStr for Mnemonic{
                     'm' => ins_ie(str_ins, "imul", Self::IMUL),
                     'u' => ins_ie(str_ins, "push", Self::PUSH),
                     'a' => ins_ie(str_ins, "call", Self::CALL),
+                    'o' => ins_ie(str_ins, "popf", Self::POPF),
                     'e' => ins_ie(str_ins, "test", Self::TEST),
                     _   => Err(())
                 }
             },
+            5 => {
+                match raw_ins[4] as char{
+                    'f' => ins_ie(str_ins, "pushf", Self::PUSHF),
+                    'd' => ins_ie(str_ins, "popfd", Self::POPFD),
+                    'q' => ins_ie(str_ins, "popfq", Self::POPFQ),
+                    _   => Err(())
+                }
+            },
+            6 => {
+                match raw_ins[5] as char{
+                    'd' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                    'q' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
+                    _   => Err(())
+                }
+            }
             7 => ins_ie(str_ins, "syscall", Self::SYSCALL),
             _ => Err(())
         }

@@ -174,7 +174,10 @@ pub fn compile_instruction(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relo
 
         Ins::LEA        => ins_lea(&ins, bits),
 
-        Ins::NOP        => (vec![0x90], None)
+        Ins::NOP        => (vec![0x90], None),
+
+        Ins::PUSHF|Ins::PUSHFD|Ins::PUSHFQ => (vec![0x9C], None),
+        Ins::POPF|Ins::POPFD |Ins::POPFQ  => (vec![0x9D], None),
         //_ => (Vec::new(), None)
     }
 }

@@ -143,16 +143,12 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError>{
             ot_chk(ins, &[(&[AType::Sym], Optional::Needed)], &[], &[])
         },
         Mnm::LEA => ot_chk(ins, &[(&[R16, R32], Optional::Needed), (&[AType::Sym], Optional::Needed)], &[], &[]),
-        Mnm::SYSCALL|Mnm::RET|Mnm::NOP => ot_chk(ins, &[], &[], &[]),
-        /*
+        Mnm::SYSCALL|Mnm::RET|Mnm::NOP|Mnm::POPF|Mnm::POPFD|Mnm::PUSHF|Mnm::PUSHFD => ot_chk(ins, &[], &[], &[]),
         _ => Some(RASMError::new(
             Some(ins.line),
-            ExType::Error,
-            Some(ins.to_string()),
             Some(format!("Tried to use unsupported instruction")),
             None
         )),
-        */
     }
 }
 
@@ -245,16 +241,12 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError>{
             ot_chk(ins, &[(&[AType::Sym], Optional::Needed)], &[], &[])
         },
         Mnm::LEA => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed), (&[AType::Sym], Optional::Needed)], &[], &[]),
-        Mnm::SYSCALL|Mnm::RET|Mnm::NOP => ot_chk(ins, &[], &[], &[]),
-        /*
+        Mnm::SYSCALL|Mnm::RET|Mnm::NOP|Mnm::PUSHF|Mnm::POPF|Mnm::POPFQ|Mnm::PUSHFQ => ot_chk(ins, &[], &[], &[]),
         _ => Some(RASMError::new(
             Some(ins.line),
-            ExType::Error,
-            Some(ins.to_string()),
             Some(format!("Tried to use unsupported instruction")),
             None
         )),
-        */
     }
 }
 
