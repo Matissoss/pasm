@@ -218,6 +218,69 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::POPF | Mnm::POPFD | Mnm::PUSHF | Mnm::PUSHFD => {
             ot_chk(ins, &[], &[], &[])
         }
+        Mnm::MOVD => ot_chk(
+            ins,
+            &[
+                (&[MMX, R32, M32], Optional::Needed),
+                (&[MMX, R32, M32], Optional::Needed),
+            ],
+            &[(M32, M32), (R32, R32), (MMX, MMX)],
+            &[],
+        ),
+        Mnm::PSLLW
+        | Mnm::PSLLD
+        | Mnm::PSLLQ
+        | Mnm::PSRLW
+        | Mnm::PSRLD
+        | Mnm::PSRLQ
+        | Mnm::PSRAD
+        | Mnm::PSRAW => ot_chk(
+            ins,
+            &[
+                (&[MMX], Optional::Needed),
+                (&[I8, MMX, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PADDB
+        | Mnm::PADDW
+        | Mnm::PADDD
+        | Mnm::PADDQ
+        | Mnm::PADDSB
+        | Mnm::PADDSW
+        | Mnm::PSUBB
+        | Mnm::PSUBW
+        | Mnm::PSUBSB
+        | Mnm::PSUBSW
+        | Mnm::PMULHW
+        | Mnm::PMULLW
+        | Mnm::PMADDWD
+        | Mnm::PCMPGTB
+        | Mnm::PCMPGTW
+        | Mnm::PCMPGTD
+        | Mnm::PCMPEQB
+        | Mnm::PCMPEQW
+        | Mnm::PCMPEQD
+        | Mnm::PACKSSWB
+        | Mnm::PACKSSDW
+        | Mnm::PACKUSWB
+        | Mnm::PUNPCKLBW
+        | Mnm::PUNPCKLWD
+        | Mnm::PUNPCKLDQ
+        | Mnm::PUNPCKHBW
+        | Mnm::PUNPCKHWD
+        | Mnm::PAND
+        | Mnm::PANDN
+        | Mnm::POR
+        | Mnm::PXOR
+        | Mnm::PUNPCKHDQ
+        | Mnm::PSUBD => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
         _ => Some(RASMError::new(
             Some(ins.line),
             Some("Tried to use unsupported instruction".to_string()),
@@ -393,9 +456,86 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::PUSHF | Mnm::POPF | Mnm::POPFQ | Mnm::PUSHFQ => {
-            ot_chk(ins, &[], &[], &[])
-        }
+        Mnm::SYSCALL
+        | Mnm::RET
+        | Mnm::NOP
+        | Mnm::PUSHF
+        | Mnm::POPF
+        | Mnm::POPFQ
+        | Mnm::PUSHFQ
+        | Mnm::EMMS => ot_chk(ins, &[], &[], &[]),
+        Mnm::MOVD => ot_chk(
+            ins,
+            &[
+                (&[MMX, R32, M32], Optional::Needed),
+                (&[MMX, R32, M32], Optional::Needed),
+            ],
+            &[(M32, M32), (R32, R32), (MMX, MMX)],
+            &[],
+        ),
+        Mnm::MOVQ => ot_chk(
+            ins,
+            &[
+                (&[MMX, R64, M64], Optional::Needed),
+                (&[MMX, R64, M64], Optional::Needed),
+            ],
+            &[(M64, M64), (R64, R64), (MMX, MMX)],
+            &[],
+        ),
+        Mnm::PSLLW
+        | Mnm::PSLLD
+        | Mnm::PSLLQ
+        | Mnm::PSRLW
+        | Mnm::PSRLD
+        | Mnm::PSRLQ
+        | Mnm::PSRAD
+        | Mnm::PSRAW => ot_chk(
+            ins,
+            &[
+                (&[MMX], Optional::Needed),
+                (&[I8, MMX, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PADDB
+        | Mnm::PADDW
+        | Mnm::PADDD
+        | Mnm::PADDQ
+        | Mnm::PADDSB
+        | Mnm::PADDSW
+        | Mnm::PSUBB
+        | Mnm::PSUBW
+        | Mnm::PSUBSB
+        | Mnm::PSUBSW
+        | Mnm::PMULHW
+        | Mnm::PMULLW
+        | Mnm::PMADDWD
+        | Mnm::PCMPGTB
+        | Mnm::PCMPGTW
+        | Mnm::PCMPGTD
+        | Mnm::PCMPEQB
+        | Mnm::PCMPEQW
+        | Mnm::PCMPEQD
+        | Mnm::PACKSSWB
+        | Mnm::PACKSSDW
+        | Mnm::PACKUSWB
+        | Mnm::PUNPCKLBW
+        | Mnm::PUNPCKLWD
+        | Mnm::PUNPCKLDQ
+        | Mnm::PUNPCKHBW
+        | Mnm::PUNPCKHWD
+        | Mnm::PUNPCKHDQ
+        | Mnm::PAND
+        | Mnm::PANDN
+        | Mnm::POR
+        | Mnm::PXOR
+        | Mnm::PSUBD => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
         _ => Some(RASMError::new(
             Some(ins.line),
             Some("Tried to use unsupported instruction".to_string()),
@@ -430,7 +570,6 @@ fn ot_chk(
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        #[allow(clippy::collapsible_else_if)]
         if let Some(op) = ins.oprs.get(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Some(err);
@@ -516,7 +655,7 @@ fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError> {
 }
 
 fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASMError> {
-    if accepted.contains(&operand.atype()) {
+    if find(accepted, operand.atype()) {
         None
     } else {
         let err = RASMError::new(
@@ -524,8 +663,8 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
             Some(format!(
                 "{} operand doesn't match any of expected types: {:?}",
                 match idx {
-                    1 => "Destination".to_string(),
-                    2 => "Source".to_string(),
+                    0 => "Destination".to_string(),
+                    1 => "Source".to_string(),
                     _ => idx.to_string(),
                 },
                 accepted
@@ -533,8 +672,8 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
             Some(format!(
                 "Consider changing {} operand to expected type or removing instruction",
                 match idx {
-                    1 => "Destination".to_string(),
-                    2 => "Source".to_string(),
+                    0 => "destination".to_string(),
+                    1 => "source".to_string(),
                     _ => idx.to_string(),
                 }
             )),
@@ -614,8 +753,14 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
         }
         (AType::Register(g0, s0), AType::Register(g1, s1)) => {
             if s1 == s0
-                || ((g0 == RPurpose::Dbg || g0 == RPurpose::Ctrl || g0 == RPurpose::Sgmnt)
-                    || (g1 == RPurpose::Dbg || g1 == RPurpose::Ctrl || g1 == RPurpose::Sgmnt))
+                || ((g0 == RPurpose::Dbg
+                    || g0 == RPurpose::Ctrl
+                    || g0 == RPurpose::Sgmnt
+                    || g0 == RPurpose::Mmx)
+                    || (g1 == RPurpose::Dbg
+                        || g1 == RPurpose::Ctrl
+                        || g1 == RPurpose::Sgmnt
+                        || g1 == RPurpose::Mmx))
             {
                 None
             } else {
@@ -662,6 +807,27 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
 fn find_bool(addts: &[Mnm], searched: &Mnm) -> bool {
     for addt in addts {
         if searched == addt {
+            return true;
+        }
+    }
+    false
+}
+
+fn find(items: &[AType], searched: AType) -> bool {
+    let (size, regprp) = match searched {
+        AType::Register(prp, size) => (size, Some(prp)),
+        AType::Immediate(size) => (size, None),
+        AType::SMemory(size) | AType::Memory(size) => (size, None),
+        AType::Symbol => (Size::Any, None),
+    };
+    for i in items {
+        let (isize, iregprp) = match i {
+            AType::Register(prp, size) => (size, Some(prp)),
+            AType::Immediate(size) => (size, None),
+            AType::SMemory(size) | AType::Memory(size) => (size, None),
+            AType::Symbol => (&Size::Any, None),
+        };
+        if isize == &size && regprp.as_ref() == iregprp {
             return true;
         }
     }

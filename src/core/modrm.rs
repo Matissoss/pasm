@@ -7,6 +7,7 @@ use crate::shr::{
     ast::{Instruction as Ins, Operand as Op},
     mem::Mem,
     num::Number,
+    reg::Purpose as RPurpose,
 };
 
 // man, i love pattern matching and how readable it is...
@@ -53,6 +54,13 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
             if let Some(Op::Mem(_) | Op::Segment(_)) = ins.src() {
                 rev = true;
                 gen_rmreg(ins.dst())
+            } else if let Some(Op::Reg(r)) = ins.src() {
+                if r.purpose() == RPurpose::Mmx {
+                    rev = true;
+                    gen_rmreg(ins.dst())
+                } else {
+                    gen_rmreg(ins.src())
+                }
             } else {
                 gen_rmreg(ins.src())
             }

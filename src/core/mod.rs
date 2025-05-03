@@ -1,5 +1,6 @@
 pub mod comp;
 pub mod disp;
+pub mod mmx;
 pub mod modrm;
 pub mod obj;
 pub mod reloc;

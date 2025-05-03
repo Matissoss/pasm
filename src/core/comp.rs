@@ -8,6 +8,7 @@ use std::borrow::Cow;
 use crate::{
     core::{
         disp::gen_disp,
+        mmx,
         modrm::gen_modrm,
         reloc::{RCategory, RType, Relocation},
         rex::gen_rex,
@@ -203,7 +204,100 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         Ins::PUSHF | Ins::PUSHFD | Ins::PUSHFQ => (vec![0x9C], None),
         Ins::POPF | Ins::POPFD | Ins::POPFQ => (vec![0x9D], None),
-        //_ => (Vec::new(), None)
+
+        // MMX
+        Ins::MOVD | Ins::MOVQ => (mmx::ins_movdq(ins, bits), None),
+        Ins::PADDB => (mmx::ins_paddx(ins, bits, 1), None),
+        Ins::PADDW => (mmx::ins_paddx(ins, bits, 2), None),
+        Ins::PADDD => (mmx::ins_paddx(ins, bits, 3), None),
+        Ins::PADDQ => (mmx::ins_paddx(ins, bits, 4), None),
+
+        Ins::PADDSB => (mmx::ins_paddsx(ins, bits, true), None),
+        Ins::PADDSW => (mmx::ins_paddsx(ins, bits, false), None),
+
+        Ins::PSUBB => (mmx::ins_psubx(ins, bits, 1), None),
+        Ins::PSUBW => (mmx::ins_psubx(ins, bits, 2), None),
+        Ins::PSUBD => (mmx::ins_psubx(ins, bits, 3), None),
+
+        Ins::PSUBSB => (mmx::ins_psubsx(ins, bits, true), None),
+        Ins::PSUBSW => (mmx::ins_psubsx(ins, bits, false), None),
+
+        Ins::PMULLW => (mmx::ins_pmulx(ins, bits, true), None),
+        Ins::PMULHW => (mmx::ins_pmulx(ins, bits, false), None),
+
+        Ins::PMADDWD => (mmx::ins_pmaddwd(ins, bits), None),
+
+        Ins::PCMPEQB => (mmx::ins_cmp(ins, bits, 1), None),
+        Ins::PCMPEQW => (mmx::ins_cmp(ins, bits, 2), None),
+        Ins::PCMPEQD => (mmx::ins_cmp(ins, bits, 3), None),
+
+        Ins::PCMPGTB => (mmx::ins_cmp(ins, bits, 4), None),
+        Ins::PCMPGTW => (mmx::ins_cmp(ins, bits, 5), None),
+        Ins::PCMPGTD => (mmx::ins_cmp(ins, bits, 6), None),
+
+        Ins::PACKUSWB => (mmx::ins_pack(ins, bits, 1), None),
+        Ins::PACKSSWB => (mmx::ins_pack(ins, bits, 2), None),
+        Ins::PACKSSDW => (mmx::ins_pack(ins, bits, 3), None),
+        Ins::PUNPCKLBW => (mmx::ins_unpack(ins, bits, 1), None),
+        Ins::PUNPCKLWD => (mmx::ins_unpack(ins, bits, 2), None),
+        Ins::PUNPCKLDQ => (mmx::ins_unpack(ins, bits, 3), None),
+        Ins::PUNPCKHBW => (mmx::ins_unpack(ins, bits, 4), None),
+        Ins::PUNPCKHWD => (mmx::ins_unpack(ins, bits, 5), None),
+        Ins::PUNPCKHDQ => (mmx::ins_unpack(ins, bits, 6), None),
+
+        Ins::PSLLW => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xF1], &[0x0F, 0x71], 6),
+            None,
+        ),
+        Ins::PSLLD => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xF2], &[0x0F, 0x72], 6),
+            None,
+        ),
+        Ins::PSLLQ => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xF3], &[0x0F, 0x73], 6),
+            None,
+        ),
+        Ins::PSRLW => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xD1], &[0x0F, 0x71], 2),
+            None,
+        ),
+        Ins::PSRLD => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xD2], &[0x0F, 0x72], 2),
+            None,
+        ),
+        Ins::PSRLQ => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xD3], &[0x0F, 0x73], 2),
+            None,
+        ),
+        Ins::PSRAW => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xE1], &[0x0F, 0x71], 4),
+            None,
+        ),
+        Ins::PSRAD => (
+            mmx::ins_shift(ins, bits, &[0x0F, 0xE2], &[0x0F, 0x72], 4),
+            None,
+        ),
+
+        Ins::POR => (
+            gen_ins(ins, &[0x0F, 0xEB], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::PAND => (
+            gen_ins(ins, &[0x0F, 0xDB], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::PANDN => (
+            gen_ins(ins, &[0x0F, 0xDF], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::PXOR => (
+            gen_ins(ins, &[0x0F, 0xEF], (true, None, None), None, bits, false),
+            None,
+        ),
+
+        Ins::EMMS => (vec![0x0F, 0x77], None),
+
+        _ => (Vec::new(), None),
     }
 }
 
@@ -867,23 +961,31 @@ fn ins_jmplike(
     }
 }
 
+fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8> {
+    let opc = match ins.dst().unwrap().size() {
+        Size::Byte => [0xF6],
+        _ => [0xF7],
+    };
+    gen_ins(ins, &opc, (true, Some(ovr), None), None, bits, false)
+}
+
 // ==============================
 // Utils
 
-fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8], bits: u8, rev: bool) -> Vec<u8> {
+pub fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8], bits: u8, rev: bool) -> Vec<u8> {
     let mut b = gen_base(ins, opc, bits, rev);
     b.extend(imm);
     b
 }
 
-fn extend_imm(imm: &mut Vec<u8>, size: u8) {
+pub fn extend_imm(imm: &mut Vec<u8>, size: u8) {
     let size = size as usize;
     while imm.len() < size {
         imm.push(0)
     }
 }
 
-fn gen_ins(
+pub fn gen_ins(
     ins: &Instruction,
     opc: &[u8],
     modrm: (bool, Option<u8>, Option<u8>),
@@ -923,15 +1025,7 @@ fn gen_ins(
     base
 }
 
-fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8> {
-    let opc = match ins.dst().unwrap().size() {
-        Size::Byte => [0xF6],
-        _ => [0xF7],
-    };
-    gen_ins(ins, &opc, (true, Some(ovr), None), None, bits, false)
-}
-
-fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
+pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
     // how does this even work? (probably doesn't)
     let (rex_bool, rex) = if bits == 64 {
         if let Some(rex) = gen_rex(ins, rev) {

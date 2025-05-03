@@ -31,15 +31,6 @@ pub enum Mnemonic {
     INC,
     DEC,
 
-    POP,
-    POPF,
-    POPFD,
-    POPFQ,
-    PUSH,
-    PUSHF,
-    PUSHFD,
-    PUSHFQ,
-
     CMP,
     TEST,
 
@@ -57,6 +48,72 @@ pub enum Mnemonic {
     SYSCALL,
     RET,
     NOP,
+
+    POP,
+    POPF,
+    POPFD,
+    POPFQ,
+    PUSH,
+    PUSHF,
+    PUSHFD,
+    PUSHFQ,
+
+    CPUID,
+
+    // MMX extension
+    MOVD,
+    MOVQ,
+    PADDB,
+    PADDW,
+    PADDD,
+    PADDQ,
+    PANDN,
+    PADDSB,
+    PADDSW,
+    PADDUSB,
+    PADDUSW,
+    PSUBB,
+    PSUBW,
+    PSUBD,
+    PSUBSB,
+    PSUBSW,
+    PSUBUSB,
+    PSUBUSW,
+
+    PMULHW,
+    PMULLW,
+
+    PMADDWD,
+    PCMPEQB,
+    PCMPEQW,
+    PCMPEQD,
+    PCMPGTB,
+    PCMPGTW,
+    PCMPGTD,
+    PACKUSWB,
+    PACKSSWB,
+    PACKSSDW,
+    PUNPCKLBW,
+    PUNPCKLWD,
+    PUNPCKLDQ,
+    PUNPCKHBW,
+    PUNPCKHWD,
+    PUNPCKHDQ,
+
+    POR,
+    PAND,
+    PANND,
+    PXOR,
+    PSLLW,
+    PSLLD,
+    PSLLQ,
+    PSRLW,
+    PSRLD,
+    PSRLQ,
+    PSRAW,
+    PSRAD,
+
+    EMMS,
 }
 
 #[inline(always)]
@@ -95,7 +152,11 @@ impl FromStr for Mnemonic {
                         _ => Err(()),
                     },
                     'x' => ins_ie(str_ins, "xor", Self::XOR),
-                    'p' => ins_ie(str_ins, "pop", Self::POP),
+                    'p' => match raw_ins[2] as char {
+                        'p' => Ok(Self::POP),
+                        'r' => Ok(Self::POR),
+                        _ => Err(()),
+                    },
                     _ => Err(()),
                 },
                 'i' => ins_ie(str_ins, "div", Self::DIV),
@@ -140,25 +201,158 @@ impl FromStr for Mnemonic {
             },
             4 => match raw_ins[1] as char {
                 'd' => ins_ie(str_ins, "idiv", Self::IDIV),
-                'm' => ins_ie(str_ins, "imul", Self::IMUL),
+                'm' => match raw_ins[0] as char {
+                    'i' => ins_ie(str_ins, "imul", Self::IMUL),
+                    'e' => ins_ie(str_ins, "emms", Self::EMMS),
+                    _ => Err(()),
+                },
                 'u' => ins_ie(str_ins, "push", Self::PUSH),
-                'a' => ins_ie(str_ins, "call", Self::CALL),
-                'o' => ins_ie(str_ins, "popf", Self::POPF),
+                'a' => match raw_ins[0] as char {
+                    'c' => ins_ie(str_ins, "call", Self::CALL),
+                    'p' => ins_ie(str_ins, "pand", Self::PAND),
+                    _ => Err(()),
+                },
+                'o' => match raw_ins[3] as char {
+                    'f' => ins_ie(str_ins, "popf", Self::POPF),
+                    'd' => ins_ie(str_ins, "movd", Self::MOVD),
+                    'q' => ins_ie(str_ins, "movq", Self::MOVQ),
+                    _ => Err(()),
+                },
                 'e' => ins_ie(str_ins, "test", Self::TEST),
+                'x' => ins_ie(str_ins, "pxor", Self::PXOR),
                 _ => Err(()),
             },
             5 => match raw_ins[4] as char {
                 'f' => ins_ie(str_ins, "pushf", Self::PUSHF),
-                'd' => ins_ie(str_ins, "popfd", Self::POPFD),
-                'q' => ins_ie(str_ins, "popfq", Self::POPFQ),
+                'n' => ins_ie(str_ins, "pandn", Self::PANDN),
+                'd' => match raw_ins[3] as char {
+                    'f' => ins_ie(str_ins, "popfd", Self::POPFD),
+                    'l' => match raw_ins[2] as char {
+                        'l' => ins_ie(str_ins, "pslld", Self::PSLLD),
+                        'r' => ins_ie(str_ins, "psrld", Self::PSRLD),
+                        _ => Err(()),
+                    },
+                    'a' => ins_ie(str_ins, "psrad", Self::PSRAD),
+                    'd' => ins_ie(str_ins, "paddd", Self::PADDD),
+                    'b' => ins_ie(str_ins, "psubd", Self::PSUBD),
+                    _ => Err(()),
+                },
+                'b' => match raw_ins[3] as char {
+                    'b' => ins_ie(str_ins, "psubb", Self::PSUBB),
+                    'd' => ins_ie(str_ins, "paddb", Self::PADDB),
+                    _ => Err(()),
+                },
+                'w' => match raw_ins[3] as char {
+                    'b' => ins_ie(str_ins, "psubw", Self::PSUBW),
+                    'd' => ins_ie(str_ins, "paddw", Self::PADDW),
+                    'a' => ins_ie(str_ins, "psraw", Self::PSRAW),
+                    'l' => match raw_ins[2] as char {
+                        'l' => ins_ie(str_ins, "psllw", Self::PSLLW),
+                        'r' => match raw_ins[3] as char {
+                            'l' => ins_ie(str_ins, "psrlw", Self::PSRLW),
+                            _ => Err(()),
+                        },
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                'q' => match raw_ins[3] as char {
+                    'f' => ins_ie(str_ins, "popfq", Self::POPFQ),
+                    'd' => ins_ie(str_ins, "paddq", Self::PADDQ),
+                    'l' => match raw_ins[2] as char {
+                        'l' => ins_ie(str_ins, "psllq", Self::PSLLQ),
+                        'r' => ins_ie(str_ins, "psrlq", Self::PSRLQ),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                'i' => ins_ie(str_ins, "cpuid", Self::CPUID),
                 _ => Err(()),
             },
             6 => match raw_ins[5] as char {
-                'd' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                'd' => match raw_ins[4] as char {
+                    'f' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                    _ => Err(()),
+                },
+                'b' => match raw_ins[3] as char {
+                    'b' => ins_ie(str_ins, "psubsb", Self::PSUBSB),
+                    'd' => ins_ie(str_ins, "paddsb", Self::PADDSB),
+                    _ => Err(()),
+                },
+                'w' => match (raw_ins[3] as char, raw_ins[4] as char) {
+                    ('l', 'l') => ins_ie(str_ins, "pmullw", Self::PMULLW),
+                    ('l', 'h') => ins_ie(str_ins, "pmulhw", Self::PMULHW),
+                    ('b', 's') => ins_ie(str_ins, "psubsw", Self::PSUBSW),
+                    ('d', 's') => ins_ie(str_ins, "paddsw", Self::PADDSW),
+                    _ => Err(()),
+                },
                 'q' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
+
                 _ => Err(()),
             },
-            7 => ins_ie(str_ins, "syscall", Self::SYSCALL),
+            7 => match raw_ins[0] as char {
+                's' => ins_ie(str_ins, "syscall", Self::SYSCALL),
+                'p' => match raw_ins[4] as char {
+                    'd' => ins_ie(str_ins, "pmaddwd", Self::PMADDWD),
+                    'g' => match raw_ins[6] as char {
+                        'b' => ins_ie(str_ins, "pcmpgtb", Self::PCMPGTB),
+                        'w' => ins_ie(str_ins, "pcmpgtw", Self::PCMPGTW),
+                        'd' => ins_ie(str_ins, "pcmpgtd", Self::PCMPGTD),
+                        _ => Err(()),
+                    },
+                    'e' => match raw_ins[6] as char {
+                        'b' => ins_ie(str_ins, "pcmpeqb", Self::PCMPEQB),
+                        'w' => ins_ie(str_ins, "pcmpeqw", Self::PCMPEQW),
+                        'd' => ins_ie(str_ins, "pcmpeqd", Self::PCMPEQD),
+                        _ => Err(()),
+                    },
+                    'u' => match raw_ins[1] as char {
+                        'a' => match raw_ins[6] as char {
+                            'b' => ins_ie(str_ins, "paddusb", Self::PADDUSB),
+                            'w' => ins_ie(str_ins, "paddusw", Self::PADDUSW),
+                            _ => Err(()),
+                        },
+                        's' => match raw_ins[6] as char {
+                            'b' => ins_ie(str_ins, "psubusb", Self::PSUBUSB),
+                            'w' => ins_ie(str_ins, "psubusw", Self::PSUBUSW),
+                            _ => Err(()),
+                        },
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                _ => Err(()),
+            },
+            8 => match raw_ins[0] as char {
+                'p' => match raw_ins[1] as char {
+                    'a' => match raw_ins[4] as char {
+                        'u' => ins_ie(str_ins, "packuswb", Self::PACKUSWB),
+                        's' => match raw_ins[7] as char {
+                            'w' => ins_ie(str_ins, "packssdw", Self::PACKSSDW),
+                            'b' => ins_ie(str_ins, "packsswb", Self::PACKSSWB),
+                            _ => Err(()),
+                        },
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                _ => Err(()),
+            },
+            9 => match raw_ins[0] as char {
+                'p' => match raw_ins[1] as char {
+                    'u' => match (raw_ins[6] as char, raw_ins[7] as char, raw_ins[8] as char) {
+                        ('l', 'b', 'w') => ins_ie(str_ins, "punpcklbw", Self::PUNPCKLBW),
+                        ('l', 'w', 'd') => ins_ie(str_ins, "punpcklwd", Self::PUNPCKLWD),
+                        ('l', 'd', 'q') => ins_ie(str_ins, "punpckldq", Self::PUNPCKLDQ),
+                        ('h', 'b', 'w') => ins_ie(str_ins, "punpckhbw", Self::PUNPCKHBW),
+                        ('h', 'w', 'd') => ins_ie(str_ins, "punpckhwd", Self::PUNPCKHWD),
+                        ('h', 'd', 'q') => ins_ie(str_ins, "punpckhdq", Self::PUNPCKHDQ),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                _ => Err(()),
+            },
             _ => Err(()),
         }
     }
@@ -179,6 +373,9 @@ impl Mnemonic {
         false
     }
     pub fn defaults_to_64bit(&self) -> bool {
-        matches!(self, Self::PUSH | Self::POP)
+        matches!(
+            self,
+            Self::PUSH | Self::POP | Self::PADDB | Self::PADDW | Self::PADDD | Self::PADDQ
+        )
     }
 }

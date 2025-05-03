@@ -13,15 +13,16 @@ use crate::shr::{
 fn needs_rex(ins: &Instruction) -> bool {
     let (size_d, size_s) = match (ins.dst(), ins.src()) {
         (Some(d), Some(s)) => (d.size(), s.size()),
-        (Some(d), None) => (d.size(), Size::Any),
-        (None, Some(s)) => (Size::Any, s.size()),
-        _ => (Size::Any, Size::Any),
+        (Some(d), None) => (d.size(), Size::Unknown),
+        (None, Some(s)) => (Size::Unknown, s.size()),
+        _ => (Size::Unknown, Size::Unknown),
     };
     match (size_d, size_s) {
         (Size::Qword, Size::Qword) | (Size::Qword, _) | (_, Size::Qword) => {}
         _ => return false,
     }
     match &ins.mnem {
+        Mnm::MOVQ => true,
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))
             | (Some(Operand::Mem(_) | Operand::Segment(_)), _)

@@ -5,9 +5,9 @@
 
 use crate::shr::{reg::Purpose as RegisterPurpose, size::Size};
 
-pub const CR: AType = AType::Register(RegisterPurpose::Ctrl, Size::Dword);
-pub const DR: AType = AType::Register(RegisterPurpose::Dbg, Size::Dword);
-pub const SR: AType = AType::Register(RegisterPurpose::Sgmnt, Size::Word);
+pub const CR: AType = AType::Register(RegisterPurpose::Ctrl, Size::Any);
+pub const DR: AType = AType::Register(RegisterPurpose::Dbg, Size::Any);
+pub const SR: AType = AType::Register(RegisterPurpose::Sgmnt, Size::Any);
 
 pub const IA: AType = AType::Immediate(Size::Any);
 pub const I64: AType = AType::Immediate(Size::Qword);
@@ -20,6 +20,8 @@ pub const R64: AType = AType::Register(RegisterPurpose::General, Size::Qword);
 pub const R32: AType = AType::Register(RegisterPurpose::General, Size::Dword);
 pub const R16: AType = AType::Register(RegisterPurpose::General, Size::Word);
 pub const R8: AType = AType::Register(RegisterPurpose::General, Size::Byte);
+
+pub const MMX: AType = AType::Register(RegisterPurpose::Mmx, Size::Any);
 
 pub const MA: AType = AType::Memory(Size::Any);
 pub const M64: AType = AType::Memory(Size::Qword);

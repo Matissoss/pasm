@@ -8,7 +8,7 @@ use crate::shr::kwd::Keyword;
 use std::cmp::Ordering;
 use std::fmt::{Display, Error as FmtError, Formatter};
 
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Default, Eq)]
 pub enum Size {
     Byte,
     Word,
@@ -17,13 +17,14 @@ pub enum Size {
     Xword, // xmm0-15
     Yword, // ymm0-15
     #[default]
+    Unknown,
     Any,
 }
 
 impl From<Size> for u8 {
     fn from(size: Size) -> u8 {
         match size {
-            Size::Any => 0,
+            Size::Any | Size::Unknown => 0,
             Size::Byte => 1,
             Size::Word => 2,
             Size::Dword => 4,
@@ -59,6 +60,7 @@ impl Display for Size {
             Self::Xword => write!(form, "xword"),
             Self::Yword => write!(form, "yword"),
             Self::Any => write!(form, "{{any}}"),
+            Self::Unknown => write!(form, "{{unknown}}"),
         }
     }
 }
@@ -73,6 +75,18 @@ impl PartialOrd for Size {
         let o = *oth as u16;
 
         Some(s.cmp(&o))
+    }
+}
+
+impl PartialEq for Size {
+    fn eq(&self, oth: &Size) -> bool {
+        if *self as u8 == Size::Any as u8 || *oth as u8 == Size::Any as u8 {
+            return true;
+        }
+        let s = *self as u8;
+        let o = *oth as u8;
+
+        s == o
     }
 }
 
