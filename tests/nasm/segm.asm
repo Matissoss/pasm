@@ -8,4 +8,4 @@ _start:
 	mov ecx, es:[rax + 10]
 	mov edx, ss:[rbx + rcx * 4]
 	mov esp, gs:[rbx + rcx * 4 + 10]
-	mov edi, gs:[rbx + rcx * 4 - 10]
+	mov edi, ds:[rbx + rcx * 4 - 10]

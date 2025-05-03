@@ -4,17 +4,13 @@
 // licensed under MPL 2.0
 
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::{
     core::reloc::Relocation,
     shr::{
+        symbol::{Symbol, SymbolType as SType, Visibility},
         var::VarContent,
-        symbol::{
-            Symbol, 
-            SymbolType as SType, 
-            Visibility
-        }
     },
 };
 
@@ -79,16 +75,16 @@ struct Elf64Rel {
 }
 
 struct Elf64Rela {
-    offset  : u64,
-    info    : u64,
-    addend  : i64,
+    offset: u64,
+    info: u64,
+    addend: i64,
 }
 
 pub fn make_elf64(
     code: &[u8],
     relocs: Vec<Relocation>,
     symbols: &[Symbol],
-    outpath: &PathBuf,
+    outpath: &Path,
 ) -> Vec<u8> {
     // elf class
     // 1 - 32-bit object
@@ -118,15 +114,21 @@ pub fn make_elf64(
     let mut elf_header = Elf64Ehdr {
         ident: [
             0x7F,
-            'E' as u8,
-            'L' as u8,
-            'F' as u8,
+            b'E',
+            b'L',
+            b'F',
             ei_class,
             ei_data,
             ei_version,
             ei_osabi,
             ei_osabiversion,
-            0,0,0,0,0,0,0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
         ],
         etype,
         machine,
@@ -384,13 +386,21 @@ pub fn make_elf64(
                     /*  .data  */
                     0x1 => {
                         data_r.push(index + elfsymlen - glob_num);
-                        data_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
+                        data_b.extend(
+                            Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref())
+                                .unwrap()
+                                .bytes(),
+                        );
                         data = true;
                     }
                     /* .rodata */
                     0x2 => {
                         rodata_r.push(index + elfsymlen - glob_num);
-                        rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
+                        rodata_b.extend(
+                            Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref())
+                                .unwrap()
+                                .bytes(),
+                        );
                         rodata = true;
                     }
                     /*   .bss  */
@@ -430,13 +440,21 @@ pub fn make_elf64(
                 /*  .data  */
                 0x1 => {
                     data_r.push(index + base_len);
-                    data_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
+                    data_b.extend(
+                        Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref())
+                            .unwrap()
+                            .bytes(),
+                    );
                     data = true;
                 }
                 /* .rodata */
                 0x2 => {
                     rodata_r.push(index + base_len);
-                    rodata_b.extend(Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref()).unwrap().bytes());
+                    rodata_b.extend(
+                        Cow::Owned::<Option<&Cow<VarContent>>>(symbol.content.as_ref())
+                            .unwrap()
+                            .bytes(),
+                    );
                     rodata = true;
                 }
                 /*   .bss  */
@@ -612,36 +630,28 @@ pub fn make_elf64(
     bytes.extend(&shstrtab);
     bytes.extend(&strtab);
 
-    if let Some(_) = rel_text_shdr {
-        let mut index = 0;
-        for mut rel in rel_text_symb {
-            let mut symb_index = 0;
-            for s in &symbols {
+    if rel_text_shdr.is_some() {
+        for (index, rel) in rel_text_symb.iter_mut().enumerate() {
+            for (symb_index, s) in symbols.iter().enumerate() {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
                 if **rel_text_symbref[index] == *Cow::Borrowed(&s_name) {
-                    rel.info = ((symb_index as u64) << 32) as u64 + rel.info;
+                    rel.info += (symb_index as u64) << 32;
                     break;
                 }
-                symb_index += 1;
             }
             bytes.extend(rel.bytes());
-            index += 1;
         }
     }
-    if let Some(_) = rela_text_shdr {
-        let mut index = 0;
-        for mut rela in rela_text_symb {
-            let mut symb_index = 0;
-            for s in &symbols {
+    if rela_text_shdr.is_some() {
+        for (index, rela) in rela_text_symb.iter_mut().enumerate() {
+            for (symb_index, s) in symbols.iter().enumerate() {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
                 if **rela_text_symbref[index] == *Cow::Borrowed(&s_name) {
-                    rela.info += ((symb_index as u64) << 32) as u64;
+                    rela.info += (symb_index as u64) << 32;
                     break;
                 }
-                symb_index += 1;
             }
             bytes.extend(rela.bytes());
-            index += 1;
         }
     }
     bytes
@@ -720,15 +730,13 @@ impl Elf64Rela {
 }
 
 fn calc_lsize(symbs: &[(String, u64, u64, Option<VarContent>)]) -> u64 {
-    let mut iter = symbs.iter();
     let mut lsize = 1;
     let mut prvoff = 0;
-    while let Some(i) = iter.next() {
+    for i in symbs {
         let tsize = i.1 - prvoff;
         if let Some(VarContent::String(_)) = i.3 {
             lsize = lsize.max(1);
-        }
-        else {
+        } else {
             if tsize % 4 == 0 {
                 lsize = lsize.max(4);
             } else if tsize % 8 == 0 {
@@ -737,7 +745,7 @@ fn calc_lsize(symbs: &[(String, u64, u64, Option<VarContent>)]) -> u64 {
         }
         prvoff = i.1;
     }
-    return lsize;
+    lsize
 }
 
 #[inline]

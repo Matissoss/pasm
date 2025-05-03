@@ -1,4 +1,6 @@
 # Tests!
+set -e
+
 cd tests
 ./test.sh
 cd ..
@@ -6,7 +8,6 @@ cd ..
 _RUST_TARGETS=("x86_64-unknown-linux-gnu" "x86_64-unknown-linux-musl")
 _EXPT_TARGETS=("-linux-glibc" "-linux-musl")
 _RASM_BIN="rasm"
-
 
 rm -rf .build
 mkdir -p .build

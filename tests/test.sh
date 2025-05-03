@@ -3,6 +3,8 @@
 set -e
 
 cargo test -- --nocapture
+cargo fmt
+cargo clippy
 
 errors=0
 
@@ -42,7 +44,7 @@ done
 for file in ./elf/*.asm; do
 	rm -f main.o
 	cargo r -- -i=$file -o=main -f=elf64
-	readelf_res=$(readelf -a "main" | grep -i "error|warning" || true)
+	readelf_res=$(readelf -a "main" | grep -i "error:|warning:" || true)
 	if [[ $readelf_res != "" ]]; then
 		errors=$((errors+1))
 		echo "Invalid output in ${file}:"

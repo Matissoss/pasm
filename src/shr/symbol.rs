@@ -9,7 +9,7 @@ use crate::shr::var::VarContent;
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
-pub enum Visibility{
+pub enum Visibility {
     #[default]
     Local = 0,
     Global = 1,
@@ -17,16 +17,16 @@ pub enum Visibility{
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum SymbolType{
+pub enum SymbolType {
     NoType = 0,
     Object = 1,
-    Func   = 2,
-    Section= 3,
-    File   = 4,
+    Func = 2,
+    Section = 3,
+    File = 4,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Symbol<'a>{
+pub struct Symbol<'a> {
     pub name: Cow<'a, String>,
     pub offset: u64,
     pub size: Option<u32>,
@@ -34,24 +34,6 @@ pub struct Symbol<'a>{
     pub stype: SymbolType,
     pub visibility: Visibility,
     pub content: Option<Cow<'a, VarContent<'a>>>,
-    pub addend : i64,
-    pub addt: u8
-}
-
-impl<'b> Symbol<'b>{
-    pub fn new(name: Cow<'b, String>, offset: u64, addend: i64, size: Option<u32>, sindex: u16, 
-               stype: SymbolType, visibility: Visibility, content: Option<Cow<'b, VarContent<'b>>>) -> Self
-    {
-        Self{
-            name,
-            offset,
-            size,
-            sindex,
-            stype,
-            visibility,
-            content,
-            addend,
-            addt: 0
-        }
-    }
+    pub addend: i64,
+    pub addt: u8,
 }

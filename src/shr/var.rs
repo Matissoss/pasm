@@ -5,20 +5,17 @@
 
 use std::borrow::Cow;
 
-use crate::shr::{
-    num::Number,
-    symbol::Visibility
-};
+use crate::shr::{num::Number, symbol::Visibility};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum VType{
+pub enum VType {
     Readonly, // .rodata
-    Const   , // .data
-    Uninit  , // .bss
+    Const,    // .data
+    Uninit,   // .bss
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Variable<'a>{
+pub struct Variable<'a> {
     pub name: Cow<'a, String>,
     pub vtype: VType,
     pub size: u32,
@@ -27,24 +24,36 @@ pub struct Variable<'a>{
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum VarContent<'a>{
+pub enum VarContent<'a> {
     Number(Number),
     String(Cow<'a, Vec<u8>>),
     Uninit,
 }
 
-impl<'a> Variable<'a>{
-    pub fn new(name: String, vtype: VType, size: u32, content: VarContent<'a>, visibility: Visibility) -> Self{
-        Self{name:Cow::Owned(name),vtype,size,content,visibility}
+impl<'a> Variable<'a> {
+    pub fn new(
+        name: String,
+        vtype: VType,
+        size: u32,
+        content: VarContent<'a>,
+        visibility: Visibility,
+    ) -> Self {
+        Self {
+            name: Cow::Owned(name),
+            vtype,
+            size,
+            content,
+            visibility,
+        }
     }
-    pub fn bytes(&self) -> Vec<u8>{
-        return self.content.bytes();
+    pub fn bytes(&self) -> Vec<u8> {
+        self.content.bytes()
     }
 }
 
-impl<'a> VarContent<'a>{
-    pub fn bytes(&self) -> Vec<u8>{
-        match self{
+impl VarContent<'_> {
+    pub fn bytes(&self) -> Vec<u8> {
+        match self {
             Self::Number(n) => n.split_into_bytes(),
             Self::String(s) => {
                 s.to_vec()
@@ -55,8 +64,8 @@ impl<'a> VarContent<'a>{
                 }
                 tmp_buf
                     */
-            },
-            Self::Uninit    => Vec::new(),
+            }
+            Self::Uninit => Vec::new(),
         }
     }
 }

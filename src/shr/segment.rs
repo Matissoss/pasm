@@ -8,129 +8,96 @@ use std::str::FromStr;
 use crate::{
     conf::PREFIX_SEG,
     shr::{
-        mem::Mem,
-        kwd::Keyword,
+        atype::{AType, ToAType},
         error::RASMError,
-        atype::{
-            AType,
-            ToAType
-        },
-    }
+        kwd::Keyword,
+        mem::Mem,
+        reg::{Purpose, Register},
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SegmentReg{
-    CS,
-    DS,
-    SS,
-    ES,
-    FS,
-    GS,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Segment{
-    pub segment: SegmentReg,
+pub struct Segment {
+    pub segment: Register,
     pub address: Mem,
 }
 
-impl FromStr for Segment{
+impl FromStr for Segment {
     type Err = RASMError;
-    fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err>{
+    fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err> {
         let mut chars_iter = str.chars();
         let mut tmp_buf = Vec::new();
-        while let Some(c) = chars_iter.next(){
-            if c == ':'{
+        for c in chars_iter.by_ref() {
+            if c == ':' {
                 break;
-            }
-            else {
+            } else {
                 tmp_buf.push(c);
             }
         }
         let str = String::from_iter(tmp_buf.iter());
-        let seg_reg = match SegmentReg::from_str(&str){
-            Ok(r) => r,
-            Err(_) => return Err(RASMError::new(
-                None,
-                Some(format!("Couldn't create a segment register from {}", str)),
-                None
-            ))
+        let seg_reg = match Register::from_str(&str) {
+            Ok(r) => {
+                if r.purpose() == Purpose::Sgmnt {
+                    r
+                } else {
+                    return Err(RASMError::new(
+                        None,
+                        Some("Tried to use register which purpose isn't for segments".to_string()),
+                        None,
+                    ));
+                }
+            }
+            Err(_) => {
+                return Err(RASMError::new(
+                    None,
+                    Some(format!("Couldn't create a segment register from {}", str)),
+                    None,
+                ))
+            }
         };
         tmp_buf = Vec::new();
-        while let Some(c) = chars_iter.next(){
+        for c in chars_iter {
             tmp_buf.push(c);
         }
         let str = String::from_iter(tmp_buf.iter());
-        let mem = match Mem::new(&str, Some(Keyword::Byte)){
-            Ok(m) => m,
-            Err(e) => return Err(e),
-        };
+        let mem = Mem::try_make(&str, Some(Keyword::Byte))?;
 
-        return Ok(Self{
+        Ok(Self {
             segment: seg_reg,
             address: mem,
-        });
+        })
     }
 }
 
-impl FromStr for SegmentReg{
-    type Err = ();
-    fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err>{
-        match str{
-            "cs" => Ok(Self::CS),
-            "ds" => Ok(Self::DS),
-            "ss" => Ok(Self::SS),
-            "es" => Ok(Self::ES),
-            "fs" => Ok(Self::FS),
-            "gs" => Ok(Self::GS),
-            _    => Err(())
-        }
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for Segment {
+    fn to_string(&self) -> String {
+        format!(
+            "{}{}:{:?}",
+            PREFIX_SEG,
+            format!("{:?}", self.segment).to_lowercase(),
+            self.address
+        )
     }
 }
 
-impl ToString for Segment{
-    fn to_string(&self) -> String{
-        format!("{}{}:{:?}", PREFIX_SEG, format!("{:?}", self.segment).to_lowercase(), self.address)
-    }
-}
-
-impl ToAType for Segment{
-    fn atype(&self) -> AType{
-        AType::Mem(self.address.size())
-    }
-}
-
-impl ToAType for SegmentReg{
-    fn atype(&self) -> AType{
-        AType::SegmentReg
-    }
-}
-
-impl SegmentReg{
-    pub fn to_byte(&self) -> u8{
-        match self{
-            Self::ES => 0b000,
-            Self::CS => 0b001,
-            Self::SS => 0b010,
-            Self::DS => 0b011,
-            Self::FS => 0b100,
-            Self::GS => 0b101,
-        }
+impl ToAType for Segment {
+    fn atype(&self) -> AType {
+        AType::Memory(self.address.size())
     }
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
-    use crate::shr::{
-        size::Size,
-        reg::Register as Reg,
-    };
+    use crate::shr::{reg::Register as Reg, size::Size};
     #[test]
-    fn test_parse(){
-        assert!(Ok(Segment{
-            segment: SegmentReg::FS,
-            address: Mem::SIB(Reg::RAX, Reg::RBX, Size::Qword, Size::Byte)
-        }) == dbg!(Segment::from_str("fs:(%rax, %rbx * $8)")))
+    fn test_parse() {
+        assert!(
+            Ok(Segment {
+                segment: Register::FS,
+                address: Mem::SIB(Reg::RAX, Reg::RBX, Size::Qword, Size::Byte)
+            }) == dbg!(Segment::from_str("fs:(%rax, %rbx * $8)"))
+        )
     }
 }

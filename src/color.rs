@@ -5,71 +5,70 @@
 
 use crate::CLI;
 
-use std::fmt::{
-    Display,
-    Formatter,
-    Error as FmtError
-};
+use std::fmt::{Display, Error as FmtError, Formatter};
 
 #[derive(Debug, Clone, Copy)]
-pub enum BaseColor{
-    BLACK   = 0,
-    RED     = 1,
-    GREEN   = 2,
-    YELLOW  = 3,
-    BLUE    = 4,
-    PURPLE  = 5,
-    CYAN    = 6,
-    WHITE   = 7
+pub enum BaseColor {
+    BLACK = 0,
+    RED = 1,
+    GREEN = 2,
+    YELLOW = 3,
+    BLUE = 4,
+    PURPLE = 5,
+    CYAN = 6,
+    WHITE = 7,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Modifier{
-    Regular     = 0,
-    Bold        = 1,
-    Underline   = 4,
+pub enum Modifier {
+    Regular = 0,
+    Bold = 1,
+    Underline = 4,
 }
 
 #[derive(Debug, Clone)]
-pub struct ColString{
+pub struct ColString {
     val: String,
     col: BaseColor,
-    mdf: Modifier
+    mdf: Modifier,
 }
 
-impl ColString{
-    pub fn new<T>(arg: T) -> Self
-        where T: ToString
-    {
-        return Self{
+impl ColString {
+    pub fn new(arg: impl ToString) -> Self {
+        Self {
             val: arg.to_string(),
             col: BaseColor::WHITE,
-            mdf: Modifier::Regular
+            mdf: Modifier::Regular,
         }
     }
-    pub fn set_color(self, col: BaseColor) -> Self{
-        return Self{
+    pub fn set_color(self, col: BaseColor) -> Self {
+        Self {
             val: self.val,
             col,
-            mdf: self.mdf
+            mdf: self.mdf,
         }
     }
-    pub fn set_modf(self, mdf: Modifier) -> Self{
-        return Self{
+    pub fn set_modf(self, mdf: Modifier) -> Self {
+        Self {
             val: self.val,
             col: self.col,
-            mdf
+            mdf,
         }
     }
 }
 
-impl Display for ColString{
-    fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), FmtError>{
-        if CLI.nocolor{
+impl Display for ColString {
+    fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), FmtError> {
+        if CLI.nocolor {
             write!(frm, "{}", self.val)
-        }
-        else{
-            write!(frm, "\x1b[{};{}m{}\x1b[0m", self.mdf as u8, self.col as u8 + 30, self.val)
+        } else {
+            write!(
+                frm,
+                "\x1b[{};{}m{}\x1b[0m",
+                self.mdf as u8,
+                self.col as u8 + 30,
+                self.val
+            )
         }
     }
 }

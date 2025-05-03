@@ -3,30 +3,22 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::str::FromStr;
 use crate::{
+    conf::{MEM_CLOSE, MEM_START, PREFIX_REG, PREFIX_VAL},
     shr::{
-        reg::Register,
+        atype::{AType, ToAType},
+        error::RASMError,
         kwd::Keyword,
         num::Number,
-        error::RASMError,
+        reg::{Purpose as RPurpose, Register},
         size::Size,
-        atype::{
-            AType,
-            ToAType
-        }
     },
-    conf::{
-        PREFIX_REG,
-        PREFIX_VAL,
-        MEM_CLOSE,
-        MEM_START,
-    }
 };
+use std::str::FromStr;
 
 impl Mem {
-    pub fn new(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError>{
-        let size = if let Some(kwd) = size_spec{
+    pub fn try_make(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError> {
+        let size = if let Some(kwd) = size_spec {
             match kwd {
                 Keyword::Qword => Size::Qword,
                 Keyword::Dword => Size::Dword,
@@ -35,19 +27,19 @@ impl Mem {
                 _ => return Err(RASMError::new(
                     None,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
-                    Some(format!("Consider changing size specifier to either one: !qword, !dword, !word, !byte"))
+                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte".to_string())
                 ))
             }
         } else {
             return Err(RASMError::new(
                 None,
-                Some(format!("No size specifier found in memory declaration")),
-                Some(format!("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte"))
-            ))
+                Some("No size specifier found in memory declaration".to_string()),
+                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte".to_string())
+            ));
         };
         mem_par(&mem_tok(memstr), size)
     }
-    pub fn size(&self) -> Size{
+    pub fn size(&self) -> Size {
         match self{
             Self::Index(_, _, size) |Self::IndexOffset(_, _, _, size)|/*Self::RipRelative(_, size)|*/
             Self::SIBOffset(_, _, _, _, size)|
@@ -57,7 +49,7 @@ impl Mem {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Mem{
+pub enum Mem {
     // example: (%rax+20) !dword
     Offset(Register, i32, Size),
     // example: (%rax) !dword
@@ -65,15 +57,12 @@ pub enum Mem{
     // example: (%rax * 2) !dword - uses scale and index, no base (SIB)
     Index(Register, Size, Size),
     IndexOffset(Register, i32, Size, Size),
-    // example: (%rip+20) !dword
-    // RipRelative(i32, Size),
-
     SIB(Register, Register, Size, Size),
     SIBOffset(Register, Register, Size, i32, Size),
 }
 
 #[derive(PartialEq, Debug, Clone)]
-enum MemTok{
+enum MemTok {
     Reg(Register),
     Num(i32),
     Unknown(String),
@@ -86,175 +75,214 @@ enum MemTok{
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum NumberVariant{
+enum NumberVariant {
     Multiply,
     Minus,
     Plus,
 }
 
-fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError>{
-    if !toks.starts_with(&[MemTok::Start]){
+fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
+    if !toks.starts_with(&[MemTok::Start]) {
         return Err(RASMError::new(
             None,
-            Some(format!("Expected memory to start with: {}, found unexpected token", MEM_START)),
-            Some(format!("Consider starting memory with {}", MEM_START))
-        ))
+            Some(format!(
+                "Expected memory to start with: {}, found unexpected token",
+                MEM_START
+            )),
+            Some(format!("Consider starting memory with {}", MEM_START)),
+        ));
     }
-    if !toks.ends_with(&[MemTok::End]){
+    if !toks.ends_with(&[MemTok::End]) {
         return Err(RASMError::new(
             None,
             Some(format!("Expected memory closing symbol '{}'", MEM_CLOSE)),
-            Some(format!("Consider ending memory with '{}' character", MEM_CLOSE)),
-        ))
+            Some(format!(
+                "Consider ending memory with '{}' character",
+                MEM_CLOSE
+            )),
+        ));
     }
 
-    let too_many_reg_e : RASMError = RASMError::new(
+    let too_many_reg_e: RASMError = RASMError::new(
         None,
-        Some(format!("Too many registers found in one memory declaration")),
-        Some(format!("maximum amount of registers is 2"))
+        Some("Too many registers found in one memory declaration".to_string()),
+        Some("maximum amount of registers is 2".to_string()),
     );
 
-    let mut rest                            = toks[1..toks.len()-1].iter();
-    let mut variant     : NumberVariant     = NumberVariant::Plus;
-    let mut tried_base  : bool              = false;
-    let mut base        : Option<Register>  = None;
-    let mut index       : Option<Register>  = None;
-    let mut scale       : Option<Size>      = None;
-    let mut offset      : Option<i32>       = None;
-    while let Some(t) = rest.next(){
+    let mut variant: NumberVariant = NumberVariant::Plus;
+    let mut tried_base: bool = false;
+    let mut base: Option<Register> = None;
+    let mut index: Option<Register> = None;
+    let mut scale: Option<Size> = None;
+    let mut offset: Option<i32> = None;
+    for t in toks[1..toks.len() - 1].iter() {
         match t {
             MemTok::Reg(r) => {
-                if tried_base{
-                    if let None = index {
+                if tried_base {
+                    if index.is_none() {
                         index = Some(*r);
                         tried_base = false;
+                    } else {
+                        return Err(too_many_reg_e);
                     }
-                    else {
-                        return Err(too_many_reg_e)
-                    }
-                }
-                else {
-                    if let None = base {
+                } else {
+                    if base.is_none() {
                         base = Some(*r);
-                    }
-                    else if let None = index {
+                    } else if index.is_none() {
                         index = Some(*r);
-                    }
-                    else {
-                        return Err(too_many_reg_e)
+                    } else {
+                        return Err(too_many_reg_e);
                     }
                 }
-            },
-            MemTok::Underline => {
-                tried_base = true
-            },
+            }
+            MemTok::Underline => tried_base = true,
             MemTok::Num(n) => {
-                if variant == NumberVariant::Multiply{
-                    if let Ok(s) = Size::try_from(*n as u16){
-                        if let None = scale{
+                if variant == NumberVariant::Multiply {
+                    if let Ok(s) = Size::try_from(*n as u16) {
+                        if scale.is_none() {
                             scale = Some(s);
-                        }
-                        else {
+                        } else {
                             return Err(RASMError::new(
                                 None,
-                                Some(format!("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)")),
-                                Some(format!("Consider removing last scale (prefixed with '*')"))
-                            ))
+                                Some("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)".to_string()),
+                                Some("Consider removing last scale (prefixed with '*')".to_string())
+                            ));
                         }
-                    }
-                    else {
+                    } else {
                         return Err(RASMError::new(
                             None,
                             Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                            Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
-                        ))
+                            Some("Consider changing scale into number: 1, 2, 4 or 8".to_string())
+                        ));
                     }
-                }
-                else {
-                    if let None = offset {
-                        if variant == NumberVariant::Minus{
+                } else {
+                    if offset.is_none() {
+                        if variant == NumberVariant::Minus {
                             offset = Some(-n);
-                        }
-                        else {
+                        } else {
                             offset = Some(*n);
                         }
-                    }
-                    else if let None = scale{
-                        if let Ok(s) = Size::try_from(*n as u16){
+                    } else if scale.is_none() {
+                        if let Ok(s) = Size::try_from(*n as u16) {
                             scale = Some(s);
-                        }
-                        else {
+                        } else {
                             return Err(RASMError::new(
                                 None,
                                 Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                                Some(format!("Consider changing scale into number: 1, 2, 4 or 8"))
-                            ))
+                                Some("Consider changing scale into number: 1, 2, 4 or 8".to_string())
+                            ));
                         }
-                    }
-                    else {
+                    } else {
                         return Err(RASMError::new(
                             None,
-                            Some(format!("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)")),
-                            Some(format!("Consider removing last scale (prefixed with '+' or '-')"))
-                        ))
+                            Some("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)".to_string()),
+                            Some("Consider removing last scale (prefixed with '+' or '-')".to_string())
+                        ));
                     }
                 }
 
                 variant = NumberVariant::Plus;
-            },
-            MemTok::Plus     => variant = NumberVariant::Plus,
-            MemTok::Minus    => variant = NumberVariant::Minus,
-            MemTok::Star     => variant = NumberVariant::Multiply,
-            MemTok::Unknown(s) => return Err(RASMError::new(
-                None,
-                Some(format!("Found unknown token inside memory declaration: `{}`", s)),
-                Some(format!("Consider changing this token into number, register, ',' or '_'"))
-            )),
-            MemTok::Start|MemTok::End => return Err(RASMError::new(
-                None,
-                Some(format!("Found memory closing/starting delimeter inside memory declaration")),
-                Some(format!("Consider removing closing/starting delimeter from memory declaration"))
-            )),
+            }
+            MemTok::Plus => variant = NumberVariant::Plus,
+            MemTok::Minus => variant = NumberVariant::Minus,
+            MemTok::Star => variant = NumberVariant::Multiply,
+            MemTok::Unknown(s) => {
+                return Err(RASMError::new(
+                    None,
+                    Some(format!(
+                        "Found unknown token inside memory declaration: `{}`",
+                        s
+                    )),
+                    Some(
+                        "Consider changing this token into number, register, ',' or '_'"
+                            .to_string(),
+                    ),
+                ))
+            }
+            MemTok::Start | MemTok::End => {
+                return Err(RASMError::new(
+                    None,
+                    Some(
+                        "Found memory closing/starting delimeter inside memory declaration"
+                            .to_string(),
+                    ),
+                    Some(
+                        "Consider removing closing/starting delimeter from memory declaration"
+                            .to_string(),
+                    ),
+                ))
+            }
         }
     }
 
-    match (base, index, scale, offset){
-        (Some(b), Some(i), Some(s), Some(o))        => Ok(Mem::SIBOffset(b, i, s, o, size)),
-        (Some(b), Some(i), Some(s), None)           => Ok(Mem::SIB(b, i, s, size)),
-        //(Some(Register::RIP), None, None, Some(o))  => Ok(Mem::RipRelative(o, size)),
-        (None   , Some(b), None   , Some(o))|
-        (Some(b), None   , None   , Some(o))        => Ok(Mem::Offset(b, o, size)),
-        (Some(b), None   , None   , None   )        => Ok(Mem::Direct(b, size)),
-        (Some(b), Some(i), None   , None   )        => Ok(Mem::SIB(b, i, Size::Byte, size)),
-        (Some(i), None   , Some(s), None   )        => Ok(Mem::Index(i, s, size)),
-        (Some(i), None   , Some(s), Some(o))        => Ok(Mem::IndexOffset(i, o, s, size)),
-        (Some(_), Some(_), None, Some(_))           => Err(RASMError::new(None,
-            Some(format!("Tried to use SIB memory addresation, but scale was not found")),
-            Some(format!("Consider adding scale. Scale can be added like this: `*<scale>`, 
+    if let Some(base) = base {
+        if base.purpose() != RPurpose::General {
+            return Err(RASMError::new(
+                None,
+                Some("Base register in this memory declaration isn't general purpose".to_string()),
+                None,
+            ));
+        }
+    }
+    if let Some(index) = index {
+        if index.purpose() != RPurpose::General {
+            return Err(RASMError::new(
+                None,
+                Some("Index register in this memory declaration isn't general purpose".to_string()),
+                None,
+            ));
+        }
+    }
+
+    match (base, index, scale, offset) {
+        (Some(b), Some(i), Some(s), Some(o)) => Ok(Mem::SIBOffset(b, i, s, o, size)),
+        (Some(b), Some(i), Some(s), None) => Ok(Mem::SIB(b, i, s, size)),
+        (None, Some(b), None, Some(o)) | (Some(b), None, None, Some(o)) => {
+            Ok(Mem::Offset(b, o, size))
+        }
+        (Some(b), None, None, None) => Ok(Mem::Direct(b, size)),
+        (Some(b), Some(i), None, None) => Ok(Mem::SIB(b, i, Size::Byte, size)),
+        (Some(i), None, Some(s), None) => Ok(Mem::Index(i, s, size)),
+        (Some(i), None, Some(s), Some(o)) => Ok(Mem::IndexOffset(i, o, s, size)),
+        (Some(_), Some(_), None, Some(_)) => Err(RASMError::new(
+            None,
+            Some("Tried to use SIB memory addresation, but scale was not found".to_string()),
+            Some(
+                "Consider adding scale. Scale can be added like this: `*<scale>`, 
              where <scale> is number 1, 2, 4 or 8. 
              If you had started scale with comma ',' instead of asterisk '*',
-             it got handled as displacement and not scale."))
+             it got handled as displacement and not scale."
+                    .to_string(),
+            ),
         )),
-        _ => {
-            println!("{:?} {:?} {:?} {:?}", base, index, scale, offset);
-            panic!("Unexpected memory combo :)")
-        }
+        (None, None, None, None) => Err(RASMError::new(
+            None,
+            Some("Tried to make memory operand out of nothing `()`".to_string()),
+            None,
+        )),
+        _ => Err(RASMError::new(
+            None,
+            Some(format!(
+                "Unexpected memory combo: {:?} {:?} {:?} {:?}",
+                base, index, scale, offset
+            )),
+            None,
+        )),
     }
 }
 
-fn mem_tok(str: &str) -> Vec<MemTok>{
-    let mut pfx : Option<char> = None;
-    let mut tmp_buf : Vec<char> = Vec::new();
-    let mut tokens : Vec<MemTok> = Vec::new();
-    for c in str.chars(){
+fn mem_tok(str: &str) -> Vec<MemTok> {
+    let mut pfx: Option<char> = None;
+    let mut tmp_buf: Vec<char> = Vec::new();
+    let mut tokens: Vec<MemTok> = Vec::new();
+    for c in str.chars() {
         match (pfx, c) {
-            (None, ' '|'\t') => continue,
-            (_, ','|'+'|'-'|'*') => {
-                if !tmp_buf.is_empty(){
-                    if let Some(m) = mem_tok_make(&tmp_buf, pfx){
+            (None, ' ' | '\t') => continue,
+            (_, ',' | '+' | '-' | '*') => {
+                if !tmp_buf.is_empty() {
+                    if let Some(m) = mem_tok_make(&tmp_buf, pfx) {
                         tokens.push(m);
-                    }
-                    else {
+                    } else {
                         tokens.push(MemTok::Unknown(String::from_iter(tmp_buf.iter())));
                     }
                 }
@@ -266,93 +294,92 @@ fn mem_tok(str: &str) -> Vec<MemTok>{
                     '*' => tokens.push(MemTok::Star),
                     _ => {}
                 }
-            },
+            }
             (_, '_') => tokens.push(MemTok::Underline),
             (_, MEM_START) => tokens.push(MemTok::Start),
             (_, MEM_CLOSE) => {
-                if !tmp_buf.is_empty(){
-                    if let Some(m) = mem_tok_make(&tmp_buf, pfx){
+                if !tmp_buf.is_empty() {
+                    if let Some(m) = mem_tok_make(&tmp_buf, pfx) {
                         tokens.push(m);
-                    }
-                    else {
+                    } else {
                         tokens.push(MemTok::Unknown(String::from_iter(tmp_buf.iter())));
                     }
                 }
                 tokens.push(MemTok::End)
-            },
+            }
             (None, PREFIX_REG) => pfx = Some(PREFIX_REG),
             (None, PREFIX_VAL) => pfx = Some(PREFIX_VAL),
             (_, ' ') => continue,
             (_, _) => tmp_buf.push(c),
         }
     }
-    return tokens;
+    tokens
 }
 
-fn mem_tok_make(tmp_buf : &[char], pfx: Option<char>) -> Option<MemTok>{
+fn mem_tok_make(tmp_buf: &[char], pfx: Option<char>) -> Option<MemTok> {
     let str = String::from_iter(tmp_buf.iter());
-    match pfx{
+    match pfx {
         Some(PREFIX_REG) => res2op::<Register, (), MemTok>(Register::from_str(&str)),
-        _ => if let Ok(numb) = Number::from_str(&str){
-            match numb.get_int(){
-                Some(i) => {
-                    return res2op::<i32, _, MemTok>(i.try_into());
-                },
-                None => {
-                    if let Some(i) = numb.get_uint(){
-                        return res2op::<i32, _, MemTok>(i.try_into());
-                    }
-                    else {
-                        None
+        _ => {
+            if let Ok(numb) = Number::from_str(&str) {
+                match numb.get_int() {
+                    Some(i) => res2op::<i32, _, MemTok>(i.try_into()),
+                    None => {
+                        if let Some(i) = numb.get_uint() {
+                            res2op::<i32, _, MemTok>(i.try_into())
+                        } else {
+                            None
+                        }
                     }
                 }
+            } else {
+                None
             }
         }
-        else {
-            None
-        },
     }
 }
-
 
 // allows me to save up to 4 lines...
 // ... by adding 8 more lines (ok, maybe 4 lines are saved)
 #[inline]
 fn res2op<T, Y, E>(res: Result<T, Y>) -> Option<E>
-where T: Into<E>{
-    match res{
+where
+    T: Into<E>,
+{
+    match res {
         Ok(t) => Some(t.into()),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
-impl Into<MemTok> for i32{
-    fn into(self) -> MemTok{
-        return MemTok::Num(self)
-    }
-}
-impl Into<MemTok> for Register{
-    fn into(self) -> MemTok{
-        return MemTok::Reg(self)
+impl From<i32> for MemTok {
+    fn from(num: i32) -> MemTok {
+        MemTok::Num(num)
     }
 }
 
-impl ToAType for Mem{
-    fn atype(&self) -> AType{
-        return AType::Mem(self.size())
+impl From<Register> for MemTok {
+    fn from(reg: Register) -> MemTok {
+        MemTok::Reg(reg)
+    }
+}
+
+impl ToAType for Mem {
+    fn atype(&self) -> AType {
+        AType::Memory(self.size())
     }
 }
 
 #[cfg(test)]
-mod mem_test{
+mod mem_test {
     use super::*;
     #[test]
     fn mem_tok_t() {
         assert!(
             vec![
-                MemTok::Start, 
-                MemTok::Reg(Register::RAX), 
-                MemTok::Underline, 
+                MemTok::Start,
+                MemTok::Reg(Register::RAX),
+                MemTok::Underline,
                 MemTok::Num(20),
                 MemTok::Num(20),
                 MemTok::End,
@@ -360,7 +387,7 @@ mod mem_test{
         )
     }
     #[test]
-    fn mem_par_t(){
+    fn mem_par_t() {
         let memtoks = vec![
             MemTok::Start,
             MemTok::Reg(Register::RAX),
@@ -373,7 +400,7 @@ mod mem_test{
             MemTok::Underline,
             MemTok::Reg(Register::RAX),
             MemTok::Num(8),
-            MemTok::End
+            MemTok::End,
         ];
         assert!(Ok(Mem::Offset(Register::RAX, 8, Size::Byte)) == mem_par(&memtoks, Size::Byte));
     }

@@ -18,6 +18,8 @@ fi
 
 if [[ $1 == "-c" ]]; then
 	cargo test
+	cargo fmt
+	cargo clippy
 	if [[ $? != 0 ]]; then
 		echo "This version of RASM is not functional (errors were found during tests)"
 	fi
@@ -38,6 +40,8 @@ fi
 
 if [[ $1 == "-l" ]]; then
 	cargo test
+	cargo fmt
+	cargo clippy
 	if [[ $? != 0 ]]; then
 		echo "This version of RASM is not functional (errors were found during tests)"
 	fi

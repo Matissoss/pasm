@@ -7,4 +7,4 @@ _start:
 	mov %ecx, #es:(%rax + $10) !dword
 	mov %edx, #ss:(%rbx + %rcx * $4) !dword
 	mov %esp, #gs:(%rbx + %rcx * $4 + $10) !dword
-	mov %edi, #gs:(%rbx + %rcx * $4 - $10) !dword
+	mov %edi, #ds:(%rbx + %rcx * $4 - $10) !dword
