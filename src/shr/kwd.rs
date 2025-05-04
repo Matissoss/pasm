@@ -13,6 +13,7 @@ pub enum Keyword {
     Bits,
     Qword,
     Dword,
+    Xword,
     Const,
     Ronly,
     Entry,
@@ -48,6 +49,7 @@ impl FromStr for Keyword {
                 _ => Err(()),
             },
             5 => match kwd_raw[0] as char {
+                'x' => kwd_ie(kwd_str, "xword", Keyword::Xword),
                 'q' => kwd_ie(kwd_str, "qword", Keyword::Qword),
                 'd' => kwd_ie(kwd_str, "dword", Keyword::Dword),
                 'e' => kwd_ie(kwd_str, "entry", Keyword::Entry),
@@ -81,6 +83,7 @@ impl ToString for Keyword {
             Self::Global => String::from("global"),
             Self::Extern => String::from("extern"),
             Self::Bits => String::from("bits"),
+            Self::Xword => String::from("xword"),
         }
     }
 }

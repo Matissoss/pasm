@@ -22,6 +22,8 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
+        Mnm::CVTSS2SI => true,
+        Mnm::CVTSI2SS => true,
         Mnm::MOVQ => true,
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))

@@ -1,4 +1,4 @@
-rasmx86_64 	    25.04
+rasmx86_64 	    25.05
 -------------------------
 DISCLAIMER:
  This is MVP version of rasm asssembler and it doesn't support 100% of functionality.

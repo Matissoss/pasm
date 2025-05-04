@@ -13,6 +13,7 @@ use crate::{
         reloc::{RCategory, RType, Relocation},
         rex::gen_rex,
         sib::gen_sib,
+        sse, sse2,
     },
     shr::{
         ast::{Instruction, Operand},
@@ -204,6 +205,121 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         Ins::PUSHF | Ins::PUSHFD | Ins::PUSHFQ => (vec![0x9C], None),
         Ins::POPF | Ins::POPFD | Ins::POPFQ => (vec![0x9D], None),
+
+        // SSE
+        Ins::MOVSS => (
+            sse::gen_movxxs(ins, bits, &[0xF3, 0x0F, 0x10], &[0xF3, 0x0F, 0x11]),
+            None,
+        ),
+        Ins::MOVHLPS => (sse::gen_movxxs(ins, bits, &[0x0F, 0x12], &[]), None),
+        Ins::MOVLHPS => (sse::gen_movxxs(ins, bits, &[0x0F, 0x16], &[]), None),
+        Ins::MOVAPS => (
+            sse::gen_movxxs(ins, bits, &[0x0F, 0x28], &[0x0F, 0x29]),
+            None,
+        ),
+        Ins::MOVUPS => (
+            sse::gen_movxxs(ins, bits, &[0x0F, 0x10], &[0x0F, 0x11]),
+            None,
+        ),
+        Ins::MOVLPS => (
+            sse::gen_movxxs(ins, bits, &[0x0F, 0x12], &[0x0F, 0x13]),
+            None,
+        ),
+        Ins::MOVHPS => (
+            sse::gen_movxxs(ins, bits, &[0x0F, 0x16], &[0x0F, 0x17]),
+            None,
+        ),
+
+        Ins::ADDPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x58]), None),
+        Ins::ADDSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x58]), None),
+
+        Ins::SUBPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5C]), None),
+        Ins::SUBSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5C]), None),
+
+        Ins::MULPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x59]), None),
+        Ins::MULSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x59]), None),
+
+        Ins::DIVPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5E]), None),
+        Ins::DIVSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5E]), None),
+
+        Ins::MINPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5D]), None),
+        Ins::MINSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5D]), None),
+
+        Ins::MAXPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5F]), None),
+        Ins::MAXSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5F]), None),
+
+        Ins::RSQRTPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x52]), None),
+        Ins::RSQRTSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x52]), None),
+
+        Ins::SHUFPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0xC6]), None),
+
+        Ins::SQRTPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x51]), None),
+        Ins::SQRTSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x51]), None),
+
+        Ins::CMPPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0xC2]), None),
+        Ins::CMPSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0xC2]), None),
+
+        Ins::RCPPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x53]), None),
+        Ins::RCPSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x53]), None),
+
+        Ins::COMISS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x2F]), None),
+        Ins::UCOMISS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x2E]), None),
+
+        Ins::ORPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x56]), None),
+        Ins::ANDPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x54]), None),
+        Ins::ANDNPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
+        Ins::XORPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
+
+        Ins::UNPCKLPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x14]), None),
+        Ins::UNPCKHPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x15]), None),
+
+        Ins::CVTSI2SS => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2A]), None),
+        Ins::CVTPS2PI => (
+            gen_ins(ins, &[0x0F, 0x2D], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::CVTTPS2PI => (
+            gen_ins(ins, &[0x0F, 0x2C], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::CVTPI2PS => (
+            gen_ins(ins, &[0x0F, 0x2A], (true, None, None), None, bits, false),
+            None,
+        ),
+        Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
+
+        // SSE2
+        Ins::ADDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x58]), None),
+        Ins::ADDSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x58]), None),
+
+        Ins::SUBPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5C]), None),
+        Ins::SUBSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5C]), None),
+
+        Ins::MULPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x59]), None),
+        Ins::MULSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x59]), None),
+
+        Ins::DIVPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5E]), None),
+        Ins::DIVSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5E]), None),
+
+        Ins::MINPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5D]), None),
+        Ins::MINSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5D]), None),
+
+        Ins::MAXPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5F]), None),
+        Ins::MAXSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5F]), None),
+
+        Ins::SQRTPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x51]), None),
+        Ins::SQRTSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x51]), None),
+
+        Ins::CMPPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xC2]), None),
+        Ins::CMPSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0xC2]), None),
+
+        Ins::COMISD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2F]), None),
+        Ins::UCOMISD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2E]), None),
+
+        Ins::ORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x56]), None),
+        Ins::ANDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x54]), None),
+        Ins::ANDNPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
+        Ins::XORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
 
         // MMX
         Ins::MOVD | Ins::MOVQ => (mmx::ins_movdq(ins, bits), None),
@@ -1078,7 +1194,7 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
         Operand::Segment(s) => (s.address.size(), true),
         _ => return None,
     };
-    if size == Size::Byte {
+    if size == Size::Byte || size == Size::Xword {
         return None;
     }
     match bits {

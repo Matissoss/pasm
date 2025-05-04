@@ -66,9 +66,9 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::MOV => ot_chk(
             ins,
             &[
-                (&[R8, R16, R32, M8, M16, M32, SR, CR], Optional::Needed),
+                (&[R8, R16, R32, M8, M16, M32, SR, CR, DR], Optional::Needed),
                 (
-                    &[R8, R16, R32, M8, M16, M32, I8, I16, I32, SR, CR],
+                    &[R8, R16, R32, M8, M16, M32, I8, I16, I32, SR, CR, DR],
                     Optional::Needed,
                 ),
             ],
@@ -106,6 +106,9 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                 (CR, SR),
                 (CR, DR),
                 (DR, SR),
+                (SR, SR),
+                (DR, DR),
+                (CR, CR),
             ],
             &[],
         ),
@@ -218,6 +221,173 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::POPF | Mnm::POPFD | Mnm::PUSHF | Mnm::PUSHFD => {
             ot_chk(ins, &[], &[], &[])
         }
+        // SSE
+        Mnm::CVTSS2SI => ot_chk(
+            ins,
+            &[(&[R32], Optional::Needed), (&[XMM, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPS2PI | Mnm::CVTTPS2PI => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPI2PS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CMPSS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CMPPS | Mnm::SHUFPS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::UNPCKLPS | Mnm::UNPCKHPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVHPS | Mnm::MOVLPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[(M64, M64), (XMM, XMM)],
+            &[],
+        ),
+        Mnm::MOVLHPS | Mnm::MOVHLPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVAPS | Mnm::MOVUPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M128], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+            ],
+            &[(M128, M128)],
+            &[],
+        ),
+        Mnm::MOVSS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M32], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[(M32, M32)],
+            &[],
+        ),
+
+        Mnm::SQRTSS
+        | Mnm::ADDSS
+        | Mnm::SUBSS
+        | Mnm::DIVSS
+        | Mnm::MULSS
+        | Mnm::RCPSS
+        | Mnm::RSQRTSS
+        | Mnm::MINSS
+        | Mnm::COMISS
+        | Mnm::UCOMISS
+        | Mnm::MAXSS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        Mnm::ADDPS
+        | Mnm::SUBPS
+        | Mnm::DIVPS
+        | Mnm::MULPS
+        | Mnm::RCPPS
+        | Mnm::SQRTPS
+        | Mnm::RSQRTPS
+        | Mnm::MINPS
+        | Mnm::MAXPS
+        | Mnm::ORPS
+        | Mnm::ANDPS
+        | Mnm::XORPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        // SSE2
+        Mnm::CMPSD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        Mnm::CMPPD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::SQRTSD
+        | Mnm::ADDSD
+        | Mnm::SUBSD
+        | Mnm::DIVSD
+        | Mnm::MULSD
+        | Mnm::MINSD
+        | Mnm::COMISD
+        | Mnm::UCOMISD
+        | Mnm::MAXSD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        Mnm::ADDPD
+        | Mnm::SUBPD
+        | Mnm::DIVPD
+        | Mnm::MULPD
+        | Mnm::SQRTPD
+        | Mnm::MINPD
+        | Mnm::MAXPD
+        | Mnm::ORPD
+        | Mnm::ANDPD
+        | Mnm::XORPD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        // MMX
         Mnm::MOVD => ot_chk(
             ins,
             &[
@@ -464,6 +634,184 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::POPFQ
         | Mnm::PUSHFQ
         | Mnm::EMMS => ot_chk(ins, &[], &[], &[]),
+
+        // SSE
+        Mnm::CVTSS2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPS2PI | Mnm::CVTTPS2PI => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPI2PS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSI2SS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, R32, R64, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CMPSS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::UNPCKLPS | Mnm::UNPCKHPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        Mnm::CMPPS | Mnm::SHUFPS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::MOVHPS | Mnm::MOVLPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[(M64, M64)],
+            &[],
+        ),
+        Mnm::MOVLHPS | Mnm::MOVHLPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVAPS | Mnm::MOVUPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M128], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+            ],
+            &[(M128, M128)],
+            &[],
+        ),
+        Mnm::MOVSS => ot_chk(
+            ins,
+            &[
+                (&[XMM, M32], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[(M32, M32)],
+            &[],
+        ),
+        Mnm::SQRTSS
+        | Mnm::ADDSS
+        | Mnm::SUBSS
+        | Mnm::DIVSS
+        | Mnm::MULSS
+        | Mnm::RCPSS
+        | Mnm::RSQRTSS
+        | Mnm::MINSS
+        | Mnm::MAXSS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        Mnm::ADDPS
+        | Mnm::SUBPS
+        | Mnm::DIVPS
+        | Mnm::MULPS
+        | Mnm::RCPPS
+        | Mnm::SQRTPS
+        | Mnm::RSQRTPS
+        | Mnm::MINPS
+        | Mnm::MAXPS
+        | Mnm::ORPS
+        | Mnm::ANDPS
+        | Mnm::XORPS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        // SSE2
+        Mnm::CMPSD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        Mnm::CMPPD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        Mnm::SQRTSD
+        | Mnm::ADDSD
+        | Mnm::SUBSD
+        | Mnm::DIVSD
+        | Mnm::MULSD
+        | Mnm::MINSD
+        | Mnm::COMISD
+        | Mnm::UCOMISD
+        | Mnm::MAXSD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        Mnm::ADDPD
+        | Mnm::SUBPD
+        | Mnm::DIVPD
+        | Mnm::MULPD
+        | Mnm::SQRTPD
+        | Mnm::MINPD
+        | Mnm::MAXPD
+        | Mnm::ORPD
+        | Mnm::ANDPD
+        | Mnm::XORPD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        // MMX
         Mnm::MOVD => ot_chk(
             ins,
             &[
@@ -756,11 +1104,13 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 || ((g0 == RPurpose::Dbg
                     || g0 == RPurpose::Ctrl
                     || g0 == RPurpose::Sgmnt
-                    || g0 == RPurpose::Mmx)
+                    || g0 == RPurpose::Mmx
+                    || g0 == RPurpose::F128)
                     || (g1 == RPurpose::Dbg
                         || g1 == RPurpose::Ctrl
                         || g1 == RPurpose::Sgmnt
-                        || g1 == RPurpose::Mmx))
+                        || g1 == RPurpose::Mmx
+                        || g1 == RPurpose::F128))
             {
                 None
             } else {

@@ -7,111 +7,102 @@ use crate::conf::FAST_MODE;
 use crate::shr::size::Size;
 use std::str::FromStr;
 
+#[rustfmt::skip]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mnemonic {
-    MOV,
-    ADD,
-    SUB,
-    IMUL,
-    MUL,
-    DIV,
-    IDIV,
+    MOV  , ADD , SUB ,
+    IMUL , MUL , DIV ,
+    IDIV , AND , OR  ,
+    NOT  , NEG , XOR ,
+    SHR  , SAR , SHL ,
+    SAL  , LEA , INC ,
+    DEC  , CMP , TEST,
 
-    AND,
-    OR,
-    NOT,
-    NEG,
-    XOR,
-    SHR,
-    SAR,
-    SHL,
-    SAL,
-    LEA,
+    JMP, CALL,
 
-    INC,
-    DEC,
+    JE , JZ , JNZ,
+    JNE, JL , JLE,
+    JG , JGE,
 
-    CMP,
-    TEST,
-
-    JMP,
-    CALL,
-    JE,
-    JZ,
-    JNZ,
-    JNE,
-    JL,
-    JLE,
-    JG,
-    JGE,
-
-    SYSCALL,
-    RET,
+    SYSCALL, RET,
     NOP,
 
-    POP,
-    POPF,
-    POPFD,
-    POPFQ,
-    PUSH,
-    PUSHF,
-    PUSHFD,
-    PUSHFQ,
+    POP   , POPF  , POPFD,
+    POPFQ , PUSH  , PUSHF,
+    PUSHFD, PUSHFQ,
 
     CPUID,
 
-    // MMX extension
-    MOVD,
-    MOVQ,
-    PADDB,
-    PADDW,
-    PADDD,
-    PADDQ,
-    PANDN,
-    PADDSB,
-    PADDSW,
-    PADDUSB,
-    PADDUSW,
-    PSUBB,
-    PSUBW,
-    PSUBD,
-    PSUBSB,
-    PSUBSW,
-    PSUBUSB,
-    PSUBUSW,
+    // SSE extension
+    ADDPS  , ADDSS,
+    SUBPS  , SUBSS,
+    MULPS  , MULSS,
+    DIVPS  , DIVSS,
+    RCPPS  , RCPSS,
+    SQRTPS , SQRTSS,
+    RSQRTPS, RSQRTSS,
+    MINPS  , MINSS,
+    MAXPS  , MAXSS,
 
-    PMULHW,
-    PMULLW,
+    ORPS   , ANDPS,
+    ANDNPS , XORPS,
+    CMPPS  , CMPSS,
+
+    COMISS , UCOMISS,
+
+    CVTSI2SS, 
+    CVTPI2PS,
+    CVTPS2PI,
+    CVTSS2SI,
+    CVTTPS2PI,
+
+    SHUFPS, UNPCKLPS, UNPCKHPS,
+
+    MOVAPS, MOVUPS, MOVSS,
+    MOVLPS, MOVHPS,
+    
+    MOVLHPS,MOVHLPS,
+    
+    // SSE2 extension
+    ADDPD  , ADDSD,
+    SUBPD  , SUBSD,
+    MULPD  , MULSD,
+    DIVPD  , DIVSD,
+    SQRTPD , SQRTSD,
+    MINPD  , MINSD,
+    MAXPD  , MAXSD,
+    ORPD   , ANDPD,
+    ANDNPD , XORPD,
+
+    CMPPD  , CMPSD,
+    COMISD , UCOMISD,
+
+    // MMX extension
+    MOVD, MOVQ,
+    
+    PADDB , PADDW , PADDD  , PADDQ  ,
+    PADDSB, PADDSW, PADDUSB, PADDUSW,
+    
+    PSUBB , PSUBW  , PSUBD  , PSUBSB ,
+    PSUBSW, PSUBUSB, PSUBUSW, PANDN  ,
+
+    PMULHW, PMULLW,
 
     PMADDWD,
-    PCMPEQB,
-    PCMPEQW,
-    PCMPEQD,
-    PCMPGTB,
-    PCMPGTW,
-    PCMPGTD,
-    PACKUSWB,
-    PACKSSWB,
-    PACKSSDW,
-    PUNPCKLBW,
-    PUNPCKLWD,
-    PUNPCKLDQ,
-    PUNPCKHBW,
-    PUNPCKHWD,
-    PUNPCKHDQ,
 
-    POR,
-    PAND,
-    PANND,
-    PXOR,
-    PSLLW,
-    PSLLD,
-    PSLLQ,
-    PSRLW,
-    PSRLD,
-    PSRLQ,
-    PSRAW,
-    PSRAD,
+    PCMPEQB, PCMPEQW, PCMPEQD,
+    PCMPGTB, PCMPGTW, PCMPGTD,
+    
+    PACKUSWB, PACKSSWB, PACKSSDW,
+    
+    PUNPCKLBW, PUNPCKLWD, PUNPCKLDQ,
+    PUNPCKHBW, PUNPCKHWD, PUNPCKHDQ,
+
+    POR, PAND, PANND, PXOR,
+    
+    PSLLW, PSLLD, PSLLQ,
+    PSRLW, PSRLD, PSRLQ,
+    PSRAW, PSRAD,
 
     EMMS,
 }
@@ -218,11 +209,78 @@ impl FromStr for Mnemonic {
                     'q' => ins_ie(str_ins, "movq", Self::MOVQ),
                     _ => Err(()),
                 },
+                'r' => ins_ie(str_ins, "orps", Self::ORPS),
                 'e' => ins_ie(str_ins, "test", Self::TEST),
                 'x' => ins_ie(str_ins, "pxor", Self::PXOR),
                 _ => Err(()),
             },
             5 => match raw_ins[4] as char {
+                's' => match raw_ins[2] as char {
+                    'd' => match raw_ins[1] as char {
+                        'd' => {
+                            if raw_ins[3] as char == 'p' {
+                                ins_ie(str_ins, "addps", Self::ADDPS)
+                            } else {
+                                ins_ie(str_ins, "addss", Self::ADDSS)
+                            }
+                        }
+                        'n' => ins_ie(str_ins, "andps", Self::ANDPS),
+                        _ => Err(()),
+                    },
+                    'b' => {
+                        if raw_ins[3] as char == 'p' {
+                            ins_ie(str_ins, "subps", Self::SUBPS)
+                        } else {
+                            ins_ie(str_ins, "subss", Self::SUBSS)
+                        }
+                    }
+                    'l' => {
+                        if raw_ins[3] as char == 'p' {
+                            ins_ie(str_ins, "mulps", Self::MULPS)
+                        } else {
+                            ins_ie(str_ins, "mulss", Self::MULSS)
+                        }
+                    }
+                    'v' => match (raw_ins[1] as char, raw_ins[3] as char) {
+                        ('i', 'p') => ins_ie(str_ins, "divps", Self::DIVPS),
+                        ('i', 's') => ins_ie(str_ins, "divss", Self::DIVSS),
+                        ('o', 's') => ins_ie(str_ins, "movss", Self::MOVSS),
+                        _ => Err(()),
+                    },
+                    'p' => match raw_ins[1] as char {
+                        'c' => {
+                            if raw_ins[3] as char == 'p' {
+                                ins_ie(str_ins, "rcpps", Self::RCPPS)
+                            } else {
+                                ins_ie(str_ins, "rcpss", Self::RCPSS)
+                            }
+                        }
+                        'm' => {
+                            if raw_ins[3] as char == 'p' {
+                                ins_ie(str_ins, "cmpps", Self::CMPPS)
+                            } else {
+                                ins_ie(str_ins, "cmpss", Self::CMPSS)
+                            }
+                        }
+                        _ => Err(()),
+                    },
+                    'n' => {
+                        if raw_ins[3] as char == 'p' {
+                            ins_ie(str_ins, "minps", Self::MINPS)
+                        } else {
+                            ins_ie(str_ins, "minss", Self::MINSS)
+                        }
+                    }
+                    'r' => ins_ie(str_ins, "xorps", Self::XORPS),
+                    'x' => {
+                        if raw_ins[3] as char == 'p' {
+                            ins_ie(str_ins, "maxps", Self::MAXPS)
+                        } else {
+                            ins_ie(str_ins, "maxss", Self::MAXSS)
+                        }
+                    }
+                    _ => Err(()),
+                },
                 'f' => ins_ie(str_ins, "pushf", Self::PUSHF),
                 'n' => ins_ie(str_ins, "pandn", Self::PANDN),
                 'd' => match raw_ins[3] as char {
@@ -235,6 +293,33 @@ impl FromStr for Mnemonic {
                     'a' => ins_ie(str_ins, "psrad", Self::PSRAD),
                     'd' => ins_ie(str_ins, "paddd", Self::PADDD),
                     'b' => ins_ie(str_ins, "psubd", Self::PSUBD),
+                    'p' => match raw_ins[2] as char {
+                        'd' => {
+                            if raw_ins[1] as char == 'd' {
+                                ins_ie(str_ins, "addpd", Self::ADDPD)
+                            } else {
+                                ins_ie(str_ins, "andpd", Self::ANDPD)
+                            }
+                        }
+                        'b' => ins_ie(str_ins, "subpd", Self::SUBPD),
+                        'l' => ins_ie(str_ins, "mulpd", Self::MULPD),
+                        'v' => ins_ie(str_ins, "divpd", Self::DIVPD),
+                        'x' => ins_ie(str_ins, "maxpd", Self::MAXPD),
+                        'n' => ins_ie(str_ins, "minpd", Self::MINPD),
+                        'p' => ins_ie(str_ins, "cmppd", Self::CMPPD),
+                        'r' => ins_ie(str_ins, "xorpd", Self::XORPD),
+                        _ => Err(()),
+                    },
+                    's' => match raw_ins[2] as char {
+                        'd' => ins_ie(str_ins, "addsd", Self::ADDSD),
+                        'b' => ins_ie(str_ins, "subsd", Self::SUBSD),
+                        'l' => ins_ie(str_ins, "mulsd", Self::MULSD),
+                        'v' => ins_ie(str_ins, "divsd", Self::DIVSD),
+                        'x' => ins_ie(str_ins, "maxsd", Self::MAXSD),
+                        'n' => ins_ie(str_ins, "minsd", Self::MINSD),
+                        'p' => ins_ie(str_ins, "cmpsd", Self::CMPSD),
+                        _ => Err(()),
+                    },
                     _ => Err(()),
                 },
                 'b' => match raw_ins[3] as char {
@@ -272,6 +357,16 @@ impl FromStr for Mnemonic {
             6 => match raw_ins[5] as char {
                 'd' => match raw_ins[4] as char {
                     'f' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                    'p' => match raw_ins[3] as char {
+                        'n' => ins_ie(str_ins, "andnpd", Self::ANDNPD),
+                        't' => ins_ie(str_ins, "sqrtpd", Self::SQRTPD),
+                        _ => Err(()),
+                    },
+                    's' => match raw_ins[3] as char {
+                        'i' => ins_ie(str_ins, "comisd", Self::COMISD),
+                        't' => ins_ie(str_ins, "sqrtsd", Self::SQRTSD),
+                        _ => Err(()),
+                    },
                     _ => Err(()),
                 },
                 'b' => match raw_ins[3] as char {
@@ -287,11 +382,35 @@ impl FromStr for Mnemonic {
                     _ => Err(()),
                 },
                 'q' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
-
+                's' => match raw_ins[1] as char {
+                    'q' => {
+                        if raw_ins[4] as char == 'p' {
+                            ins_ie(str_ins, "sqrtps", Self::SQRTPS)
+                        } else {
+                            ins_ie(str_ins, "sqrtss", Self::SQRTSS)
+                        }
+                    }
+                    'c' => ins_ie(str_ins, "comiss", Self::COMISS),
+                    'n' => ins_ie(str_ins, "andnps", Self::ANDPS),
+                    'o' => match raw_ins[3] as char {
+                        'a' => ins_ie(str_ins, "movaps", Self::MOVAPS),
+                        'l' => ins_ie(str_ins, "movlps", Self::MOVLPS),
+                        'h' => ins_ie(str_ins, "movhps", Self::MOVHPS),
+                        'u' => ins_ie(str_ins, "movups", Self::MOVUPS),
+                        _ => Err(()),
+                    },
+                    'h' => ins_ie(str_ins, "shufps", Self::SHUFPS),
+                    _ => Err(()),
+                },
                 _ => Err(()),
             },
             7 => match raw_ins[0] as char {
                 's' => ins_ie(str_ins, "syscall", Self::SYSCALL),
+                'u' => match raw_ins[6] as char {
+                    'd' => ins_ie(str_ins, "ucomisd", Self::UCOMISD),
+                    's' => ins_ie(str_ins, "ucomiss", Self::UCOMISS),
+                    _ => Err(()),
+                },
                 'p' => match raw_ins[4] as char {
                     'd' => ins_ie(str_ins, "pmaddwd", Self::PMADDWD),
                     'g' => match raw_ins[6] as char {
@@ -321,9 +440,33 @@ impl FromStr for Mnemonic {
                     },
                     _ => Err(()),
                 },
+                'r' => {
+                    if raw_ins[5] as char == 'p' {
+                        ins_ie(str_ins, "rsqrtps", Self::RSQRTPS)
+                    } else {
+                        ins_ie(str_ins, "rsqrtss", Self::RSQRTSS)
+                    }
+                }
+                'm' => match raw_ins[3] as char {
+                    'l' => ins_ie(str_ins, "movlhps", Self::MOVLHPS),
+                    'h' => ins_ie(str_ins, "movhlps", Self::MOVHLPS),
+                    _ => Err(()),
+                },
                 _ => Err(()),
             },
             8 => match raw_ins[0] as char {
+                'c' => match (raw_ins[3] as char, raw_ins[4] as char, raw_ins[7] as char) {
+                    ('s', 'i', 's') => ins_ie(str_ins, "cvtsi2ss", Self::CVTSI2SS),
+                    ('p', 'i', 's') => ins_ie(str_ins, "cvtpi2ps", Self::CVTPI2PS),
+                    ('s', 's', 'i') => ins_ie(str_ins, "cvtss2si", Self::CVTSS2SI),
+                    ('p', 's', 'i') => ins_ie(str_ins, "cvtps2pi", Self::CVTPS2PI),
+                    _ => Err(()),
+                },
+                'u' => match raw_ins[5] as char {
+                    'h' => ins_ie(str_ins, "unpckhps", Self::UNPCKHPS),
+                    'l' => ins_ie(str_ins, "unpcklps", Self::UNPCKLPS),
+                    _ => Err(()),
+                },
                 'p' => match raw_ins[1] as char {
                     'a' => match raw_ins[4] as char {
                         'u' => ins_ie(str_ins, "packuswb", Self::PACKUSWB),
@@ -339,6 +482,10 @@ impl FromStr for Mnemonic {
                 _ => Err(()),
             },
             9 => match raw_ins[0] as char {
+                'c' => match raw_ins[8] as char {
+                    'i' => ins_ie(str_ins, "cvttps2pi", Self::CVTTPS2PI),
+                    _ => Err(()),
+                },
                 'p' => match raw_ins[1] as char {
                     'u' => match (raw_ins[6] as char, raw_ins[7] as char, raw_ins[8] as char) {
                         ('l', 'b', 'w') => ins_ie(str_ins, "punpcklbw", Self::PUNPCKLBW),

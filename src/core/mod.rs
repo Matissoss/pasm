@@ -1,8 +1,15 @@
+// core of rasm codegen
 pub mod comp;
 pub mod disp;
-pub mod mmx;
 pub mod modrm;
-pub mod obj;
-pub mod reloc;
 pub mod rex;
 pub mod sib;
+
+// bin/target
+pub mod obj;
+pub mod reloc;
+
+// x86-64 extensions
+pub mod mmx;
+pub mod sse;
+pub mod sse2;

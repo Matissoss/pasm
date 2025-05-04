@@ -55,7 +55,8 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
                 rev = true;
                 gen_rmreg(ins.dst())
             } else if let Some(Op::Reg(r)) = ins.src() {
-                if r.purpose() == RPurpose::Mmx {
+                let rp = r.purpose();
+                if rp == RPurpose::Mmx || rp == RPurpose::F128 {
                     rev = true;
                     gen_rmreg(ins.dst())
                 } else {

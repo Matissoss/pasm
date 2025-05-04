@@ -19,12 +19,9 @@ use std::str::FromStr;
 impl Mem {
     pub fn try_make(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError> {
         let size = if let Some(kwd) = size_spec {
-            match kwd {
-                Keyword::Qword => Size::Qword,
-                Keyword::Dword => Size::Dword,
-                Keyword::Word  => Size::Word,
-                Keyword::Byte  => Size::Byte,
-                _ => return Err(RASMError::new(
+            match Size::try_from(kwd){
+                Ok(s) => s,
+                Err(_) => return Err(RASMError::new(
                     None,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
                     Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte".to_string())
@@ -40,10 +37,13 @@ impl Mem {
         mem_par(&mem_tok(memstr), size)
     }
     pub fn size(&self) -> Size {
-        match self{
-            Self::Index(_, _, size) |Self::IndexOffset(_, _, _, size)|/*Self::RipRelative(_, size)|*/
-            Self::SIBOffset(_, _, _, _, size)|
-            Self::SIB(_,_,_,size)|Self::Offset(_,_,size)|Self::Direct(_, size) => *size,
+        match self {
+            Self::Index(_, _, size)
+            | Self::IndexOffset(_, _, _, size)
+            | Self::SIBOffset(_, _, _, _, size)
+            | Self::SIB(_, _, _, size)
+            | Self::Offset(_, _, size)
+            | Self::Direct(_, size) => *size,
         }
     }
 }
