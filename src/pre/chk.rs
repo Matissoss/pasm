@@ -335,6 +335,37 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // SSE2
+        Mnm::MOVMSKPD => ot_chk(
+            ins,
+            &[(&[R32, R64], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVDQ2Q => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVLPD | Mnm::MOVHPD | Mnm::MOVSD => ot_chk(
+            ins,
+            &[
+                (&[XMM, M64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[(M64, M64)],
+            &[],
+        ),
+        Mnm::MOVAPD | Mnm::MOVUPD | Mnm::MOVDQA => ot_chk(
+            ins,
+            &[
+                (&[XMM, M128], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+            ],
+            &[(M128, M128)],
+            &[],
+        ),
+
         Mnm::CMPSD => ot_chk(
             ins,
             &[
@@ -759,6 +790,36 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // SSE2
+        Mnm::MOVDQ2Q => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVMSKPD => ot_chk(
+            ins,
+            &[(&[R32, R64], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVLPD | Mnm::MOVHPD | Mnm::MOVSD => ot_chk(
+            ins,
+            &[
+                (&[XMM, M64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[(M64, M64)],
+            &[],
+        ),
+        Mnm::MOVAPD | Mnm::MOVUPD | Mnm::MOVDQA => ot_chk(
+            ins,
+            &[
+                (&[XMM, M128], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+            ],
+            &[(M128, M128)],
+            &[],
+        ),
         Mnm::CMPSD => ot_chk(
             ins,
             &[

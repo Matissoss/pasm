@@ -289,6 +289,44 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
 
         // SSE2
+        Ins::MOVAPD => (
+            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x28], &[0x66, 0x0F, 0x29]),
+            None,
+        ),
+        Ins::MOVUPD => (
+            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x10], &[0x66, 0x0F, 0x11]),
+            None,
+        ),
+        Ins::MOVLPD => (
+            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x12], &[0x66, 0x0F, 0x13]),
+            None,
+        ),
+        Ins::MOVHPD => (
+            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x16], &[0x66, 0x0F, 0x17]),
+            None,
+        ),
+        Ins::MOVSD => (
+            sse2::gen_movxxd(ins, bits, &[0xF2, 0x0F, 0x10], &[0xF2, 0x0F, 0x11]),
+            None,
+        ),
+        Ins::MOVDQA => (
+            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x6F], &[0x66, 0x0F, 0x7F]),
+            None,
+        ),
+        Ins::MOVDQ2Q => (
+            gen_ins(
+                ins,
+                &[0xF2, 0x0F, 0xD6],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+
+        Ins::MOVMSKPD => (sse2::gen_movmskpd(ins, bits, &[0x0F, 0x50]), None),
+
         Ins::ADDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x58]), None),
         Ins::ADDSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x58]), None),
 

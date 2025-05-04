@@ -22,6 +22,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
+        Mnm::MOVMSKPD => true,
         Mnm::CVTSS2SI => true,
         Mnm::CVTSI2SS => true,
         Mnm::MOVQ => true,

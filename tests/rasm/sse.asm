@@ -151,3 +151,28 @@ _start:
 
 	sqrtsd %xmm0, %xmm1
 	sqrtsd %xmm0, !qword (%rax)
+	
+	movapd %xmm0, %xmm1
+	movapd !xword (%rax), %xmm0
+	movapd %xmm1, !xword (%rax)
+	
+	movupd %xmm0, %xmm1
+	movupd !xword (%rax), %xmm0
+	movupd %xmm1, !xword (%rax)
+	
+	movlpd !qword (%rax), %xmm0
+	movlpd %xmm1, !qword (%rax)
+	
+	movhpd !qword (%rax), %xmm0
+	movhpd %xmm1, !qword (%rax)
+	
+	movsd !qword (%rax), %xmm0
+	movsd %xmm1, !qword (%rax)
+
+	movmskpd %rax, %xmm1
+	movmskpd %eax, %xmm1
+
+	movdq2q %mm0, %xmm0
+	movdqa  %xmm0, %xmm1
+	movdqa  %xmm0, !xword (%rax)
+	movdqa  !xword (%rax), %xmm0
