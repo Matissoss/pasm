@@ -163,7 +163,7 @@ impl Token {
 impl ToString for Token {
     fn to_string(&self) -> String {
         match self {
-            Self::Register(reg) => format!("{}{}", PREFIX_REG, format!("{:?}", reg).to_lowercase()),
+            Self::Register(reg) => format!("{}{}", PREFIX_REG, reg.to_string()),
             Self::MemAddr(mem) => mem.to_string(),
             Self::Immediate(v) => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd) => kwd.to_string(),

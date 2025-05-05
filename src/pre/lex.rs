@@ -24,7 +24,7 @@ use std::str::FromStr;
 pub struct Lexer;
 impl Lexer {
     pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>> {
-        let mut line_count: i32 = -1;
+        let mut line_count: i64 = -1;
         let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
         for line in file {
             line_count += 1;
@@ -123,11 +123,18 @@ impl Lexer {
                         error = Some(e);
                     }
                 },
+                Some(Token::Unknown(s)) => {
+                    ast_tree.push(Err(RASMError::new(
+                        Some(line_count as usize),
+                        Some(format!("Tried to start line with unknown mnemonic `{s}`")),
+                        None
+                    )))
+                }
                 _ => {
                     ast_tree.push(Err(RASMError::new(
                         Some(line_count as usize),
                         Some("Unexpected start of line!".to_string()),
-                        Some("Consider starting line with Instruction, !global, section declaration or label declaration".to_string())
+                        Some("Consider starting line with instruction, !global, section declaration or label declaration".to_string())
                     )));
                 }
             }

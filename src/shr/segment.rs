@@ -73,10 +73,10 @@ impl FromStr for Segment {
 impl ToString for Segment {
     fn to_string(&self) -> String {
         format!(
-            "{}{}:{:?}",
+            "{}{}:{}",
             PREFIX_SEG,
-            format!("{:?}", self.segment).to_lowercase(),
-            self.address
+            self.segment.to_string(),
+            self.address.to_string()
         )
     }
 }

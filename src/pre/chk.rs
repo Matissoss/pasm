@@ -1200,6 +1200,9 @@ fn ot_chk(
                     None,
                 ));
             }
+            else {
+                break;
+            }
         }
     }
     if ops.len() == 2 {
@@ -1229,8 +1232,8 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
             return Some(RASMError::new(
                 Some(ins.line),
                 Some(format!(
-                    "Destination and Source operand have forbidden combination: ({:?}, {:?})",
-                    f.0, f.1
+                    "Destination and Source operand have forbidden combination: ({}, {})",
+                    f.0.to_string(), f.1.to_string()
                 )),
                 None,
             ));
@@ -1279,13 +1282,13 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
         let err = RASMError::new(
             None,
             Some(format!(
-                "{} operand doesn't match any of expected types: {:?}",
+                "{} operand doesn't match any of expected types: {}",
                 match idx {
                     0 => "Destination".to_string(),
                     1 => "Source".to_string(),
                     _ => idx.to_string(),
                 },
-                accepted
+                atype_arr_string(accepted)
             )),
             Some(format!(
                 "Consider changing {} operand to expected type or removing instruction",
@@ -1339,8 +1342,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                                 .to_string(),
                         ),
                         Some(format!(
-                            "Consider changing immediate to fit inside {} bits",
-                            <Size as Into<u8>>::into(s0) as u16 * 8
+                            "Consider changing immediate to fit inside {s0}",
                         )),
                     ))
                 } else {
@@ -1360,8 +1362,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                                 .to_string(),
                         ),
                         Some(format!(
-                            "Consider changing operand to be {}-bit",
-                            <Size as Into<u8>>::into(s0) as u16 * 8
+                            "Consider changing operand to be {s0}",
                         )),
                     ))
                 } else {
@@ -1392,8 +1393,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                                 .to_string(),
                         ),
                         Some(format!(
-                            "Consider changing operand to be {}-bit",
-                            <Size as Into<u8>>::into(s0) as u16 * 8
+                            "Consider changing operand to be {s0}",
                         )),
                     ))
                 } else {

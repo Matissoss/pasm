@@ -278,6 +278,7 @@ impl<'a> AST<'a> {
                         return;
                     }
                     let (flabel, llabel) = self.labels.split_at_mut(index);
+                    llabel[0].visibility = Visibility::Global;
                     std::mem::swap(&mut flabel[0], &mut llabel[0]);
                     return;
                 }

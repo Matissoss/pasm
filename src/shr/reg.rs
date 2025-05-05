@@ -851,10 +851,17 @@ impl ToString for Purpose {
             Self::F128 => "sse (xmm)".to_string(),
             Self::F256 => "avx (ymm)".to_string(),
             Self::Sgmnt => "segment".to_string(),
-            Self::X87 => "x87".to_string(),
+            Self::X87 => "FPU (x87)".to_string(),
             Self::IPtr => "instruction pointer".to_string(),
             Self::Dbg => "debug".to_string(),
             Self::Ctrl => "control".to_string(),
         }
+    }
+}
+
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for Register {
+    fn to_string(&self) -> String {
+        format!("{:?}", self).to_lowercase()
     }
 }

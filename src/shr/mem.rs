@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
-    conf::{MEM_CLOSE, MEM_START, PREFIX_REG, PREFIX_VAL},
+    conf::*,
     shr::{
         atype::{AType, ToAType},
         error::RASMError,
@@ -215,6 +215,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         }
     }
 
+    let mut rsize = Size::Any;
     if let Some(base) = base {
         if base.purpose() != RPurpose::General {
             return Err(RASMError::new(
@@ -223,6 +224,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                 None,
             ));
         }
+        rsize = base.size();
     }
     if let Some(index) = index {
         if index.purpose() != RPurpose::General {
@@ -230,6 +232,13 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                 None,
                 Some("Index register in this memory declaration isn't general purpose".to_string()),
                 None,
+            ));
+        }
+        if index.size() != rsize {
+            return Err(RASMError::new(
+                None,
+                Some(format!("Memory cannot be created, because one of registers is of invalid size: base size = {rsize}")),
+                None
             ));
         }
     }
@@ -244,17 +253,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         (Some(b), Some(i), None, None) => Ok(Mem::SIB(b, i, Size::Byte, size)),
         (Some(i), None, Some(s), None) => Ok(Mem::Index(i, s, size)),
         (Some(i), None, Some(s), Some(o)) => Ok(Mem::IndexOffset(i, o, s, size)),
-        (Some(_), Some(_), None, Some(_)) => Err(RASMError::new(
-            None,
-            Some("Tried to use SIB memory addresation, but scale was not found".to_string()),
-            Some(
-                "Consider adding scale. Scale can be added like this: `*<scale>`, 
-             where <scale> is number 1, 2, 4 or 8. 
-             If you had started scale with comma ',' instead of asterisk '*',
-             it got handled as displacement and not scale."
-                    .to_string(),
-            ),
-        )),
+        (Some(b), Some(i), None, Some(o)) => Ok(Mem::SIBOffset(b, i, Size::Byte, o, size)),
         (None, None, None, None) => Err(RASMError::new(
             None,
             Some("Tried to make memory operand out of nothing `()`".to_string()),
@@ -263,7 +262,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         _ => Err(RASMError::new(
             None,
             Some(format!(
-                "Unexpected memory combo: {:?} {:?} {:?} {:?}",
+                "Unexpected memory combo: base = {:?}, index = {:?}, scale = {:?}, offset = {:?}",
                 base, index, scale, offset
             )),
             None,
@@ -367,6 +366,50 @@ impl From<Register> for MemTok {
 impl ToAType for Mem {
     fn atype(&self) -> AType {
         AType::Memory(self.size())
+    }
+}
+
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for Mem{
+    fn to_string(&self) -> String{
+        match self{
+            Self::Direct(bs, sz) => 
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{MEM_CLOSE}", bs.to_string()),
+            Self::Offset(bs,of,sz) => 
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{}{MEM_CLOSE}", bs.to_string(),
+                    if of <= &0{
+                        format!("- {of}")
+                    }
+                    else {
+                        format!("+ {of}")
+                    }
+                ),
+            Self::Index(id, sc, sz) =>
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {sc}{MEM_CLOSE}", id.to_string()),
+            Self::IndexOffset(id, of, sc, sz) =>
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {} {}{MEM_CLOSE}", id.to_string(),
+                    <Size as Into<u8>>::into(*sc),
+                    if of <= &0{
+                        format!("- {of}")
+                    }
+                    else {
+                        format!("+ {of}")
+                    }
+                ),
+            Self::SIB(bs, id, sc, sz) => 
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {}{MEM_CLOSE}", 
+                    bs.to_string(), id.to_string(), <Size as Into<u8>>::into(*sc)),
+            Self::SIBOffset(bs, id, sc, of, sz) => 
+                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {} {}{MEM_CLOSE}", 
+                    bs.to_string(), id.to_string(), <Size as Into<u8>>::into(*sc),
+                    if of <= &0{
+                        format!("- {of}")
+                    }
+                    else {
+                        format!("+ {of}")
+                    }
+                ),
+        }
     }
 }
 
