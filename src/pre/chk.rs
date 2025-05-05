@@ -51,6 +51,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         ));
     }
     match ins.mnem {
+        Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
         Mnm::PUSH => ot_chk(
             ins,
             &[(&[R16, R32, M16, M32, I8, I16, I32, SR], Optional::Needed)],
@@ -221,7 +223,13 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::POPF | Mnm::POPFD | Mnm::PUSHF | Mnm::PUSHFD => {
             ot_chk(ins, &[], &[], &[])
         }
-        // SSE
+
+        // #####  #####  #####
+        // #      #      #
+        // #####  #####  #####
+        //     #      #  #
+        // #####  #####  #####
+        // (SSE)
         Mnm::CVTSS2SI => ot_chk(
             ins,
             &[(&[R32], Optional::Needed), (&[XMM, M32], Optional::Needed)],
@@ -334,7 +342,13 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        // SSE2
+
+        // #####  #####  #####   #####
+        // #      #      #           #
+        // #####  #####  #####   #####
+        //     #      #  #       #
+        // #####  #####  #####   #####
+        // (SSE2)
         Mnm::MOVMSKPD => ot_chk(
             ins,
             &[(&[R32, R64], Optional::Needed), (&[XMM], Optional::Needed)],
@@ -417,15 +431,59 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        Mnm::CVTPD2PI
+        | Mnm::CVTTPD2PI
+        | Mnm::CVTPI2PD
+        | Mnm::CVTPS2DQ
+        | Mnm::CVTTPS2DQ
+        | Mnm::CVTDQ2PS
+        | Mnm::CVTPS2PD
+        | Mnm::CVTPD2PS
+        | Mnm::CVTSS2SD
+        | Mnm::CVTPS2SS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTDQ2PD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSD2SI | Mnm::CVTTSD2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSI2SD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, R32, R64, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
-        // MMX
+        // #   #  #   #  #   #
+        // ## ##  ## ##   # #
+        // # # #  # # #    #
+        // #   #  #   #   # #
+        // #   #  #   #  #   #
+        // (MMX/SSE2)
         Mnm::MOVD => ot_chk(
             ins,
             &[
-                (&[MMX, R32, M32], Optional::Needed),
-                (&[MMX, R32, M32], Optional::Needed),
+                (&[MMX, XMM, R32, M32], Optional::Needed),
+                (&[MMX, XMM, R32, M32], Optional::Needed),
             ],
-            &[(M32, M32), (R32, R32), (MMX, MMX)],
+            &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
         Mnm::PSLLW
@@ -438,10 +496,10 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PSRAW => ot_chk(
             ins,
             &[
-                (&[MMX], Optional::Needed),
-                (&[I8, MMX, M64], Optional::Needed),
+                (&[MMX, XMM], Optional::Needed),
+                (&[I8, MMX, XMM, M64, M128], Optional::Needed),
             ],
-            &[],
+            &[(XMM, MMX), (MMX, XMM), (MMX, M128), (XMM, M64)],
             &[],
         ),
         Mnm::PADDB
@@ -478,7 +536,35 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PUNPCKHDQ
         | Mnm::PSUBD => ot_chk(
             ins,
-            &[(&[MMX], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, MMX), (MMX, M128), (XMM, M64)],
+            &[],
+        ),
+        Mnm::PMULUDQ | Mnm::PSUBQ => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, M64, XMM, M128], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, MMX), (XMM, M64), (MMX, M128)],
+            &[],
+        ),
+        Mnm::PSHUFLW | Mnm::PSHUFHW | Mnm::PSHUFD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PSLLDQ | Mnm::PSRLDQ => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[I8], Optional::Needed)],
             &[],
             &[],
         ),
@@ -492,6 +578,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
 
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
     match ins.mnem {
+        Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
         Mnm::PUSH => ot_chk(
             ins,
             &[(&[R16, R64, M16, M64, I8, I16, I32, SR], Optional::Needed)],
@@ -666,7 +754,12 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PUSHFQ
         | Mnm::EMMS => ot_chk(ins, &[], &[], &[]),
 
-        // SSE
+        // #####  #####  #####
+        // #      #      #
+        // #####  #####  #####
+        //     #      #  #
+        // #####  #####  #####
+        // (SSE)
         Mnm::CVTSS2SI => ot_chk(
             ins,
             &[
@@ -789,7 +882,13 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        // SSE2
+
+        // #####  #####  #####   #####
+        // #      #      #           #
+        // #####  #####  #####   #####
+        //     #      #  #       #
+        // #####  #####  #####   #####
+        // (SSE2)
         Mnm::MOVDQ2Q => ot_chk(
             ins,
             &[(&[MMX], Optional::Needed), (&[XMM], Optional::Needed)],
@@ -872,23 +971,105 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        // MMX
+
+        Mnm::CVTPD2PI
+        | Mnm::CVTTPD2PI
+        | Mnm::CVTPI2PD
+        | Mnm::CVTPS2DQ
+        | Mnm::CVTTPS2DQ
+        | Mnm::CVTDQ2PS
+        | Mnm::CVTPS2PD
+        | Mnm::CVTPD2PS
+        | Mnm::CVTSS2SD
+        | Mnm::CVTPS2SS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTDQ2PD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSD2SI | Mnm::CVTTSD2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSI2SD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, R32, R64, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        Mnm::MASKMOVDQU => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVNTDQ | Mnm::MOVNTPD => ot_chk(
+            ins,
+            &[(&[M128], Optional::Needed), (&[XMM], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVNTI => ot_chk(
+            ins,
+            &[
+                (&[M32, M64], Optional::Needed),
+                (&[R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        // #   #  #   #  #   #
+        // ## ##  ## ##   # #
+        // # # #  # # #    #
+        // #   #  #   #   # #
+        // #   #  #   #  #   #
+        // (MMX/SSE2)
         Mnm::MOVD => ot_chk(
             ins,
             &[
-                (&[MMX, R32, M32], Optional::Needed),
-                (&[MMX, R32, M32], Optional::Needed),
+                (&[MMX, XMM, R32, M32], Optional::Needed),
+                (&[MMX, XMM, R32, M32], Optional::Needed),
             ],
-            &[(M32, M32), (R32, R32), (MMX, MMX)],
+            &[
+                (M32, M32),
+                (R32, R32),
+                (MMX, MMX),
+                (XMM, XMM),
+                (XMM, MMX),
+                (MMX, XMM),
+            ],
             &[],
         ),
         Mnm::MOVQ => ot_chk(
             ins,
             &[
-                (&[MMX, R64, M64], Optional::Needed),
-                (&[MMX, R64, M64], Optional::Needed),
+                (&[MMX, XMM, R64, M64], Optional::Needed),
+                (&[MMX, XMM, R64, M64], Optional::Needed),
             ],
-            &[(M64, M64), (R64, R64), (MMX, MMX)],
+            &[
+                (M64, M64),
+                (R64, R64),
+                (MMX, MMX),
+                (XMM, XMM),
+                (XMM, MMX),
+                (MMX, XMM),
+            ],
             &[],
         ),
         Mnm::PSLLW
@@ -901,10 +1082,10 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PSRAW => ot_chk(
             ins,
             &[
-                (&[MMX], Optional::Needed),
-                (&[I8, MMX, M64], Optional::Needed),
+                (&[MMX, XMM], Optional::Needed),
+                (&[I8, MMX, XMM, M64, M128], Optional::Needed),
             ],
-            &[],
+            &[(XMM, MMX), (MMX, XMM), (MMX, M128), (XMM, M64)],
             &[],
         ),
         Mnm::PADDB
@@ -941,7 +1122,35 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PXOR
         | Mnm::PSUBD => ot_chk(
             ins,
-            &[(&[MMX], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+            ],
+            &[(XMM, MMX), (MMX, XMM), (XMM, M64), (MMX, M128)],
+            &[],
+        ),
+        Mnm::PMULUDQ | Mnm::PSUBQ => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, M64, XMM, M128], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, MMX), (XMM, M64), (MMX, M128)],
+            &[],
+        ),
+        Mnm::PSHUFLW | Mnm::PSHUFHW | Mnm::PSHUFD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PSLLDQ | Mnm::PSRLDQ => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[I8], Optional::Needed)],
             &[],
             &[],
         ),

@@ -87,6 +87,16 @@ pub enum Section {
     Readonly,
 }
 
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
+pub enum IVariant {
+    #[default]
+    STD,
+    MMX,
+    XMM,
+}
+
+// implementations
+
 impl TryFrom<&Token> for Operand {
     type Error = ();
     fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
@@ -137,6 +147,21 @@ impl ToAType for Operand {
 }
 
 impl Instruction {
+    pub fn which_variant(&self) -> IVariant {
+        match self.dst() {
+            Some(Operand::Reg(r)) => match r.size() {
+                Size::Xword => IVariant::XMM,
+                Size::Qword | Size::Dword => IVariant::MMX,
+                _ => IVariant::STD,
+            },
+            Some(Operand::Mem(m)) => match m.size() {
+                Size::Xword => IVariant::XMM,
+                Size::Qword | Size::Dword => IVariant::MMX,
+                _ => IVariant::STD,
+            },
+            _ => IVariant::STD,
+        }
+    }
     pub fn size(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),

@@ -88,6 +88,11 @@ pub fn ins_pack(ins: &Instruction, bits: u8, v: u8) -> Vec<u8> {
     gen_ins(ins, opc, (true, None, None), None, bits, false)
 }
 
+#[inline]
+pub fn ins_unpck_h(ins: &Instruction, bits: u8, opc: &[u8]) -> Vec<u8> {
+    gen_ins(ins, opc, (true, None, None), None, bits, false)
+}
+
 pub fn ins_unpack(ins: &Instruction, bits: u8, v: u8) -> Vec<u8> {
     let opc = match v {
         1 => &[0x0F, 0x60],

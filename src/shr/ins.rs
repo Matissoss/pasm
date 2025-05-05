@@ -84,6 +84,34 @@ pub enum Mnemonic {
     MOVDQA , MOVQ2DQ,
     MOVDQ2Q,
 
+    CVTPD2PI, CVTTPD2PI,
+
+    CVTPI2PD, CVTDQ2PD,
+    CVTSD2SI, CVTTSD2SI,
+    CVTSI2SD, CVTPS2DQ,
+    CVTTPS2DQ, CVTDQ2PS,
+
+    CVTPS2PD, CVTPD2PS,
+    CVTSS2SD, CVTPS2SS,
+
+    PSUBQ,
+    PSHUFD,
+    PSLLDQ,
+    PSRLDQ,
+    PMULUDQ,
+    PSHUFLW,
+    PSHUFHW,
+    PUNPCKHQDQ,
+    PUNPCKLQDQ,
+
+    MASKMOVDQU,
+
+    MFENCE, LFENCE,
+    CLFLUSH, PAUSE,
+    MOVNTPD, 
+    MOVNTDQ,
+    MOVNTI,
+
     // MMX extension
     MOVD, MOVQ,
     
@@ -331,6 +359,7 @@ impl FromStr for Mnemonic {
                         'p' => ins_ie(str_ins, "cmpsd", Self::CMPSD),
                         _ => Err(()),
                     },
+                    'i' => ins_ie(str_ins, "cpuid", Self::CPUID),
                     _ => Err(()),
                 },
                 'b' => match raw_ins[3] as char {
@@ -355,6 +384,7 @@ impl FromStr for Mnemonic {
                 'q' => match raw_ins[3] as char {
                     'f' => ins_ie(str_ins, "popfq", Self::POPFQ),
                     'd' => ins_ie(str_ins, "paddq", Self::PADDQ),
+                    'b' => ins_ie(str_ins, "psubq", Self::PSUBQ),
                     'l' => match raw_ins[2] as char {
                         'l' => ins_ie(str_ins, "psllq", Self::PSLLQ),
                         'r' => ins_ie(str_ins, "psrlq", Self::PSRLQ),
@@ -362,12 +392,16 @@ impl FromStr for Mnemonic {
                     },
                     _ => Err(()),
                 },
-                'i' => ins_ie(str_ins, "cpuid", Self::CPUID),
+                'e' => ins_ie(str_ins, "pause", Self::PAUSE),
                 _ => Err(()),
             },
             6 => match raw_ins[5] as char {
                 'd' => match raw_ins[4] as char {
-                    'f' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                    'f' => match raw_ins[1] as char {
+                        'u' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
+                        's' => ins_ie(str_ins, "pshufd", Self::PSHUFD),
+                        _ => Err(()),
+                    },
                     'p' => match raw_ins[3] as char {
                         'n' => ins_ie(str_ins, "andnpd", Self::ANDNPD),
                         'a' => ins_ie(str_ins, "movapd", Self::MOVAPD),
@@ -396,7 +430,12 @@ impl FromStr for Mnemonic {
                     ('d', 's') => ins_ie(str_ins, "paddsw", Self::PADDSW),
                     _ => Err(()),
                 },
-                'q' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
+                'q' => match raw_ins[2] as char {
+                    's' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
+                    'l' => ins_ie(str_ins, "pslldq", Self::PSLLDQ),
+                    'r' => ins_ie(str_ins, "pslrdq", Self::PSRLDQ),
+                    _ => Err(()),
+                },
                 's' => match raw_ins[1] as char {
                     'q' => {
                         if raw_ins[4] as char == 'p' {
@@ -418,9 +457,16 @@ impl FromStr for Mnemonic {
                     _ => Err(()),
                 },
                 'a' => ins_ie(str_ins, "movdqa", Self::MOVDQA),
+                'e' => match raw_ins[0] as char {
+                    'l' => ins_ie(str_ins, "lfence", Self::LFENCE),
+                    'm' => ins_ie(str_ins, "mfence", Self::MFENCE),
+                    _ => Err(()),
+                },
+                'i' => ins_ie(str_ins, "movnti", Self::MOVNTI),
                 _ => Err(()),
             },
             7 => match raw_ins[0] as char {
+                'c' => ins_ie(str_ins, "clflush", Self::CLFLUSH),
                 's' => ins_ie(str_ins, "syscall", Self::SYSCALL),
                 'u' => match raw_ins[6] as char {
                     'd' => ins_ie(str_ins, "ucomisd", Self::UCOMISD),
@@ -442,6 +488,7 @@ impl FromStr for Mnemonic {
                         _ => Err(()),
                     },
                     'u' => match raw_ins[1] as char {
+                        'm' => ins_ie(str_ins, "pmuludq", Self::PMULUDQ),
                         'a' => match raw_ins[6] as char {
                             'b' => ins_ie(str_ins, "paddusb", Self::PADDUSB),
                             'w' => ins_ie(str_ins, "paddusw", Self::PADDUSW),
@@ -452,6 +499,11 @@ impl FromStr for Mnemonic {
                             'w' => ins_ie(str_ins, "psubusw", Self::PSUBUSW),
                             _ => Err(()),
                         },
+                        _ => Err(()),
+                    },
+                    'f' => match raw_ins[5] as char {
+                        'l' => ins_ie(str_ins, "pshuflw", Self::PSHUFLW),
+                        'h' => ins_ie(str_ins, "pshufhw", Self::PSHUFHW),
                         _ => Err(()),
                     },
                     _ => Err(()),
@@ -470,6 +522,11 @@ impl FromStr for Mnemonic {
                         'd' => ins_ie(str_ins, "movq2dq", Self::MOVQ2DQ),
                         _ => Err(()),
                     },
+                    'n' => match raw_ins[5] as char {
+                        'p' => ins_ie(str_ins, "movntpd", Self::MOVNTPD),
+                        'd' => ins_ie(str_ins, "movntdq", Self::MOVNTDQ),
+                        _ => Err(()),
+                    },
                     'd' => ins_ie(str_ins, "movdq2q", Self::MOVDQ2Q),
                     _ => Err(()),
                 },
@@ -481,6 +538,13 @@ impl FromStr for Mnemonic {
                     ('p', 'i', 's') => ins_ie(str_ins, "cvtpi2ps", Self::CVTPI2PS),
                     ('s', 's', 'i') => ins_ie(str_ins, "cvtss2si", Self::CVTSS2SI),
                     ('p', 's', 'i') => ins_ie(str_ins, "cvtps2pi", Self::CVTPS2PI),
+                    ('p', 'd', 'i') => ins_ie(str_ins, "cvtpd2pi", Self::CVTPD2PI),
+                    ('p', 'i', 'd') => ins_ie(str_ins, "cvtpi2pd", Self::CVTPI2PD),
+                    ('p', 's', 'q') => ins_ie(str_ins, "cvtps2dq", Self::CVTPS2DQ),
+                    ('d', 'q', 's') => ins_ie(str_ins, "cvtdq2ps", Self::CVTDQ2PS),
+                    ('d', 'q', 'd') => ins_ie(str_ins, "cvtdq2pd", Self::CVTDQ2PD),
+                    ('s', 'd', 'i') => ins_ie(str_ins, "cvtsd2si", Self::CVTSD2SI),
+                    ('s', 'i', 'd') => ins_ie(str_ins, "cvtsi2sd", Self::CVTSI2SD),
                     _ => Err(()),
                 },
                 'u' => match raw_ins[5] as char {
@@ -505,7 +569,14 @@ impl FromStr for Mnemonic {
             },
             9 => match raw_ins[0] as char {
                 'c' => match raw_ins[8] as char {
-                    'i' => ins_ie(str_ins, "cvttps2pi", Self::CVTTPS2PI),
+                    'i' => match (raw_ins[4] as char, raw_ins[5] as char, raw_ins[8] as char) {
+                        ('p', 's', 'i') => ins_ie(str_ins, "cvttps2pi", Self::CVTTPS2PI),
+                        ('p', 's', 'q') => ins_ie(str_ins, "cvttps2dq", Self::CVTTPS2DQ),
+                        ('s', 'd', 'i') => ins_ie(str_ins, "cvttsd2si", Self::CVTTSD2SI),
+                        ('p', 'd', 'i') => ins_ie(str_ins, "cvttpd2pi", Self::CVTTPD2PI),
+                        _ => Err(()),
+                    },
+                    'q' => ins_ie(str_ins, "cvttps2dq", Self::CVTTPS2DQ),
                     _ => Err(()),
                 },
                 'p' => match raw_ins[1] as char {
@@ -516,6 +587,18 @@ impl FromStr for Mnemonic {
                         ('h', 'b', 'w') => ins_ie(str_ins, "punpckhbw", Self::PUNPCKHBW),
                         ('h', 'w', 'd') => ins_ie(str_ins, "punpckhwd", Self::PUNPCKHWD),
                         ('h', 'd', 'q') => ins_ie(str_ins, "punpckhdq", Self::PUNPCKHDQ),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                _ => Err(()),
+            },
+            10 => match raw_ins[0] as char {
+                'm' => ins_ie(str_ins, "maskmovdqu", Self::MASKMOVDQU),
+                'p' => match raw_ins[1] as char {
+                    'u' => match (raw_ins[6] as char, raw_ins[7] as char, raw_ins[8] as char) {
+                        ('h', 'q', 'd') => ins_ie(str_ins, "punpckhqdq", Self::PUNPCKHQDQ),
+                        ('l', 'q', 'd') => ins_ie(str_ins, "punpcklqdq", Self::PUNPCKLQDQ),
                         _ => Err(()),
                     },
                     _ => Err(()),

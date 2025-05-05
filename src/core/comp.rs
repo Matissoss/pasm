@@ -16,7 +16,7 @@ use crate::{
         sse, sse2,
     },
     shr::{
-        ast::{Instruction, Operand},
+        ast::{IVariant, Instruction, Operand},
         ins::Mnemonic as Ins,
         num::Number,
         reg::Register,
@@ -206,6 +206,12 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::PUSHF | Ins::PUSHFD | Ins::PUSHFQ => (vec![0x9C], None),
         Ins::POPF | Ins::POPFD | Ins::POPFQ => (vec![0x9D], None),
 
+        Ins::CLFLUSH => (
+            gen_ins(ins, &[0x0F, 0xAE], (true, Some(7), None), None, bits, false),
+            None,
+        ),
+
+        Ins::PAUSE => (vec![0xF3, 0x90], None),
         // SSE
         Ins::MOVSS => (
             sse::gen_movxxs(ins, bits, &[0xF3, 0x0F, 0x10], &[0xF3, 0x0F, 0x11]),
@@ -289,6 +295,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
 
         // SSE2
+        Ins::MOVNTI => (
+            gen_ins(ins, &[0x0F, 0xC3], (true, None, None), None, bits, false),
+            None,
+        ),
+
+        Ins::MFENCE => (vec![0xF0, 0xAE, 0xF0], None),
+        Ins::LFENCE => (vec![0xF0, 0xAE, 0xE8], None),
+
+        Ins::MOVNTPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x2B]), None),
+        Ins::MOVNTDQ => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xE7]), None),
         Ins::MOVAPD => (
             sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x28], &[0x66, 0x0F, 0x29]),
             None,
@@ -359,95 +375,512 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::ANDNPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
         Ins::XORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
 
-        // MMX
-        Ins::MOVD | Ins::MOVQ => (mmx::ins_movdq(ins, bits), None),
-        Ins::PADDB => (mmx::ins_paddx(ins, bits, 1), None),
-        Ins::PADDW => (mmx::ins_paddx(ins, bits, 2), None),
-        Ins::PADDD => (mmx::ins_paddx(ins, bits, 3), None),
-        Ins::PADDQ => (mmx::ins_paddx(ins, bits, 4), None),
-
-        Ins::PADDSB => (mmx::ins_paddsx(ins, bits, true), None),
-        Ins::PADDSW => (mmx::ins_paddsx(ins, bits, false), None),
-
-        Ins::PSUBB => (mmx::ins_psubx(ins, bits, 1), None),
-        Ins::PSUBW => (mmx::ins_psubx(ins, bits, 2), None),
-        Ins::PSUBD => (mmx::ins_psubx(ins, bits, 3), None),
-
-        Ins::PSUBSB => (mmx::ins_psubsx(ins, bits, true), None),
-        Ins::PSUBSW => (mmx::ins_psubsx(ins, bits, false), None),
-
-        Ins::PMULLW => (mmx::ins_pmulx(ins, bits, true), None),
-        Ins::PMULHW => (mmx::ins_pmulx(ins, bits, false), None),
-
-        Ins::PMADDWD => (mmx::ins_pmaddwd(ins, bits), None),
-
-        Ins::PCMPEQB => (mmx::ins_cmp(ins, bits, 1), None),
-        Ins::PCMPEQW => (mmx::ins_cmp(ins, bits, 2), None),
-        Ins::PCMPEQD => (mmx::ins_cmp(ins, bits, 3), None),
-
-        Ins::PCMPGTB => (mmx::ins_cmp(ins, bits, 4), None),
-        Ins::PCMPGTW => (mmx::ins_cmp(ins, bits, 5), None),
-        Ins::PCMPGTD => (mmx::ins_cmp(ins, bits, 6), None),
-
-        Ins::PACKUSWB => (mmx::ins_pack(ins, bits, 1), None),
-        Ins::PACKSSWB => (mmx::ins_pack(ins, bits, 2), None),
-        Ins::PACKSSDW => (mmx::ins_pack(ins, bits, 3), None),
-        Ins::PUNPCKLBW => (mmx::ins_unpack(ins, bits, 1), None),
-        Ins::PUNPCKLWD => (mmx::ins_unpack(ins, bits, 2), None),
-        Ins::PUNPCKLDQ => (mmx::ins_unpack(ins, bits, 3), None),
-        Ins::PUNPCKHBW => (mmx::ins_unpack(ins, bits, 4), None),
-        Ins::PUNPCKHWD => (mmx::ins_unpack(ins, bits, 5), None),
-        Ins::PUNPCKHDQ => (mmx::ins_unpack(ins, bits, 6), None),
-
-        Ins::PSLLW => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xF1], &[0x0F, 0x71], 6),
+        Ins::CVTPD2PI => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2D],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
             None,
         ),
-        Ins::PSLLD => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xF2], &[0x0F, 0x72], 6),
+        Ins::CVTPI2PD => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2A],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
             None,
         ),
-        Ins::PSLLQ => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xF3], &[0x0F, 0x73], 6),
+        Ins::CVTPS2DQ => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x5B],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
             None,
         ),
-        Ins::PSRLW => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xD1], &[0x0F, 0x71], 2),
+        Ins::CVTDQ2PS => (
+            gen_ins(ins, &[0x0F, 0x5B], (true, None, None), None, bits, false),
             None,
         ),
-        Ins::PSRLD => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xD2], &[0x0F, 0x72], 2),
+        Ins::CVTDQ2PD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xE6]), None),
+        Ins::CVTSD2SI => (sse2::sgen_ins(ins, bits, true, &[0x66, 0x0F, 0x2D]), None),
+        Ins::CVTSI2SD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2A]), None),
+        Ins::CVTTPS2DQ => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0x5B],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
             None,
         ),
-        Ins::PSRLQ => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xD3], &[0x0F, 0x73], 2),
-            None,
-        ),
-        Ins::PSRAW => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xE1], &[0x0F, 0x71], 4),
-            None,
-        ),
-        Ins::PSRAD => (
-            mmx::ins_shift(ins, bits, &[0x0F, 0xE2], &[0x0F, 0x72], 4),
+        Ins::CVTTSD2SI => (sse2::sgen_ins(ins, bits, false, &[0x66, 0x0F, 0x2C]), None),
+        Ins::CVTTPD2PI => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2C],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
             None,
         ),
 
-        Ins::POR => (
-            gen_ins(ins, &[0x0F, 0xEB], (true, None, None), None, bits, false),
+        Ins::PSHUFLW => (sse2::ins_shuff(ins, bits, &[0xF2, 0x0F, 0x70]), None),
+        Ins::PSHUFHW => (sse2::ins_shuff(ins, bits, &[0xF3, 0x0F, 0x70]), None),
+        Ins::PSHUFD => (sse2::ins_shuff(ins, bits, &[0x66, 0x0F, 0x70]), None),
+
+        Ins::PSLLDQ => (
+            sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0x73], &[0x66, 0x0F, 0x73], 7),
             None,
         ),
-        Ins::PAND => (
-            gen_ins(ins, &[0x0F, 0xDB], (true, None, None), None, bits, false),
+        Ins::PSRLDQ => (
+            sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0x73], &[0x66, 0x0F, 0x73], 3),
             None,
         ),
-        Ins::PANDN => (
-            gen_ins(ins, &[0x0F, 0xDF], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::PXOR => (
-            gen_ins(ins, &[0x0F, 0xEF], (true, None, None), None, bits, false),
-            None,
-        ),
+        Ins::PUNPCKHQDQ => (sse2::ins_unpck_h(ins, bits, &[0x66, 0x0F, 0x6D]), None),
+
+        Ins::PUNPCKLQDQ => (sse2::ins_unpck_h(ins, bits, &[0x66, 0x0F, 0x6C]), None),
+        // MMX/SSE2
+        Ins::MOVD | Ins::MOVQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_movdq(ins, bits), None)
+            } else {
+                (sse2::ins_movdq(ins, bits), None)
+            }
+        }
+        Ins::PADDB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddx(ins, bits, 1), None)
+            } else {
+                (sse2::ins_paddx(ins, bits, 1), None)
+            }
+        }
+        Ins::PADDW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddx(ins, bits, 2), None)
+            } else {
+                (sse2::ins_paddx(ins, bits, 2), None)
+            }
+        }
+        Ins::PADDD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddx(ins, bits, 3), None)
+            } else {
+                (sse2::ins_paddx(ins, bits, 3), None)
+            }
+        }
+        Ins::PADDQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddx(ins, bits, 4), None)
+            } else {
+                (sse2::ins_paddx(ins, bits, 4), None)
+            }
+        }
+
+        Ins::PADDSB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddsx(ins, bits, true), None)
+            } else {
+                (sse2::ins_paddsx(ins, bits, true), None)
+            }
+        }
+        Ins::PADDSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_paddsx(ins, bits, false), None)
+            } else {
+                (sse2::ins_paddsx(ins, bits, false), None)
+            }
+        }
+
+        Ins::PSUBB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_psubx(ins, bits, 1), None)
+            } else {
+                (sse2::ins_psubx(ins, bits, 1), None)
+            }
+        }
+        Ins::PSUBW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_psubx(ins, bits, 2), None)
+            } else {
+                (sse2::ins_psubx(ins, bits, 2), None)
+            }
+        }
+        Ins::PSUBD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_psubx(ins, bits, 3), None)
+            } else {
+                (sse2::ins_psubx(ins, bits, 3), None)
+            }
+        }
+
+        Ins::PSUBSB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_psubsx(ins, bits, true), None)
+            } else {
+                (sse2::ins_psubsx(ins, bits, true), None)
+            }
+        }
+        Ins::PSUBSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_psubsx(ins, bits, false), None)
+            } else {
+                (sse2::ins_psubsx(ins, bits, false), None)
+            }
+        }
+
+        Ins::PMULLW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pmulx(ins, bits, true), None)
+            } else {
+                (sse2::ins_pmulx(ins, bits, true), None)
+            }
+        }
+        Ins::PMULHW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pmulx(ins, bits, false), None)
+            } else {
+                (sse2::ins_pmulx(ins, bits, false), None)
+            }
+        }
+
+        Ins::PMULUDQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xF4], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xF4],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+
+        Ins::PMADDWD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pmaddwd(ins, bits), None)
+            } else {
+                (sse2::ins_pmaddwd(ins, bits), None)
+            }
+        }
+
+        Ins::PCMPEQB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 1), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 1), None)
+            }
+        }
+        Ins::PCMPEQW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 2), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 2), None)
+            }
+        }
+        Ins::PCMPEQD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 3), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 3), None)
+            }
+        }
+
+        Ins::PCMPGTB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 4), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 4), None)
+            }
+        }
+        Ins::PCMPGTW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 5), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 5), None)
+            }
+        }
+        Ins::PCMPGTD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_cmp(ins, bits, 6), None)
+            } else {
+                (sse2::ins_cmp(ins, bits, 6), None)
+            }
+        }
+
+        Ins::PACKUSWB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pack(ins, bits, 1), None)
+            } else {
+                (sse2::ins_pack(ins, bits, 1), None)
+            }
+        }
+        Ins::PACKSSWB => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pack(ins, bits, 2), None)
+            } else {
+                (sse2::ins_pack(ins, bits, 2), None)
+            }
+        }
+        Ins::PACKSSDW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_pack(ins, bits, 3), None)
+            } else {
+                (sse2::ins_pack(ins, bits, 3), None)
+            }
+        }
+
+        Ins::PUNPCKLBW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 1), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 1), None)
+            }
+        }
+        Ins::PUNPCKLWD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 2), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 2), None)
+            }
+        }
+        Ins::PUNPCKLDQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 3), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 3), None)
+            }
+        }
+        Ins::PUNPCKHBW => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 4), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 4), None)
+            }
+        }
+        Ins::PUNPCKHWD => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 5), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 5), None)
+            }
+        }
+        Ins::PUNPCKHDQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (mmx::ins_unpack(ins, bits, 6), None)
+            } else {
+                (sse2::ins_unpack(ins, bits, 6), None)
+            }
+        }
+
+        Ins::PSLLQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xF3], &[0x0F, 0x73], 6),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF3], &[0x66, 0x0F, 0x73], 6),
+                    None,
+                )
+            }
+        }
+        Ins::PSLLD => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xF2], &[0x0F, 0x72], 6),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF2], &[0x66, 0x0F, 0x72], 6),
+                    None,
+                )
+            }
+        }
+        Ins::PSLLW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xF1], &[0x0F, 0x71], 6),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF1], &[0x66, 0x0F, 0x71], 6),
+                    None,
+                )
+            }
+        }
+        Ins::PSRLW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xD1], &[0x0F, 0x71], 2),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD1], &[0x66, 0x0F, 0x71], 2),
+                    None,
+                )
+            }
+        }
+        Ins::PSRLD => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xD2], &[0x0F, 0x72], 2),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD2], &[0x66, 0x0F, 0x72], 2),
+                    None,
+                )
+            }
+        }
+        Ins::PSRLQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xD3], &[0x0F, 0x73], 2),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD3], &[0x66, 0x0F, 0x73], 2),
+                    None,
+                )
+            }
+        }
+        Ins::PSRAW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xE1], &[0x0F, 0x71], 4),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xE1], &[0x66, 0x0F, 0x71], 4),
+                    None,
+                )
+            }
+        }
+        Ins::PSRAD => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    mmx::ins_shift(ins, bits, &[0x0F, 0xE2], &[0x0F, 0x72], 4),
+                    None,
+                )
+            } else {
+                (
+                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xE2], &[0x66, 0x0F, 0x72], 4),
+                    None,
+                )
+            }
+        }
+
+        Ins::POR => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xEB], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xEB],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PAND => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xDB], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xDB],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PANDN => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xDF], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xDF],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PXOR => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xEF], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xEF],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
 
         Ins::EMMS => (vec![0x0F, 0x77], None),
 
