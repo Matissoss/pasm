@@ -1,128 +1,146 @@
 <h1 align=center>rasm syntax</h1>
 
-## before we get started...
+This is short documentation for RASM assembler syntax.
 
-This tutorial asserts that you have basic knowledge of x86(-64) assembly.
-
-Don't have x86(-64) assembly knowledge? Too bad.
-
-## instructions
-
-Instructions follow Intel-like syntax:
-```
-mnemonic destination, source
-```
-
-## immediates
-
-immediates can be saved in `float` (32-bit), `double` (64-bit), `binary`, `decimal` or `hex` formats prefixed with `$` (this applies to all numbers).
-
-### floats
-
-Floats are saved as bytes and treated like byte casted 32/64-bit (depending if it's `float` or `double`) unsigned integer, 
-if used in context that is not float related (like `xmm` registers).
-
-### hex and binary
+## Source File Structure
 
 ```
-$0xFF ; 255 in hexadecimal
-$0b10 ; 2 in binary
-$-0b10 ; -2 in binary
-$-0xFF ; -255 in hexadecimal
-```
+ROOT
 
-## registers
-
-Registers are prefixed with `%` using known convention (rax, rbx, rcx).
-
-## memory
-
-Memory is a bit more complex. It follows this syntax:
-```
-(memory) !size
-```
-
-where `!size` can be one of these: `!byte` (for 8-bit value), `!word` (for 16-bit value), `!dword` (for 32-bit value) or `!qword` (for 64-bit value)
-
-### base
-
-```
-(%register +- $displacement)
-```
-
-### index * scale
-
-```
-(%index * $scale +- displacement)
-```
-
-> [!WARNING]
-> `*` must be used if without displacement, otherwise you will get error or it will be treated as `base`
-
-### base + index * scale
-
-```
-(%base, %index * $scale +- $displacement)
-```
-
-## labels
-
-Labels are created like this `name:`
-
-## variables
-
-Depending on type of variable you want to declare, declaring variable is very simmilar for all cases.
-
-### .data/.rodata - initialized constant/readonly
-
-```
-!const/!ronly var_name !size content
-```
-
-where `!size` is either: `!byte`, `!word`, `!dword`, `!qword` (***or in future***: `!xword`, `!yword`).
-
-`content` can be either: a number (prefix `$`) or a string (***IF YOU WANT YOUR VARIABLE TO BE STRING, PREFIX IT'S NAME WITH*** `str_`***!***)
-
-### .bss - uninitialized buffers
-
-```
-!uninit var_name !size/$size
-```
-
-`!size/$size` means that size specifier can either be a classical size specifier or immediate size specifier (number like `$10`).
-
-## globals
-
-Globals can be declared using `!global` keyword, followed by symbol name (not prefixed with anything).
-
-Example:
-```
-; makes symbol `_start` global
-!global _start
-!global var
-
-; works on variables
-!const var !byte $10
-
-; this symbol is global now
-_start: 
+; code
+label:
+    ; [...]
+label2:
     ; [...]
 ```
 
-## externs
+## Instruction format
 
-To use extern do:
+All instructions follow following order:
+
 ```
-!extern symbol_name
-```
-
-Basically tells assembler that symbol used in this file cannot be found in this file, doesn't work in `bin` format
-
-## entry
-
-To change entry do:
-```
-!entry label_name
+mnemonic [additional mnemonic] operand_1, operand_2, operand_3, [...]
 ```
 
-Entry label ***MUST BE SET AS GLOBAL***. 
+Operand order is **same as in Intel-like Syntax** (destination, then source).
+
+## Operand format
+
+Operands can either be: a register, a memory address, a memory address within segment, symbol or immediate. 
+
+### Registers
+
+Registers are prefixed with `%`.
+
+```
+%eax
+%rax
+%rcx
+%r8
+%r9
+%xmm0
+```
+
+### Immediate
+    
+Immediates are prefixed with `$`. They can be saved in: hexadecimal, binary, decimal
+single precision (`float`) or double precision (`double`) formats.
+
+```
+$0xFF
+$0b10
+$-0xFF
+$1.00
+$-3.14
+```
+
+### Memory
+
+Memory is same as in Intel-like syntax, but is started with `(` and ended with `)` (not `[`, `]`).
+Values there also must be prefixed (immediates can be non-prefixed there).
+
+A size specifier must be either after or before memory address.
+
+RASM assembler supports: SIB, SIB with offset, Base, Index-only memory formats.
+
+```
+; SIB
+!byte (%rax + %rcx * 1 + 200)
+; Base
+!dword (%rax)
+; Index-only
+(%rcx * 4) !qword
+```
+
+Memory can also relate to segments like `cs`. 
+Then it must be prefixed with `#` and split using `:`
+
+```
+#cs:(%rax)
+```
+
+### Symbols
+
+What is a symbol? Symbol is every label and every variable you declare. It is prefixed (when referenced) with `@` prefix.
+
+```
+@symbol_name
+```
+
+### Size Specifiers
+
+Size specifiers are prefixed with `!` (like other keywords)
+
+| NASM Size Specifier | RASM Size Specifier | Size (in bits) |
+|:-------------------:|:-------------------:|:--------------:|
+|       byte          |         byte        |        8       |
+|       word          |         word        |        16      |
+|      dword          |        dword        |        32      |
+|      qword          |        qword        |        64      |
+|      oword          |        xword        |        128     |
+
+### Keywords
+
+Keywords are prefixed with `!`.
+Here is list of all keywords (according to `src/shr/kwd.rs`) with their arguments:
+- `!bits $IMM8` : Specifies `bits` parameter (same as NASM's `bits` parameter).  Must be declared in `ROOT`
+- `!qword [MEM]`
+- `!byte [MEM]`
+- `!word [MEM]`
+- `!xword [MEM]`
+- `!ronly [VAR DECLARATION]`
+- `!const [VAR DECLARATION]`
+- `!uninit [VAR DECLARATION]`
+- `!entry [LABEL NAME]`: Specifies entry point for relocatable file. (basically is a swap; see `src/shr/ast.rs:AST::fix_entry`)
+- `!global [SYMBOL NAME]`: Specifies if symbol `[SYMBOL NAME]` is global or not. Must be declared in `ROOT`.
+- `!extern [SYMBOL NAME]`: Specifies that symbol `[SYMBOL NAME]` is in this file or not. Must be declared in `ROOT`.
+
+### Variables
+
+> [!NOTE]
+> Variables must be declared in `ROOT`.
+
+#### Constant (.data) & Readonly (.rodata)
+
+Constant/Readonly variable must have following things: name, size specifier (keyword size specifier) 
+and content (either string or number).
+
+```
+!const name !byte "Hello, World!", $13, $0
+!ronly eman !word $10
+```
+
+> [!WARNING]
+> Constant/Readonly value in `bin` format cannot be strings as it is "inline"
+
+#### Uninitialized (.bss)
+
+Uninitialized variable must have a name and size specifer (can be a number).
+
+```
+!uninit name $13
+!uninit namealt !word
+```
+
+> [!WARNING]
+> Uninitialized values cannot be used in `bin` format

@@ -257,5 +257,3 @@ When an 8 byte immediate value is encoded, no displacement can be encoded.
 Most of info here comes from [wiki.osdev.org](https://wiki.osdev.org) and other opcode tables and **Some parts directly come from** [wiki.osdev.org](https://wiki.osdev.org).
 
 For opcode table see this source: [felixcloutier.com/x86](https://www.felixcloutier.com/x86/)
-
-
