@@ -13,7 +13,7 @@ use crate::{
         reloc::{RCategory, RType, Relocation},
         rex::gen_rex,
         sib::gen_sib,
-        sse, sse2,
+        sse, sse2, sse3, ssse3,
     },
     shr::{
         ast::{IVariant, Instruction, Operand},
@@ -212,6 +212,8 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
 
         Ins::PAUSE => (vec![0xF3, 0x90], None),
+        Ins::MWAIT => (vec![0x0F, 0x01, 0xC9], None),
+
         // SSE
         Ins::MOVSS => (
             sse::gen_movxxs(ins, bits, &[0xF3, 0x0F, 0x10], &[0xF3, 0x0F, 0x11]),
@@ -881,8 +883,334 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 )
             }
         }
-
         Ins::EMMS => (vec![0x0F, 0x77], None),
+
+        // sse3
+        Ins::ADDSUBPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0xD0]), None),
+        Ins::ADDSUBPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0xD0]), None),
+
+        Ins::HADDPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0x7C]), None),
+        Ins::HADDPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0x7C]), None),
+
+        Ins::HSUBPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0x7D]), None),
+        Ins::HSUBPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0x7D]), None),
+
+        Ins::MOVSLDUP => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0x12],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::MOVSHDUP => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0x16],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::MOVDDUP => (
+            gen_ins(
+                ins,
+                &[0xF2, 0x0F, 0x12],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+
+        Ins::LDDQU => (
+            gen_ins(
+                ins,
+                &[0xF2, 0x0F, 0xF0],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+
+        Ins::MONITOR => (vec![0x0F, 0x01, 0xC8], None),
+
+        // ssse3
+        Ins::PABSB => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1C]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x1C],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PABSW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1D]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x1D],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PABSD => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1E]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x1E],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+
+        Ins::PSIGNB => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x08]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x08],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PSIGNW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x09]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x09],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PSIGND => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x0A]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x0A],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+
+        Ins::PSHUFB => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x00]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x00],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHADDW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x01]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x01],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHADDD => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x02]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x02],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHADDSW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x03]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x03],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHSUBW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x05]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x05],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHSUBD => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x06]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x06],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PHSUBSW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x07]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x07],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PALIGNR => {
+            if ins.which_variant() == IVariant::XMM {
+                (
+                    ssse3::ins_palignr(ins, bits, &[0x66, 0x0F, 0x3A, 0x0F]),
+                    None,
+                )
+            } else {
+                (ssse3::ins_palignr(ins, bits, &[0x0F, 0x3A, 0x0F]), None)
+            }
+        }
+        Ins::PMULHRSW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x0B]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x0B],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PMADDUBSW => {
+            if ins.which_variant() == IVariant::XMM {
+                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x04]), None)
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x0F, 0x38, 0x04],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
 
         _ => (Vec::new(), None),
     }

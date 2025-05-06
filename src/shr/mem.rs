@@ -370,45 +370,53 @@ impl ToAType for Mem {
 }
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for Mem{
-    fn to_string(&self) -> String{
-        match self{
-            Self::Direct(bs, sz) => 
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{MEM_CLOSE}", bs.to_string()),
-            Self::Offset(bs,of,sz) => 
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{}{MEM_CLOSE}", bs.to_string(),
-                    if of <= &0{
-                        format!("- {of}")
-                    }
-                    else {
-                        format!("+ {of}")
-                    }
-                ),
-            Self::Index(id, sc, sz) =>
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {sc}{MEM_CLOSE}", id.to_string()),
-            Self::IndexOffset(id, of, sc, sz) =>
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {} {}{MEM_CLOSE}", id.to_string(),
-                    <Size as Into<u8>>::into(*sc),
-                    if of <= &0{
-                        format!("- {of}")
-                    }
-                    else {
-                        format!("+ {of}")
-                    }
-                ),
-            Self::SIB(bs, id, sc, sz) => 
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {}{MEM_CLOSE}", 
-                    bs.to_string(), id.to_string(), <Size as Into<u8>>::into(*sc)),
-            Self::SIBOffset(bs, id, sc, of, sz) => 
-                format!("{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {} {}{MEM_CLOSE}", 
-                    bs.to_string(), id.to_string(), <Size as Into<u8>>::into(*sc),
-                    if of <= &0{
-                        format!("- {of}")
-                    }
-                    else {
-                        format!("+ {of}")
-                    }
-                ),
+impl ToString for Mem {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Direct(bs, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{MEM_CLOSE}",
+                bs.to_string()
+            ),
+            Self::Offset(bs, of, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{}{MEM_CLOSE}",
+                bs.to_string(),
+                if of <= &0 {
+                    format!("- {of}")
+                } else {
+                    format!("+ {of}")
+                }
+            ),
+            Self::Index(id, sc, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {sc}{MEM_CLOSE}",
+                id.to_string()
+            ),
+            Self::IndexOffset(id, of, sc, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {} {}{MEM_CLOSE}",
+                id.to_string(),
+                <Size as Into<u8>>::into(*sc),
+                if of <= &0 {
+                    format!("- {of}")
+                } else {
+                    format!("+ {of}")
+                }
+            ),
+            Self::SIB(bs, id, sc, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {}{MEM_CLOSE}",
+                bs.to_string(),
+                id.to_string(),
+                <Size as Into<u8>>::into(*sc)
+            ),
+            Self::SIBOffset(bs, id, sc, of, sz) => format!(
+                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {} {}{MEM_CLOSE}",
+                bs.to_string(),
+                id.to_string(),
+                <Size as Into<u8>>::into(*sc),
+                if of <= &0 {
+                    format!("- {of}")
+                } else {
+                    format!("+ {of}")
+                }
+            ),
         }
     }
 }

@@ -17,7 +17,7 @@ pub enum Mnemonic {
     SHR  , SAR , SHL ,
     SAL  , LEA , INC ,
     DEC  , CMP , TEST,
-
+    
     JMP, CALL,
 
     JE , JZ , JNZ,
@@ -111,6 +111,35 @@ pub enum Mnemonic {
     MOVNTPD, 
     MOVNTDQ,
     MOVNTI,
+
+    // SSE3 extension
+    ADDSUBPS,
+    ADDSUBPD,
+
+    HADDPS, HSUBPS,
+    HADDPD, HSUBPD,
+    MOVSLDUP, MOVSHDUP,
+    MOVDDUP, LDDQU,
+    MONITOR, MWAIT,
+
+    // SSSE3 extension
+
+    PABSW, 
+    PABSD, 
+    PABSB,
+    PSIGNW, 
+    PSIGND, 
+    PSIGNB,
+    PHSUBW,
+    PHSUBD,
+    PHADDW,
+    PHADDD,
+    PSHUFB,
+    PHSUBSW,
+    PHADDSW,
+    PALIGNR,
+    PMULHRSW,
+    PMADDUBSW,
 
     // MMX extension
     MOVD, MOVQ,
@@ -347,7 +376,11 @@ impl FromStr for Mnemonic {
                     },
                     's' => match raw_ins[2] as char {
                         'd' => ins_ie(str_ins, "addsd", Self::ADDSD),
-                        'b' => ins_ie(str_ins, "subsd", Self::SUBSD),
+                        'b' => match raw_ins[0] as char {
+                            's' => ins_ie(str_ins, "subsd", Self::SUBSD),
+                            'p' => ins_ie(str_ins, "pabsd", Self::PABSD),
+                            _ => Err(()),
+                        },
                         'l' => ins_ie(str_ins, "mulsd", Self::MULSD),
                         'v' => match raw_ins[0] as char {
                             'd' => ins_ie(str_ins, "divsd", Self::DIVSD),
@@ -365,6 +398,7 @@ impl FromStr for Mnemonic {
                 'b' => match raw_ins[3] as char {
                     'b' => ins_ie(str_ins, "psubb", Self::PSUBB),
                     'd' => ins_ie(str_ins, "paddb", Self::PADDB),
+                    's' => ins_ie(str_ins, "pabsb", Self::PABSB),
                     _ => Err(()),
                 },
                 'w' => match raw_ins[3] as char {
@@ -379,6 +413,7 @@ impl FromStr for Mnemonic {
                         },
                         _ => Err(()),
                     },
+                    's' => ins_ie(str_ins, "pabsw", Self::PABSW),
                     _ => Err(()),
                 },
                 'q' => match raw_ins[3] as char {
@@ -393,6 +428,8 @@ impl FromStr for Mnemonic {
                     _ => Err(()),
                 },
                 'e' => ins_ie(str_ins, "pause", Self::PAUSE),
+                'u' => ins_ie(str_ins, "lddqu", Self::LDDQU),
+                't' => ins_ie(str_ins, "mwait", Self::MWAIT),
                 _ => Err(()),
             },
             6 => match raw_ins[5] as char {
@@ -409,6 +446,8 @@ impl FromStr for Mnemonic {
                         'l' => ins_ie(str_ins, "movlpd", Self::MOVLPD),
                         'h' => ins_ie(str_ins, "movhpd", Self::MOVHPD),
                         't' => ins_ie(str_ins, "sqrtpd", Self::SQRTPD),
+                        'b' => ins_ie(str_ins, "hsubpd", Self::HSUBPD),
+                        'd' => ins_ie(str_ins, "haddpd", Self::HADDPD),
                         _ => Err(()),
                     },
                     's' => match raw_ins[3] as char {
@@ -416,11 +455,16 @@ impl FromStr for Mnemonic {
                         't' => ins_ie(str_ins, "sqrtsd", Self::SQRTSD),
                         _ => Err(()),
                     },
+                    'n' => ins_ie(str_ins, "psignd", Self::PSIGND),
+                    'd' => ins_ie(str_ins, "phaddd", Self::PHADDD),
+                    'b' => ins_ie(str_ins, "phsubd", Self::PHSUBD),
                     _ => Err(()),
                 },
                 'b' => match raw_ins[3] as char {
                     'b' => ins_ie(str_ins, "psubsb", Self::PSUBSB),
                     'd' => ins_ie(str_ins, "paddsb", Self::PADDSB),
+                    'g' => ins_ie(str_ins, "psignb", Self::PSIGNB),
+                    'u' => ins_ie(str_ins, "pshufb", Self::PSHUFB),
                     _ => Err(()),
                 },
                 'w' => match (raw_ins[3] as char, raw_ins[4] as char) {
@@ -428,6 +472,9 @@ impl FromStr for Mnemonic {
                     ('l', 'h') => ins_ie(str_ins, "pmulhw", Self::PMULHW),
                     ('b', 's') => ins_ie(str_ins, "psubsw", Self::PSUBSW),
                     ('d', 's') => ins_ie(str_ins, "paddsw", Self::PADDSW),
+                    ('g', 'n') => ins_ie(str_ins, "psignw", Self::PSIGNW),
+                    ('u', 'b') => ins_ie(str_ins, "phsubw", Self::PHSUBW),
+                    ('d', 'd') => ins_ie(str_ins, "phaddw", Self::PHADDW),
                     _ => Err(()),
                 },
                 'q' => match raw_ins[2] as char {
@@ -454,6 +501,8 @@ impl FromStr for Mnemonic {
                         _ => Err(()),
                     },
                     'h' => ins_ie(str_ins, "shufps", Self::SHUFPS),
+                    's' => ins_ie(str_ins, "hsubps", Self::HSUBPS),
+                    'a' => ins_ie(str_ins, "haddps", Self::HADDPS),
                     _ => Err(()),
                 },
                 'a' => ins_ie(str_ins, "movdqa", Self::MOVDQA),
@@ -463,6 +512,13 @@ impl FromStr for Mnemonic {
                     _ => Err(()),
                 },
                 'i' => ins_ie(str_ins, "movnti", Self::MOVNTI),
+                'p' => match (raw_ins[1] as char, raw_ins[6] as char) {
+                    ('a', 's') => ins_ie(str_ins, "haddps", Self::HADDPS),
+                    ('a', 'd') => ins_ie(str_ins, "haddpd", Self::HADDPD),
+                    ('s', 's') => ins_ie(str_ins, "hsubps", Self::HSUBPS),
+                    ('s', 'd') => ins_ie(str_ins, "hsubpd", Self::HSUBPD),
+                    _ => Err(()),
+                },
                 _ => Err(()),
             },
             7 => match raw_ins[0] as char {
@@ -474,11 +530,11 @@ impl FromStr for Mnemonic {
                     _ => Err(()),
                 },
                 'p' => match raw_ins[4] as char {
-                    'd' => ins_ie(str_ins, "pmaddwd", Self::PMADDWD),
                     'g' => match raw_ins[6] as char {
                         'b' => ins_ie(str_ins, "pcmpgtb", Self::PCMPGTB),
                         'w' => ins_ie(str_ins, "pcmpgtw", Self::PCMPGTW),
                         'd' => ins_ie(str_ins, "pcmpgtd", Self::PCMPGTD),
+                        'r' => ins_ie(str_ins, "palignr", Self::PALIGNR),
                         _ => Err(()),
                     },
                     'e' => match raw_ins[6] as char {
@@ -506,6 +562,12 @@ impl FromStr for Mnemonic {
                         'h' => ins_ie(str_ins, "pshufhw", Self::PSHUFHW),
                         _ => Err(()),
                     },
+                    'b' => ins_ie(str_ins, "phsubsw", Self::PHSUBSW),
+                    'd' => match raw_ins[1] as char {
+                        'h' => ins_ie(str_ins, "phaddsw", Self::PHADDSW),
+                        'm' => ins_ie(str_ins, "pmaddwd", Self::PMADDWD),
+                        _ => Err(()),
+                    },
                     _ => Err(()),
                 },
                 'r' => {
@@ -527,7 +589,12 @@ impl FromStr for Mnemonic {
                         'd' => ins_ie(str_ins, "movntdq", Self::MOVNTDQ),
                         _ => Err(()),
                     },
-                    'd' => ins_ie(str_ins, "movdq2q", Self::MOVDQ2Q),
+                    'd' => match raw_ins[6] as char {
+                        'q' => ins_ie(str_ins, "movdq2q", Self::MOVDQ2Q),
+                        'p' => ins_ie(str_ins, "movddup", Self::MOVDDUP),
+                        _ => Err(()),
+                    },
+                    'i' => ins_ie(str_ins, "monitor", Self::MONITOR),
                     _ => Err(()),
                 },
                 _ => Err(()),
@@ -562,9 +629,20 @@ impl FromStr for Mnemonic {
                         },
                         _ => Err(()),
                     },
+                    'm' => ins_ie(str_ins, "pmulhrsw", Self::PMULHRSW),
                     _ => Err(()),
                 },
-                'm' => ins_ie(str_ins, "movmskpd", Self::MOVMSKPD),
+                'm' => match (raw_ins[4] as char, raw_ins[7] as char) {
+                    ('s', 'd') => ins_ie(str_ins, "movmskpd", Self::MOVMSKPD),
+                    ('l', 'p') => ins_ie(str_ins, "movsldup", Self::MOVSLDUP),
+                    ('h', 'p') => ins_ie(str_ins, "movshdup", Self::MOVSHDUP),
+                    _ => Err(()),
+                },
+                'a' => match raw_ins[7] as char {
+                    's' => ins_ie(str_ins, "addsubps", Self::ADDSUBPS),
+                    'd' => ins_ie(str_ins, "addsubpd", Self::ADDSUBPD),
+                    _ => Err(()),
+                },
                 _ => Err(()),
             },
             9 => match raw_ins[0] as char {
@@ -589,6 +667,7 @@ impl FromStr for Mnemonic {
                         ('h', 'd', 'q') => ins_ie(str_ins, "punpckhdq", Self::PUNPCKHDQ),
                         _ => Err(()),
                     },
+                    'm' => ins_ie(str_ins, "pmaddubsw", Self::PMADDUBSW),
                     _ => Err(()),
                 },
                 _ => Err(()),

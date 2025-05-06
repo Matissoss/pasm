@@ -123,13 +123,11 @@ impl Lexer {
                         error = Some(e);
                     }
                 },
-                Some(Token::Unknown(s)) => {
-                    ast_tree.push(Err(RASMError::new(
-                        Some(line_count as usize),
-                        Some(format!("Tried to start line with unknown mnemonic `{s}`")),
-                        None
-                    )))
-                }
+                Some(Token::Unknown(s)) => ast_tree.push(Err(RASMError::new(
+                    Some(line_count as usize),
+                    Some(format!("Tried to start line with unknown mnemonic `{s}`")),
+                    None,
+                ))),
                 _ => {
                     ast_tree.push(Err(RASMError::new(
                         Some(line_count as usize),

@@ -13,3 +13,5 @@ pub mod reloc;
 pub mod mmx;
 pub mod sse;
 pub mod sse2;
+pub mod sse3;
+pub mod ssse3;

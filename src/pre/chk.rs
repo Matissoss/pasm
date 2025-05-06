@@ -568,6 +568,83 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+
+        // #####  #####  #####   ####
+        // #      #      #           #
+        // #####  #####  #####   ####
+        //     #      #      #       #
+        // #####  #####  #####   ####
+        // (SSE 3)
+        Mnm::ADDSUBPD
+        | Mnm::ADDSUBPS
+        | Mnm::HADDPD
+        | Mnm::HADDPS
+        | Mnm::HSUBPS
+        | Mnm::HSUBPD
+        | Mnm::MOVSLDUP
+        | Mnm::MOVSHDUP => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        // weird one
+        Mnm::LDDQU => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVDDUP => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MONITOR | Mnm::MWAIT => ot_chk(ins, &[], &[], &[]),
+
+        // ##### ##### #####  #####   ####
+        // #     #     #      #           #
+        // ##### ##### #####  #####   ####
+        //     #     #     #  #           #
+        // ##### ##### #####  #####   ####
+        // (SSSE 3)
+        Mnm::PABSW
+        | Mnm::PABSD
+        | Mnm::PABSB
+        | Mnm::PSIGNW
+        | Mnm::PSIGND
+        | Mnm::PSIGNB
+        | Mnm::PHSUBW
+        | Mnm::PHSUBD
+        | Mnm::PHADDW
+        | Mnm::PHADDD
+        | Mnm::PSHUFB
+        | Mnm::PHSUBSW
+        | Mnm::PHADDSW
+        | Mnm::PMULHRSW
+        | Mnm::PMADDUBSW => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, M64), (XMM, MMX), (MMX, M128)],
+            &[],
+        ),
+
+        Mnm::PALIGNR => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, M64), (XMM, MMX), (MMX, M128)],
+            &[],
+        ),
+
         _ => Some(RASMError::new(
             Some(ins.line),
             Some("Tried to use unsupported instruction".to_string()),
@@ -1154,6 +1231,83 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+
+        // #####  #####  #####   ####
+        // #      #      #           #
+        // #####  #####  #####   ####
+        //     #      #  #       #
+        // #####  #####  #####   ####
+        // (SSE 3)
+        Mnm::ADDSUBPD
+        | Mnm::ADDSUBPS
+        | Mnm::HADDPD
+        | Mnm::HADDPS
+        | Mnm::HSUBPS
+        | Mnm::HSUBPD
+        | Mnm::MOVSLDUP
+        | Mnm::MOVSHDUP => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
+        // weird one
+        Mnm::LDDQU => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MOVDDUP => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::MONITOR | Mnm::MWAIT => ot_chk(ins, &[], &[], &[]),
+
+        // ##### ##### #####  #####   ####
+        // #     #     #      #           #
+        // ##### ##### #####  #####   ####
+        //     #     #     #  #           #
+        // ##### ##### #####  #####   ####
+        // (SSSE 3)
+        Mnm::PABSW
+        | Mnm::PABSD
+        | Mnm::PABSB
+        | Mnm::PSIGNW
+        | Mnm::PSIGND
+        | Mnm::PSIGNB
+        | Mnm::PHSUBW
+        | Mnm::PHSUBD
+        | Mnm::PHADDW
+        | Mnm::PHADDD
+        | Mnm::PSHUFB
+        | Mnm::PHSUBSW
+        | Mnm::PHADDSW
+        | Mnm::PMULHRSW
+        | Mnm::PMADDUBSW => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, M64), (XMM, MMX), (MMX, M128)],
+            &[],
+        ),
+
+        Mnm::PALIGNR => ot_chk(
+            ins,
+            &[
+                (&[MMX, XMM], Optional::Needed),
+                (&[MMX, XMM, M64, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[(MMX, XMM), (XMM, M64), (XMM, MMX), (MMX, M128)],
+            &[],
+        ),
+
         _ => Some(RASMError::new(
             Some(ins.line),
             Some("Tried to use unsupported instruction".to_string()),
@@ -1199,8 +1353,7 @@ fn ot_chk(
                     Some(format!("Needed operand not found at index {}", idx)),
                     None,
                 ));
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -1233,7 +1386,8 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
                 Some(ins.line),
                 Some(format!(
                     "Destination and Source operand have forbidden combination: ({}, {})",
-                    f.0.to_string(), f.1.to_string()
+                    f.0.to_string(),
+                    f.1.to_string()
                 )),
                 None,
             ));
@@ -1341,9 +1495,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                             "Tried to use immediate that is too large for destination operand"
                                 .to_string(),
                         ),
-                        Some(format!(
-                            "Consider changing immediate to fit inside {s0}",
-                        )),
+                        Some(format!("Consider changing immediate to fit inside {s0}",)),
                     ))
                 } else {
                     None
@@ -1361,9 +1513,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                             "Tried to use operand that cannot be used for destination operand"
                                 .to_string(),
                         ),
-                        Some(format!(
-                            "Consider changing operand to be {s0}",
-                        )),
+                        Some(format!("Consider changing operand to be {s0}",)),
                     ))
                 } else {
                     None
@@ -1392,9 +1542,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                             "Tried to use operand that cannot be used for destination operand"
                                 .to_string(),
                         ),
-                        Some(format!(
-                            "Consider changing operand to be {s0}",
-                        )),
+                        Some(format!("Consider changing operand to be {s0}",)),
                     ))
                 } else {
                     None

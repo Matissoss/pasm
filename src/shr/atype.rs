@@ -45,32 +45,30 @@ pub trait ToAType {
 }
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for AType{
-    fn to_string(&self) -> String{
+impl ToString for AType {
+    fn to_string(&self) -> String {
         match self {
             Self::Register(rp, sz) => {
                 format!("{} {} register", rp.to_string(), sz)
-            },
+            }
             Self::Memory(sz) => {
                 format!("{} memory", sz)
-            },
+            }
             Self::SMemory(sz) => {
                 format!("{} segmented memory", sz)
-            },
+            }
             Self::Immediate(sz) => {
                 format!("{} immediate", sz)
-            },
-            Self::Symbol => {
-                String::from("symbol")
             }
+            Self::Symbol => String::from("symbol"),
         }
     }
 }
 
-pub fn atype_arr_string(arr: &[AType]) -> String{
+pub fn atype_arr_string(arr: &[AType]) -> String {
     let mut string = String::new();
     string.push('[');
-    for e in arr{
+    for e in arr {
         string.push_str(&e.to_string());
         string.push_str(", ");
     }
