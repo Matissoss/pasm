@@ -68,9 +68,11 @@ impl ToString for AType {
 pub fn atype_arr_string(arr: &[AType]) -> String {
     let mut string = String::new();
     string.push('[');
-    for e in arr {
+    for (i, e) in arr.iter().enumerate() {
         string.push_str(&e.to_string());
-        string.push_str(", ");
+        if i + 1 < arr.len() {
+            string.push_str(", ");
+        }
     }
     string.push(']');
     string

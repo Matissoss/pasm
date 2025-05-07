@@ -187,504 +187,10 @@ fn ins_ie(i: &str, c: &str, ins: Mnemonic) -> Result<Mnemonic, ()> {
 impl FromStr for Mnemonic {
     type Err = ();
     fn from_str(str_ins: &str) -> Result<Self, <Self as FromStr>::Err> {
-        let raw_ins = str_ins.as_bytes();
-        match raw_ins.len() {
-            1 => Err(()),
-            2 => match raw_ins[1] as char {
-                'e' => ins_ie(str_ins, "je", Self::JE),
-                'z' => ins_ie(str_ins, "jz", Self::JZ),
-                'l' => ins_ie(str_ins, "jl", Self::JL),
-                'g' => ins_ie(str_ins, "jg", Self::JG),
-                'r' => ins_ie(str_ins, "or", Self::OR),
-                _ => Err(()),
-            },
-            3 => match raw_ins[1] as char {
-                'o' => match raw_ins[0] as char {
-                    'm' => ins_ie(str_ins, "mov", Self::MOV),
-                    'n' => match raw_ins[2] as char {
-                        't' => Ok(Self::NOT),
-                        'p' => Ok(Self::NOP),
-                        _ => Err(()),
-                    },
-                    'x' => ins_ie(str_ins, "xor", Self::XOR),
-                    'p' => match raw_ins[2] as char {
-                        'p' => Ok(Self::POP),
-                        'r' => Ok(Self::POR),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                'i' => ins_ie(str_ins, "div", Self::DIV),
-                'd' => ins_ie(str_ins, "add", Self::ADD),
-                'u' => match raw_ins[0] as char {
-                    's' => ins_ie(str_ins, "sub", Self::SUB),
-                    'm' => ins_ie(str_ins, "mul", Self::MUL),
-                    _ => Err(()),
-                },
-                'e' => match raw_ins[0] as char {
-                    'r' => ins_ie(str_ins, "ret", Self::RET),
-                    'd' => ins_ie(str_ins, "dec", Self::DEC),
-                    'l' => ins_ie(str_ins, "lea", Self::LEA),
-                    'n' => ins_ie(str_ins, "neg", Self::NEG),
-                    _ => Err(()),
-                },
-                'g' => ins_ie(str_ins, "jge", Self::JGE),
-                'l' => ins_ie(str_ins, "jle", Self::JLE),
-                'n' => match raw_ins[2] as char {
-                    'c' => ins_ie(str_ins, "inc", Self::INC),
-                    'd' => ins_ie(str_ins, "and", Self::AND),
-                    'z' => ins_ie(str_ins, "jnz", Self::JNZ),
-                    'e' => ins_ie(str_ins, "jne", Self::JNE),
-                    _ => Err(()),
-                },
-                'h' => match raw_ins[2] as char {
-                    'l' => ins_ie(str_ins, "shl", Self::SHL),
-                    'r' => ins_ie(str_ins, "shr", Self::SHR),
-                    _ => Err(()),
-                },
-                'a' => match raw_ins[2] as char {
-                    'l' => ins_ie(str_ins, "sal", Self::SAL),
-                    'r' => ins_ie(str_ins, "sar", Self::SAR),
-                    _ => Err(()),
-                },
-                'm' => match raw_ins[0] as char {
-                    'j' => ins_ie(str_ins, "jmp", Self::JMP),
-                    'c' => ins_ie(str_ins, "cmp", Self::CMP),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            4 => match raw_ins[1] as char {
-                'd' => ins_ie(str_ins, "idiv", Self::IDIV),
-                'm' => match raw_ins[0] as char {
-                    'i' => ins_ie(str_ins, "imul", Self::IMUL),
-                    'e' => ins_ie(str_ins, "emms", Self::EMMS),
-                    _ => Err(()),
-                },
-                'u' => ins_ie(str_ins, "push", Self::PUSH),
-                'a' => match raw_ins[0] as char {
-                    'c' => ins_ie(str_ins, "call", Self::CALL),
-                    'p' => ins_ie(str_ins, "pand", Self::PAND),
-                    _ => Err(()),
-                },
-                'o' => match raw_ins[3] as char {
-                    'f' => ins_ie(str_ins, "popf", Self::POPF),
-                    'd' => ins_ie(str_ins, "movd", Self::MOVD),
-                    'q' => ins_ie(str_ins, "movq", Self::MOVQ),
-                    _ => Err(()),
-                },
-                'r' => ins_ie(str_ins, "orps", Self::ORPS),
-                'e' => ins_ie(str_ins, "test", Self::TEST),
-                'x' => ins_ie(str_ins, "pxor", Self::PXOR),
-                _ => Err(()),
-            },
-            5 => match raw_ins[4] as char {
-                's' => match raw_ins[2] as char {
-                    'd' => match raw_ins[1] as char {
-                        'd' => {
-                            if raw_ins[3] as char == 'p' {
-                                ins_ie(str_ins, "addps", Self::ADDPS)
-                            } else {
-                                ins_ie(str_ins, "addss", Self::ADDSS)
-                            }
-                        }
-                        'n' => ins_ie(str_ins, "andps", Self::ANDPS),
-                        _ => Err(()),
-                    },
-                    'b' => {
-                        if raw_ins[3] as char == 'p' {
-                            ins_ie(str_ins, "subps", Self::SUBPS)
-                        } else {
-                            ins_ie(str_ins, "subss", Self::SUBSS)
-                        }
-                    }
-                    'l' => {
-                        if raw_ins[3] as char == 'p' {
-                            ins_ie(str_ins, "mulps", Self::MULPS)
-                        } else {
-                            ins_ie(str_ins, "mulss", Self::MULSS)
-                        }
-                    }
-                    'v' => match (raw_ins[1] as char, raw_ins[3] as char) {
-                        ('i', 'p') => ins_ie(str_ins, "divps", Self::DIVPS),
-                        ('i', 's') => ins_ie(str_ins, "divss", Self::DIVSS),
-                        ('o', 's') => ins_ie(str_ins, "movss", Self::MOVSS),
-                        _ => Err(()),
-                    },
-                    'p' => match raw_ins[1] as char {
-                        'c' => {
-                            if raw_ins[3] as char == 'p' {
-                                ins_ie(str_ins, "rcpps", Self::RCPPS)
-                            } else {
-                                ins_ie(str_ins, "rcpss", Self::RCPSS)
-                            }
-                        }
-                        'm' => {
-                            if raw_ins[3] as char == 'p' {
-                                ins_ie(str_ins, "cmpps", Self::CMPPS)
-                            } else {
-                                ins_ie(str_ins, "cmpss", Self::CMPSS)
-                            }
-                        }
-                        _ => Err(()),
-                    },
-                    'n' => {
-                        if raw_ins[3] as char == 'p' {
-                            ins_ie(str_ins, "minps", Self::MINPS)
-                        } else {
-                            ins_ie(str_ins, "minss", Self::MINSS)
-                        }
-                    }
-                    'r' => ins_ie(str_ins, "xorps", Self::XORPS),
-                    'x' => {
-                        if raw_ins[3] as char == 'p' {
-                            ins_ie(str_ins, "maxps", Self::MAXPS)
-                        } else {
-                            ins_ie(str_ins, "maxss", Self::MAXSS)
-                        }
-                    }
-                    _ => Err(()),
-                },
-                'f' => ins_ie(str_ins, "pushf", Self::PUSHF),
-                'n' => ins_ie(str_ins, "pandn", Self::PANDN),
-                'd' => match raw_ins[3] as char {
-                    'f' => ins_ie(str_ins, "popfd", Self::POPFD),
-                    'l' => match raw_ins[2] as char {
-                        'l' => ins_ie(str_ins, "pslld", Self::PSLLD),
-                        'r' => ins_ie(str_ins, "psrld", Self::PSRLD),
-                        _ => Err(()),
-                    },
-                    'a' => ins_ie(str_ins, "psrad", Self::PSRAD),
-                    'd' => ins_ie(str_ins, "paddd", Self::PADDD),
-                    'b' => ins_ie(str_ins, "psubd", Self::PSUBD),
-                    'p' => match raw_ins[2] as char {
-                        'd' => {
-                            if raw_ins[1] as char == 'd' {
-                                ins_ie(str_ins, "addpd", Self::ADDPD)
-                            } else {
-                                ins_ie(str_ins, "andpd", Self::ANDPD)
-                            }
-                        }
-                        'b' => ins_ie(str_ins, "subpd", Self::SUBPD),
-                        'l' => ins_ie(str_ins, "mulpd", Self::MULPD),
-                        'v' => ins_ie(str_ins, "divpd", Self::DIVPD),
-                        'x' => ins_ie(str_ins, "maxpd", Self::MAXPD),
-                        'n' => ins_ie(str_ins, "minpd", Self::MINPD),
-                        'p' => ins_ie(str_ins, "cmppd", Self::CMPPD),
-                        'r' => ins_ie(str_ins, "xorpd", Self::XORPD),
-                        _ => Err(()),
-                    },
-                    's' => match raw_ins[2] as char {
-                        'd' => ins_ie(str_ins, "addsd", Self::ADDSD),
-                        'b' => match raw_ins[0] as char {
-                            's' => ins_ie(str_ins, "subsd", Self::SUBSD),
-                            'p' => ins_ie(str_ins, "pabsd", Self::PABSD),
-                            _ => Err(()),
-                        },
-                        'l' => ins_ie(str_ins, "mulsd", Self::MULSD),
-                        'v' => match raw_ins[0] as char {
-                            'd' => ins_ie(str_ins, "divsd", Self::DIVSD),
-                            'm' => ins_ie(str_ins, "movsd", Self::MOVSD),
-                            _ => Err(()),
-                        },
-                        'x' => ins_ie(str_ins, "maxsd", Self::MAXSD),
-                        'n' => ins_ie(str_ins, "minsd", Self::MINSD),
-                        'p' => ins_ie(str_ins, "cmpsd", Self::CMPSD),
-                        _ => Err(()),
-                    },
-                    'i' => ins_ie(str_ins, "cpuid", Self::CPUID),
-                    _ => Err(()),
-                },
-                'b' => match raw_ins[3] as char {
-                    'b' => ins_ie(str_ins, "psubb", Self::PSUBB),
-                    'd' => ins_ie(str_ins, "paddb", Self::PADDB),
-                    's' => ins_ie(str_ins, "pabsb", Self::PABSB),
-                    _ => Err(()),
-                },
-                'w' => match raw_ins[3] as char {
-                    'b' => ins_ie(str_ins, "psubw", Self::PSUBW),
-                    'd' => ins_ie(str_ins, "paddw", Self::PADDW),
-                    'a' => ins_ie(str_ins, "psraw", Self::PSRAW),
-                    'l' => match raw_ins[2] as char {
-                        'l' => ins_ie(str_ins, "psllw", Self::PSLLW),
-                        'r' => match raw_ins[3] as char {
-                            'l' => ins_ie(str_ins, "psrlw", Self::PSRLW),
-                            _ => Err(()),
-                        },
-                        _ => Err(()),
-                    },
-                    's' => ins_ie(str_ins, "pabsw", Self::PABSW),
-                    _ => Err(()),
-                },
-                'q' => match raw_ins[3] as char {
-                    'f' => ins_ie(str_ins, "popfq", Self::POPFQ),
-                    'd' => ins_ie(str_ins, "paddq", Self::PADDQ),
-                    'b' => ins_ie(str_ins, "psubq", Self::PSUBQ),
-                    'l' => match raw_ins[2] as char {
-                        'l' => ins_ie(str_ins, "psllq", Self::PSLLQ),
-                        'r' => ins_ie(str_ins, "psrlq", Self::PSRLQ),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                'e' => ins_ie(str_ins, "pause", Self::PAUSE),
-                'u' => ins_ie(str_ins, "lddqu", Self::LDDQU),
-                't' => ins_ie(str_ins, "mwait", Self::MWAIT),
-                _ => Err(()),
-            },
-            6 => match raw_ins[5] as char {
-                'd' => match raw_ins[4] as char {
-                    'f' => match raw_ins[1] as char {
-                        'u' => ins_ie(str_ins, "pushfd", Self::PUSHFD),
-                        's' => ins_ie(str_ins, "pshufd", Self::PSHUFD),
-                        _ => Err(()),
-                    },
-                    'p' => match raw_ins[3] as char {
-                        'n' => ins_ie(str_ins, "andnpd", Self::ANDNPD),
-                        'a' => ins_ie(str_ins, "movapd", Self::MOVAPD),
-                        'u' => ins_ie(str_ins, "movupd", Self::MOVUPD),
-                        'l' => ins_ie(str_ins, "movlpd", Self::MOVLPD),
-                        'h' => ins_ie(str_ins, "movhpd", Self::MOVHPD),
-                        't' => ins_ie(str_ins, "sqrtpd", Self::SQRTPD),
-                        'b' => ins_ie(str_ins, "hsubpd", Self::HSUBPD),
-                        'd' => ins_ie(str_ins, "haddpd", Self::HADDPD),
-                        _ => Err(()),
-                    },
-                    's' => match raw_ins[3] as char {
-                        'i' => ins_ie(str_ins, "comisd", Self::COMISD),
-                        't' => ins_ie(str_ins, "sqrtsd", Self::SQRTSD),
-                        _ => Err(()),
-                    },
-                    'n' => ins_ie(str_ins, "psignd", Self::PSIGND),
-                    'd' => ins_ie(str_ins, "phaddd", Self::PHADDD),
-                    'b' => ins_ie(str_ins, "phsubd", Self::PHSUBD),
-                    _ => Err(()),
-                },
-                'b' => match raw_ins[3] as char {
-                    'b' => ins_ie(str_ins, "psubsb", Self::PSUBSB),
-                    'd' => ins_ie(str_ins, "paddsb", Self::PADDSB),
-                    'g' => ins_ie(str_ins, "psignb", Self::PSIGNB),
-                    'u' => ins_ie(str_ins, "pshufb", Self::PSHUFB),
-                    _ => Err(()),
-                },
-                'w' => match (raw_ins[3] as char, raw_ins[4] as char) {
-                    ('l', 'l') => ins_ie(str_ins, "pmullw", Self::PMULLW),
-                    ('l', 'h') => ins_ie(str_ins, "pmulhw", Self::PMULHW),
-                    ('b', 's') => ins_ie(str_ins, "psubsw", Self::PSUBSW),
-                    ('d', 's') => ins_ie(str_ins, "paddsw", Self::PADDSW),
-                    ('g', 'n') => ins_ie(str_ins, "psignw", Self::PSIGNW),
-                    ('u', 'b') => ins_ie(str_ins, "phsubw", Self::PHSUBW),
-                    ('d', 'd') => ins_ie(str_ins, "phaddw", Self::PHADDW),
-                    _ => Err(()),
-                },
-                'q' => match raw_ins[2] as char {
-                    's' => ins_ie(str_ins, "pushfq", Self::PUSHFQ),
-                    'l' => ins_ie(str_ins, "pslldq", Self::PSLLDQ),
-                    'r' => ins_ie(str_ins, "pslrdq", Self::PSRLDQ),
-                    _ => Err(()),
-                },
-                's' => match raw_ins[1] as char {
-                    'q' => {
-                        if raw_ins[4] as char == 'p' {
-                            ins_ie(str_ins, "sqrtps", Self::SQRTPS)
-                        } else {
-                            ins_ie(str_ins, "sqrtss", Self::SQRTSS)
-                        }
-                    }
-                    'c' => ins_ie(str_ins, "comiss", Self::COMISS),
-                    'n' => ins_ie(str_ins, "andnps", Self::ANDPS),
-                    'o' => match raw_ins[3] as char {
-                        'a' => ins_ie(str_ins, "movaps", Self::MOVAPS),
-                        'l' => ins_ie(str_ins, "movlps", Self::MOVLPS),
-                        'h' => ins_ie(str_ins, "movhps", Self::MOVHPS),
-                        'u' => ins_ie(str_ins, "movups", Self::MOVUPS),
-                        _ => Err(()),
-                    },
-                    'h' => ins_ie(str_ins, "shufps", Self::SHUFPS),
-                    's' => ins_ie(str_ins, "hsubps", Self::HSUBPS),
-                    'a' => ins_ie(str_ins, "haddps", Self::HADDPS),
-                    _ => Err(()),
-                },
-                'a' => ins_ie(str_ins, "movdqa", Self::MOVDQA),
-                'e' => match raw_ins[0] as char {
-                    'l' => ins_ie(str_ins, "lfence", Self::LFENCE),
-                    'm' => ins_ie(str_ins, "mfence", Self::MFENCE),
-                    _ => Err(()),
-                },
-                'i' => ins_ie(str_ins, "movnti", Self::MOVNTI),
-                'p' => match (raw_ins[1] as char, raw_ins[6] as char) {
-                    ('a', 's') => ins_ie(str_ins, "haddps", Self::HADDPS),
-                    ('a', 'd') => ins_ie(str_ins, "haddpd", Self::HADDPD),
-                    ('s', 's') => ins_ie(str_ins, "hsubps", Self::HSUBPS),
-                    ('s', 'd') => ins_ie(str_ins, "hsubpd", Self::HSUBPD),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            7 => match raw_ins[0] as char {
-                'c' => ins_ie(str_ins, "clflush", Self::CLFLUSH),
-                's' => ins_ie(str_ins, "syscall", Self::SYSCALL),
-                'u' => match raw_ins[6] as char {
-                    'd' => ins_ie(str_ins, "ucomisd", Self::UCOMISD),
-                    's' => ins_ie(str_ins, "ucomiss", Self::UCOMISS),
-                    _ => Err(()),
-                },
-                'p' => match raw_ins[4] as char {
-                    'g' => match raw_ins[6] as char {
-                        'b' => ins_ie(str_ins, "pcmpgtb", Self::PCMPGTB),
-                        'w' => ins_ie(str_ins, "pcmpgtw", Self::PCMPGTW),
-                        'd' => ins_ie(str_ins, "pcmpgtd", Self::PCMPGTD),
-                        'r' => ins_ie(str_ins, "palignr", Self::PALIGNR),
-                        _ => Err(()),
-                    },
-                    'e' => match raw_ins[6] as char {
-                        'b' => ins_ie(str_ins, "pcmpeqb", Self::PCMPEQB),
-                        'w' => ins_ie(str_ins, "pcmpeqw", Self::PCMPEQW),
-                        'd' => ins_ie(str_ins, "pcmpeqd", Self::PCMPEQD),
-                        _ => Err(()),
-                    },
-                    'u' => match raw_ins[1] as char {
-                        'm' => ins_ie(str_ins, "pmuludq", Self::PMULUDQ),
-                        'a' => match raw_ins[6] as char {
-                            'b' => ins_ie(str_ins, "paddusb", Self::PADDUSB),
-                            'w' => ins_ie(str_ins, "paddusw", Self::PADDUSW),
-                            _ => Err(()),
-                        },
-                        's' => match raw_ins[6] as char {
-                            'b' => ins_ie(str_ins, "psubusb", Self::PSUBUSB),
-                            'w' => ins_ie(str_ins, "psubusw", Self::PSUBUSW),
-                            _ => Err(()),
-                        },
-                        _ => Err(()),
-                    },
-                    'f' => match raw_ins[5] as char {
-                        'l' => ins_ie(str_ins, "pshuflw", Self::PSHUFLW),
-                        'h' => ins_ie(str_ins, "pshufhw", Self::PSHUFHW),
-                        _ => Err(()),
-                    },
-                    'b' => ins_ie(str_ins, "phsubsw", Self::PHSUBSW),
-                    'd' => match raw_ins[1] as char {
-                        'h' => ins_ie(str_ins, "phaddsw", Self::PHADDSW),
-                        'm' => ins_ie(str_ins, "pmaddwd", Self::PMADDWD),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                'r' => {
-                    if raw_ins[5] as char == 'p' {
-                        ins_ie(str_ins, "rsqrtps", Self::RSQRTPS)
-                    } else {
-                        ins_ie(str_ins, "rsqrtss", Self::RSQRTSS)
-                    }
-                }
-                'm' => match raw_ins[3] as char {
-                    'l' => ins_ie(str_ins, "movlhps", Self::MOVLHPS),
-                    'h' => ins_ie(str_ins, "movhlps", Self::MOVHLPS),
-                    'q' => match raw_ins[5] as char {
-                        'd' => ins_ie(str_ins, "movq2dq", Self::MOVQ2DQ),
-                        _ => Err(()),
-                    },
-                    'n' => match raw_ins[5] as char {
-                        'p' => ins_ie(str_ins, "movntpd", Self::MOVNTPD),
-                        'd' => ins_ie(str_ins, "movntdq", Self::MOVNTDQ),
-                        _ => Err(()),
-                    },
-                    'd' => match raw_ins[6] as char {
-                        'q' => ins_ie(str_ins, "movdq2q", Self::MOVDQ2Q),
-                        'p' => ins_ie(str_ins, "movddup", Self::MOVDDUP),
-                        _ => Err(()),
-                    },
-                    'i' => ins_ie(str_ins, "monitor", Self::MONITOR),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            8 => match raw_ins[0] as char {
-                'c' => match (raw_ins[3] as char, raw_ins[4] as char, raw_ins[7] as char) {
-                    ('s', 'i', 's') => ins_ie(str_ins, "cvtsi2ss", Self::CVTSI2SS),
-                    ('p', 'i', 's') => ins_ie(str_ins, "cvtpi2ps", Self::CVTPI2PS),
-                    ('s', 's', 'i') => ins_ie(str_ins, "cvtss2si", Self::CVTSS2SI),
-                    ('p', 's', 'i') => ins_ie(str_ins, "cvtps2pi", Self::CVTPS2PI),
-                    ('p', 'd', 'i') => ins_ie(str_ins, "cvtpd2pi", Self::CVTPD2PI),
-                    ('p', 'i', 'd') => ins_ie(str_ins, "cvtpi2pd", Self::CVTPI2PD),
-                    ('p', 's', 'q') => ins_ie(str_ins, "cvtps2dq", Self::CVTPS2DQ),
-                    ('d', 'q', 's') => ins_ie(str_ins, "cvtdq2ps", Self::CVTDQ2PS),
-                    ('d', 'q', 'd') => ins_ie(str_ins, "cvtdq2pd", Self::CVTDQ2PD),
-                    ('s', 'd', 'i') => ins_ie(str_ins, "cvtsd2si", Self::CVTSD2SI),
-                    ('s', 'i', 'd') => ins_ie(str_ins, "cvtsi2sd", Self::CVTSI2SD),
-                    _ => Err(()),
-                },
-                'u' => match raw_ins[5] as char {
-                    'h' => ins_ie(str_ins, "unpckhps", Self::UNPCKHPS),
-                    'l' => ins_ie(str_ins, "unpcklps", Self::UNPCKLPS),
-                    _ => Err(()),
-                },
-                'p' => match raw_ins[1] as char {
-                    'a' => match raw_ins[4] as char {
-                        'u' => ins_ie(str_ins, "packuswb", Self::PACKUSWB),
-                        's' => match raw_ins[7] as char {
-                            'w' => ins_ie(str_ins, "packssdw", Self::PACKSSDW),
-                            'b' => ins_ie(str_ins, "packsswb", Self::PACKSSWB),
-                            _ => Err(()),
-                        },
-                        _ => Err(()),
-                    },
-                    'm' => ins_ie(str_ins, "pmulhrsw", Self::PMULHRSW),
-                    _ => Err(()),
-                },
-                'm' => match (raw_ins[4] as char, raw_ins[7] as char) {
-                    ('s', 'd') => ins_ie(str_ins, "movmskpd", Self::MOVMSKPD),
-                    ('l', 'p') => ins_ie(str_ins, "movsldup", Self::MOVSLDUP),
-                    ('h', 'p') => ins_ie(str_ins, "movshdup", Self::MOVSHDUP),
-                    _ => Err(()),
-                },
-                'a' => match raw_ins[7] as char {
-                    's' => ins_ie(str_ins, "addsubps", Self::ADDSUBPS),
-                    'd' => ins_ie(str_ins, "addsubpd", Self::ADDSUBPD),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            9 => match raw_ins[0] as char {
-                'c' => match raw_ins[8] as char {
-                    'i' => match (raw_ins[4] as char, raw_ins[5] as char, raw_ins[8] as char) {
-                        ('p', 's', 'i') => ins_ie(str_ins, "cvttps2pi", Self::CVTTPS2PI),
-                        ('p', 's', 'q') => ins_ie(str_ins, "cvttps2dq", Self::CVTTPS2DQ),
-                        ('s', 'd', 'i') => ins_ie(str_ins, "cvttsd2si", Self::CVTTSD2SI),
-                        ('p', 'd', 'i') => ins_ie(str_ins, "cvttpd2pi", Self::CVTTPD2PI),
-                        _ => Err(()),
-                    },
-                    'q' => ins_ie(str_ins, "cvttps2dq", Self::CVTTPS2DQ),
-                    _ => Err(()),
-                },
-                'p' => match raw_ins[1] as char {
-                    'u' => match (raw_ins[6] as char, raw_ins[7] as char, raw_ins[8] as char) {
-                        ('l', 'b', 'w') => ins_ie(str_ins, "punpcklbw", Self::PUNPCKLBW),
-                        ('l', 'w', 'd') => ins_ie(str_ins, "punpcklwd", Self::PUNPCKLWD),
-                        ('l', 'd', 'q') => ins_ie(str_ins, "punpckldq", Self::PUNPCKLDQ),
-                        ('h', 'b', 'w') => ins_ie(str_ins, "punpckhbw", Self::PUNPCKHBW),
-                        ('h', 'w', 'd') => ins_ie(str_ins, "punpckhwd", Self::PUNPCKHWD),
-                        ('h', 'd', 'q') => ins_ie(str_ins, "punpckhdq", Self::PUNPCKHDQ),
-                        _ => Err(()),
-                    },
-                    'm' => ins_ie(str_ins, "pmaddubsw", Self::PMADDUBSW),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            10 => match raw_ins[0] as char {
-                'm' => ins_ie(str_ins, "maskmovdqu", Self::MASKMOVDQU),
-                'p' => match raw_ins[1] as char {
-                    'u' => match (raw_ins[6] as char, raw_ins[7] as char, raw_ins[8] as char) {
-                        ('h', 'q', 'd') => ins_ie(str_ins, "punpckhqdq", Self::PUNPCKHQDQ),
-                        ('l', 'q', 'd') => ins_ie(str_ins, "punpcklqdq", Self::PUNPCKLQDQ),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            _ => Err(()),
+        if let Some(m) = mnem_fromstr(str_ins) {
+            Ok(m)
+        } else {
+            Err(())
         }
     }
 }
@@ -708,5 +214,1597 @@ impl Mnemonic {
             self,
             Self::PUSH | Self::POP | Self::PADDB | Self::PADDW | Self::PADDD | Self::PADDQ
         )
+    }
+}
+
+#[inline(always)]
+fn s<T>(i: T) -> Option<T> {
+    Some(i)
+}
+
+#[inline(always)]
+fn n<T>() -> Option<T> {
+    None
+}
+
+type Ins = Mnemonic;
+pub fn mnem_fromstr(str: &str) -> Option<Ins> {
+    let rstr = str.chars().collect::<Vec<char>>();
+    match str.len() {
+        0 | 1 => n(),
+        2 => match rstr[0] {
+            'j' => match rstr[1] {
+                'e' => s(Ins::JE),
+                'z' => s(Ins::JZ),
+                'l' => s(Ins::JL),
+                'g' => s(Ins::JG),
+                _ => n(),
+            },
+            'o' => match rstr[1] {
+                'r' => s(Ins::OR),
+                _ => n(),
+            },
+            _ => n(),
+        },
+        3 => match rstr[0] {
+            'l' => match rstr[1] {
+                'e' => match rstr[2] {
+                    'a' => s(Ins::LEA),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'r' => match rstr[1] {
+                'e' => match rstr[2] {
+                    't' => s(Ins::RET),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'j' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'e' => s(Ins::JNE),
+                    'z' => s(Ins::JNZ),
+                    _ => n(),
+                },
+                'g' => match rstr[2] {
+                    'e' => s(Ins::JGE),
+                    _ => n(),
+                },
+                'l' => match rstr[2] {
+                    'e' => s(Ins::JLE),
+                    _ => n(),
+                },
+                'm' => match rstr[2] {
+                    'p' => s(Ins::JMP),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'n' => match rstr[1] {
+                'e' => match rstr[2] {
+                    'g' => s(Ins::NEG),
+                    _ => n(),
+                },
+                'o' => match rstr[2] {
+                    'p' => s(Ins::NOP),
+                    't' => s(Ins::NOT),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'p' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'p' => s(Ins::POP),
+                    'r' => s(Ins::POR),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'a' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'd' => s(Ins::AND),
+                    _ => n(),
+                },
+                'd' => match rstr[2] {
+                    'd' => s(Ins::ADD),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'v' => s(Ins::MOV),
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    'l' => s(Ins::MUL),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            's' => match rstr[1] {
+                'h' => match rstr[2] {
+                    'l' => s(Ins::SHL),
+                    'r' => s(Ins::SHR),
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'l' => s(Ins::SAL),
+                    'r' => s(Ins::SAR),
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    'b' => s(Ins::SUB),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'd' => match rstr[1] {
+                'e' => match rstr[2] {
+                    'c' => s(Ins::DEC),
+                    _ => n(),
+                },
+                'i' => match rstr[2] {
+                    'v' => s(Ins::DIV),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'x' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'r' => s(Ins::XOR),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'p' => s(Ins::CMP),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'i' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'c' => s(Ins::INC),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        4 => match rstr[0] {
+            'e' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        's' => s(Ins::EMMS),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        'd' => s(Ins::MOVD),
+                        'q' => s(Ins::MOVQ),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'a' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'l' => s(Ins::CALL),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            't' => match rstr[1] {
+                'e' => match rstr[2] {
+                    's' => match rstr[3] {
+                        't' => s(Ins::TEST),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'i' => match rstr[1] {
+                'd' => match rstr[2] {
+                    'i' => match rstr[3] {
+                        'v' => s(Ins::IDIV),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'm' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'l' => s(Ins::IMUL),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'p' => match rstr[1] {
+                'x' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'r' => s(Ins::PXOR),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'd' => s(Ins::PAND),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'o' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'f' => s(Ins::POPF),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'h' => s(Ins::PUSH),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'o' => match rstr[1] {
+                'r' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        's' => s(Ins::ORPS),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        5 => match rstr[0] {
+            'l' => match rstr[1] {
+                'd' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'q' => match rstr[4] {
+                            'u' => s(Ins::LDDQU),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'x' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'r' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'd' => s(Ins::XORPD),
+                            's' => s(Ins::XORPS),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'a' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            's' => s(Ins::ANDPS),
+                            'd' => s(Ins::ANDPD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'd' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        's' => match rstr[4] {
+                            's' => s(Ins::ADDSS),
+                            'd' => s(Ins::ADDSD),
+                            _ => n(),
+                        },
+                        'p' => match rstr[4] {
+                            's' => s(Ins::ADDPS),
+                            'd' => s(Ins::ADDPD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'd' => match rstr[1] {
+                'i' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'd' => s(Ins::DIVPD),
+                            's' => s(Ins::DIVPS),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::DIVSS),
+                            'd' => s(Ins::DIVSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        's' => match rstr[4] {
+                            's' => s(Ins::MOVSS),
+                            'd' => s(Ins::MOVSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'd' => s(Ins::MULPD),
+                            's' => s(Ins::MULPS),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::MULSS),
+                            'd' => s(Ins::MULSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'i' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            's' => s(Ins::MINPS),
+                            'd' => s(Ins::MINPD),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::MINSS),
+                            'd' => s(Ins::MINSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'x' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            's' => s(Ins::MAXPS),
+                            'd' => s(Ins::MAXPD),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::MAXSS),
+                            'd' => s(Ins::MAXSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'w' => match rstr[2] {
+                    'a' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            't' => s(Ins::MWAIT),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            's' => match rstr[1] {
+                'u' => match rstr[2] {
+                    'b' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'd' => s(Ins::SUBPD),
+                            's' => s(Ins::SUBPS),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::SUBSS),
+                            'd' => s(Ins::SUBSD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'd' => s(Ins::CMPPD),
+                            's' => s(Ins::CMPPS),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            'd' => s(Ins::CMPSD),
+                            's' => s(Ins::CMPSS),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'p' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            'd' => s(Ins::CPUID),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'p' => match rstr[1] {
+                'a' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'n' => s(Ins::PANDN),
+                            _ => n(),
+                        },
+                        'n' => match rstr[4] {
+                            'd' => s(Ins::PANND),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'd' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'q' => s(Ins::PADDQ),
+                            'd' => s(Ins::PADDD),
+                            'w' => s(Ins::PADDW),
+                            'b' => s(Ins::PADDB),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'b' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'd' => s(Ins::PABSD),
+                            'w' => s(Ins::PABSW),
+                            'b' => s(Ins::PABSB),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'u' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'e' => s(Ins::PAUSE),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                's' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'w' => s(Ins::PSLLW),
+                            'd' => s(Ins::PSLLD),
+                            'q' => s(Ins::PSLLQ),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'r' => match rstr[3] {
+                        'a' => match rstr[4] {
+                            'd' => s(Ins::PSRAD),
+                            'w' => s(Ins::PSRAW),
+                            _ => n(),
+                        },
+                        'l' => match rstr[4] {
+                            'w' => s(Ins::PSRLW),
+                            'd' => s(Ins::PSRLD),
+                            'q' => s(Ins::PSRLQ),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'u' => match rstr[3] {
+                        'b' => match rstr[4] {
+                            'q' => s(Ins::PSUBQ),
+                            'd' => s(Ins::PSUBD),
+                            'w' => s(Ins::PSUBW),
+                            'b' => s(Ins::PSUBB),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'o' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'f' => match rstr[4] {
+                            'd' => s(Ins::POPFD),
+                            'q' => s(Ins::POPFQ),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'u' => match rstr[1] {
+                    's' => match rstr[2] {
+                        'h' => match rstr[3] {
+                            'f' => match rstr[4] {
+                                'd' => s(Ins::PUSHFD),
+                                'q' => s(Ins::PUSHFQ),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'r' => match rstr[1] {
+                'c' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            's' => s(Ins::RCPPS),
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => s(Ins::RCPSS),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        6 => match rstr[0] {
+            'h' => match rstr[1] {
+                's' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'b' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::HSUBPS),
+                                'd' => s(Ins::HSUBPD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::HADDPS),
+                                'd' => s(Ins::HADDPD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'l' => match rstr[1] {
+                'f' => match rstr[2] {
+                    'e' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            'c' => match rstr[5] {
+                                'e' => s(Ins::LFENCE),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'f' => match rstr[2] {
+                    'e' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            'c' => match rstr[5] {
+                                'e' => s(Ins::MFENCE),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'o' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            't' => match rstr[5] {
+                                'i' => s(Ins::MOVNTI),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'u' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'd' => s(Ins::MOVUPD),
+                                's' => s(Ins::MOVUPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'h' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'd' => s(Ins::MOVHPD),
+                                's' => s(Ins::MOVHPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'l' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'd' => s(Ins::MOVLPD),
+                                's' => s(Ins::MOVLPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'a' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'd' => s(Ins::MOVAPD),
+                                's' => s(Ins::MOVAPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'd' => match rstr[4] {
+                            'q' => match rstr[5] {
+                                'a' => s(Ins::MOVDQA),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'd' => s(Ins::COMISD),
+                                's' => s(Ins::COMISS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'a' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::ANDNPS),
+                                'd' => s(Ins::ANDNPD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            's' => match rstr[1] {
+                'h' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'f' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::SHUFPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'q' => match rstr[2] {
+                    'r' => match rstr[3] {
+                        't' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::SQRTPS),
+                                'd' => s(Ins::SQRTPD),
+                                _ => n(),
+                            },
+                            's' => match rstr[5] {
+                                's' => s(Ins::SQRTSS),
+                                'd' => s(Ins::SQRTSD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'p' => match rstr[1] {
+                's' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'b' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'b' => s(Ins::PSUBSB),
+                                'w' => s(Ins::PSUBSW),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'r' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'q' => s(Ins::PSRLDQ),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'l' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'q' => s(Ins::PSLLDQ),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'h' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'f' => match rstr[5] {
+                                'd' => s(Ins::PSHUFD),
+                                'b' => s(Ins::PSHUFB),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'i' => match rstr[3] {
+                        'g' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'w' => s(Ins::PSIGNW),
+                                'd' => s(Ins::PSIGND),
+                                'b' => s(Ins::PSIGNB),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'h' => match rstr[4] {
+                            'f' => match rstr[5] {
+                                'd' => s(Ins::PUSHFD),
+                                'q' => s(Ins::PUSHFQ),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'b' => s(Ins::PADDSB),
+                                'w' => s(Ins::PADDSW),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'm' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'l' => match rstr[5] {
+                                'w' => s(Ins::PMULLW),
+                                _ => n(),
+                            },
+                            'h' => match rstr[5] {
+                                'w' => s(Ins::PMULHW),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'h' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'b' => match rstr[5] {
+                                'w' => s(Ins::PHSUBW),
+                                'd' => s(Ins::PHSUBD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'a' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'w' => s(Ins::PHADDW),
+                                'd' => s(Ins::PHADDD),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        7 => match rstr[0] {
+            'p' => match rstr[1] {
+                's' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'b' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'b' => s(Ins::PSUBUSB),
+                                    'w' => s(Ins::PSUBUSW),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'h' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'f' => match rstr[5] {
+                                'l' => match rstr[6] {
+                                    'w' => s(Ins::PSHUFLW),
+                                    _ => n(),
+                                },
+                                'h' => match rstr[6] {
+                                    'w' => s(Ins::PSHUFHW),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'm' => match rstr[2] {
+                    'a' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'w' => match rstr[6] {
+                                    'd' => s(Ins::PMADDWD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'u' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'q' => s(Ins::PMULUDQ),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'h' => match rstr[2] {
+                    'a' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'w' => s(Ins::PHADDSW),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    's' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'b' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'w' => s(Ins::PHSUBSW),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            'g' => match rstr[5] {
+                                'n' => match rstr[6] {
+                                    'r' => s(Ins::PALIGNR),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'c' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'g' => match rstr[5] {
+                                't' => match rstr[6] {
+                                    'b' => s(Ins::PCMPGTB),
+                                    'w' => s(Ins::PCMPGTW),
+                                    'd' => s(Ins::PCMPGTD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'e' => match rstr[5] {
+                                'q' => match rstr[6] {
+                                    'b' => s(Ins::PCMPEQB),
+                                    'w' => s(Ins::PCMPEQW),
+                                    'd' => s(Ins::PCMPEQD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'u' => match rstr[1] {
+                'c' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'm' => match rstr[4] {
+                            'i' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    's' => s(Ins::UCOMISS),
+                                    'd' => s(Ins::UCOMISD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'r' => match rstr[1] {
+                's' => match rstr[2] {
+                    'q' => match rstr[3] {
+                        'r' => match rstr[4] {
+                            't' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::RSQRTPS),
+                                    _ => n(),
+                                },
+                                's' => match rstr[6] {
+                                    's' => s(Ins::RSQRTSS),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            't' => match rstr[5] {
+                                'o' => match rstr[6] {
+                                    'r' => s(Ins::MONITOR),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'v' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            't' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    'd' => s(Ins::MOVNTPD),
+                                    _ => n(),
+                                },
+                                'd' => match rstr[6] {
+                                    'q' => s(Ins::MOVNTDQ),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'u' => match rstr[6] {
+                                    'p' => s(Ins::MOVDDUP),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'q' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'q' => s(Ins::MOVDQ2Q),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'q' => match rstr[4] {
+                            '2' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'q' => s(Ins::MOVQ2DQ),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'h' => match rstr[4] {
+                            'l' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::MOVHLPS),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'l' => match rstr[4] {
+                            'h' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::MOVLHPS),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            's' => match rstr[1] {
+                'y' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'c' => match rstr[4] {
+                            'a' => match rstr[5] {
+                                'l' => match rstr[6] {
+                                    'l' => s(Ins::SYSCALL),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'l' => match rstr[2] {
+                    'f' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'h' => s(Ins::CLFLUSH),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        8 => match rstr[0] {
+            'a' => match rstr[1] {
+                'd' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                'b' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        's' => s(Ins::ADDSUBPS),
+                                        'd' => s(Ins::ADDSUBPD),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'm' => match rstr[1] {
+                'o' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        'm' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'k' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        'd' => s(Ins::MOVMSKPD),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            'l' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'u' => match rstr[7] {
+                                        'p' => s(Ins::MOVSLDUP),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'h' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'u' => match rstr[7] {
+                                        'p' => s(Ins::MOVSHDUP),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'p' => match rstr[1] {
+                'a' => match rstr[2] {
+                    'c' => match rstr[3] {
+                        'k' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'w' => match rstr[7] {
+                                        'b' => s(Ins::PACKUSWB),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            's' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'd' => match rstr[7] {
+                                        'w' => s(Ins::PACKSSDW),
+                                        _ => n(),
+                                    },
+                                    'w' => match rstr[7] {
+                                        'b' => s(Ins::PACKSSWB),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'm' => match rstr[2] {
+                    'u' => match rstr[3] {
+                        'l' => match rstr[4] {
+                            'h' => match rstr[5] {
+                                'r' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'w' => s(Ins::PMULHRSW),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'u' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'c' => match rstr[4] {
+                            'k' => match rstr[5] {
+                                'h' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        's' => s(Ins::UNPCKHPS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                'l' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        's' => s(Ins::UNPCKLPS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'v' => match rstr[2] {
+                    't' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'q' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        'd' => s(Ins::CVTDQ2PD),
+                                        's' => s(Ins::CVTDQ2PS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        's' => match rstr[4] {
+                            's' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'i' => s(Ins::CVTSS2SI),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'd' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'i' => s(Ins::CVTSD2SI),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'i' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        's' => s(Ins::CVTSI2SS),
+                                        'd' => s(Ins::CVTSI2SD),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'p' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        'i' => s(Ins::CVTPD2PI),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'i' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'p' => match rstr[7] {
+                                        'd' => s(Ins::CVTPI2PD),
+                                        's' => s(Ins::CVTPI2PS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            's' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'd' => match rstr[7] {
+                                        'q' => s(Ins::CVTPS2DQ),
+                                        _ => n(),
+                                    },
+                                    'p' => match rstr[7] {
+                                        'i' => s(Ins::CVTPS2PI),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        9 => match rstr[0] {
+            'p' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'a' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'u' => match rstr[6] {
+                                    'b' => match rstr[7] {
+                                        's' => match rstr[8] {
+                                            'w' => s(Ins::PMADDUBSW),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'u' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            'c' => match rstr[5] {
+                                'k' => match rstr[6] {
+                                    'h' => match rstr[7] {
+                                        'b' => match rstr[8] {
+                                            'w' => s(Ins::PUNPCKHBW),
+                                            _ => n(),
+                                        },
+                                        'w' => match rstr[8] {
+                                            'd' => s(Ins::PUNPCKHWD),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::PUNPCKHDQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    'l' => match rstr[7] {
+                                        'b' => match rstr[8] {
+                                            'w' => s(Ins::PUNPCKLBW),
+                                            _ => n(),
+                                        },
+                                        'w' => match rstr[8] {
+                                            'd' => s(Ins::PUNPCKLWD),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::PUNPCKLDQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'c' => match rstr[1] {
+                'v' => match rstr[2] {
+                    't' => match rstr[3] {
+                        't' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        's' => match rstr[8] {
+                                            'i' => s(Ins::CVTSD2SI),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'p' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'i' => s(Ins::CVTTPD2PI),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                's' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'i' => s(Ins::CVTTPS2PI),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::CVTTPS2DQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        10 => match rstr[0] {
+            'm' => ins_ie(str, "maskmovdqu", Ins::MASKMOVDQU).ok(),
+            'p' => match rstr[1] {
+                'u' => match (rstr[6], rstr[7], rstr[8]) {
+                    ('h', 'q', 'd') => ins_ie(str, "punpckhqdq", Ins::PUNPCKHQDQ).ok(),
+                    ('l', 'q', 'd') => ins_ie(str, "punpcklqdq", Ins::PUNPCKLQDQ).ok(),
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            _ => n(),
+        },
+        _ => n(),
     }
 }
