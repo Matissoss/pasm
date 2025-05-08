@@ -14,4 +14,5 @@ pub mod mmx;
 pub mod sse;
 pub mod sse2;
 pub mod sse3;
+pub mod sse4;
 pub mod ssse3;
