@@ -422,10 +422,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
 }
 
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
-    ssemmx_chk(ins)
-}
-
-pub fn ssemmx_chk(ins: &Instruction) -> Option<RASMError> {
     match ins.mnem {
         // #####  #####  #####
         // #      #      #
@@ -713,6 +709,7 @@ pub fn ssemmx_chk(ins: &Instruction) -> Option<RASMError> {
         // #   #  #   #   # #
         // #   #  #   #  #   #
         // (MMX/SSE2)
+        Mnm::EMMS => ot_chk(ins, &[], &[], &[]),
         Mnm::MOVD => ot_chk(
             ins,
             &[
@@ -905,7 +902,11 @@ pub fn ssemmx_chk(ins: &Instruction) -> Option<RASMError> {
             &[(MMX, XMM), (XMM, M64), (XMM, MMX), (MMX, M128)],
             &[],
         ),
-        _ => None,
+        _ => Some(RASMError::new(
+            Some(ins.line),
+            Some("Tried to use unsupported instruction.".to_string()),
+            None,
+        )),
     }
 }
 

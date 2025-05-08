@@ -16,6 +16,7 @@ pub enum Size {
     Qword,
     Xword, // xmm0-15
     Yword, // ymm0-15
+    X87,   // st
     #[default]
     Unknown,
     Any,
@@ -31,6 +32,7 @@ impl From<Size> for u8 {
             Size::Qword => 8,
             Size::Xword => 16,
             Size::Yword => 32,
+            Size::X87 => 80,
         }
     }
 }
@@ -59,6 +61,7 @@ impl Display for Size {
             Self::Qword => write!(form, "qword"),
             Self::Xword => write!(form, "xword"),
             Self::Yword => write!(form, "yword"),
+            Self::X87 => write!(form, ""),
             Self::Any => write!(form, "{{any}}"),
             Self::Unknown => write!(form, "{{unknown}}"),
         }

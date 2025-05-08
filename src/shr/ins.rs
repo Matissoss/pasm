@@ -169,6 +169,30 @@ pub enum Mnemonic {
     PSRAW, PSRAD,
 
     EMMS,
+
+    // SSE4_1 and SSE4_2
+    DPPS, DPPD,
+    
+    PMAXD, PMIND, PTEST, CRC32,
+    
+    PEXTRB, PEXTRW, PEXTRD, PEXTRQ,
+    PINSRB, PINSRD, PINSRQ, PMAXSB,
+    PMAXSD, PMAXUB, PMINSB, PMINSD,
+    PMINUB, PMULDQ, PMULLD, POPCNT,
+    
+    BLENDPS, BLENDPD, PBLENDW, PCMPEQQ,
+    ROUNDPD, ROUNDPS, ROUNDSD, ROUNDSS,
+    MPSADBW, PCMPGTQ,
+    
+    BLENDVPS, BLENDVPD, PBLENDVB, INSERTPS,
+    PMOVSXBW, PMOVSXBD, PMOVSXBQ, PMOVSXWD,
+    PMOVSXDQ, PMOVZXBW, PMOVZXBD, PMOVZXBQ,
+    PMOVZXWD, PMOVZXDQ, PACKUSDW, PCMPESTRI,
+    MOVNTDQA,
+
+    EXTRACTPS, PCMPESTRM, PCMPISTRI, PCMPISTRM,
+    
+    PHMINPOSUW,
 }
 
 #[inline(always)]
@@ -474,6 +498,17 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 },
                 _ => n(),
             },
+            'd' => match rstr[1] {
+                'p' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        's' => s(Ins::DPPS),
+                        'd' => s(Ins::DPPD),
+                        _   => n()
+                    }
+                    _ => n()
+                }
+                _ => n()
+            }
             _ => n(),
         },
         5 => match rstr[0] {

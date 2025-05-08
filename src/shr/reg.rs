@@ -18,7 +18,6 @@ pub enum Purpose {
     IPtr,  // ip/rip/eip
     Dbg,   // drX
     Ctrl,  // crX
-    X87,   // stX
     Mmx,   // mmX
     F128,  // xmmX
     F256,  // ymmX
@@ -148,7 +147,6 @@ pub enum Register {
     EIP,
     IP,
 
-    // CURRENTLY UNSUPPORTED:
     // MMX
     MM0,
     MM1,
@@ -158,9 +156,7 @@ pub enum Register {
     MM5,
     MM6,
     MM7,
-    // x87
-
-    //  AVX-128
+    // SSE
     XMM0,
     XMM1,
     XMM2,
@@ -178,6 +174,7 @@ pub enum Register {
     XMM14,
     XMM15,
 
+    // CURRENTLY UNSUPPORTED:
     //  AVX-256
     YMM0,
     YMM1,
@@ -738,38 +735,38 @@ impl Register {
     #[rustfmt::skip]
     pub fn to_byte(&self) -> u8 {
         match &self {
-            Self::ES   | Self::MM0|
+            Self::ES   | Self::MM0 |
             Self::R8   | Self::R8B | Self::R8W  | Self::R8D   |
             Self::XMM8 | Self::YMM8| Self::AL   | Self::AX    |
             Self::EAX  | Self::CR0 | Self::CR8  | Self::DR0   |
             Self::DR8  | Self::RAX | Self::XMM0 | Self::YMM0   => 0b000,
 
-            Self::CS   | Self::MM1|
+            Self::CS   | Self::MM1 |
             Self::R9   | Self::R9B | Self::R9W  | Self::R9D   |
             Self::CL   | Self::CX  | Self::ECX  | Self::RCX   |
             Self::XMM1 | Self::YMM1| Self::XMM9 | Self::CR1   |
             Self::YMM9 | Self::CR9 | Self::DR1  | Self::DR9    => 0b001,
 
-            Self::SS   | Self::MM2|
+            Self::SS   | Self::MM2 |
             Self::R10  | Self::R10B| Self::R10W | Self::R10D  |
             Self::DL   | Self::DX  | Self::EDX  | Self::XMM2  |
             Self::RDX  | Self::CR2 | Self::CR10 | Self::DR2   |
             Self::DR10 | Self::YMM2| Self::XMM10| Self::YMM10  => 0b010,
 
-            Self::DS   | Self::MM3|
+            Self::DS   | Self::MM3 |
             Self::R11  | Self::R11B| Self::R11W | Self::R11D |
             Self::BL   | Self::BX  | Self::EBX  | Self::XMM3 |
             Self::RBX  | Self::CR3 | Self::CR11 | Self::DR3  |
             Self::DR11 | Self::YMM3| Self::XMM11| Self::YMM11 => 0b011,
 
-            Self::FS  | Self::MM4 |
+            Self::FS  | Self::MM4  |
             Self::R12 | Self::R12B | Self::R12W | Self::R12D |
             Self::AH  | Self::SP   | Self::ESP  | Self::XMM4 |
             Self::SPL | Self::RSP  | Self::CR4  | Self::CR12 |
             Self::DR4 | Self::DR12 | Self::YMM4 | Self::XMM12|
             Self::YMM12                                       => 0b100,
 
-            Self::GS  | Self::MM5 |
+            Self::GS  | Self::MM5  |
             Self::R13 | Self::R13B | Self::R13W | Self::R13D |
             Self::CH  | Self::BP   | Self::EBP  | Self::XMM5 |
             Self::BPL | Self::RBP  | Self::CR5  | Self::CR13 |
@@ -780,13 +777,13 @@ impl Register {
             Self::DH    | Self::SI   | Self::ESI  | Self::XMM6 |
             Self::SIL   | Self::RSI  | Self::CR6  | Self::CR14 |
             Self::DR6   | Self::DR14 | Self::YMM6 | Self::XMM14|
-            Self::YMM14 | Self::MM6                            => 0b110,
+            Self::YMM14 | Self::MM6                 => 0b110,
 
             Self::R15   | Self::R15B | Self::R15W | Self::R15D |
             Self::BH    | Self::DI   | Self::EDI  | Self::XMM7 |
             Self::DIL   | Self::RDI  | Self::CR7  | Self::CR15 |
             Self::DR7   | Self::DR15 | Self::YMM7 | Self::XMM15|
-            Self::YMM15 | Self::MM7                            => 0b111,
+            Self::YMM15 | Self::MM7                  => 0b111,
             _ => 0,
         }
     }
@@ -851,7 +848,6 @@ impl ToString for Purpose {
             Self::F128 => "sse (xmm)".to_string(),
             Self::F256 => "avx (ymm)".to_string(),
             Self::Sgmnt => "segment".to_string(),
-            Self::X87 => "FPU (x87)".to_string(),
             Self::IPtr => "instruction pointer".to_string(),
             Self::Dbg => "debug".to_string(),
             Self::Ctrl => "control".to_string(),

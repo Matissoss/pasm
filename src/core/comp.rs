@@ -1211,7 +1211,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 )
             }
         }
-
         _ => (Vec::new(), None),
     }
 }
