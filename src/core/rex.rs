@@ -7,6 +7,7 @@ use crate::shr::{
     ast::{Instruction, Operand},
     ins::Mnemonic as Mnm,
     mem::Mem,
+    reg::Purpose as RPurpose,
     size::Size,
 };
 
@@ -17,6 +18,24 @@ fn needs_rex(ins: &Instruction) -> bool {
         (None, Some(s)) => (Size::Unknown, s.size()),
         _ => (Size::Unknown, Size::Unknown),
     };
+    match (ins.dst(), ins.src()) {
+        (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) => {
+            if r.needs_rex() || r1.needs_rex() {
+                return true;
+            }
+        }
+        (Some(Operand::Reg(r)), _) => {
+            if r.needs_rex() {
+                return true;
+            }
+        }
+        (_, Some(Operand::Reg(r))) => {
+            if r.needs_rex() {
+                return true;
+            }
+        }
+        _ => {}
+    };
     match (size_d, size_s) {
         (Size::Qword, Size::Qword) | (Size::Qword, _) | (_, Size::Qword) => {}
         _ => return false,
@@ -25,7 +44,11 @@ fn needs_rex(ins: &Instruction) -> bool {
         Mnm::MOVMSKPD => true,
         Mnm::CVTSS2SI => true,
         Mnm::CVTSI2SS => true,
+        Mnm::PINSRQ => true,
         Mnm::MOVQ => true,
+        Mnm::PEXTRW => true,
+        Mnm::POPCNT => true,
+        Mnm::EXTRACTPS => true,
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))
             | (Some(Operand::Mem(_) | Operand::Segment(_)), _)
@@ -90,6 +113,18 @@ fn get_wb(op: Option<&Operand>) -> u8 {
     }
 }
 
+fn fix_rev(r: &mut bool, ins: &Instruction) {
+    #[allow(clippy::single_match)]
+    match ins.dst() {
+        Some(Operand::Reg(reg)) => {
+            if reg.purpose() == RPurpose::F128 {
+                *r = true;
+            }
+        }
+        _ => {}
+    }
+}
+
 fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
     // fixed pattern
     let base = 0b0100_0000;
@@ -100,6 +135,8 @@ fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
         1
     };
 
+    let mut rev = rev;
+    fix_rev(&mut rev, ins);
     let r = if !rev {
         get_wb(ins.src())
     } else {
@@ -139,7 +176,6 @@ fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
             _ => {}
         }
     }
-
     if let (_, Some(Operand::Mem(m))) | (Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()) {
         match m {
             Mem::SIB(base, _, _, _) | Mem::SIBOffset(base, _, _, _, _) => {
@@ -148,6 +184,11 @@ fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
                 }
             }
             _ => {}
+        }
+    }
+    if let Some(Operand::Reg(r)) = ins.dst() {
+        if r.needs_rex() {
+            b = 1;
         }
     }
     if let (_, Some(Operand::Segment(m))) | (Some(Operand::Segment(m)), _) = (ins.dst(), ins.src())

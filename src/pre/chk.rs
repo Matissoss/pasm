@@ -910,45 +910,162 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         // #####  #####  #####      #
         // (SSE4)
         Mnm::PINSRQ => ot_chk(
-            ins, 
+            ins,
             &[
-            (&[XMM], Optional::Needed), 
-            (&[R64, M64], Optional::Needed), 
-            (&[I8], Optional::Needed)
-            ], &[], &[]),
+                (&[XMM], Optional::Needed),
+                (&[R64, M64], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         Mnm::PINSRD => ot_chk(
-            ins, 
+            ins,
             &[
-            (&[XMM], Optional::Needed), 
-            (&[R32, M32], Optional::Needed), 
-            (&[I8], Optional::Needed)
-            ], &[], &[]),
+                (&[XMM], Optional::Needed),
+                (&[R32, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PEXTRB => ot_chk(
+            ins,
+            &[
+                (&[R32, R64, M32, M64], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PEXTRD => ot_chk(
+            ins,
+            &[
+                (&[R32, M32], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PEXTRQ => ot_chk(
+            ins,
+            &[
+                (&[R64, M64], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         Mnm::PINSRB => ot_chk(
-            ins, 
+            ins,
             &[
-            (&[XMM], Optional::Needed), 
-            (&[R32, M8], Optional::Needed), 
-            (&[I8], Optional::Needed)
-            ], &[], &[]),
-        Mnm::PEXTRW => 
-            ot_chk(ins, &[(&[RA, M16], Optional::Needed), (&[XMM], Optional::Needed), (&[I8], Optional::Needed)], &[], &[]),
-        Mnm::PTEST | Mnm::PMAXSB | Mnm::PMAXSD | Mnm::PMINSD | Mnm::PMINSB | Mnm::PMINUW | Mnm::PMULDQ | Mnm::PMULLD |
-        Mnm::PCMPEQQ |Mnm::PCMPGTQ | Mnm::BLENDVPS | Mnm::BLENDVPD | Mnm::PACKUSDW =>
-            ot_chk(ins, &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)], &[], &[]),
-        Mnm::POPCNT => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed), (&[R16, M16, R32, M32, R64, M64], Optional::Needed)], 
-        &[
-            (R16, M32), (R16, M64), (R16, R32), (R16, R64), (R32, R16), (R32, R64), (R32, M16), (R32, M64), (R64, R16),
-            (R64, R32), (R64, M16), (R64, M32),
-        ], &[]),
-        Mnm::MOVNTDQA =>
-            ot_chk(ins, &[(&[M128], Optional::Needed), (&[XMM], Optional::Needed)], &[], &[]),
-        Mnm::EXTRACTPS =>
-            ot_chk(ins, &[(&[RA, M32], Optional::Needed), (&[I8], Optional::Needed)], &[], &[]),
-        Mnm::ROUNDSS | Mnm::ROUNDSD | Mnm::INSERTPS =>
-            ot_chk(ins, &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed), (&[I8], Optional::Needed)], &[], &[]),
-        Mnm::PEXTRB | Mnm::PEXTRD | Mnm::PEXTRQ | Mnm::DPPS | Mnm::DPPD | Mnm::BLENDPS | Mnm::BLENDPD | Mnm::PBLENDW |
-        Mnm::ROUNDPS | Mnm::ROUNDPD| Mnm::MPSADBW | Mnm::PCMPESTRI | Mnm::PCMPESTRM | Mnm::PCMPISTRM | Mnm::PCMPISTRI => 
-            ot_chk(ins, &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed), (&[I8], Optional::Needed)], &[], &[]),
+                (&[XMM], Optional::Needed),
+                (&[R32, M8], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PEXTRW => ot_chk(
+            ins,
+            &[
+                (&[M16], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PTEST
+        | Mnm::PMAXSB
+        | Mnm::PMAXSD
+        | Mnm::PMINSD
+        | Mnm::PMINSB
+        | Mnm::PMINUW
+        | Mnm::PMULDQ
+        | Mnm::PMULLD
+        | Mnm::PCMPEQQ
+        | Mnm::PCMPGTQ
+        | Mnm::BLENDVPS
+        | Mnm::BLENDVPD
+        | Mnm::PACKUSDW => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::POPCNT => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
+            ],
+            &[
+                (R16, M32),
+                (R16, M64),
+                (R16, R32),
+                (R16, R64),
+                (R32, R16),
+                (R32, R64),
+                (R32, M16),
+                (R32, M64),
+                (R64, R16),
+                (R64, R32),
+                (R64, M16),
+                (R64, M32),
+            ],
+            &[],
+        ),
+        Mnm::MOVNTDQA => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::EXTRACTPS => ot_chk(
+            ins,
+            &[
+                (&[R32, R64, M32], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::ROUNDSS | Mnm::ROUNDSD | Mnm::INSERTPS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::DPPS
+        | Mnm::DPPD
+        | Mnm::BLENDPS
+        | Mnm::BLENDPD
+        | Mnm::PBLENDW
+        | Mnm::ROUNDPS
+        | Mnm::ROUNDPD
+        | Mnm::MPSADBW
+        | Mnm::PCMPESTRI
+        | Mnm::PCMPESTRM
+        | Mnm::PCMPISTRM
+        | Mnm::PCMPISTRI => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::new(
             Some(ins.line),

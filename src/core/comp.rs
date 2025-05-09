@@ -13,7 +13,7 @@ use crate::{
         reloc::{RCategory, RType, Relocation},
         rex::gen_rex,
         sib::gen_sib,
-        sse, sse2, sse3, ssse3, sse4
+        sse, sse2, sse3, sse4, ssse3,
     },
     shr::{
         ast::{IVariant, Instruction, Operand},
@@ -1253,7 +1253,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::EXTRACTPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x17]), None),
         Ins::PHMINPOSUW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x41]), None),
         Ins::CRC32 => (sse4::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0xF0]), None),
-        Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0x38, 0xF0]), None),
+        Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0xB8]), None),
 
         _ => (Vec::new(), None),
     }
@@ -1941,6 +1941,48 @@ pub fn extend_imm(imm: &mut Vec<u8>, size: u8) {
     while imm.len() < size {
         imm.push(0)
     }
+}
+
+pub fn gen_ins_wpref(
+    ins: &Instruction,
+    opc: &[u8],
+    modrm: (bool, Option<u8>, Option<u8>),
+    imm: Option<Vec<u8>>,
+    pref: u8,
+    bits: u8,
+    rev: bool,
+) -> Vec<u8> {
+    let mut base = vec![pref];
+    base.extend(gen_base(ins, opc, bits, rev));
+    if modrm.0 {
+        base.push(gen_modrm(ins, modrm.1, modrm.2, rev));
+
+        if let Some(dst) = ins.dst() {
+            if let Some(sib) = gen_sib(dst) {
+                base.push(sib);
+            }
+        }
+        if let Some(src) = ins.src() {
+            if let Some(sib) = gen_sib(src) {
+                base.push(sib);
+            }
+        }
+    }
+
+    if let Some(dst) = ins.dst() {
+        if let Some(disp) = gen_disp(dst) {
+            base.extend(disp);
+        }
+    }
+    if let Some(src) = ins.src() {
+        if let Some(disp) = gen_disp(src) {
+            base.extend(disp);
+        }
+    }
+    if let Some(imm) = imm {
+        base.extend(imm);
+    }
+    base
 }
 
 pub fn gen_ins(
