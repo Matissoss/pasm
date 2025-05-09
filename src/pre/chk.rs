@@ -44,10 +44,9 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
 
 fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
     if gen_rex(ins, false).is_some() {
-        return Some(RASMError::new(
+        return Some(RASMError::no_tip(
             Some(ins.line),
-            Some("Instruction needs rex prefix, which is forbidden in protected/compat. mode (bits 32)".to_string()),
-            None
+            Some("Instruction needs rex prefix, which is forbidden in protected/compat. mode (bits 32)"),
         ));
     }
     match ins.mnem {
@@ -148,38 +147,36 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                         if let Some(u) = i.get_uint() {
                             match Number::squeeze_u64(u) {
                                 Number::UInt8(_) => None,
-                                _ => Some(RASMError::new(
+                                _ => Some(RASMError::with_tip(
                                     Some(ins.line),
-                                    Some("Expected to found 8-bit number, found larger one instead".to_string()),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register".to_string())
+                                    Some("Expected to found 8-bit number, found larger one instead"),
+                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
                                 ))
                             }
                         } else if let Some(i) = i.get_int() {
                             match Number::squeeze_i64(i) {
                                 Number::Int8(_) => None,
-                                _ => Some(RASMError::new(
+                                _ => Some(RASMError::with_tip(
                                     Some(ins.line),
-                                    Some("Expected to found 8-bit number, found larger one instead".to_string()),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register".to_string())
+                                    Some("Expected to found 8-bit number, found larger one instead"),
+                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
                                 ))
                             }
                         } else {
-                            Some(RASMError::new(
+                            Some(RASMError::with_tip(
                                 Some(ins.line),
-                                Some("Found non-compatible immediate for sal/shl/shr/sar instruction".to_string()),
-                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register".to_string())
+                                Some("Found non-compatible immediate for sal/shl/shr/sar instruction"),
+                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register")
                             ))
                         }
                     }
-                    _ => Some(RASMError::new(
+                    _ => Some(RASMError::with_tip(
                         Some(ins.line),
                         Some(
-                            "source operand type mismatch, expected 8-bit number or cl register"
-                                .to_string(),
+                            "Source operand type mismatch, expected 8-bit number or cl register",
                         ),
                         Some(
-                            "consider changing source operand to 8-bit number or cl register"
-                                .to_string(),
+                            "Consider changing source operand to 8-bit number or cl register",
                         ),
                     )),
                 }
@@ -236,10 +233,9 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ => Some(RASMError::new(
+        Mnm::MOVQ => Some(RASMError::no_tip(
             Some(ins.line),
-            Some("Instruction unsupported in 32-bit mode".to_string()),
-            None,
+            Some("Instruction unsupported in 32-bit mode"),
         )),
         _ => shr_chk(ins),
     }
@@ -344,38 +340,36 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                         if let Some(u) = i.get_uint() {
                             match Number::squeeze_u64(u) {
                                 Number::UInt8(_) => None,
-                                _ => Some(RASMError::new(
+                                _ => Some(RASMError::with_tip(
                                     Some(ins.line),
-                                    Some("expected to found 8-bit number, found larger one instead".to_string()),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register".to_string())
+                                    Some("expected to found 8-bit number, found larger one instead"),
+                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
                                 ))
                             }
                         } else if let Some(i) = i.get_int() {
                             match Number::squeeze_i64(i) {
                                 Number::Int8(_) => None,
-                                _ => Some(RASMError::new(
+                                _ => Some(RASMError::with_tip(
                                     Some(ins.line),
-                                    Some("expected to found 8-bit number, found larger one instead".to_string()),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register".to_string())
+                                    Some("expected to found 8-bit number, found larger one instead"),
+                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
                                 ))
                             }
                         } else {
-                            Some(RASMError::new(
+                            Some(RASMError::with_tip(
                                 Some(ins.line),
-                                Some("found non-compatible immediate for sal/shl/shr/sar instruction".to_string()),
-                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register".to_string())
+                                Some("found non-compatible immediate for sal/shl/shr/sar instruction"),
+                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register")
                             ))
                         }
                     }
-                    _ => Some(RASMError::new(
+                    _ => Some(RASMError::with_tip(
                         Some(ins.line),
                         Some(
-                            "source operand type mismatch, expected 8-bit number or cl register"
-                                .to_string(),
+                            "Source operand type mismatch, expected 8-bit number or cl register"
                         ),
                         Some(
-                            "consider changing source operand to 8-bit number or cl register"
-                                .to_string(),
+                            "Consider changing source operand to 8-bit number or cl register"
                         ),
                     )),
                 }
@@ -1067,10 +1061,9 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
 
-        _ => Some(RASMError::new(
+        _ => Some(RASMError::no_tip(
             Some(ins.line),
-            Some("Tried to use currently unsupported instruction.".to_string()),
-            None,
+            Some("Tried to use currently unsupported instruction."),
         )),
     }
 }
@@ -1093,13 +1086,11 @@ fn ot_chk(
         return Some(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Some(RASMError::new(
+        return Some(RASMError::no_tip(
             Some(ins.line),
             Some(
                 "Instruction doesn't accept any operand, but you tried to use one anyways"
-                    .to_string(),
             ),
-            None,
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
@@ -1109,10 +1100,9 @@ fn ot_chk(
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Some(RASMError::new(
+                return Some(RASMError::no_tip(
                     Some(ins.line),
                     Some(format!("Needed operand not found at index {}", idx)),
-                    None,
                 ));
             } else {
                 break;
@@ -1143,14 +1133,13 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
     };
     for f in forb {
         if (dst_t, src_t) == *f {
-            return Some(RASMError::new(
+            return Some(RASMError::no_tip(
                 Some(ins.line),
                 Some(format!(
                     "Destination and Source operand have forbidden combination: ({}, {})",
                     f.0.to_string(),
                     f.1.to_string()
                 )),
-                None,
             ));
         }
     }
@@ -1161,31 +1150,31 @@ fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError> {
     match (ins.dst(), ops.0) {
         (None, false) | (Some(_), true) => {}
         (Some(_), false) => {
-            return Some(RASMError::new(
+            return Some(RASMError::with_tip(
                 None,
-                Some("Unexpected destination operand found: expected none, found some".to_string()),
-                Some("Consider removing destination operand".to_string()),
+                Some("Unexpected destination operand found: expected none, found some"),
+                Some("Consider removing destination operand"),
             ))
         }
         (None, true) => {
-            return Some(RASMError::new(
+            return Some(RASMError::with_tip(
                 None,
-                Some("Expected destination operand, found nothing".to_string()),
-                Some("Consider adding destination operand".to_string()),
+                Some("Expected destination operand, found nothing"),
+                Some("Consider adding destination operand"),
             ))
         }
     };
     match (ins.src(), ops.1) {
         (None, false) | (Some(_), true) => None,
-        (Some(_), false) => Some(RASMError::new(
+        (Some(_), false) => Some(RASMError::with_tip(
             None,
-            Some("Unexpected source operand found: expected none, found some".to_string()),
-            Some("Consider removing source operand".to_string()),
+            Some("Unexpected source operand found: expected none, found some"),
+            Some("Consider removing source operand"),
         )),
-        (None, true) => Some(RASMError::new(
+        (None, true) => Some(RASMError::with_tip(
             None,
-            Some("Expected source operand, found nothing".to_string()),
-            Some("Consider adding source operand".to_string()),
+            Some("Expected source operand, found nothing"),
+            Some("Consider adding source operand"),
         )),
     }
 }
@@ -1194,7 +1183,7 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
     if find(accepted, operand.atype()) {
         None
     } else {
-        let err = RASMError::new(
+        let err = RASMError::with_tip(
             None,
             Some(format!(
                 "{} operand of type {} doesn't match any of expected types: {}",
@@ -1251,11 +1240,10 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::new(
+                    Some(RASMError::with_tip(
                         Some(ins.line),
                         Some(
                             "Tried to use immediate that is too large for destination operand"
-                                .to_string(),
                         ),
                         Some(format!("Consider changing immediate to fit inside {s0}",)),
                     ))
@@ -1269,11 +1257,10 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::new(
+                    Some(RASMError::with_tip(
                         Some(ins.line),
                         Some(
                             "Tried to use operand that cannot be used for destination operand"
-                                .to_string(),
                         ),
                         Some(format!("Consider changing operand to be {s0}",)),
                     ))
@@ -1298,11 +1285,10 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::new(
+                    Some(RASMError::with_tip(
                         Some(ins.line),
                         Some(
-                            "Tried to use operand that cannot be used for destination operand"
-                                .to_string(),
+                            "Tried to use operand that cannot be used for destination operand",
                         ),
                         Some(format!("Consider changing operand to be {s0}",)),
                     ))
@@ -1320,13 +1306,12 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
     if let Some(addt) = &ins.addt {
         for a in addt {
             if !find_bool(accpt_addt, a) {
-                return Some(RASMError::new(
+                return Some(RASMError::no_tip(
                     Some(ins.line),
                     Some(format!(
                         "Use of forbidden additional mnemonic: {}",
                         a.to_string()
                     )),
-                    None,
                 ));
             }
         }

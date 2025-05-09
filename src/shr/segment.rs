@@ -40,18 +40,16 @@ impl FromStr for Segment {
                 if r.purpose() == Purpose::Sgmnt {
                     r
                 } else {
-                    return Err(RASMError::new(
+                    return Err(RASMError::no_tip(
                         None,
                         Some("Tried to use register which purpose isn't for segments".to_string()),
-                        None,
                     ));
                 }
             }
             Err(_) => {
-                return Err(RASMError::new(
+                return Err(RASMError::no_tip(
                     None,
                     Some(format!("Couldn't create a segment register from {}", str)),
-                    None,
                 ))
             }
         };

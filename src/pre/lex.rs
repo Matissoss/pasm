@@ -51,32 +51,30 @@ impl Lexer {
                             Some(n) => match Number::squeeze_u64(n) {
                                 Number::UInt8(n) => n,
                                 _ => {
-                                    ast_tree.push(Err(RASMError::new(
+                                    ast_tree.push(Err(RASMError::no_tip(
                                         Some(line_count as usize),
                                         Some(format!("Couldn't fit number {} in 8-bits", n)),
-                                        None,
                                     )));
                                     continue;
                                 }
                             },
                             _ => {
-                                ast_tree.push(Err(RASMError::new(
+                                ast_tree.push(Err(RASMError::no_tip(
                                     Some(line_count as usize),
                                     Some(format!(
                                         "Couldn't fit number {} in 8-bit unsigned integer",
                                         bits.to_string()
                                     )),
-                                    None,
                                 )));
                                 continue;
                             }
                         };
                         node = Some(ASTNode::Bits(uint8));
                     } else {
-                        error = Some(RASMError::new(
+                        error = Some(RASMError::with_tip(
                             Some(line_count as usize),
-                            Some("Unexpected end of line after entry keyword, expected string, found nothing".to_string()),
-                            Some("Consider adding something after entry keyword".to_string())
+                            Some("Unexpected end of line after entry keyword, expected string, found nothing"),
+                            Some("Consider adding something after entry keyword")
                         ));
                     }
                 }
@@ -84,10 +82,10 @@ impl Lexer {
                     if let Some(Token::String(entr) | Token::Unknown(entr)) = line.get(1) {
                         node = Some(ASTNode::Entry(entr.to_string()));
                     } else {
-                        error = Some(RASMError::new(
+                        error = Some(RASMError::with_tip(
                             Some(line_count as usize),
-                            Some("Unexpected end of line after entry keyword, expected string, found nothing".to_string()),
-                            Some("Consider adding something after entry keyword".to_string())
+                            Some("Unexpected end of line after entry keyword, expected string, found nothing"),
+                            Some("Consider adding something after entry keyword")
                         ));
                     }
                 }
@@ -95,10 +93,10 @@ impl Lexer {
                     if let Some(Token::String(etrn) | Token::Unknown(etrn)) = line.get(1) {
                         node = Some(ASTNode::Extern(etrn.to_string()));
                     } else {
-                        error = Some(RASMError::new(
+                        error = Some(RASMError::with_tip(
                             Some(line_count as usize),
-                            Some("Unexpected end of line after extern keyword, expected string, found nothing".to_string()),
-                            Some("Consider adding something after extern keyword".to_string())
+                            Some("Unexpected end of line after extern keyword, expected string, found nothing"),
+                            Some("Consider adding something after extern keyword")
                         ));
                     }
                 }
@@ -106,10 +104,10 @@ impl Lexer {
                     if let Some(Token::String(glob) | Token::Unknown(glob)) = line.get(1) {
                         node = Some(ASTNode::Global(glob.to_string()));
                     } else {
-                        error = Some(RASMError::new(
+                        error = Some(RASMError::with_tip(
                             Some(line_count as usize),
-                            Some("Unexpected end of line after global keyword, expected string, found nothing".to_string()),
-                            Some("Consider adding something after global keyword".to_string())
+                            Some("Unexpected end of line after global keyword, expected string, found nothing"),
+                            Some("Consider adding something after global keyword")
                         ));
                     }
                 }
@@ -123,16 +121,15 @@ impl Lexer {
                         error = Some(e);
                     }
                 },
-                Some(Token::Unknown(s)) => ast_tree.push(Err(RASMError::new(
+                Some(Token::Unknown(s)) => ast_tree.push(Err(RASMError::no_tip(
                     Some(line_count as usize),
                     Some(format!("Tried to start line with unknown mnemonic `{s}`")),
-                    None,
                 ))),
                 _ => {
-                    ast_tree.push(Err(RASMError::new(
+                    ast_tree.push(Err(RASMError::with_tip(
                         Some(line_count as usize),
-                        Some("Unexpected start of line!".to_string()),
-                        Some("Consider starting line with instruction, !global, section declaration or label declaration".to_string())
+                        Some("Unexpected start of line!"),
+                        Some("Consider starting line with instruction, !global, section declaration or label declaration")
                     )));
                 }
             }
@@ -149,10 +146,9 @@ impl Lexer {
 
 fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
     if line.is_empty() {
-        return Err(RASMError::new(
+        return Err(RASMError::no_tip(
             None,
-            Some("Tried to make instruction from nothing".to_string()),
-            None,
+            Some("Tried to make instruction from nothing"),
         ));
     }
     let mut mnems: Vec<Mnm> = Vec::new();
@@ -186,10 +182,9 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
         ops.push(make_op(&tmp_buf)?);
     }
     if mnems.is_empty() {
-        return Err(RASMError::new(
+        return Err(RASMError::no_tip(
             None,
-            Some("Tried to make instruction with no mnemonics".to_string()),
-            None,
+            Some("Tried to make instruction with no mnemonics"),
         ));
     }
 
@@ -210,10 +205,9 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
 
 fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
     if line.is_empty() {
-        return Err(RASMError::new(
+        return Err(RASMError::no_tip(
             None,
-            Some("Tried to make operand from nothing".to_string()),
-            None,
+            Some("Tried to make operand from nothing"),
         ));
     }
 
@@ -221,13 +215,12 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
         match Operand::try_from(line[0]) {
             Ok(o) => return Ok(o),
             Err(_) => {
-                return Err(RASMError::new(
+                return Err(RASMError::no_tip(
                     None,
                     Some(format!(
                         "Failed to create operand from {}",
                         line[0].to_string()
                     )),
-                    None,
                 ))
             }
         }
@@ -246,10 +239,9 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
             |(Token::Keyword(k), Token::Segment(s)) => {
                 let size = match Size::try_from(*k){
                     Ok(s) => s,
-                    Err(_) => return Err(RASMError::new(
+                    Err(_) => return Err(RASMError::no_tip(
                         None,
                         Some(format!("Couldn't parse size specifier `{}`", k.to_string())),
-                        None
                     ))
                 };
                 let segment = Segment::from_str(s)?;
@@ -267,21 +259,19 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
                     address: mem_new
                 }));
             }
-            _ => return Err(RASMError::new(
+            _ => return Err(RASMError::no_tip(
                 None,
                 Some("Tried to make unexpected operand from two tokens; expected memory address along with size specifier".to_string()),
-                None
             ))
         }
     }
 
-    Err(RASMError::new(
+    Err(RASMError::no_tip(
         None,
         Some(format!(
             "Tried to make operand from too large set of tokens ({})",
             line.len()
         )),
-        None,
     ))
 }
 
@@ -292,32 +282,29 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
                 Keyword::Uninit => VType::Uninit,
                 Keyword::Const  => VType::Const,
                 Keyword::Ronly  => VType::Readonly,
-                _               => return Err(RASMError::new(
+                _               => return Err(RASMError::no_tip(
                     None,
-                    Some("Unexpected keyword found at index 0; expected variable type".to_string()),
-                    None
+                    Some("Unexpected keyword found at index 0; expected variable type"),
                 ))
             }
         },
-        Some(_) => return Err(RASMError::new(
+        Some(_) => return Err(RASMError::no_tip(
             None,
-            Some("Unexpected token at index 0; expected variable type".to_string()),
-            None
+            Some("Unexpected token at index 0; expected variable type"),
         )),
-        None => return Err(RASMError::new(
+        None => return Err(RASMError::with_tip(
             None,
-            Some("Expected variable type at index 0, found nothing".to_string()),
-            Some("Consider adding variable type on index like `!ronly` (.rodata), `!const` (.data) or `!uninit` (.bss)".to_string())
+            Some("Expected variable type at index 0, found nothing"),
+            Some("Consider adding variable type on index like `!ronly` (.rodata), `!const` (.data) or `!uninit` (.bss)")
         ))
     };
 
     let vname = match line.get(1) {
         Some(t) => t.to_string(),
         None => {
-            return Err(RASMError::new(
+            return Err(RASMError::no_tip(
                 None,
-                Some("Expected variable name at index 1; found nothing".to_string()),
-                None,
+                Some("Expected variable name at index 1; found nothing"),
             ))
         }
     };
@@ -326,13 +313,12 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
         Some(Token::Keyword(k)) => match Size::try_from(*k) {
             Ok(s) => <Size as Into<u8>>::into(s) as u32,
             Err(_) => {
-                return Err(RASMError::new(
+                return Err(RASMError::no_tip(
                     None,
                     Some(format!(
                         "Couldn't parse keyword `{}` into size specifier",
                         k.to_string()
                     )),
-                    None,
                 ))
             }
         },
@@ -341,32 +327,28 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
                 if let Token::Immediate(n) = t {
                     match n.get_uint(){
                         Some(n) => n as u32,
-                        None    => return Err(RASMError::new(
+                        None    => return Err(RASMError::no_tip(
                             None,
-                            Some("Invalid size specifier at index 2; expected 32-bit unsigned integer".to_string()),
-                            None
+                            Some("Invalid size specifier at index 2; expected 32-bit unsigned integer"),
                         ))
                     }
                 } else {
-                    return Err(RASMError::new(
+                    return Err(RASMError::no_tip(
                         None,
-                        Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword) or 32-bit unsigned integer".to_string()),
-                        None
+                        Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword) or 32-bit unsigned integer"),
                     ));
                 }
             } else {
-                return Err(RASMError::new(
+                return Err(RASMError::no_tip(
                     None,
-                    Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword)".to_string()),
-                    None
+                    Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword)"),
                 ));
             }
         }
         None => {
-            return Err(RASMError::new(
+            return Err(RASMError::no_tip(
                 None,
-                Some("Expected variable name at index 2; found nothing".to_string()),
-                None,
+                Some("Expected variable name at index 2; found nothing"),
             ))
         }
     };
@@ -380,16 +362,14 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
         (VType::Const|VType::Readonly, VarContent::String(_)|VarContent::Number(_))|
         (VType::Uninit, VarContent::Uninit) => {},
         (VType::Const|VType::Readonly, VarContent::Uninit) =>
-        return Err(RASMError::new(
+        return Err(RASMError::no_tip(
             None,
-            Some("Variable type mismatch: declared variable is const/readonly, but content is undefined".to_string()),
-            None
+            Some("Variable type mismatch: declared variable is const/readonly, but content is undefined"),
         )),
         (VType::Uninit, VarContent::String(_)|VarContent::Number(_)) =>
-        return Err(RASMError::new(
+        return Err(RASMError::no_tip(
             None,
-            Some("Variable type mismatch: declared variable is uninitialized, but content is defined".to_string()),
-            None,
+            Some("Variable type mismatch: declared variable is uninitialized, but content is defined"),
         ))
     }
     Ok(Variable {

@@ -24,174 +24,79 @@ pub enum Purpose {
     Sgmnt, // segment registers (cs, ss, ds, es, ...)
 }
 
+#[rustfmt::skip]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Register {
-    AL,
-    BL,
-    CL,
-    DL,
-    SPL,
-    BPL,
-    SIL,
-    DIL,
-    AH,
-    BH,
-    CH,
-    DH,
+    // 8-bit general purpose registers
+    AL , BL , CL , DL,
+    AH , BH , CH , DH,
 
-    AX,
-    BX,
-    CX,
-    DX,
-    SP,
-    BP,
-    SI,
-    DI,
+    // 8-bit extended general purpose registers
+    SPL, BPL, SIL, DIL,
 
-    EAX,
-    EBX,
-    ECX,
-    EDX,
-    ESP,
-    EBP,
-    ESI,
-    EDI,
+    // 16-bit general purpose registers
+    AX, BX, CX, DX,
+    SP, BP, SI, DI,
 
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RSP,
-    RBP,
-    RSI,
-    RDI,
+    // 32-bit general purpose registers
+    EAX, EBX, ECX, EDX,
+    ESP, EBP, ESI, EDI,
 
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
+    // 64-bit general purpose registers
+    RAX, RBX, RCX, RDX,
+    RSP, RBP, RSI, RDI,
 
-    R8D,
-    R9D,
-    R10D,
-    R11D,
-    R12D,
-    R13D,
-    R14D,
-    R15D,
+    // 64-bit extended general purpose registers
+    R8 , R9 , R10, R11,
+    R12, R13, R14, R15,
 
-    R8W,
-    R9W,
-    R10W,
-    R11W,
-    R12W,
-    R13W,
-    R14W,
-    R15W,
+    // 32-bit extended general purpose registers
+    R8D , R9D , R10D, R11D,
+    R12D, R13D, R14D, R15D,
 
-    R8B,
-    R9B,
-    R10B,
-    R11B,
-    R12B,
-    R13B,
-    R14B,
-    R15B,
+    // 16-bit extended general purpose registers
+    R8W , R9W , R10W, R11W,
+    R12W, R13W, R14W, R15W,
 
-    CS,
-    DS,
-    ES,
-    SS,
-    GS,
-    FS,
+    // 8-bit extended general purpose registers
+    R8B , R9B , R10B, R11B,
+    R12B, R13B, R14B, R15B,
 
-    CR0,
-    CR1,
-    CR2,
-    CR3,
-    CR4,
-    CR5,
-    CR6,
-    CR7,
-    CR8,
-    CR9,
-    CR10,
-    CR11,
-    CR12,
-    CR13,
-    CR14,
-    CR15,
+    // segment registers
+    CS, DS, ES, SS, GS, FS,
 
-    DR0,
-    DR1,
-    DR2,
-    DR3,
-    DR4,
-    DR5,
-    DR6,
-    DR7,
-    DR8,
-    DR9,
-    DR10,
-    DR11,
-    DR12,
-    DR13,
-    DR14,
-    DR15,
+    // control registers
+    CR0 , CR1 , CR2 , CR3,
+    CR4 , CR5 , CR6 , CR7,
+    CR8 , CR9 , CR10, CR11,
+    CR12, CR13, CR14, CR15,
 
-    RIP,
-    EIP,
-    IP,
+    // debug registers
+    DR0 , DR1 , DR2 , DR3,
+    DR4 , DR5 , DR6 , DR7,
+    DR8 , DR9 , DR10, DR11,
+    DR12, DR13, DR14, DR15,
+
+    // Instruction pointers
+    RIP, EIP, IP,
 
     // MMX
-    MM0,
-    MM1,
-    MM2,
-    MM3,
-    MM4,
-    MM5,
-    MM6,
-    MM7,
+    MM0, MM1, MM2, MM3,
+    MM4, MM5, MM6, MM7,
     // SSE
-    XMM0,
-    XMM1,
-    XMM2,
-    XMM3,
-    XMM4,
-    XMM5,
-    XMM6,
-    XMM7,
-    XMM8,
-    XMM9,
-    XMM10,
-    XMM11,
-    XMM12,
-    XMM13,
-    XMM14,
-    XMM15,
+    XMM0, XMM1, XMM2, XMM3,
+    XMM4, XMM5, XMM6, XMM7,
+    
+    XMM8 , XMM9 , XMM10, XMM11,
+    XMM12, XMM13, XMM14, XMM15,
 
     // CURRENTLY UNSUPPORTED:
-    //  AVX-256
-    YMM0,
-    YMM1,
-    YMM2,
-    YMM3,
-    YMM4,
-    YMM5,
-    YMM6,
-    YMM7,
-    YMM8,
-    YMM9,
-    YMM10,
-    YMM11,
-    YMM12,
-    YMM13,
-    YMM14,
-    YMM15,
+    //  AVX
+    YMM0, YMM1, YMM2, YMM3,
+    YMM4, YMM5, YMM6, YMM7,
+    
+    YMM8 , YMM9 , YMM10, YMM11,
+    YMM12, YMM13, YMM14, YMM15,
 }
 
 #[inline(always)]
@@ -501,235 +406,73 @@ impl Register {
     pub fn is_ctrl_reg(&self) -> bool {
         self.purpose() == Purpose::Ctrl
     }
+    #[rustfmt::skip]
     pub fn size(&self) -> Size {
         match self {
-            Self::AL
-            | Self::BL
-            | Self::CL
-            | Self::DL
-            | Self::AH
-            | Self::BH
-            | Self::CH
-            | Self::DH
-            | Self::SPL
-            | Self::BPL
-            | Self::SIL
-            | Self::DIL
-            | Self::R8B
-            | Self::R9B
-            | Self::R10B
-            | Self::R11B
-            | Self::R12B
-            | Self::R13B
-            | Self::R14B
-            | Self::R15B => Size::Byte,
+            Self::AL  | Self::BL | Self::CL  | Self::DL |
+            Self::AH  | Self::BH | Self::CH  | Self::DH |
+            Self::SPL | Self::BPL| Self::SIL | Self::DIL|
+            Self::R8B |Self::R9B |Self::R10B |Self::R11B|
+            Self::R12B|Self::R13B| Self::R14B| Self::R15B => Size::Byte,
 
-            Self::AX
-            | Self::CS
-            | Self::DS
-            | Self::ES
-            | Self::SS
-            | Self::FS
-            | Self::GS
-            | Self::BX
-            | Self::CX
-            | Self::DX
-            | Self::SP
-            | Self::BP
-            | Self::SI
-            | Self::DI
-            | Self::IP
-            | Self::R8W
-            | Self::R9W
-            | Self::R10W
-            | Self::R11W
-            | Self::R12W
-            | Self::R13W
-            | Self::R14W
-            | Self::R15W => Size::Word,
+            Self::CS  | Self::DS | Self::ES | Self::SS | Self::FS | Self::GS  |
+            Self::AX  | Self::BX | Self::CX | Self::DX | Self::SP | Self::BP  |
+            Self::SI  | Self::DI | Self::IP | Self::R8W| Self::R9W| Self::R10W|
+            Self::R11W|Self::R12W|Self::R13W|Self::R14W| Self::R15W => Size::Word,
+            
+            Self::EAX | Self::EBX | Self::ECX | Self::EDX |
+            Self::ESP | Self::EBP | Self::ESI | Self::EDI | Self::EIP|
+            Self::CR0 | Self::CR1 | Self::CR2 | Self::CR3 |
+            Self::CR4 | Self::CR5 | Self::CR6 | Self::CR7 |
+            Self::CR8 | Self::CR9 | Self::CR10| Self::CR11|
+            Self::CR12|Self::CR13 | Self::CR14| Self::CR15|
+            Self::DR0 | Self::DR1 | Self::DR2 | Self::DR3 |
+            Self::DR4 | Self::DR5 | Self::DR6 | Self::DR7 |
+            Self::DR8 | Self::DR9 | Self::DR10| Self::DR11|
+            Self::DR12| Self::DR13| Self::DR14| Self::DR15|
+            Self::R8D | Self::R9D | Self::R10D| Self::R11D|
+            Self::R12D| Self::R13D| Self::R14D| Self::R15D => Size::Dword,
 
-            Self::EAX
-            | Self::EBX
-            | Self::ECX
-            | Self::EDX
-            | Self::ESP
-            | Self::EBP
-            | Self::ESI
-            | Self::EDI
-            | Self::EIP
-            | Self::CR0
-            | Self::CR1
-            | Self::CR2
-            | Self::CR3
-            | Self::CR4
-            | Self::CR5
-            | Self::CR6
-            | Self::CR7
-            | Self::CR8
-            | Self::CR9
-            | Self::CR10
-            | Self::CR11
-            | Self::CR12
-            | Self::CR13
-            | Self::CR14
-            | Self::CR15
-            | Self::DR0
-            | Self::DR1
-            | Self::DR2
-            | Self::DR3
-            | Self::DR4
-            | Self::DR5
-            | Self::DR6
-            | Self::DR7
-            | Self::DR8
-            | Self::DR9
-            | Self::DR10
-            | Self::DR11
-            | Self::DR12
-            | Self::DR13
-            | Self::DR14
-            | Self::DR15
-            | Self::R8D
-            | Self::R9D
-            | Self::R10D
-            | Self::R11D
-            | Self::R12D
-            | Self::R13D
-            | Self::R14D
-            | Self::R15D => Size::Dword,
+            Self::RAX | Self::RBX | Self::RCX | Self::RDX |
+            Self::RSP | Self::RBP | Self::RSI | Self::RDI |
+            Self::R8  | Self::R9  | Self::R10 | Self::R11 |
+            Self::RIP | Self::R12 | Self::R13 | Self::R14 |
+            Self::MM0 | Self::MM1 | Self::MM2 | Self::MM3 |
+            Self::MM4 | Self::MM5 | Self::MM6 | Self::MM7 |
+            Self::R15 => Size::Qword,
 
-            Self::RAX
-            | Self::RBX
-            | Self::RCX
-            | Self::RDX
-            | Self::RSP
-            | Self::RBP
-            | Self::RSI
-            | Self::RDI
-            | Self::R8
-            | Self::R9
-            | Self::R10
-            | Self::R11
-            | Self::RIP
-            | Self::R12
-            | Self::R13
-            | Self::R14
-            | Self::MM0
-            | Self::MM1
-            | Self::MM2
-            | Self::MM3
-            | Self::MM4
-            | Self::MM5
-            | Self::MM6
-            | Self::MM7
-            | Self::R15 => Size::Qword,
+            Self::XMM0 | Self::XMM1 | Self::XMM2 | Self::XMM3 |
+            Self::XMM4 | Self::XMM5 | Self::XMM6 | Self::XMM7 |
+            Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
+            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15 => Size::Xword,
 
-            Self::XMM0
-            | Self::XMM1
-            | Self::XMM2
-            | Self::XMM3
-            | Self::XMM4
-            | Self::XMM5
-            | Self::XMM6
-            | Self::XMM7
-            | Self::XMM8
-            | Self::XMM9
-            | Self::XMM10
-            | Self::XMM11
-            | Self::XMM12
-            | Self::XMM13
-            | Self::XMM14
-            | Self::XMM15 => Size::Xword,
-
-            Self::YMM0
-            | Self::YMM1
-            | Self::YMM2
-            | Self::YMM3
-            | Self::YMM4
-            | Self::YMM5
-            | Self::YMM6
-            | Self::YMM7
-            | Self::YMM8
-            | Self::YMM9
-            | Self::YMM10
-            | Self::YMM11
-            | Self::YMM12
-            | Self::YMM13
-            | Self::YMM14
-            | Self::YMM15 => Size::Yword,
+            Self::YMM0 | Self::YMM1 | Self::YMM2 | Self::YMM3 |
+            Self::YMM4 | Self::YMM5 | Self::YMM6 | Self::YMM7 |
+            Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
+            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15 => Size::Yword,
         }
     }
+    #[rustfmt::skip]
     pub fn needs_rex(&self) -> bool {
         matches!(
             self,
-            Self::R8
-                | Self::R9
-                | Self::R10
-                | Self::R11
-                | Self::R12
-                | Self::R13
-                | Self::R14
-                | Self::R15
-                | Self::R8B
-                | Self::R9B
-                | Self::R10B
-                | Self::R11B
-                | Self::R12B
-                | Self::R13B
-                | Self::R14B
-                | Self::R15B
-                | Self::R8W
-                | Self::R9W
-                | Self::R10W
-                | Self::R11W
-                | Self::R12W
-                | Self::R13W
-                | Self::R14W
-                | Self::R15W
-                | Self::R8D
-                | Self::R9D
-                | Self::R10D
-                | Self::R11D
-                | Self::R12D
-                | Self::R13D
-                | Self::R14D
-                | Self::R15D
-                | Self::XMM8
-                | Self::XMM9
-                | Self::XMM10
-                | Self::XMM11
-                | Self::XMM12
-                | Self::XMM13
-                | Self::XMM14
-                | Self::XMM15
-                | Self::YMM8
-                | Self::YMM9
-                | Self::YMM10
-                | Self::YMM11
-                | Self::SIL
-                | Self::DIL
-                | Self::BPL
-                | Self::SPL
-                | Self::CR8
-                | Self::CR9
-                | Self::CR10
-                | Self::CR11
-                | Self::CR12
-                | Self::CR13
-                | Self::CR14
-                | Self::CR15
-                | Self::DR8
-                | Self::DR9
-                | Self::DR10
-                | Self::DR11
-                | Self::DR12
-                | Self::DR13
-                | Self::DR14
-                | Self::DR15
-                | Self::YMM12
-                | Self::YMM13
-                | Self::YMM14
-                | Self::YMM15
+            Self::R8   | Self::R9   | Self::R10  | Self::R11  |
+            Self::R12  | Self::R13  | Self::R14  | Self::R15  |
+            Self::R8B  | Self::R9B  | Self::R10B | Self::R11B |
+            Self::R12B | Self::R13B | Self::R14B | Self::R15B |
+            Self::R8W  | Self::R9W  | Self::R10W | Self::R11W |
+            Self::R12W | Self::R13W | Self::R14W | Self::R15W |
+            Self::R8D  | Self::R9D  | Self::R10D | Self::R11D |
+            Self::R12D | Self::R13D | Self::R14D | Self::R15D |
+            Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
+            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15|
+            Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
+            Self::SIL  | Self::DIL  | Self::BPL  | Self::SPL  |
+            Self::CR8  | Self::CR9  | Self::CR10 | Self::CR11 |
+            Self::CR12 | Self::CR13 | Self::CR14 | Self::CR15 |
+            Self::DR8  | Self::DR9  | Self::DR10 | Self::DR11 |
+            Self::DR12 | Self::DR13 | Self::DR14 | Self::DR15 |
+            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15
         )
     }
     #[rustfmt::skip]

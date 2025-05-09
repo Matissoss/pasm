@@ -60,7 +60,7 @@ impl FromStr for Number {
                         if nm != 16 {
                             number += nm * (16u64.pow(index as u32))
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
                                 Some(format!(
                                     "Invalid hexadecimal character was found inside number: {}",
@@ -83,7 +83,7 @@ impl FromStr for Number {
                         if nm != 16 {
                             number += nm * (16i64.pow(index as u32))
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
                                 Some(format!(
                                     "Invalid hexadecimal character was found inside number: {}",
@@ -106,7 +106,7 @@ impl FromStr for Number {
                         if nm < 2 {
                             number += nm * (1 << index)
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
                                 Some(format!(
                                     "Invalid binary character was found inside number: {}",
@@ -129,7 +129,7 @@ impl FromStr for Number {
                         if nm < 2 {
                             number += nm * (1 << index)
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
                                 Some(format!(
                                     "Invalid binary character was found inside number: {}",
@@ -149,10 +149,9 @@ impl FromStr for Number {
                     return Ok(Self::squeeze_f64(db));
                 }
 
-                Err(RASMError::new(
+                Err(RASMError::no_tip(
                     None,
                     Some(format!("Couldn't parse string into number: {}", str)),
-                    None,
                 ))
             }
         }
@@ -257,13 +256,12 @@ fn hexchar(c: char) -> u8 {
 const ESCAPE: u8 = b'\\';
 fn parse_char(txt: &[u8]) -> Result<char, RASMError> {
     if !(txt.starts_with(&[(b'\'')]) && txt.ends_with(&[(b'\'')])) {
-        Err(RASMError::new(
+        Err(RASMError::no_tip(
             None,
             Some(format!(
                 "Invalidly formatted char: {}",
                 String::from_utf8_lossy(txt)
             )),
-            None,
         ))
     } else if txt.len() == 4 {
         if txt[1] == ESCAPE {
@@ -274,20 +272,17 @@ fn parse_char(txt: &[u8]) -> Result<char, RASMError> {
                 '0' => Ok('\0'),
                 '\\' => Ok('\\'),
                 '\'' => Ok('\''),
-                _ => Err(RASMError::new(
+                _ => Err(RASMError::no_tip(
                     None,
                     Some(format!("Invalid escape character \\{}", txt[2] as char)),
-                    None,
                 )),
             }
         } else {
-            Err(RASMError::new(
+            Err(RASMError::no_tip(
                 None,
                 Some(
                     "Character declaration has more than 1 character inside closure `'`."
-                        .to_string(),
                 ),
-                None,
             ))
         }
     } else {

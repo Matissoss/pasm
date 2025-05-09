@@ -51,10 +51,10 @@ impl Parser {
                         ASTNode::Variable(var) => vardecs.push(var),
                         ASTNode::Ins(ins) => {
                             if !inside_label.0 {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::with_tip(
                                     Some(node.1),
-                                    Some("This instruction was outside of label!".to_string()),
-                                    Some("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this".to_string())
+                                    Some("This instruction was outside of label!"),
+                                    Some("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this")
                                 ));
                             } else {
                                 instructions.push(ins);
@@ -64,10 +64,9 @@ impl Parser {
                             if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
                                 ast.globals.push(glob);
                             } else {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     Some(node.1),
-                                    Some("Globals can be only declared outside of labels, not inside of".to_string()),
-                                    None
+                                    Some("Globals can be only declared outside of labels, not inside of"),
                                 ));
                             }
                         }
@@ -75,10 +74,9 @@ impl Parser {
                             if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
                                 ast.externs.push(extrn);
                             } else {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     Some(node.1),
-                                    Some("Externs can be only declared outside of labels, not inside of".to_string()),
-                                    None
+                                    Some("Externs can be only declared outside of labels, not inside of"),
                                 ));
                             }
                         }
@@ -87,17 +85,15 @@ impl Parser {
                                 if ast.entry.is_none() {
                                     ast.entry = Some(entry);
                                 } else {
-                                    errors.push(RASMError::new(
+                                    errors.push(RASMError::no_tip(
                                         Some(node.1),
-                                        Some("Entry point declared twice!".to_string()),
-                                        None,
+                                        Some("Entry point declared twice"),
                                     ));
                                 }
                             } else {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     Some(node.1),
-                                    Some("Entries can be only declared outside of labels, not inside of".to_string()),
-                                    None
+                                    Some("Entries can be only declared outside of labels, not inside of"),
                                 ));
                             }
                         }
@@ -107,24 +103,21 @@ impl Parser {
                                     match bits{
                                         16|32|64 => ast.bits = Some(bits),
                                         n        =>
-                                            errors.push(RASMError::new(
+                                            errors.push(RASMError::no_tip(
                                                 Some(node.1),
                                                 Some(format!("Invalid bits specifier; expected 16, 32, 64, found {}", n)),
-                                                None
                                             ))
                                     }
                                 } else {
-                                    errors.push(RASMError::new(
+                                    errors.push(RASMError::no_tip(
                                         Some(node.1),
-                                        Some("Program bits declared twice!".to_string()),
-                                        None,
+                                        Some("Program bits declared twice!"),
                                     ));
                                 }
                             } else {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     Some(node.1),
-                                    Some("Bits can be only declared outside of labels, not inside of".to_string()),
-                                    None
+                                    Some("Bits can be only declared outside of labels, not inside of"),
                                 ));
                             }
                         }

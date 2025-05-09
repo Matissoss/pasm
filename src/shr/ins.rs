@@ -3,7 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::conf::FAST_MODE;
 use crate::shr::size::Size;
 use std::str::FromStr;
 
@@ -94,27 +93,17 @@ pub enum Mnemonic {
     CVTPS2PD, CVTPD2PS,
     CVTSS2SD, CVTPS2SS,
 
-    PSUBQ,
-    PSHUFD,
-    PSLLDQ,
-    PSRLDQ,
-    PMULUDQ,
-    PSHUFLW,
-    PSHUFHW,
-    PUNPCKHQDQ,
-    PUNPCKLQDQ,
+    PSUBQ  , PSHUFD    , PSLLDQ,
+    PSRLDQ , PMULUDQ   , PSHUFLW,
+    PSHUFHW, PUNPCKHQDQ, PUNPCKLQDQ,
 
     MASKMOVDQU,
 
-    MFENCE, LFENCE,
-    CLFLUSH, PAUSE,
-    MOVNTPD, 
-    MOVNTDQ,
-    MOVNTI,
+    MFENCE , LFENCE , CLFLUSH, PAUSE,
+    MOVNTPD, MOVNTDQ, MOVNTI,
 
     // SSE3 extension
-    ADDSUBPS,
-    ADDSUBPD,
+    ADDSUBPS, ADDSUBPD,
 
     HADDPS, HSUBPS,
     HADDPD, HSUBPD,
@@ -124,46 +113,25 @@ pub enum Mnemonic {
 
     // SSSE3 extension
 
-    PABSW, 
-    PABSD, 
-    PABSB,
-    PSIGNW, 
-    PSIGND, 
-    PSIGNB,
-    PHSUBW,
-    PHSUBD,
-    PHADDW,
-    PHADDD,
-    PSHUFB,
-    PHSUBSW,
-    PHADDSW,
-    PALIGNR,
-    PMULHRSW,
-    PMADDUBSW,
+    PABSW, PABSD, PABSB,
+    PSIGNW, PSIGND, PSIGNB, PHSUBW,
+    PHSUBD, PHADDW, PHADDD, PSHUFB, PHSUBSW,
+    PHADDSW, PALIGNR, PMULHRSW, PMADDUBSW,
 
     // MMX extension
-    MOVD, MOVQ,
-    
-    PADDB , PADDW , PADDD  , PADDQ  ,
-    PADDSB, PADDSW, PADDUSB, PADDUSW,
-    
+    MOVD  , MOVQ,
+    PADDB , PADDW  , PADDD  , PADDQ  ,
+    PADDSB, PADDSW , PADDUSB, PADDUSW,
     PSUBB , PSUBW  , PSUBD  , PSUBSB ,
     PSUBSW, PSUBUSB, PSUBUSW, PANDN  ,
-
     PMULHW, PMULLW,
-
     PMADDWD,
-
     PCMPEQB, PCMPEQW, PCMPEQD,
     PCMPGTB, PCMPGTW, PCMPGTD,
-    
     PACKUSWB, PACKSSWB, PACKSSDW,
-    
     PUNPCKLBW, PUNPCKLWD, PUNPCKLDQ,
     PUNPCKHBW, PUNPCKHWD, PUNPCKHDQ,
-
     POR, PAND, PANND, PXOR,
-    
     PSLLW, PSLLD, PSLLQ,
     PSRLW, PSRLD, PSRLQ,
     PSRAW, PSRAD,
@@ -194,19 +162,6 @@ pub enum Mnemonic {
     PHMINPOSUW,
 }
 
-#[inline(always)]
-fn ins_ie(i: &str, c: &str, ins: Mnemonic) -> Result<Mnemonic, ()> {
-    if FAST_MODE {
-        Ok(ins)
-    } else {
-        if i == c {
-            Ok(ins)
-        } else {
-            Err(())
-        }
-    }
-}
-
 impl FromStr for Mnemonic {
     type Err = ();
     fn from_str(str_ins: &str) -> Result<Self, <Self as FromStr>::Err> {
@@ -232,16 +187,13 @@ impl Mnemonic {
     pub fn allows_mem_mem(&self) -> bool {
         false
     }
+    #[rustfmt::skip]
     pub fn defaults_to_64bit(&self) -> bool {
         matches!(
             self,
-            Self::PUSH
-                | Self::POP
-                | Self::PADDB
-                | Self::PADDW
-                | Self::PADDD
-                | Self::PADDQ
-                | Self::PINSRD
+            Self::PUSH | Self::POP   | Self::PADDB |
+            Self::PADDW| Self::PADDD | Self::PADDQ |
+            Self::PINSRD
         )
     }
 }
@@ -2152,12 +2104,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             _ => n(),
         },
         10 => match rstr[0] {
-            'm' => ins_ie(str, "maskmovdqu", Ins::MASKMOVDQU).ok(),
+            'm' => ins_ie(&rstr, 1, &cc("maskmovdqu"), Ins::MASKMOVDQU),
             'p' => match rstr[1] {
-                'h' => ins_ie(str, "phminposuw", Ins::PHMINPOSUW).ok(),
+                'h' => ins_ie(&rstr, 2, &cc("phminposuw"), Ins::PHMINPOSUW),
                 'u' => match (rstr[6], rstr[7], rstr[8]) {
-                    ('h', 'q', 'd') => ins_ie(str, "punpckhqdq", Ins::PUNPCKHQDQ).ok(),
-                    ('l', 'q', 'd') => ins_ie(str, "punpcklqdq", Ins::PUNPCKLQDQ).ok(),
+                    ('h', 'q', 'd') => ins_ie(&rstr, 0, &cc("punpckhqdq"), Ins::PUNPCKHQDQ),
+                    ('l', 'q', 'd') => ins_ie(&rstr, 0, &cc("punpcklqdq"), Ins::PUNPCKLQDQ),
                     _ => n(),
                 },
                 _ => n(),
@@ -2165,5 +2117,18 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             _ => n(),
         },
         _ => n(),
+    }
+}
+
+#[inline(always)]
+fn cc(str: &'static str) -> Vec<char>{
+    str.chars().collect()
+}
+#[inline(always)]
+fn ins_ie(chars: &[char], start: usize, target: &[char], res: Mnemonic) -> Option<Mnemonic>{
+    if chars[start..] == target[start..]{
+        Some(res)
+    } else {
+        None
     }
 }

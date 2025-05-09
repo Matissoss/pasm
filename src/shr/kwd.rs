@@ -41,7 +41,6 @@ impl FromStr for Keyword {
     fn from_str(kwd_str: &str) -> Result<Self, <Self as FromStr>::Err> {
         let kwd_raw = kwd_str.as_bytes();
         match kwd_raw.len() {
-            0 | 1 => Err(()),
             4 => match kwd_raw[1] as char {
                 'y' => kwd_ie(kwd_str, "byte", Keyword::Byte),
                 'o' => kwd_ie(kwd_str, "word", Keyword::Word),

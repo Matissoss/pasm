@@ -59,21 +59,16 @@ pub fn relocate_addresses<'a>(
                         let immbytes = match **con {
                             VarContent::Number(n) => n.split_into_bytes(),
                             VarContent::String(_) => {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     None,
-                                    Some(
-                                        "Tried to use string - forbidden in `baremetal`"
-                                            .to_string(),
-                                    ),
-                                    None,
+                                    Some("Tried to use string - forbidden in `bin`"),
                                 ));
                                 break;
                             }
                             VarContent::Uninit => {
-                                errors.push(RASMError::new(
+                                errors.push(RASMError::no_tip(
                                     None,
-                                    Some("Tried to use uninitialized variable - forbidden in `baremetal`".to_string()),
-                                    None
+                                    Some("Tried to use uninitialized variable - forbidden in `bin`"),
                                 ));
                                 break;
                             }
@@ -83,18 +78,18 @@ pub fn relocate_addresses<'a>(
                             tmp += 1;
                         }
                     } else {
-                        errors.push(RASMError::new(
+                        errors.push(RASMError::with_tip(
                             None,
-                            Some("Tried to use unitialized variable (`!bss` one)".to_string()),
-                            Some("Unitialized variables currently cannot be used in `baremetal` target".to_string())
+                            Some("Tried to use unitialized variable (`!bss` one)"),
+                            Some("Unitialized variables currently cannot be used in `baremetal` target")
                         ));
                     }
                 }
             } else {
-                errors.push(RASMError::new(
+                errors.push(RASMError::with_tip(
                     None,
                     Some(format!("couldn't find symbol {} in current file", reloc.symbol)),
-                    Some("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section".to_string())
+                    Some("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section")
                 ))
             }
         } else if let RType::S32 = reloc.rtype {
@@ -104,18 +99,16 @@ pub fn relocate_addresses<'a>(
                     let immbytes = match **con {
                         VarContent::Number(n) => n.split_into_bytes(),
                         VarContent::String(_) => {
-                            errors.push(RASMError::new(
+                            errors.push(RASMError::no_tip(
                                 None,
-                                Some("Tried to use string - forbidden in `baremetal`".to_string()),
-                                None,
+                                Some("Tried to use string - forbidden in `bin`"),
                             ));
                             break;
                         }
                         VarContent::Uninit => {
-                            errors.push(RASMError::new(
+                            errors.push(RASMError::no_tip(
                                 None,
-                                Some("Tried to use uninitialized variable - forbidden in `baremetal`".to_string()),
-                                None
+                                Some("Tried to use uninitialized variable - forbidden in `bin`"),
                             ));
                             break;
                         }
@@ -126,30 +119,28 @@ pub fn relocate_addresses<'a>(
                         tmp += 1;
                     }
                 } else {
-                    errors.push(RASMError::new(
+                    errors.push(RASMError::with_tip(
                         None,
-                        Some("Tried to use unitialized variable (`!bss` one)".to_string()),
+                        Some("Tried to use unitialized variable (`!bss` one)"),
                         Some(
                             "Unitialized variables currently cannot be used in `baremetal` target"
-                                .to_string(),
                         ),
                     ));
                 }
             } else {
-                errors.push(RASMError::new(
+                errors.push(RASMError::with_tip(
                     None,
                     Some(format!("Couldn't find symbol {} in current file", reloc.symbol)),
-                    Some("Consider creating symbol like e.g: label or variable in .bss/.data/.rodata section".to_string())
+                    Some("Consider creating symbol like e.g: label or variable in .bss/.data/.rodata section")
                 ))
             }
         } else {
-            errors.push(RASMError::new(
+            errors.push(RASMError::no_tip(
                 None,
                 Some(format!(
                     "Tried to use currently unsupported relocation type: {:?}",
                     reloc.rtype
                 )),
-                None,
             ))
         }
     }

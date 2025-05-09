@@ -4,9 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
-    conf::{
-        COMMENT_S, MEM_CLOSE, MEM_START, PREFIX_KWD, PREFIX_REF, PREFIX_REG, PREFIX_SEG, PREFIX_VAL,
-    },
+    conf::*,
     shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, num::Number, reg::Register},
 };
 use std::str::FromStr;
@@ -167,7 +165,7 @@ impl ToString for Token {
             Self::MemAddr(mem) => mem.to_string(),
             Self::Immediate(v) => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd) => kwd.to_string(),
-            Self::Mnemonic(m) => format!("{:?}", m).to_lowercase(),
+            Self::Mnemonic(m) => m.to_string(),
             Self::Label(lbl) => lbl.to_string(),
             Self::SymbolRef(lbl) => format!("{}{}", PREFIX_REF, lbl),
             Self::String(str) => str.to_string(),

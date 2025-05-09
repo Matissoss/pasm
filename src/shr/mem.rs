@@ -21,17 +21,17 @@ impl Mem {
         let size = if let Some(kwd) = size_spec {
             match Size::try_from(kwd){
                 Ok(s) => s,
-                Err(_) => return Err(RASMError::new(
+                Err(_) => return Err(RASMError::with_tip(
                     None,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
-                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte".to_string())
+                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte")
                 ))
             }
         } else {
-            return Err(RASMError::new(
+            return Err(RASMError::with_tip(
                 None,
-                Some("No size specifier found in memory declaration".to_string()),
-                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte".to_string())
+                Some("No size specifier found in memory declaration"),
+                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte")
             ));
         };
         mem_par(&mem_tok(memstr), size)
@@ -71,7 +71,7 @@ enum MemTok {
     Plus,
     Minus,
     Star,
-    Underline, // _
+    Underline,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -83,7 +83,7 @@ enum NumberVariant {
 
 fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
     if !toks.starts_with(&[MemTok::Start]) {
-        return Err(RASMError::new(
+        return Err(RASMError::with_tip(
             None,
             Some(format!(
                 "Expected memory to start with: {}, found unexpected token",
@@ -93,7 +93,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         ));
     }
     if !toks.ends_with(&[MemTok::End]) {
-        return Err(RASMError::new(
+        return Err(RASMError::with_tip(
             None,
             Some(format!("Expected memory closing symbol '{}'", MEM_CLOSE)),
             Some(format!(
@@ -103,10 +103,10 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         ));
     }
 
-    let too_many_reg_e: RASMError = RASMError::new(
+    let too_many_reg_e: RASMError = RASMError::with_tip(
         None,
-        Some("Too many registers found in one memory declaration".to_string()),
-        Some("maximum amount of registers is 2".to_string()),
+        Some("Too many registers found in one memory declaration"),
+        Some("maximum amount of registers is 2"),
     );
 
     let mut variant: NumberVariant = NumberVariant::Plus;
@@ -142,17 +142,17 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                         if scale.is_none() {
                             scale = Some(s);
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
-                                Some("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)".to_string()),
-                                Some("Consider removing last scale (prefixed with '*')".to_string())
+                                Some("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)"),
+                                Some("Consider removing last scale (prefixed with '*')")
                             ));
                         }
                     } else {
-                        return Err(RASMError::new(
+                        return Err(RASMError::with_tip(
                             None,
                             Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                            Some("Consider changing scale into number: 1, 2, 4 or 8".to_string())
+                            Some("Consider changing scale into number: 1, 2, 4 or 8")
                         ));
                     }
                 } else {
@@ -166,17 +166,17 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                         if let Ok(s) = Size::try_from(*n as u16) {
                             scale = Some(s);
                         } else {
-                            return Err(RASMError::new(
+                            return Err(RASMError::with_tip(
                                 None,
                                 Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                                Some("Consider changing scale into number: 1, 2, 4 or 8".to_string())
+                                Some("Consider changing scale into number: 1, 2, 4 or 8")
                             ));
                         }
                     } else {
-                        return Err(RASMError::new(
+                        return Err(RASMError::with_tip(
                             None,
                             Some("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)".to_string()),
-                            Some("Consider removing last scale (prefixed with '+' or '-')".to_string())
+                            Some("Consider removing last scale (prefixed with '+' or '-')")
                         ));
                     }
                 }
@@ -187,7 +187,7 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
             MemTok::Minus => variant = NumberVariant::Minus,
             MemTok::Star => variant = NumberVariant::Multiply,
             MemTok::Unknown(s) => {
-                return Err(RASMError::new(
+                return Err(RASMError::with_tip(
                     None,
                     Some(format!(
                         "Found unknown token inside memory declaration: `{}`",
@@ -195,20 +195,17 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                     )),
                     Some(
                         "Consider changing this token into number, register, ',' or '_'"
-                            .to_string(),
                     ),
                 ))
             }
             MemTok::Start | MemTok::End => {
-                return Err(RASMError::new(
+                return Err(RASMError::with_tip(
                     None,
                     Some(
                         "Found memory closing/starting delimeter inside memory declaration"
-                            .to_string(),
                     ),
                     Some(
                         "Consider removing closing/starting delimeter from memory declaration"
-                            .to_string(),
                     ),
                 ))
             }
@@ -218,27 +215,24 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
     let mut rsize = Size::Any;
     if let Some(base) = base {
         if base.purpose() != RPurpose::General {
-            return Err(RASMError::new(
+            return Err(RASMError::no_tip(
                 None,
-                Some("Base register in this memory declaration isn't general purpose".to_string()),
-                None,
+                Some("Base register in this memory declaration isn't general purpose"),
             ));
         }
         rsize = base.size();
     }
     if let Some(index) = index {
         if index.purpose() != RPurpose::General {
-            return Err(RASMError::new(
+            return Err(RASMError::no_tip(
                 None,
                 Some("Index register in this memory declaration isn't general purpose".to_string()),
-                None,
             ));
         }
         if index.size() != rsize {
-            return Err(RASMError::new(
+            return Err(RASMError::no_tip(
                 None,
                 Some(format!("Memory cannot be created, because one of registers is of invalid size: base size = {rsize}")),
-                None
             ));
         }
     }
@@ -254,18 +248,16 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
         (Some(i), None, Some(s), None) => Ok(Mem::Index(i, s, size)),
         (Some(i), None, Some(s), Some(o)) => Ok(Mem::IndexOffset(i, o, s, size)),
         (Some(b), Some(i), None, Some(o)) => Ok(Mem::SIBOffset(b, i, Size::Byte, o, size)),
-        (None, None, None, None) => Err(RASMError::new(
+        (None, None, None, None) => Err(RASMError::no_tip(
             None,
-            Some("Tried to make memory operand out of nothing `()`".to_string()),
-            None,
+            Some("Tried to make memory operand out of nothing `()`"),
         )),
-        _ => Err(RASMError::new(
+        _ => Err(RASMError::no_tip(
             None,
             Some(format!(
-                "Unexpected memory combo: base = {:?}, index = {:?}, scale = {:?}, offset = {:?}",
+                "Unexpected memory combo: base = {:?}, index = {:?}, scale = {:?}, offset = {:?}\n\tThis should not happen (bug)",
                 base, index, scale, offset
             )),
-            None,
         )),
     }
 }
@@ -340,11 +332,9 @@ fn mem_tok_make(tmp_buf: &[char], pfx: Option<char>) -> Option<MemTok> {
 
 // allows me to save up to 4 lines...
 // ... by adding 8 more lines (ok, maybe 4 lines are saved)
+#[rustfmt::skip]
 #[inline]
-fn res2op<T, Y, E>(res: Result<T, Y>) -> Option<E>
-where
-    T: Into<E>,
-{
+fn res2op<T, Y, E>(res: Result<T, Y>) -> Option<E> where T: Into<E> {
     match res {
         Ok(t) => Some(t.into()),
         Err(_) => None,

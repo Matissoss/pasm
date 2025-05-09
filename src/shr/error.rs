@@ -54,17 +54,22 @@ pub struct RASMError {
 
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
-        let ctx = &FILE[self.line.unwrap()];
+        let ctx = if let Some(line) = self.line { Some(&FILE[line]) } else { None };
 
         writeln!(
             frm,
-            "{}:\n\t{} at line {}\n\t{}{}{}",
+            "{}:\n\tin {}{}{}{}{}",
             self.etype,
             ColString::new(ERR_CTX.1.to_string_lossy()).set_color(BaseColor::YELLOW),
-            ColString::new(self.line.unwrap()).set_color(BaseColor::YELLOW),
-            ColString::new(ctx)
+            if let Some(line) = self.line {
+                format!(" at line {}", ColString::new(line).set_color(BaseColor::YELLOW))
+            } else {"".to_string()},
+            if let Some(ctx) = ctx{
+                format!("\n\t{}",
+                ColString::new(ctx)
                 .set_color(BaseColor::GREEN)
-                .set_modf(Modifier::Bold),
+                .set_modf(Modifier::Bold))
+            } else {"".to_string()},
             if let Some(msg) = &self.msg {
                 format!("\n\t---\n\t{}", msg)
             } else {
@@ -103,14 +108,27 @@ impl Display for ExceptionType {
     }
 }
 
-type OS = Option<String>;
 impl RASMError {
-    pub fn new(line: Option<usize>, msg: OS, tip: OS) -> Self {
+    pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self{
         Self {
             line,
             etype: ExceptionType::Error,
-            msg,
-            tip,
+            msg: if let Some(m) = msg {
+                Some(m.to_string())
+            } else { None },
+            tip: None
+        }
+    }
+    pub fn with_tip(line: Option<usize>, msg: Option<impl ToString>, tip: Option<impl ToString>) -> Self{
+        Self {
+            line,
+            etype: ExceptionType::Error,
+            msg: if let Some(m) = msg {
+                Some(m.to_string())
+            } else { None },
+            tip: if let Some(t) = tip {
+                Some(t.to_string())
+            } else { None },
         }
     }
     pub fn get_line(&self) -> Option<&usize> {
@@ -118,5 +136,14 @@ impl RASMError {
     }
     pub fn set_line(&mut self, newline: usize) {
         self.line = Some(newline);
+    }
+}
+
+pub struct Blank;
+
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for Blank{
+    fn to_string(&self) -> String{
+        String::new()
     }
 }
