@@ -11,7 +11,7 @@ use crate::{
         mmx,
         modrm::gen_modrm,
         reloc::{RCategory, RType, Relocation},
-        rex::gen_rex,
+        rex,
         sib::gen_sib,
         sse, sse2, sse3, sse4, ssse3,
     },
@@ -2028,7 +2028,7 @@ pub fn gen_ins(
 pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
     // how does this even work? (probably doesn't)
     let (rex_bool, rex) = if bits == 64 {
-        if let Some(rex) = gen_rex(ins, rev) {
+        if let Some(rex) = rex::gen_rex(ins, rev) {
             (rex & 0x08 == 8, Some(rex))
         } else {
             (ins.size() == Size::Qword || ins.size() == Size::Any, None)
@@ -2037,11 +2037,15 @@ pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
         (false, None)
     };
 
-    let mut used_66 = false;
+    let mut used_66 = ins.which_variant() == IVariant::MMX;
     let mut size_ovr = if let Some(dst) = ins.dst() {
         if let Some(s) = gen_size_ovr(ins, dst, bits, rex_bool) {
-            used_66 = s == 0x66;
-            vec![s]
+            if !used_66 {
+                used_66 = s == 0x66;
+                vec![s]
+            } else {
+                Vec::new()
+            }
         } else {
             Vec::new()
         }

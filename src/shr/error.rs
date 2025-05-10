@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::color::{ColString, Color, Modifier};
 use crate::CLI;
 use std::{
     fmt::{Display, Error, Formatter},
@@ -34,8 +35,6 @@ static FILE: LazyLock<Vec<String>> = LazyLock::new(|| {
     buf.lines().map(|s| s.to_string()).collect::<Vec<String>>()
 });
 
-use crate::color::{BaseColor, ColString, Modifier};
-
 #[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ExceptionType {
@@ -54,22 +53,32 @@ pub struct RASMError {
 
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
-        let ctx = if let Some(line) = self.line { Some(&FILE[line]) } else { None };
+        let ctx = if let Some(line) = self.line {
+            Some(&FILE[line])
+        } else {
+            None
+        };
 
         writeln!(
             frm,
             "{}:\n\tin {}{}{}{}{}",
             self.etype,
-            ColString::new(ERR_CTX.1.to_string_lossy()).set_color(BaseColor::YELLOW),
+            ColString::new(ERR_CTX.1.to_string_lossy()).set_color(Color::YELLOW),
             if let Some(line) = self.line {
-                format!(" at line {}", ColString::new(line).set_color(BaseColor::YELLOW))
-            } else {"".to_string()},
-            if let Some(ctx) = ctx{
-                format!("\n\t{}",
-                ColString::new(ctx)
-                .set_color(BaseColor::GREEN)
-                .set_modf(Modifier::Bold))
-            } else {"".to_string()},
+                format!(" at line {}", ColString::new(line).set_color(Color::YELLOW))
+            } else {
+                "".to_string()
+            },
+            if let Some(ctx) = ctx {
+                format!(
+                    "\n\t{}",
+                    ColString::new(ctx)
+                        .set_color(Color::GREEN)
+                        .set_modf(Modifier::Bold)
+                )
+            } else {
+                "".to_string()
+            },
             if let Some(msg) = &self.msg {
                 format!("\n\t---\n\t{}", msg)
             } else {
@@ -79,10 +88,10 @@ impl Display for RASMError {
                 format!(
                     "\n\t{} {}",
                     ColString::new("tip:")
-                        .set_color(BaseColor::BLUE)
+                        .set_color(Color::BLUE)
                         .set_modf(Modifier::Bold),
                     ColString::new(tip)
-                        .set_color(BaseColor::BLUE)
+                        .set_color(Color::BLUE)
                         .set_modf(Modifier::Bold)
                 )
             } else {
@@ -98,37 +107,47 @@ impl Display for ExceptionType {
             frm,
             "{}",
             if let Self::Warn = self {
-                ColString::new("warn").set_color(BaseColor::YELLOW)
+                ColString::new("warn").set_color(Color::YELLOW)
             } else if let Self::Error = self {
-                ColString::new("error").set_color(BaseColor::RED)
+                ColString::new("error").set_color(Color::RED)
             } else {
-                ColString::new("info").set_color(BaseColor::BLUE)
+                ColString::new("info").set_color(Color::BLUE)
             }
         )
     }
 }
 
 impl RASMError {
-    pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self{
+    pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self {
         Self {
             line,
             etype: ExceptionType::Error,
             msg: if let Some(m) = msg {
                 Some(m.to_string())
-            } else { None },
-            tip: None
+            } else {
+                None
+            },
+            tip: None,
         }
     }
-    pub fn with_tip(line: Option<usize>, msg: Option<impl ToString>, tip: Option<impl ToString>) -> Self{
+    pub fn with_tip(
+        line: Option<usize>,
+        msg: Option<impl ToString>,
+        tip: Option<impl ToString>,
+    ) -> Self {
         Self {
             line,
             etype: ExceptionType::Error,
             msg: if let Some(m) = msg {
                 Some(m.to_string())
-            } else { None },
+            } else {
+                None
+            },
             tip: if let Some(t) = tip {
                 Some(t.to_string())
-            } else { None },
+            } else {
+                None
+            },
         }
     }
     pub fn get_line(&self) -> Option<&usize> {
@@ -142,8 +161,8 @@ impl RASMError {
 pub struct Blank;
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for Blank{
-    fn to_string(&self) -> String{
+impl ToString for Blank {
+    fn to_string(&self) -> String {
         String::new()
     }
 }

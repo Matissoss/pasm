@@ -172,12 +172,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                     }
                     _ => Some(RASMError::with_tip(
                         Some(ins.line),
-                        Some(
-                            "Source operand type mismatch, expected 8-bit number or cl register",
-                        ),
-                        Some(
-                            "Consider changing source operand to 8-bit number or cl register",
-                        ),
+                        Some("Source operand type mismatch, expected 8-bit number or cl register"),
+                        Some("Consider changing source operand to 8-bit number or cl register"),
                     )),
                 }
             }
@@ -365,12 +361,8 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                     }
                     _ => Some(RASMError::with_tip(
                         Some(ins.line),
-                        Some(
-                            "Source operand type mismatch, expected 8-bit number or cl register"
-                        ),
-                        Some(
-                            "Consider changing source operand to 8-bit number or cl register"
-                        ),
+                        Some("Source operand type mismatch, expected 8-bit number or cl register"),
+                        Some("Consider changing source operand to 8-bit number or cl register"),
                     )),
                 }
             }
@@ -1088,9 +1080,7 @@ fn ot_chk(
     if ops.is_empty() && !ins.oprs.is_empty() {
         return Some(RASMError::no_tip(
             Some(ins.line),
-            Some(
-                "Instruction doesn't accept any operand, but you tried to use one anyways"
-            ),
+            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
@@ -1242,9 +1232,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
                     Some(RASMError::with_tip(
                         Some(ins.line),
-                        Some(
-                            "Tried to use immediate that is too large for destination operand"
-                        ),
+                        Some("Tried to use immediate that is too large for destination operand"),
                         Some(format!("Consider changing immediate to fit inside {s0}",)),
                     ))
                 } else {
@@ -1259,9 +1247,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
                     Some(RASMError::with_tip(
                         Some(ins.line),
-                        Some(
-                            "Tried to use operand that cannot be used for destination operand"
-                        ),
+                        Some("Tried to use operand that cannot be used for destination operand"),
                         Some(format!("Consider changing operand to be {s0}",)),
                     ))
                 } else {
@@ -1287,9 +1273,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
                     Some(RASMError::with_tip(
                         Some(ins.line),
-                        Some(
-                            "Tried to use operand that cannot be used for destination operand",
-                        ),
+                        Some("Tried to use operand that cannot be used for destination operand"),
                         Some(format!("Consider changing operand to be {s0}",)),
                     ))
                 } else {

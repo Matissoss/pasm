@@ -280,9 +280,7 @@ fn parse_char(txt: &[u8]) -> Result<char, RASMError> {
         } else {
             Err(RASMError::no_tip(
                 None,
-                Some(
-                    "Character declaration has more than 1 character inside closure `'`."
-                ),
+                Some("Character declaration has more than 1 character inside closure `'`."),
             ))
         }
     } else {

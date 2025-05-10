@@ -6,7 +6,6 @@
 use crate::shr::{
     ast::{Instruction, Operand},
     ins::Mnemonic as Mnm,
-    mem::Mem,
     reg::Purpose as RPurpose,
     size::Size,
 };
@@ -100,16 +99,10 @@ fn needs_rex(ins: &Instruction) -> bool {
     }
 }
 
-fn get_wb(op: Option<&Operand>) -> u8 {
+fn get_wb(op: Option<&Operand>) -> bool {
     match op {
-        Some(Operand::Reg(reg) | Operand::CtrReg(reg) | Operand::DbgReg(reg)) => {
-            if reg.needs_rex() {
-                1
-            } else {
-                0
-            }
-        }
-        _ => 0,
+        Some(Operand::Reg(reg) | Operand::CtrReg(reg) | Operand::DbgReg(reg)) => reg.needs_rex(),
+        _ => false,
     }
 }
 
@@ -126,84 +119,31 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
 }
 
 fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
-    // fixed pattern
-    let base = 0b0100_0000;
-
-    let w: u8 = if ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit() {
-        0
-    } else {
-        1
-    };
+    let wbs = get_wb(ins.src());
+    let wbd = get_wb(ins.dst());
 
     let mut rev = rev;
     fix_rev(&mut rev, ins);
-    let r = if !rev {
-        get_wb(ins.src())
-    } else {
-        get_wb(ins.dst())
-    };
-    let mut b = if !rev {
-        get_wb(ins.dst())
-    } else {
-        get_wb(ins.src())
-    };
 
-    let mut x: u8 = 0;
-    if let (_, Some(Operand::Segment(m))) | (Some(Operand::Segment(m)), _) = (ins.dst(), ins.src())
-    {
-        match m.address {
-            Mem::SIB(_, i, _, _)
-            | Mem::SIBOffset(_, i, _, _, _)
-            | Mem::Index(i, _, _)
-            | Mem::IndexOffset(i, _, _, _) => {
-                if i.needs_rex() {
-                    x = 1;
-                }
-            }
-            _ => {}
+    let w = !(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit());
+    let r = if !rev { wbs } else { wbd };
+    let mut b = if !rev { wbd } else { wbs };
+    let mut x = false;
+
+    match (ins.dst(), ins.src()) {
+        (Some(Operand::Segment(s)), _) | (_, Some(Operand::Segment(s))) => {
+            (b, x) = s.address.needs_rex()
         }
-    }
-    if let (_, Some(Operand::Mem(m))) | (Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()) {
-        match m {
-            Mem::SIB(_, i, _, _)
-            | Mem::SIBOffset(_, i, _, _, _)
-            | Mem::Index(i, _, _)
-            | Mem::IndexOffset(i, _, _, _) => {
-                if i.needs_rex() {
-                    x = 1;
-                }
-            }
-            _ => {}
-        }
-    }
-    if let (_, Some(Operand::Mem(m))) | (Some(Operand::Mem(m)), _) = (ins.dst(), ins.src()) {
-        match m {
-            Mem::SIB(base, _, _, _) | Mem::SIBOffset(base, _, _, _, _) => {
-                if base.needs_rex() {
-                    b = 1;
-                }
-            }
-            _ => {}
-        }
+        (Some(Operand::Mem(m)), _) | (_, Some(Operand::Mem(m))) => (b, x) = m.needs_rex(),
+        _ => {}
     }
     if let Some(Operand::Reg(r)) = ins.dst() {
         if r.needs_rex() {
-            b = 1;
-        }
-    }
-    if let (_, Some(Operand::Segment(m))) | (Some(Operand::Segment(m)), _) = (ins.dst(), ins.src())
-    {
-        match m.address {
-            Mem::SIB(base, _, _, _) | Mem::SIBOffset(base, _, _, _, _) => {
-                if base.needs_rex() {
-                    b = 1;
-                }
-            }
-            _ => {}
+            b = true;
         }
     }
 
-    base + (w << 3) + (r << 2) + (x << 1) + b
+    rex(w, r, x, b)
 }
 
 pub fn gen_rex(ins: &Instruction, rev: bool) -> Option<u8> {
@@ -213,3 +153,10 @@ pub fn gen_rex(ins: &Instruction, rev: bool) -> Option<u8> {
         None
     }
 }
+#[rustfmt::skip]
+#[inline(always)]
+const fn btoi(b: bool) -> u8 { if b { 1 } else { 0 } }
+
+#[rustfmt::skip]
+#[inline(always)]
+const fn rex(w: bool, r: bool, x: bool, b: bool) -> u8 { 0b0100_0000 | btoi(w) << 3 | btoi(r) << 2 | btoi(x) << 1 | btoi(b) }

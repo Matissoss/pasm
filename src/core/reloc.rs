@@ -68,7 +68,9 @@ pub fn relocate_addresses<'a>(
                             VarContent::Uninit => {
                                 errors.push(RASMError::no_tip(
                                     None,
-                                    Some("Tried to use uninitialized variable - forbidden in `bin`"),
+                                    Some(
+                                        "Tried to use uninitialized variable - forbidden in `bin`",
+                                    ),
                                 ));
                                 break;
                             }
@@ -123,7 +125,7 @@ pub fn relocate_addresses<'a>(
                         None,
                         Some("Tried to use unitialized variable (`!bss` one)"),
                         Some(
-                            "Unitialized variables currently cannot be used in `baremetal` target"
+                            "Unitialized variables currently cannot be used in `baremetal` target",
                         ),
                     ));
                 }

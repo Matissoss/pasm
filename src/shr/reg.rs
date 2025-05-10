@@ -419,7 +419,7 @@ impl Register {
             Self::AX  | Self::BX | Self::CX | Self::DX | Self::SP | Self::BP  |
             Self::SI  | Self::DI | Self::IP | Self::R8W| Self::R9W| Self::R10W|
             Self::R11W|Self::R12W|Self::R13W|Self::R14W| Self::R15W => Size::Word,
-            
+
             Self::EAX | Self::EBX | Self::ECX | Self::EDX |
             Self::ESP | Self::EBP | Self::ESI | Self::EDI | Self::EIP|
             Self::CR0 | Self::CR1 | Self::CR2 | Self::CR3 |

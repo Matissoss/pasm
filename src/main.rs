@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::manual_map)]
 
 //  global imports go here
 use std::{
@@ -42,7 +43,7 @@ use core::obj::{elf32::make_elf32, elf64::make_elf64};
 use shr::symbol::{Symbol, SymbolType};
 
 use cli::CLI;
-use color::{BaseColor, ColString};
+use color::{ColString, Color};
 use help::Help;
 
 // start
@@ -51,12 +52,12 @@ fn main() {
     switch_panichandler();
     let cli = &*CLI;
 
-    if cli.get_arg("-h").is_some() {
+    if cli.has_arg("-h") {
         Help::main_help();
         process::exit(0)
     }
 
-    let infile: PathBuf = if let Some(path) = cli.get_arg("-i") {
+    let infile: PathBuf = if let Some(path) = cli.get_kv_arg("-i") {
         PathBuf::from(path)
     } else {
         cli.exit(
@@ -66,7 +67,7 @@ fn main() {
             1,
         );
     };
-    let outfile: PathBuf = if let Some(path) = cli.get_arg("-o") {
+    let outfile: PathBuf = if let Some(path) = cli.get_kv_arg("-o") {
         PathBuf::from(path)
     } else {
         cli.exit(
@@ -78,7 +79,7 @@ fn main() {
     };
 
     let ast = parse_file(infile);
-    if let Some(form) = cli.get_arg("-f") {
+    if let Some(form) = cli.get_kv_arg("-f") {
         assemble_file(ast, &outfile, form);
     }
 
@@ -104,7 +105,7 @@ fn parse_file(inpath: PathBuf) -> AST<'static> {
                         for (name, errors) in errs {
                             eprintln!(
                                 "\n--- {} ---\n",
-                                ColString::new(name).set_color(BaseColor::PURPLE)
+                                ColString::new(name).set_color(Color::PURPLE)
                             );
                             for err in errors {
                                 error_count += 1;
@@ -117,7 +118,7 @@ fn parse_file(inpath: PathBuf) -> AST<'static> {
                             &format!(
                                 "Assembling ended unsuccesfully with {}!",
                                 ColString::new(format!("{} errors", error_count))
-                                    .set_color(BaseColor::RED)
+                                    .set_color(Color::RED)
                             ),
                             1,
                         );

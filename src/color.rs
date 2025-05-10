@@ -7,8 +7,9 @@ use crate::CLI;
 
 use std::fmt::{Display, Error as FmtError, Formatter};
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy)]
-pub enum BaseColor {
+pub enum Color {
     BLACK = 0,
     RED = 1,
     GREEN = 2,
@@ -19,6 +20,7 @@ pub enum BaseColor {
     WHITE = 7,
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum Modifier {
     Regular = 0,
@@ -29,7 +31,7 @@ pub enum Modifier {
 #[derive(Debug, Clone)]
 pub struct ColString {
     val: String,
-    col: BaseColor,
+    col: Color,
     mdf: Modifier,
 }
 
@@ -37,11 +39,11 @@ impl ColString {
     pub fn new(arg: impl ToString) -> Self {
         Self {
             val: arg.to_string(),
-            col: BaseColor::WHITE,
+            col: Color::WHITE,
             mdf: Modifier::Regular,
         }
     }
-    pub fn set_color(self, col: BaseColor) -> Self {
+    pub fn set_color(self, col: Color) -> Self {
         Self {
             val: self.val,
             col,

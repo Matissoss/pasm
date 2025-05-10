@@ -5,7 +5,7 @@
 
 use std::panic;
 
-use crate::color::{BaseColor, ColString};
+use crate::color::{ColString, Color};
 
 pub fn switch_panichandler() {
     panic::set_hook(Box::new(rpanic_rs));
@@ -27,14 +27,14 @@ fn rpanic_rs(panic: &panic::PanicHookInfo) {
 
     eprintln!(
         "{}\n\t{}!{}",
-        ColString::new("panic!").set_color(BaseColor::RED),
+        ColString::new("panic!").set_color(Color::RED),
         if let Some(l) = location {
             format!(
                 "In {} - {}{}{}",
-                ColString::new(l.file()).set_color(BaseColor::YELLOW),
-                ColString::new(l.line()).set_color(BaseColor::YELLOW),
-                ColString::new(":").set_color(BaseColor::YELLOW),
-                ColString::new(l.column()).set_color(BaseColor::YELLOW),
+                ColString::new(l.file()).set_color(Color::YELLOW),
+                ColString::new(l.line()).set_color(Color::YELLOW),
+                ColString::new(":").set_color(Color::YELLOW),
+                ColString::new(l.column()).set_color(Color::YELLOW),
             )
         } else {
             "".to_string()

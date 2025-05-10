@@ -3,7 +3,7 @@
 //  made by matissoss
 //  licensed under MPL 2.0
 
-use crate::color::{BaseColor, ColString, Modifier};
+use crate::color::{ColString, Color, Modifier};
 use std::{env, process, sync::LazyLock};
 
 pub static CLI: LazyLock<Cli> = LazyLock::new(|| Cli::new(env::args().collect::<Vec<String>>()));
@@ -41,36 +41,51 @@ impl Cli {
             nocolor,
         }
     }
-    pub fn get_arg(&self, searched: &str) -> Option<&str> {
-        for arg in &self.args {
-            if let Some((key, value)) = arg.split_once('=') {
-                if key == searched {
-                    return Some(value);
+    pub fn has_arg(&self, vl: &str) -> bool {
+        for a in &self.args {
+            if let Some((a, _)) = a.split_once('=') {
+                if a == vl {
+                    return true;
                 }
-            } else if arg == searched {
-                return Some(arg);
+            } else {
+                if a == vl {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    pub fn get_kv_arg(&self, vl: &str) -> Option<&str> {
+        for a in &self.args {
+            if let Some((a, v)) = a.split_once('=') {
+                if a == vl {
+                    return Some(v);
+                }
             }
         }
         None
+    }
+    pub fn get_arg(&self, searched: &str) -> Option<&String> {
+        self.args.iter().find(|s| *s == searched)
     }
     #[inline(always)]
     pub fn exit(&self, path: &str, function: &str, cause: &str, exit_code: i32) -> ! {
         eprintln!(
             "[{}{}{}] ({} {}): {}",
             ColString::new(path)
-                .set_color(BaseColor::PURPLE)
+                .set_color(Color::PURPLE)
                 .set_modf(Modifier::Bold),
             ColString::new(':')
-                .set_color(BaseColor::PURPLE)
+                .set_color(Color::PURPLE)
                 .set_modf(Modifier::Bold),
             ColString::new(function)
-                .set_color(BaseColor::PURPLE)
+                .set_color(Color::PURPLE)
                 .set_modf(Modifier::Bold),
             ColString::new("EXIT")
-                .set_color(BaseColor::RED)
+                .set_color(Color::RED)
                 .set_modf(Modifier::Bold),
             ColString::new(exit_code)
-                .set_color(BaseColor::RED)
+                .set_color(Color::RED)
                 .set_modf(Modifier::Bold),
             cause
         );

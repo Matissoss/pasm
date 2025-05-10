@@ -46,6 +46,15 @@ impl Mem {
             | Self::Direct(_, size) => *size,
         }
     }
+    pub fn needs_rex(&self) -> (bool, bool) {
+        match self {
+            Self::Direct(b, _) | Self::Offset(b, _, _) => (b.needs_rex(), false),
+            Self::Index(i, _, _) | Self::IndexOffset(i, _, _, _) => (false, i.needs_rex()),
+            Self::SIB(b, i, _, _) | Self::SIBOffset(b, i, _, _, _) => {
+                (b.needs_rex(), i.needs_rex())
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -193,20 +202,14 @@ fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
                         "Found unknown token inside memory declaration: `{}`",
                         s
                     )),
-                    Some(
-                        "Consider changing this token into number, register, ',' or '_'"
-                    ),
+                    Some("Consider changing this token into number, register, ',' or '_'"),
                 ))
             }
             MemTok::Start | MemTok::End => {
                 return Err(RASMError::with_tip(
                     None,
-                    Some(
-                        "Found memory closing/starting delimeter inside memory declaration"
-                    ),
-                    Some(
-                        "Consider removing closing/starting delimeter from memory declaration"
-                    ),
+                    Some("Found memory closing/starting delimeter inside memory declaration"),
+                    Some("Consider removing closing/starting delimeter from memory declaration"),
                 ))
             }
         }

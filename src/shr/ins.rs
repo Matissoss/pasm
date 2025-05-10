@@ -2121,12 +2121,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
 }
 
 #[inline(always)]
-fn cc(str: &'static str) -> Vec<char>{
+fn cc(str: &'static str) -> Vec<char> {
     str.chars().collect()
 }
 #[inline(always)]
-fn ins_ie(chars: &[char], start: usize, target: &[char], res: Mnemonic) -> Option<Mnemonic>{
-    if chars[start..] == target[start..]{
+fn ins_ie(chars: &[char], start: usize, target: &[char], res: Mnemonic) -> Option<Mnemonic> {
+    if chars[start..] == target[start..] {
         Some(res)
     } else {
         None

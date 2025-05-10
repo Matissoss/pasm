@@ -151,12 +151,40 @@ impl Instruction {
         match self.dst() {
             Some(Operand::Reg(r)) => match r.size() {
                 Size::Xword => IVariant::XMM,
-                Size::Qword | Size::Dword => IVariant::MMX,
+                Size::Qword | Size::Dword => {
+                    if r.purpose() == RPurpose::Mmx || r.purpose() == RPurpose::F128 {
+                        IVariant::MMX
+                    } else {
+                        match self.src() {
+                            Some(Operand::Reg(r)) => {
+                                if r.purpose() == RPurpose::Mmx {
+                                    IVariant::MMX
+                                } else if r.purpose() == RPurpose::F128 {
+                                    IVariant::XMM
+                                } else {
+                                    IVariant::STD
+                                }
+                            }
+                            _ => IVariant::STD,
+                        }
+                    }
+                }
                 _ => IVariant::STD,
             },
             Some(Operand::Mem(m)) => match m.size() {
                 Size::Xword => IVariant::XMM,
-                Size::Qword | Size::Dword => IVariant::MMX,
+                Size::Qword | Size::Dword => match self.src() {
+                    Some(Operand::Reg(r)) => {
+                        if r.purpose() == RPurpose::Mmx {
+                            IVariant::MMX
+                        } else if r.purpose() == RPurpose::F128 {
+                            IVariant::XMM
+                        } else {
+                            IVariant::STD
+                        }
+                    }
+                    _ => IVariant::STD,
+                },
                 _ => IVariant::STD,
             },
             _ => IVariant::STD,
@@ -165,27 +193,29 @@ impl Instruction {
     pub fn size(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
-            None => Size::Any,
+            None => Size::Unknown,
         };
         let src = match &self.src() {
             Some(o) => o.size(),
-            None => Size::Any,
+            None => Size::Unknown,
         };
 
         match (dst, src) {
-            (Size::Any, _) => src,
-            (_, Size::Any) => dst,
+            (Size::Unknown, _) => src,
+            (_, Size::Unknown) => dst,
             (_, _) => {
                 if let Some(Operand::Imm(_)) = &self.src() {
                     if dst >= src {
                         dst
                     } else {
-                        Size::Any
+                        Size::Unknown
                     }
-                } else if dst != src {
-                    Size::Any
                 } else {
-                    dst
+                    if dst < src {
+                        src
+                    } else {
+                        dst
+                    }
                 }
             }
         }
