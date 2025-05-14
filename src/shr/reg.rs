@@ -3,14 +3,11 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::{
-    conf::FAST_MODE,
-    shr::{
-        atype::{AType, ToAType},
-        size::Size,
-    },
+use crate::shr::{
+    atype::{AType, ToAType},
+    size::Size,
 };
-use std::str::FromStr;
+use std::{cmp::Ordering, str::FromStr};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Purpose {
@@ -100,21 +97,27 @@ pub enum Register {
 }
 
 #[inline(always)]
-fn reg_ie(str: &str, tgt: &str, reg: Register) -> Result<Register, ()> {
-    #[allow(clippy::if_same_then_else)]
-    if FAST_MODE {
-        Ok(reg)
-    } else if str == tgt {
-        Ok(reg)
-    } else {
-        Err(())
+fn reg_ie(
+    str: &[u8],
+    cmp: &'static [u8],
+    start: usize,
+    end: usize,
+    reg: Register,
+) -> Result<Register, ()> {
+    for idx in start..end {
+        let res = str[idx].cmp(&cmp[idx]);
+        if res != Ordering::Equal {
+            return Err(());
+        }
     }
+    Ok(reg)
 }
 
 impl FromStr for Register {
     type Err = ();
     fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err> {
         let byte_str = str.as_bytes();
+        let str = byte_str;
         match byte_str.len() {
             1 => Err(()),
             2 => match byte_str[1] as char {
@@ -167,24 +170,24 @@ impl FromStr for Register {
             3 => {
                 match byte_str[0] as char {
                     'm' => match byte_str[2] as char {
-                        '0' => reg_ie(str, "mm0", Register::MM0),
-                        '1' => reg_ie(str, "mm1", Register::MM1),
-                        '2' => reg_ie(str, "mm2", Register::MM2),
-                        '3' => reg_ie(str, "mm3", Register::MM3),
-                        '4' => reg_ie(str, "mm4", Register::MM4),
-                        '5' => reg_ie(str, "mm5", Register::MM5),
-                        '6' => reg_ie(str, "mm6", Register::MM6),
-                        '7' => reg_ie(str, "mm7", Register::MM7),
+                        '0' => reg_ie(byte_str, b"mm0", 1, 1, Register::MM0),
+                        '1' => reg_ie(byte_str, b"mm1", 1, 1, Register::MM1),
+                        '2' => reg_ie(byte_str, b"mm2", 1, 1, Register::MM2),
+                        '3' => reg_ie(byte_str, b"mm3", 1, 1, Register::MM3),
+                        '4' => reg_ie(byte_str, b"mm4", 1, 1, Register::MM4),
+                        '5' => reg_ie(byte_str, b"mm5", 1, 1, Register::MM5),
+                        '6' => reg_ie(byte_str, b"mm6", 1, 1, Register::MM6),
+                        '7' => reg_ie(byte_str, b"mm7", 1, 1, Register::MM7),
                         _ => Err(()),
                     },
                     'r' => match byte_str[1] as char {
-                        'a' => reg_ie(str, "rax", Register::RAX),
+                        'a' => reg_ie(byte_str, b"rax", 2, 2, Register::RAX),
                         'b' => match byte_str[2] as char {
                             'x' => Ok(Register::RBX),
                             'p' => Ok(Register::RBP),
                             _ => Err(()),
                         },
-                        'c' => reg_ie(str, "rcx", Register::RCX),
+                        'c' => reg_ie(byte_str, b"rcx", 2, 2, Register::RCX),
                         'd' => match byte_str[2] as char {
                             'x' => Ok(Register::RDX),
                             'i' => Ok(Register::RDI),
@@ -216,18 +219,18 @@ impl FromStr for Register {
                             'd' => Ok(Register::R9D),
                             _ => Err(()),
                         },
-                        'i' => reg_ie(str, "rip", Register::RIP),
+                        'i' => reg_ie(byte_str, b"rip", 2, 2, Register::RIP),
                         _ => Err(()),
                     },
                     // prev = 'r'; byte_str[0]
                     'e' => match byte_str[1] as char {
-                        'a' => reg_ie(str, "eax", Register::EAX),
+                        'a' => reg_ie(byte_str, b"eax", 2, 2, Register::EAX),
                         'b' => match byte_str[2] as char {
                             'p' => Ok(Register::EBP),
                             'x' => Ok(Register::EBX),
                             _ => Err(()),
                         },
-                        'c' => reg_ie(str, "ecx", Register::ECX),
+                        'c' => reg_ie(byte_str, b"ecx", 2, 2, Register::ECX),
                         'd' => match byte_str[2] as char {
                             'i' => Ok(Register::EDI),
                             'x' => Ok(Register::EDX),
@@ -238,41 +241,41 @@ impl FromStr for Register {
                             'p' => Ok(Register::ESP),
                             _ => Err(()),
                         },
-                        'i' => reg_ie(str, "eip", Register::EIP),
+                        'i' => reg_ie(str, b"eip", 2, 2, Register::EIP),
                         _ => Err(()),
                     },
                     // prev = 'e'; byte_str[0]
                     's' => match byte_str[1] as char {
-                        'p' => reg_ie(str, "spl", Register::SPL),
-                        'i' => reg_ie(str, "sil", Register::SIL),
+                        'p' => reg_ie(str, b"spl", 2, 2, Register::SPL),
+                        'i' => reg_ie(str, b"sil", 2, 2, Register::SIL),
                         _ => Err(()),
                     },
-                    'b' => reg_ie(str, "bpl", Register::BPL),
+                    'b' => reg_ie(str, b"bpl", 1, 2, Register::BPL),
                     'c' => match byte_str[2] as char {
-                        '0' => reg_ie(str, "cr0", Register::CR0),
-                        '1' => reg_ie(str, "cr1", Register::CR1),
-                        '2' => reg_ie(str, "cr2", Register::CR2),
-                        '3' => reg_ie(str, "cr3", Register::CR3),
-                        '4' => reg_ie(str, "cr4", Register::CR4),
-                        '5' => reg_ie(str, "cr5", Register::CR5),
-                        '6' => reg_ie(str, "cr6", Register::CR6),
-                        '7' => reg_ie(str, "cr7", Register::CR7),
-                        '8' => reg_ie(str, "cr8", Register::CR8),
-                        '9' => reg_ie(str, "cr9", Register::CR9),
+                        '0' => reg_ie(str, b"cr0", 1, 1, Register::CR0),
+                        '1' => reg_ie(str, b"cr1", 1, 1, Register::CR1),
+                        '2' => reg_ie(str, b"cr2", 1, 1, Register::CR2),
+                        '3' => reg_ie(str, b"cr3", 1, 1, Register::CR3),
+                        '4' => reg_ie(str, b"cr4", 1, 1, Register::CR4),
+                        '5' => reg_ie(str, b"cr5", 1, 1, Register::CR5),
+                        '6' => reg_ie(str, b"cr6", 1, 1, Register::CR6),
+                        '7' => reg_ie(str, b"cr7", 1, 1, Register::CR7),
+                        '8' => reg_ie(str, b"cr8", 1, 1, Register::CR8),
+                        '9' => reg_ie(str, b"cr9", 1, 1, Register::CR9),
                         _ => Err(()),
                     },
                     'd' => match byte_str[2] as char {
-                        'i' => reg_ie(str, "dil", Register::DIL),
-                        '0' => reg_ie(str, "dr0", Register::DR0),
-                        '1' => reg_ie(str, "dr1", Register::DR1),
-                        '2' => reg_ie(str, "dr2", Register::DR2),
-                        '3' => reg_ie(str, "dr3", Register::DR3),
-                        '4' => reg_ie(str, "dr4", Register::DR4),
-                        '5' => reg_ie(str, "dr5", Register::DR5),
-                        '6' => reg_ie(str, "dr6", Register::DR6),
-                        '7' => reg_ie(str, "dr7", Register::DR7),
-                        '8' => reg_ie(str, "dr8", Register::DR8),
-                        '9' => reg_ie(str, "dr9", Register::DR9),
+                        'i' => reg_ie(str, b"dil", 1, 1, Register::DIL),
+                        '0' => reg_ie(str, b"dr0", 1, 1, Register::DR0),
+                        '1' => reg_ie(str, b"dr1", 1, 1, Register::DR1),
+                        '2' => reg_ie(str, b"dr2", 1, 1, Register::DR2),
+                        '3' => reg_ie(str, b"dr3", 1, 1, Register::DR3),
+                        '4' => reg_ie(str, b"dr4", 1, 1, Register::DR4),
+                        '5' => reg_ie(str, b"dr5", 1, 1, Register::DR5),
+                        '6' => reg_ie(str, b"dr6", 1, 1, Register::DR6),
+                        '7' => reg_ie(str, b"dr7", 1, 1, Register::DR7),
+                        '8' => reg_ie(str, b"dr8", 1, 1, Register::DR8),
+                        '9' => reg_ie(str, b"dr9", 1, 1, Register::DR9),
                         _ => Err(()),
                     },
                     _ => Err(()),
@@ -281,107 +284,107 @@ impl FromStr for Register {
             // prev = 3; byte_str.len()
             4 => match byte_str[0] as char {
                 'c' => match byte_str[3] as char {
-                    '0' => reg_ie(str, "cr10", Register::CR10),
-                    '1' => reg_ie(str, "cr11", Register::CR11),
-                    '2' => reg_ie(str, "cr12", Register::CR12),
-                    '3' => reg_ie(str, "cr13", Register::CR13),
-                    '4' => reg_ie(str, "cr14", Register::CR14),
-                    '5' => reg_ie(str, "cr15", Register::CR15),
+                    '0' => reg_ie(str, b"cr10", 1, 2, Register::CR10),
+                    '1' => reg_ie(str, b"cr11", 1, 2, Register::CR11),
+                    '2' => reg_ie(str, b"cr12", 1, 2, Register::CR12),
+                    '3' => reg_ie(str, b"cr13", 1, 2, Register::CR13),
+                    '4' => reg_ie(str, b"cr14", 1, 2, Register::CR14),
+                    '5' => reg_ie(str, b"cr15", 1, 2, Register::CR15),
                     _ => Err(()),
                 },
                 'd' => match byte_str[3] as char {
-                    '0' => reg_ie(str, "dr10", Register::DR10),
-                    '1' => reg_ie(str, "dr11", Register::DR11),
-                    '2' => reg_ie(str, "dr12", Register::DR12),
-                    '3' => reg_ie(str, "dr13", Register::DR13),
-                    '4' => reg_ie(str, "dr14", Register::DR14),
-                    '5' => reg_ie(str, "dr15", Register::DR15),
+                    '0' => reg_ie(str, b"dr10", 1, 2, Register::DR10),
+                    '1' => reg_ie(str, b"dr11", 1, 2, Register::DR11),
+                    '2' => reg_ie(str, b"dr12", 1, 2, Register::DR12),
+                    '3' => reg_ie(str, b"dr13", 1, 2, Register::DR13),
+                    '4' => reg_ie(str, b"dr14", 1, 2, Register::DR14),
+                    '5' => reg_ie(str, b"dr15", 1, 2, Register::DR15),
                     _ => Err(()),
                 },
                 'r' => match byte_str[2] as char {
                     '0' => match byte_str[3] as char {
-                        'd' => reg_ie(str, "r10d", Register::R10D),
-                        'b' => reg_ie(str, "r10b", Register::R10B),
-                        'w' => reg_ie(str, "r10w", Register::R10W),
+                        'd' => reg_ie(str, b"r10d", 1, 1, Register::R10D),
+                        'b' => reg_ie(str, b"r10b", 1, 1, Register::R10B),
+                        'w' => reg_ie(str, b"r10w", 1, 1, Register::R10W),
                         _ => Err(()),
                     },
                     '1' => match byte_str[3] as char {
-                        'd' => reg_ie(str, "r11d", Register::R11D),
-                        'b' => reg_ie(str, "r11b", Register::R11B),
-                        'w' => reg_ie(str, "r11w", Register::R11W),
+                        'd' => reg_ie(str, b"r11d", 1, 1, Register::R11D),
+                        'b' => reg_ie(str, b"r11b", 1, 1, Register::R11B),
+                        'w' => reg_ie(str, b"r11w", 1, 1, Register::R11W),
                         _ => Err(()),
                     },
                     '2' => match byte_str[3] as char {
-                        'd' => reg_ie(str, "r12d", Register::R12D),
-                        'b' => reg_ie(str, "r12b", Register::R12B),
-                        'w' => reg_ie(str, "r12w", Register::R12W),
+                        'd' => reg_ie(str, b"r12d", 1, 1, Register::R12D),
+                        'b' => reg_ie(str, b"r12b", 1, 1, Register::R12B),
+                        'w' => reg_ie(str, b"r12w", 1, 1, Register::R12W),
                         _ => Err(()),
                     },
                     '3' => match byte_str[3] as char {
-                        'd' => reg_ie(str, "r13d", Register::R13D),
-                        'b' => reg_ie(str, "r13b", Register::R13B),
-                        'w' => reg_ie(str, "r13w", Register::R13W),
+                        'd' => reg_ie(str, b"r13d", 1, 1, Register::R13D),
+                        'b' => reg_ie(str, b"r13b", 1, 1, Register::R13B),
+                        'w' => reg_ie(str, b"r13w", 1, 1, Register::R13W),
                         _ => Err(()),
                     },
                     '4' => match byte_str[3] as char {
-                        'b' => reg_ie(str, "r14b", Register::R14B),
-                        'w' => reg_ie(str, "r14w", Register::R14W),
-                        'd' => reg_ie(str, "r14d", Register::R14D),
+                        'b' => reg_ie(str, b"r14b", 1, 1, Register::R14B),
+                        'w' => reg_ie(str, b"r14w", 1, 1, Register::R14W),
+                        'd' => reg_ie(str, b"r14d", 1, 1, Register::R14D),
                         _ => Err(()),
                     },
                     '5' => match byte_str[3] as char {
-                        'b' => reg_ie(str, "r15b", Register::R15B),
-                        'w' => reg_ie(str, "r15w", Register::R15W),
-                        'd' => reg_ie(str, "r15d", Register::R15D),
+                        'b' => reg_ie(str, b"r15b", 1, 1, Register::R15B),
+                        'w' => reg_ie(str, b"r15w", 1, 1, Register::R15W),
+                        'd' => reg_ie(str, b"r15d", 1, 1, Register::R15D),
                         _ => Err(()),
                     },
                     _ => Err(()),
                 },
                 'x' => match byte_str[3] as char {
-                    '0' => reg_ie(str, "xmm0", Register::XMM0),
-                    '1' => reg_ie(str, "xmm1", Register::XMM1),
-                    '2' => reg_ie(str, "xmm2", Register::XMM2),
-                    '3' => reg_ie(str, "xmm3", Register::XMM3),
-                    '4' => reg_ie(str, "xmm4", Register::XMM4),
-                    '5' => reg_ie(str, "xmm5", Register::XMM5),
-                    '6' => reg_ie(str, "xmm6", Register::XMM6),
-                    '7' => reg_ie(str, "xmm7", Register::XMM7),
-                    '8' => reg_ie(str, "xmm8", Register::XMM8),
-                    '9' => reg_ie(str, "xmm9", Register::XMM9),
+                    '0' => reg_ie(str, b"xmm0", 1, 2, Register::XMM0),
+                    '1' => reg_ie(str, b"xmm1", 1, 2, Register::XMM1),
+                    '2' => reg_ie(str, b"xmm2", 1, 2, Register::XMM2),
+                    '3' => reg_ie(str, b"xmm3", 1, 2, Register::XMM3),
+                    '4' => reg_ie(str, b"xmm4", 1, 2, Register::XMM4),
+                    '5' => reg_ie(str, b"xmm5", 1, 2, Register::XMM5),
+                    '6' => reg_ie(str, b"xmm6", 1, 2, Register::XMM6),
+                    '7' => reg_ie(str, b"xmm7", 1, 2, Register::XMM7),
+                    '8' => reg_ie(str, b"xmm8", 1, 2, Register::XMM8),
+                    '9' => reg_ie(str, b"xmm9", 1, 2, Register::XMM9),
                     _ => Err(()),
                 },
                 'y' => match byte_str[3] as char {
-                    '0' => reg_ie(str, "ymm0", Register::YMM0),
-                    '1' => reg_ie(str, "ymm1", Register::YMM1),
-                    '2' => reg_ie(str, "ymm2", Register::YMM2),
-                    '3' => reg_ie(str, "ymm3", Register::YMM3),
-                    '4' => reg_ie(str, "ymm4", Register::YMM4),
-                    '5' => reg_ie(str, "ymm5", Register::YMM5),
-                    '6' => reg_ie(str, "ymm6", Register::YMM6),
-                    '7' => reg_ie(str, "ymm7", Register::YMM7),
-                    '8' => reg_ie(str, "ymm8", Register::YMM8),
-                    '9' => reg_ie(str, "ymm9", Register::YMM9),
+                    '0' => reg_ie(str, b"ymm0", 1, 2, Register::YMM0),
+                    '1' => reg_ie(str, b"ymm1", 1, 2, Register::YMM1),
+                    '2' => reg_ie(str, b"ymm2", 1, 2, Register::YMM2),
+                    '3' => reg_ie(str, b"ymm3", 1, 2, Register::YMM3),
+                    '4' => reg_ie(str, b"ymm4", 1, 2, Register::YMM4),
+                    '5' => reg_ie(str, b"ymm5", 1, 2, Register::YMM5),
+                    '6' => reg_ie(str, b"ymm6", 1, 2, Register::YMM6),
+                    '7' => reg_ie(str, b"ymm7", 1, 2, Register::YMM7),
+                    '8' => reg_ie(str, b"ymm8", 1, 2, Register::YMM8),
+                    '9' => reg_ie(str, b"ymm9", 1, 2, Register::YMM9),
                     _ => Err(()),
                 },
                 _ => Err(()),
             },
             5 => match byte_str[0] as char {
                 'x' => match byte_str[4] as char {
-                    '0' => reg_ie(str, "xmm10", Register::XMM10),
-                    '1' => reg_ie(str, "xmm11", Register::XMM11),
-                    '2' => reg_ie(str, "xmm12", Register::XMM12),
-                    '3' => reg_ie(str, "xmm13", Register::XMM13),
-                    '4' => reg_ie(str, "xmm14", Register::XMM14),
-                    '5' => reg_ie(str, "xmm15", Register::XMM15),
+                    '0' => reg_ie(str, b"xmm10", 1, 3, Register::XMM10),
+                    '1' => reg_ie(str, b"xmm11", 1, 3, Register::XMM11),
+                    '2' => reg_ie(str, b"xmm12", 1, 3, Register::XMM12),
+                    '3' => reg_ie(str, b"xmm13", 1, 3, Register::XMM13),
+                    '4' => reg_ie(str, b"xmm14", 1, 3, Register::XMM14),
+                    '5' => reg_ie(str, b"xmm15", 1, 3, Register::XMM15),
                     _ => Err(()),
                 },
                 'y' => match byte_str[4] as char {
-                    '0' => reg_ie(str, "ymm10", Register::YMM10),
-                    '1' => reg_ie(str, "ymm11", Register::YMM11),
-                    '2' => reg_ie(str, "ymm12", Register::YMM12),
-                    '3' => reg_ie(str, "ymm13", Register::YMM13),
-                    '4' => reg_ie(str, "ymm14", Register::YMM14),
-                    '5' => reg_ie(str, "ymm15", Register::YMM15),
+                    '0' => reg_ie(str, b"ymm10", 1, 3, Register::YMM10),
+                    '1' => reg_ie(str, b"ymm11", 1, 3, Register::YMM11),
+                    '2' => reg_ie(str, b"ymm12", 1, 3, Register::YMM12),
+                    '3' => reg_ie(str, b"ymm13", 1, 3, Register::YMM13),
+                    '4' => reg_ie(str, b"ymm14", 1, 3, Register::YMM14),
+                    '5' => reg_ie(str, b"ymm15", 1, 3, Register::YMM15),
                     _ => Err(()),
                 },
                 _ => Err(()),
@@ -527,7 +530,8 @@ impl Register {
             Self::DIL   | Self::RDI  | Self::CR7  | Self::CR15 |
             Self::DR7   | Self::DR15 | Self::YMM7 | Self::XMM15|
             Self::YMM15 | Self::MM7                  => 0b111,
-            _ => 0,
+
+            Self::IP | Self::EIP | Self::RIP => 0b000
         }
     }
     #[rustfmt::skip]

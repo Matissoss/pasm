@@ -15,6 +15,7 @@ use std::{
     path::PathBuf,
     process,
     rc::Rc,
+    time,
 };
 
 // local imports go here
@@ -67,6 +68,30 @@ fn main() {
             1,
         );
     };
+
+    let start = if conf::TIME {
+        Some(time::SystemTime::now())
+    } else {
+        None
+    };
+
+    let ast = parse_file(&infile);
+
+    if cli.has_arg("check") {
+        if conf::TIME {
+            let end = time::SystemTime::now();
+            println!(
+                "Checking {:?} took {}s and ended without errors!",
+                infile,
+                match end.duration_since(start.unwrap()) {
+                    Ok(t) => t.as_secs_f32(),
+                    Err(e) => e.duration().as_secs_f32(),
+                }
+            )
+        }
+        return;
+    }
+
     let outfile: PathBuf = if let Some(path) = cli.get_kv_arg("-o") {
         PathBuf::from(path)
     } else {
@@ -78,16 +103,24 @@ fn main() {
         );
     };
 
-    let ast = parse_file(infile);
     if let Some(form) = cli.get_kv_arg("-f") {
         assemble_file(ast, &outfile, form);
+        if conf::TIME {
+            let end = time::SystemTime::now();
+            println!(
+                "Assembling {:?} took {}s and ended without errors!",
+                infile,
+                match end.duration_since(start.unwrap()) {
+                    Ok(t) => t.as_secs_f32(),
+                    Err(e) => e.duration().as_secs_f32(),
+                }
+            )
+        }
     }
-
-    process::exit(0);
 }
 
-fn parse_file(inpath: PathBuf) -> AST<'static> {
-    if let Ok(true) = fs::exists(&inpath) {
+fn parse_file(inpath: &PathBuf) -> AST<'static> {
+    if let Ok(true) = fs::exists(inpath) {
         if let Ok(buf) = fs::read_to_string(inpath) {
             let mut tokenized_file = Vec::new();
             for line in buf.lines() {
@@ -132,7 +165,6 @@ fn parse_file(inpath: PathBuf) -> AST<'static> {
                     }
                 }
             }
-
             CLI.exit("main.rs", "parse_file", "Assembling ended with error!", 1);
         } else {
             CLI.exit(
@@ -253,5 +285,4 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
         eprintln!("Couldn't save output to file: {}", why);
         process::exit(1);
     }
-    process::exit(0);
 }

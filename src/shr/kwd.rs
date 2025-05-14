@@ -3,8 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::conf::FAST_MODE;
-use std::str::FromStr;
+use std::{cmp::Ordering, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Keyword {
@@ -24,42 +23,50 @@ pub enum Keyword {
 
 // keyword is equal
 #[inline(always)]
-fn kwd_ie(kwd_raw: &str, kwd_dest: &str, kwd: Keyword) -> Result<Keyword, ()> {
-    if FAST_MODE {
-        Ok(kwd)
-    } else {
-        if kwd_raw == kwd_dest {
-            Ok(kwd)
-        } else {
-            Err(())
+fn kwd_ie(
+    str: &[u8],
+    cmp: &'static [u8],
+    start: usize,
+    end: usize,
+    kwd: Keyword,
+) -> Result<Keyword, ()> {
+    for idx in start..end {
+        let res = str[idx].cmp(&cmp[idx]);
+        if res != Ordering::Equal {
+            return Err(());
         }
     }
+    Ok(kwd)
 }
 
 impl FromStr for Keyword {
     type Err = ();
     fn from_str(kwd_str: &str) -> Result<Self, <Self as FromStr>::Err> {
         let kwd_raw = kwd_str.as_bytes();
+        let kwd = kwd_raw;
         match kwd_raw.len() {
-            4 => match kwd_raw[1] as char {
-                'y' => kwd_ie(kwd_str, "byte", Keyword::Byte),
-                'o' => kwd_ie(kwd_str, "word", Keyword::Word),
-                'i' => kwd_ie(kwd_str, "bits", Keyword::Bits),
+            4 => match kwd_raw[0] as char {
+                'b' => match kwd_raw[1] as char {
+                    'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
+                    'i' => kwd_ie(kwd, b"bits", 2, 3, Keyword::Bits),
+                    _ => Err(()),
+                },
+                'w' => kwd_ie(kwd, b"word", 1, 3, Keyword::Word),
                 _ => Err(()),
             },
             5 => match kwd_raw[0] as char {
-                'x' => kwd_ie(kwd_str, "xword", Keyword::Xword),
-                'q' => kwd_ie(kwd_str, "qword", Keyword::Qword),
-                'd' => kwd_ie(kwd_str, "dword", Keyword::Dword),
-                'e' => kwd_ie(kwd_str, "entry", Keyword::Entry),
-                'c' => kwd_ie(kwd_str, "const", Keyword::Const),
-                'r' => kwd_ie(kwd_str, "ronly", Keyword::Ronly),
+                'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
+                'q' => kwd_ie(kwd, b"qword", 1, 4, Keyword::Qword),
+                'd' => kwd_ie(kwd, b"dword", 1, 4, Keyword::Dword),
+                'e' => kwd_ie(kwd, b"entry", 1, 4, Keyword::Entry),
+                'c' => kwd_ie(kwd, b"const", 1, 4, Keyword::Const),
+                'r' => kwd_ie(kwd, b"ronly", 1, 4, Keyword::Ronly),
                 _ => Err(()),
             },
             6 => match kwd_raw[0] as char {
-                'u' => kwd_ie(kwd_str, "uninit", Keyword::Uninit),
-                'g' => kwd_ie(kwd_str, "global", Keyword::Global),
-                'e' => kwd_ie(kwd_str, "extern", Keyword::Extern),
+                'u' => kwd_ie(kwd, b"uninit", 1, 5, Keyword::Uninit),
+                'g' => kwd_ie(kwd, b"global", 1, 5, Keyword::Global),
+                'e' => kwd_ie(kwd, b"extern", 1, 5, Keyword::Extern),
                 _ => Err(()),
             },
             _ => Err(()),

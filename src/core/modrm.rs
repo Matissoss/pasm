@@ -5,6 +5,7 @@
 
 use crate::shr::{
     ast::{Instruction as Ins, Operand as Op},
+    ins::Mnemonic,
     mem::Mem,
     num::Number,
     reg::Purpose as RPurpose,
@@ -44,11 +45,15 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
     };
 
     let mut rev = rev;
-
     let reg = if let Some(reg) = reg {
         reg
     } else {
-        if rev {
+        if matches!(
+            ins.mnem,
+            Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
+        ) {
+            gen_rmreg(ins.src())
+        } else if rev {
             gen_rmreg(ins.dst())
         } else {
             if let Some(Op::Mem(_) | Op::Segment(_)) = ins.src() {
@@ -74,7 +79,12 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
             if let Some(rm) = rm {
                 rm
             } else {
-                if rev {
+                if matches!(
+                    ins.mnem,
+                    Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
+                ) {
+                    gen_rmreg(ins.dst())
+                } else if rev {
                     gen_rmreg(ins.src())
                 } else {
                     gen_rmreg(ins.dst())

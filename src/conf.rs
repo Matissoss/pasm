@@ -3,6 +3,11 @@
 //  made by matissoss
 //  licensed under MPL 2.0
 
+// TIME defines if assembler will measure how long did it take to assemble a file.
+// -------------------------------------
+// default = true
+pub const TIME: bool = true;
+
 // FAST_MODE means that assembler will skip
 // the *_ie part and return the value immediately;
 // useful for scenarios where you don't need 100% accuracy

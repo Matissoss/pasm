@@ -14,7 +14,7 @@ use std::{
 };
 
 static ERR_CTX: LazyLock<(File, PathBuf)> = LazyLock::new(|| {
-    let path = PathBuf::from(CLI.get_arg("-i").unwrap());
+    let path = PathBuf::from(CLI.get_kv_arg("-i").unwrap());
     (
         OpenOptions::new()
             .write(false)
@@ -53,7 +53,13 @@ pub struct RASMError {
 
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
-        let ctx = if let Some(line) = self.line {
+        let line = if let Some(line) = self.line {
+            Some(line - 1)
+        } else {
+            None
+        };
+
+        let ctx = if let Some(line) = line {
             Some(&FILE[line])
         } else {
             None
@@ -64,15 +70,18 @@ impl Display for RASMError {
             "{}:\n\tin {}{}{}{}{}",
             self.etype,
             ColString::new(ERR_CTX.1.to_string_lossy()).set_color(Color::YELLOW),
-            if let Some(line) = self.line {
-                format!(" at line {}", ColString::new(line).set_color(Color::YELLOW))
+            if let Some(line) = line {
+                format!(
+                    " at line {}",
+                    ColString::new(line + 1).set_color(Color::YELLOW)
+                )
             } else {
                 "".to_string()
             },
             if let Some(ctx) = ctx {
                 format!(
                     "\n\t{}",
-                    ColString::new(ctx)
+                    ColString::new(ctx.trim())
                         .set_color(Color::GREEN)
                         .set_modf(Modifier::Bold)
                 )

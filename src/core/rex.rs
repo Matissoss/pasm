@@ -45,7 +45,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         Mnm::CVTSI2SS => true,
         Mnm::PINSRQ => true,
         Mnm::MOVQ => true,
-        Mnm::PEXTRW => true,
+        Mnm::PEXTRW | Mnm::PEXTRQ => true,
         Mnm::POPCNT => true,
         Mnm::EXTRACTPS => true,
         Mnm::MOV => {

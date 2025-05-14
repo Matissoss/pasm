@@ -24,7 +24,7 @@ use std::str::FromStr;
 pub struct Lexer;
 impl Lexer {
     pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>> {
-        let mut line_count: i64 = -1;
+        let mut line_count: usize = 0;
         let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
         for line in file {
             line_count += 1;
@@ -40,7 +40,7 @@ impl Lexer {
                     match make_var(Cow::Owned(line)) {
                         Ok(var) => node = Some(ASTNode::Variable(var)),
                         Err(mut tmp_error) => {
-                            tmp_error.set_line(line_count as usize);
+                            tmp_error.set_line(line_count);
                             error = Some(tmp_error)
                         }
                     }
@@ -52,7 +52,7 @@ impl Lexer {
                                 Number::UInt8(n) => n,
                                 _ => {
                                     ast_tree.push(Err(RASMError::no_tip(
-                                        Some(line_count as usize),
+                                        Some(line_count),
                                         Some(format!("Couldn't fit number {} in 8-bits", n)),
                                     )));
                                     continue;
@@ -60,7 +60,7 @@ impl Lexer {
                             },
                             _ => {
                                 ast_tree.push(Err(RASMError::no_tip(
-                                    Some(line_count as usize),
+                                    Some(line_count),
                                     Some(format!(
                                         "Couldn't fit number {} in 8-bit unsigned integer",
                                         bits.to_string()
@@ -72,7 +72,7 @@ impl Lexer {
                         node = Some(ASTNode::Bits(uint8));
                     } else {
                         error = Some(RASMError::with_tip(
-                            Some(line_count as usize),
+                            Some(line_count),
                             Some("Unexpected end of line after entry keyword, expected string, found nothing"),
                             Some("Consider adding something after entry keyword")
                         ));
@@ -83,7 +83,7 @@ impl Lexer {
                         node = Some(ASTNode::Entry(entr.to_string()));
                     } else {
                         error = Some(RASMError::with_tip(
-                            Some(line_count as usize),
+                            Some(line_count),
                             Some("Unexpected end of line after entry keyword, expected string, found nothing"),
                             Some("Consider adding something after entry keyword")
                         ));
@@ -94,7 +94,7 @@ impl Lexer {
                         node = Some(ASTNode::Extern(etrn.to_string()));
                     } else {
                         error = Some(RASMError::with_tip(
-                            Some(line_count as usize),
+                            Some(line_count),
                             Some("Unexpected end of line after extern keyword, expected string, found nothing"),
                             Some("Consider adding something after extern keyword")
                         ));
@@ -105,7 +105,7 @@ impl Lexer {
                         node = Some(ASTNode::Global(glob.to_string()));
                     } else {
                         error = Some(RASMError::with_tip(
-                            Some(line_count as usize),
+                            Some(line_count),
                             Some("Unexpected end of line after global keyword, expected string, found nothing"),
                             Some("Consider adding something after global keyword")
                         ));
@@ -113,21 +113,21 @@ impl Lexer {
                 }
                 Some(Token::Mnemonic(_)) => match make_ins(&line) {
                     Ok(mut i) => {
-                        i.line = line_count as usize;
+                        i.line = line_count;
                         node = Some(ASTNode::Ins(i));
                     }
                     Err(mut e) => {
-                        e.set_line(line_count as usize);
+                        e.set_line(line_count);
                         error = Some(e);
                     }
                 },
                 Some(Token::Unknown(s)) => ast_tree.push(Err(RASMError::no_tip(
-                    Some(line_count as usize),
+                    Some(line_count),
                     Some(format!("Tried to start line with unknown mnemonic `{s}`")),
                 ))),
                 _ => {
                     ast_tree.push(Err(RASMError::with_tip(
-                        Some(line_count as usize),
+                        Some(line_count),
                         Some("Unexpected start of line!"),
                         Some("Consider starting line with instruction, !global, section declaration or label declaration")
                     )));
@@ -135,7 +135,7 @@ impl Lexer {
             }
 
             if let Some(node_t) = node {
-                ast_tree.push(Ok((node_t, line_count as usize)));
+                ast_tree.push(Ok((node_t, line_count - 1)));
             } else if let Some(error_t) = error {
                 ast_tree.push(Err(error_t));
             }

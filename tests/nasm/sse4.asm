@@ -56,10 +56,6 @@ _start:
 	roundps xmm0, xmm1, 1
 	roundpd xmm0, xmm1, 1
 
-	;pextrb eax, xmm1, 1
-	;pextrd eax, xmm1, 1
-	;pextrq rax, xmm1, 1
-
 	dpps xmm0, xmm1, 1
 	dppd xmm0, xmm1, 1
 
