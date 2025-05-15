@@ -19,10 +19,6 @@ pub enum Mnemonic {
     
     JMP, CALL,
 
-    JE , JZ , JNZ,
-    JNE, JL , JLE,
-    JG , JGE,
-
     SYSCALL, RET,
     NOP,
 
@@ -31,6 +27,27 @@ pub enum Mnemonic {
     PUSHFD, PUSHFQ,
 
     CPUID,
+    
+    // Jcc
+    JA, JC, JE, JZ, JL,
+    JG, JO, JP, JS, JB,
+    
+    JAE, JBE, JNZ, JNE,
+    JNO, JNP, JNS, JPE,
+    JPO, JLE, JGE, JNA,
+    JNB, JNC, JNL, JNG,
+    
+    JNAE, JNBE, JNGE, JNLE,
+
+    // CMOVcc
+    CMOVA, CMOVB, CMOVC, CMOVE, CMOVG,
+    CMOVL, CMOVO, CMOVP, CMOVS, CMOVZ,
+
+    CMOVAE, CMOVBE, CMOVGE, CMOVLE, CMOVNA,
+    CMOVNB, CMOVNC, CMOVNE, CMOVNG, CMOVNL,
+    CMOVNO, CMOVNP, CMOVNS, CMOVNZ, CMOVPE, CMOVPO,
+    
+    CMOVNBE, CMOVNAE, CMOVNGE,CMOVNLE,
 
     // SSE extension
     ADDPS  , ADDSS,
@@ -215,9 +232,15 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
         0 | 1 => n(),
         2 => match rstr[0] {
             'j' => match rstr[1] {
+                'a' => s(Ins::JA),
+                'b' => s(Ins::JB),
+                'c' => s(Ins::JC),
                 'e' => s(Ins::JE),
                 'z' => s(Ins::JZ),
                 'l' => s(Ins::JL),
+                'o' => s(Ins::JO),
+                'p' => s(Ins::JP),
+                's' => s(Ins::JS),
                 'g' => s(Ins::JG),
                 _ => n(),
             },
@@ -243,7 +266,28 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'j' => match rstr[1] {
+                'a' => match rstr[2] {
+                    'e' => s(Ins::JAE),
+                    _ => n(),
+                },
+                'b' => match rstr[2] {
+                    'e' => s(Ins::JBE),
+                    _ => n(),
+                },
+                'p' => match rstr[2] {
+                    'o' => s(Ins::JPO),
+                    'e' => s(Ins::JPE),
+                    _ => n(),
+                },
                 'n' => match rstr[2] {
+                    'a' => s(Ins::JNA),
+                    'b' => s(Ins::JNB),
+                    'c' => s(Ins::JNC),
+                    'g' => s(Ins::JNG),
+                    'l' => s(Ins::JNL),
+                    'o' => s(Ins::JNO),
+                    'p' => s(Ins::JNP),
+                    's' => s(Ins::JNS),
                     'e' => s(Ins::JNE),
                     'z' => s(Ins::JNZ),
                     _ => n(),
@@ -356,6 +400,28 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             _ => n(),
         },
         4 => match rstr[0] {
+            'j' => match rstr[1] {
+                'n' => match rstr[2] {
+                    'a' => match rstr[3] {
+                        'e' => s(Ins::JNAE),
+                        _ => n(),
+                    },
+                    'b' => match rstr[3] {
+                        'e' => s(Ins::JNBE),
+                        _ => n(),
+                    },
+                    'g' => match rstr[3] {
+                        'e' => s(Ins::JNGE),
+                        _ => n(),
+                    },
+                    'l' => match rstr[3] {
+                        'e' => s(Ins::JNLE),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
             'e' => match rstr[1] {
                 'm' => match rstr[2] {
                     'm' => match rstr[3] {
@@ -648,6 +714,22 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => n(),
                 },
                 'm' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'v' => match rstr[4] {
+                            'a' => s(Ins::CMOVA),
+                            'b' => s(Ins::CMOVB),
+                            'c' => s(Ins::CMOVC),
+                            'e' => s(Ins::CMOVE),
+                            'g' => s(Ins::CMOVG),
+                            'l' => s(Ins::CMOVL),
+                            'o' => s(Ins::CMOVO),
+                            'p' => s(Ins::CMOVP),
+                            's' => s(Ins::CMOVS),
+                            'z' => s(Ins::CMOVZ),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
                     'p' => match rstr[3] {
                         'p' => match rstr[4] {
                             'd' => s(Ins::CMPPD),
@@ -925,6 +1007,49 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'c' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'v' => match rstr[4] {
+                            'a' => match rstr[5] {
+                                'e' => s(Ins::CMOVAE),
+                                _ => n(),
+                            },
+                            'b' => match rstr[5] {
+                                'e' => s(Ins::CMOVBE),
+                                _ => n(),
+                            },
+                            'l' => match rstr[5] {
+                                'e' => s(Ins::CMOVLE),
+                                _ => n(),
+                            },
+                            'p' => match rstr[5] {
+                                'e' => s(Ins::CMOVPE),
+                                'o' => s(Ins::CMOVPO),
+                                _ => n(),
+                            },
+                            'g' => match rstr[5] {
+                                'e' => s(Ins::CMOVGE),
+                                _ => n(),
+                            },
+                            'n' => match rstr[5] {
+                                'a' => s(Ins::CMOVNA),
+                                'b' => s(Ins::CMOVNB),
+                                'c' => s(Ins::CMOVNC),
+                                'e' => s(Ins::CMOVNE),
+                                'g' => s(Ins::CMOVNG),
+                                'l' => s(Ins::CMOVNL),
+                                'o' => s(Ins::CMOVNO),
+                                'p' => s(Ins::CMOVNP),
+                                's' => s(Ins::CMOVNS),
+                                'z' => s(Ins::CMOVNZ),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'o' => match rstr[2] {
                     'm' => match rstr[3] {
                         'i' => match rstr[4] {
@@ -1545,6 +1670,34 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'c' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'v' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'a' => match rstr[6] {
+                                    'e' => s(Ins::CMOVNAE),
+                                    _ => n(),
+                                },
+                                'l' => match rstr[6] {
+                                    'e' => s(Ins::CMOVNLE),
+                                    _ => n(),
+                                },
+                                'g' => match rstr[6] {
+                                    'e' => s(Ins::CMOVNGE),
+                                    _ => n(),
+                                },
+                                'b' => match rstr[6] {
+                                    'e' => s(Ins::CMOVNBE),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'l' => match rstr[2] {
                     'f' => match rstr[3] {
                         'l' => match rstr[4] {

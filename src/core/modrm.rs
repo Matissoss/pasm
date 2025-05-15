@@ -45,6 +45,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
     };
 
     let mut rev = rev;
+
     let reg = if let Some(reg) = reg {
         reg
     } else {
@@ -101,7 +102,10 @@ fn gen_rmreg(op: Option<&Op>) -> u8 {
         return 0;
     };
     match op.unwrap() {
-        Op::DbgReg(r) | Op::CtrReg(r) | Op::Reg(r) | Op::Mem(Mem::Direct(r, _)) => r.to_byte(),
+        Op::DbgReg(r)
+        | Op::CtrReg(r)
+        | Op::Reg(r)
+        | Op::Mem(Mem::Direct(r, _) | Mem::Offset(r, _, _)) => r.to_byte(),
         Op::SegReg(r) => r.to_byte(),
         Op::Segment(s) => match s.address {
             Mem::Direct(r, _) => r.to_byte(),

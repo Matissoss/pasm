@@ -192,12 +192,35 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::MUL => (ins_divmul(ins, 4, bits), None),
         Ins::JMP => ins_jmplike(ins, [vec![0xE9], vec![0xFF]], 4, bits),
         Ins::CALL => ins_jmplike(ins, [vec![0xE8], vec![0xFF]], 2, bits),
-        Ins::JE | Ins::JZ => ins_jmplike(ins, [vec![0x0F, 0x84], vec![]], 0, bits),
-        Ins::JNE | Ins::JNZ => ins_jmplike(ins, [vec![0xFF, 0x85], vec![]], 0, bits),
+
+        // jcc
+        Ins::JA => ins_jmplike(ins, [vec![0x0F, 0x87], vec![]], 0, bits),
+        Ins::JB => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
+        Ins::JC => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
+        Ins::JO => ins_jmplike(ins, [vec![0x0F, 0x80], vec![]], 0, bits),
+        Ins::JP => ins_jmplike(ins, [vec![0x0F, 0x8A], vec![]], 0, bits),
+        Ins::JS => ins_jmplike(ins, [vec![0x0F, 0x88], vec![]], 0, bits),
         Ins::JL => ins_jmplike(ins, [vec![0x0F, 0x8C], vec![]], 0, bits),
-        Ins::JLE => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
         Ins::JG => ins_jmplike(ins, [vec![0x0F, 0x8F], vec![]], 0, bits),
+        Ins::JE | Ins::JZ => ins_jmplike(ins, [vec![0x0F, 0x84], vec![]], 0, bits),
+        Ins::JAE => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
+        Ins::JBE => ins_jmplike(ins, [vec![0x0F, 0x86], vec![]], 0, bits),
+        Ins::JNA => ins_jmplike(ins, [vec![0x0F, 0x86], vec![]], 0, bits),
+        Ins::JNB => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
+        Ins::JNC => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
+        Ins::JNG => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
+        Ins::JNL => ins_jmplike(ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
+        Ins::JNP => ins_jmplike(ins, [vec![0x0F, 0x8B], vec![]], 0, bits),
+        Ins::JNS => ins_jmplike(ins, [vec![0x0F, 0x89], vec![]], 0, bits),
+        Ins::JPE => ins_jmplike(ins, [vec![0x0F, 0x8A], vec![]], 0, bits),
+        Ins::JPO => ins_jmplike(ins, [vec![0x0F, 0x8B], vec![]], 0, bits),
+        Ins::JNE | Ins::JNZ => ins_jmplike(ins, [vec![0xFF, 0x85], vec![]], 0, bits),
+        Ins::JLE => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
         Ins::JGE => ins_jmplike(ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
+        Ins::JNAE => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
+        Ins::JNBE => ins_jmplike(ins, [vec![0x0F, 0x87], vec![]], 0, bits),
+        Ins::JNGE => ins_jmplike(ins, [vec![0x0F, 0x8C], vec![]], 0, bits),
+        Ins::JNLE => ins_jmplike(ins, [vec![0x0F, 0x8F], vec![]], 0, bits),
 
         Ins::LEA => ins_lea(ins, bits),
 
@@ -213,6 +236,37 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         Ins::PAUSE => (vec![0xF3, 0x90], None),
         Ins::MWAIT => (vec![0x0F, 0x01, 0xC9], None),
+
+        Ins::CMOVA => (ins_cmovcc(ins, &[0x0F, 0x47], bits), None),
+        Ins::CMOVAE => (ins_cmovcc(ins, &[0x0F, 0x43], bits), None),
+        Ins::CMOVB => (ins_cmovcc(ins, &[0x0F, 0x42], bits), None),
+        Ins::CMOVBE => (ins_cmovcc(ins, &[0x0F, 0x46], bits), None),
+        Ins::CMOVC => (ins_cmovcc(ins, &[0x0F, 0x42], bits), None),
+        Ins::CMOVE => (ins_cmovcc(ins, &[0x0F, 0x44], bits), None),
+        Ins::CMOVG => (ins_cmovcc(ins, &[0x0F, 0x4F], bits), None),
+        Ins::CMOVGE => (ins_cmovcc(ins, &[0x0F, 0x4D], bits), None),
+        Ins::CMOVL => (ins_cmovcc(ins, &[0x0F, 0x4C], bits), None),
+        Ins::CMOVLE => (ins_cmovcc(ins, &[0x0F, 0x4E], bits), None),
+        Ins::CMOVNA => (ins_cmovcc(ins, &[0x0F, 0x46], bits), None),
+        Ins::CMOVNB => (ins_cmovcc(ins, &[0x0F, 0x43], bits), None),
+        Ins::CMOVNBE => (ins_cmovcc(ins, &[0x0F, 0x47], bits), None),
+        Ins::CMOVNC => (ins_cmovcc(ins, &[0x0F, 0x43], bits), None),
+        Ins::CMOVNE => (ins_cmovcc(ins, &[0x0F, 0x45], bits), None),
+        Ins::CMOVNG => (ins_cmovcc(ins, &[0x0F, 0x4E], bits), None),
+        Ins::CMOVNGE => (ins_cmovcc(ins, &[0x0F, 0x4C], bits), None),
+        Ins::CMOVNL => (ins_cmovcc(ins, &[0x0F, 0x4D], bits), None),
+        Ins::CMOVNLE => (ins_cmovcc(ins, &[0x0F, 0x4F], bits), None),
+        Ins::CMOVNAE => (ins_cmovcc(ins, &[0x0F, 0x42], bits), None),
+        Ins::CMOVNO => (ins_cmovcc(ins, &[0x0F, 0x41], bits), None),
+        Ins::CMOVNP => (ins_cmovcc(ins, &[0x0F, 0x4B], bits), None),
+        Ins::CMOVNS => (ins_cmovcc(ins, &[0x0F, 0x49], bits), None),
+        Ins::CMOVNZ => (ins_cmovcc(ins, &[0x0F, 0x45], bits), None),
+        Ins::CMOVO => (ins_cmovcc(ins, &[0x0F, 0x40], bits), None),
+        Ins::CMOVP => (ins_cmovcc(ins, &[0x0F, 0x4A], bits), None),
+        Ins::CMOVPO => (ins_cmovcc(ins, &[0x0F, 0x4B], bits), None),
+        Ins::CMOVS => (ins_cmovcc(ins, &[0x0F, 0x48], bits), None),
+        Ins::CMOVZ => (ins_cmovcc(ins, &[0x0F, 0x44], bits), None),
+        Ins::CMOVPE => (ins_cmovcc(ins, &[0x0F, 0x4A], bits), None),
 
         // SSE
         Ins::MOVSS => (
@@ -1257,6 +1311,17 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         _ => (Vec::new(), None),
     }
+}
+
+// #  #   #   ####  #####  #####  #   #   ####  #####  #   ###   #   #   ####
+// #  ##  #  #        #    #   #  #   #  #        #    #  #   #  ##  #  #
+// #  # # #   ###     #    ####   #   #  #        #    #  #   #  # # #   ###
+// #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
+// #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
+// (Instructions)
+
+fn ins_cmovcc(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8> {
+    gen_ins(ins, opc, (true, None, None), None, bits, true)
 }
 
 fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {

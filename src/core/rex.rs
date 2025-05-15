@@ -40,6 +40,36 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
+        Mnm::CMOVA
+        | Mnm::CMOVB
+        | Mnm::CMOVC
+        | Mnm::CMOVE
+        | Mnm::CMOVG
+        | Mnm::CMOVL
+        | Mnm::CMOVO
+        | Mnm::CMOVP
+        | Mnm::CMOVS
+        | Mnm::CMOVZ
+        | Mnm::CMOVAE
+        | Mnm::CMOVBE
+        | Mnm::CMOVLE
+        | Mnm::CMOVGE
+        | Mnm::CMOVNA
+        | Mnm::CMOVNB
+        | Mnm::CMOVNC
+        | Mnm::CMOVNE
+        | Mnm::CMOVNG
+        | Mnm::CMOVNL
+        | Mnm::CMOVNO
+        | Mnm::CMOVNP
+        | Mnm::CMOVNS
+        | Mnm::CMOVNZ
+        | Mnm::CMOVPE
+        | Mnm::CMOVPO
+        | Mnm::CMOVNBE
+        | Mnm::CMOVNLE
+        | Mnm::CMOVNGE
+        | Mnm::CMOVNAE => true,
         Mnm::MOVMSKPD => true,
         Mnm::CVTSS2SI => true,
         Mnm::CVTSI2SS => true,

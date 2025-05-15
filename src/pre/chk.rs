@@ -50,6 +50,45 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         ));
     }
     match ins.mnem {
+        Mnm::CMOVA
+        | Mnm::CMOVB
+        | Mnm::CMOVC
+        | Mnm::CMOVE
+        | Mnm::CMOVG
+        | Mnm::CMOVL
+        | Mnm::CMOVO
+        | Mnm::CMOVP
+        | Mnm::CMOVS
+        | Mnm::CMOVZ
+        | Mnm::CMOVAE
+        | Mnm::CMOVBE
+        | Mnm::CMOVLE
+        | Mnm::CMOVGE
+        | Mnm::CMOVNA
+        | Mnm::CMOVNB
+        | Mnm::CMOVNC
+        | Mnm::CMOVNE
+        | Mnm::CMOVNG
+        | Mnm::CMOVNL
+        | Mnm::CMOVNO
+        | Mnm::CMOVNP
+        | Mnm::CMOVNS
+        | Mnm::CMOVNZ
+        | Mnm::CMOVPE
+        | Mnm::CMOVPO
+        | Mnm::CMOVNBE
+        | Mnm::CMOVNLE
+        | Mnm::CMOVNGE
+        | Mnm::CMOVNAE => ot_chk(
+            ins,
+            &[
+                (&[R16, R32], Optional::Needed),
+                (&[R16, R32, M16, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
         Mnm::PUSH => ot_chk(
             ins,
             &[(&[R16, R32, M16, M32, I8, I16, I32, SR], Optional::Needed)],
@@ -199,9 +238,6 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::JE | Mnm::JNE | Mnm::JZ | Mnm::JNZ | Mnm::JL | Mnm::JLE | Mnm::JG | Mnm::JGE => {
-            ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[])
-        }
         Mnm::LEA => ot_chk(
             ins,
             &[
@@ -239,6 +275,44 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
 
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
     match ins.mnem {
+        Mnm::CMOVA
+        | Mnm::CMOVB
+        | Mnm::CMOVC
+        | Mnm::CMOVE
+        | Mnm::CMOVG
+        | Mnm::CMOVL
+        | Mnm::CMOVO
+        | Mnm::CMOVP
+        | Mnm::CMOVS
+        | Mnm::CMOVZ
+        | Mnm::CMOVAE
+        | Mnm::CMOVBE
+        | Mnm::CMOVLE
+        | Mnm::CMOVGE
+        | Mnm::CMOVNA
+        | Mnm::CMOVNB
+        | Mnm::CMOVNC
+        | Mnm::CMOVNE
+        | Mnm::CMOVNG
+        | Mnm::CMOVNL
+        | Mnm::CMOVNO
+        | Mnm::CMOVNP
+        | Mnm::CMOVNS
+        | Mnm::CMOVNZ
+        | Mnm::CMOVPE
+        | Mnm::CMOVPO
+        | Mnm::CMOVNBE
+        | Mnm::CMOVNLE
+        | Mnm::CMOVNGE
+        | Mnm::CMOVNAE => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
         Mnm::PUSH => ot_chk(
@@ -388,9 +462,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::JE | Mnm::JNE | Mnm::JZ | Mnm::JNZ | Mnm::JL | Mnm::JLE | Mnm::JG | Mnm::JGE => {
-            ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[])
-        }
         Mnm::LEA => ot_chk(
             ins,
             &[
@@ -409,6 +480,34 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
 
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     match ins.mnem {
+        Mnm::JA
+        | Mnm::JB
+        | Mnm::JC
+        | Mnm::JO
+        | Mnm::JP
+        | Mnm::JS
+        | Mnm::JAE
+        | Mnm::JNAE
+        | Mnm::JNBE
+        | Mnm::JNGE
+        | Mnm::JBE
+        | Mnm::JNO
+        | Mnm::JNP
+        | Mnm::JPO
+        | Mnm::JPE
+        | Mnm::JNA
+        | Mnm::JNL
+        | Mnm::JNLE
+        | Mnm::JNC
+        | Mnm::JNB
+        | Mnm::JE
+        | Mnm::JNE
+        | Mnm::JZ
+        | Mnm::JNZ
+        | Mnm::JL
+        | Mnm::JLE
+        | Mnm::JG
+        | Mnm::JGE => ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[]),
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####

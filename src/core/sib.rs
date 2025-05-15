@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Operand, mem::Mem};
+use crate::shr::{ast::Operand, mem::Mem, reg::Register};
 
 pub fn gen_sib(op: &Operand) -> Option<u8> {
     match op {
@@ -14,8 +14,22 @@ pub fn gen_sib(op: &Operand) -> Option<u8> {
             Mem::Index(index, scale, _) | Mem::IndexOffset(index, _, scale, _) => {
                 Some(sib(scale as u8, index.to_byte(), 0b101))
             }
+            Mem::Offset(base, _, _) => {
+                if base == Register::RSP {
+                    Some(sib(0, 0, base.to_byte()))
+                } else {
+                    None
+                }
+            }
             _ => None,
         },
+        Operand::Mem(Mem::Offset(base, _, _)) => {
+            if base == &Register::RSP {
+                Some(sib(0, base.to_byte(), base.to_byte()))
+            } else {
+                None
+            }
+        }
         Operand::Mem(
             Mem::SIB(base, index, scale, _) | Mem::SIBOffset(base, index, scale, _, _),
         ) => Some(sib(*scale as u8, index.to_byte(), base.to_byte())),
