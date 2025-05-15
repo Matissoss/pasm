@@ -1151,7 +1151,21 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-
+        //  ###   #   #  #   #
+        // #   #  #   #   # #
+        // #   #   # #     #
+        // #####   # #    # #
+        // #   #    #    #   #
+        // AVX
+        Mnm::VMOVAPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128)],
+            &[],
+        ),
         _ => Some(RASMError::no_tip(
             Some(ins.line),
             Some("Tried to use currently unsupported instruction."),
@@ -1360,12 +1374,14 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                     || g0 == RPurpose::Ctrl
                     || g0 == RPurpose::Sgmnt
                     || g0 == RPurpose::Mmx
-                    || g0 == RPurpose::F128)
+                    || g0 == RPurpose::F128
+                    || g0 == RPurpose::F256)
                     || (g1 == RPurpose::Dbg
                         || g1 == RPurpose::Ctrl
                         || g1 == RPurpose::Sgmnt
                         || g1 == RPurpose::Mmx
-                        || g1 == RPurpose::F128))
+                        || g1 == RPurpose::F128
+                        || g1 == RPurpose::F256))
             {
                 None
             } else {

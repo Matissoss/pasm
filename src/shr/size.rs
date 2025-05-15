@@ -99,6 +99,7 @@ impl TryFrom<Keyword> for Size {
             Keyword::Dword => Ok(Self::Dword),
             Keyword::Qword => Ok(Self::Qword),
             Keyword::Xword => Ok(Self::Xword),
+            Keyword::Yword => Ok(Self::Yword),
             _ => Err(()),
         }
     }

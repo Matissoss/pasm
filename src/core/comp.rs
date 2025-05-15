@@ -7,13 +7,9 @@ use std::borrow::Cow;
 
 use crate::{
     core::{
-        disp::gen_disp,
-        mmx,
-        modrm::gen_modrm,
+        avx, disp, mmx, modrm,
         reloc::{RCategory, RType, Relocation},
-        rex,
-        sib::gen_sib,
-        sse, sse2, sse3, sse4, ssse3,
+        rex, sib, sse, sse2, sse3, sse4, ssse3, vex,
     },
     shr::{
         ast::{IVariant, Instruction, Operand},
@@ -1309,6 +1305,8 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CRC32 => (sse4::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0xF0]), None),
         Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0xB8]), None),
 
+        // AVX
+        Ins::VMOVAPS => (avx::avx_ins(ins, &[0x28], &[0x29], None, 0, 0x0F), None),
         _ => (Vec::new(), None),
     }
 }
@@ -1336,7 +1334,9 @@ fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {
             Register::CS => vec![0x90],
             _ => invalid(),
         },
-        Operand::Mem(_) | Operand::Segment(_) => vec![0x8F, gen_modrm(ins, None, Some(0), false)],
+        Operand::Mem(_) | Operand::Segment(_) => {
+            vec![0x8F, modrm::gen_modrm(ins, None, Some(0), false)]
+        }
         _ => invalid(),
     }
 }
@@ -1509,7 +1509,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 _ => invalid(),
             };
             let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(gen_modrm(ins, Some(ovrreg), None, false));
+            base.push(modrm::gen_modrm(ins, Some(ovrreg), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             base
@@ -1657,7 +1657,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 _ => invalid(),
             };
             let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(gen_modrm(ins, Some(7), None, false));
+            base.push(modrm::gen_modrm(ins, Some(7), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             base
@@ -1779,7 +1779,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 _ => invalid(),
             };
             let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(gen_modrm(ins, Some(0), None, false));
+            base.push(modrm::gen_modrm(ins, Some(0), None, false));
             extend_imm(&mut imm, 1);
             base.extend(imm);
             base
@@ -1902,11 +1902,11 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
     } else {
         base.extend(gen_b);
     }
-    base.push(gen_modrm(ins, Some(ovr), None, false));
-    if let Some(sib) = gen_sib(dst) {
+    base.push(modrm::gen_modrm(ins, Some(ovr), None, false));
+    if let Some(sib) = sib::gen_sib(dst) {
         base.push(sib);
     }
-    if let Some(dsp) = gen_disp(dst) {
+    if let Some(dsp) = disp::gen_disp(dst) {
         base.extend(dsp);
     }
     if let Some(imm) = imm {
@@ -2020,27 +2020,27 @@ pub fn gen_ins_wpref(
     let mut base = vec![pref];
     base.extend(gen_base(ins, opc, bits, rev));
     if modrm.0 {
-        base.push(gen_modrm(ins, modrm.1, modrm.2, rev));
+        base.push(modrm::gen_modrm(ins, modrm.1, modrm.2, rev));
 
         if let Some(dst) = ins.dst() {
-            if let Some(sib) = gen_sib(dst) {
+            if let Some(sib) = sib::gen_sib(dst) {
                 base.push(sib);
             }
         }
         if let Some(src) = ins.src() {
-            if let Some(sib) = gen_sib(src) {
+            if let Some(sib) = sib::gen_sib(src) {
                 base.push(sib);
             }
         }
     }
 
     if let Some(dst) = ins.dst() {
-        if let Some(disp) = gen_disp(dst) {
+        if let Some(disp) = disp::gen_disp(dst) {
             base.extend(disp);
         }
     }
     if let Some(src) = ins.src() {
-        if let Some(disp) = gen_disp(src) {
+        if let Some(disp) = disp::gen_disp(src) {
             base.extend(disp);
         }
     }
@@ -2048,6 +2048,57 @@ pub fn gen_ins_wpref(
         base.extend(imm);
     }
     base
+}
+
+pub fn vex_gen_ins(
+    ins: &Instruction,
+    opc: &[u8],
+    modrm: (bool, Option<u8>),
+    imm: Option<Vec<u8>>,
+    modrm_reg_is_dst: bool,
+    pp: u8,
+    map_select: u8,
+) -> Vec<u8> {
+    let mut base = vex::gen_vex(ins, pp, map_select, modrm_reg_is_dst).unwrap_or_default();
+    base.extend(opc);
+    if modrm.0 {
+        base.push(modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst));
+        if let Some(dst) = ins.dst() {
+            if let Some(sib) = sib::gen_sib(dst) {
+                base.push(sib);
+            }
+        }
+        if let Some(src) = ins.src() {
+            if let Some(sib) = sib::gen_sib(src) {
+                base.push(sib);
+            }
+        }
+    }
+    if let Some(dst) = ins.dst() {
+        if let Some(disp) = disp::gen_disp(dst) {
+            base.extend(disp);
+        }
+    }
+    if let Some(src) = ins.src() {
+        if let Some(disp) = disp::gen_disp(src) {
+            base.extend(disp);
+        }
+    }
+    if let Some(imm) = imm {
+        base.extend(imm);
+    }
+
+    base
+}
+
+#[allow(dead_code)]
+const fn pp(pfx: u8) -> u8 {
+    match pfx {
+        0x66 => 0b01,
+        0xF3 => 0b10,
+        0xF2 => 0b11,
+        _ => 0b00,
+    }
 }
 
 pub fn gen_ins(
@@ -2060,27 +2111,27 @@ pub fn gen_ins(
 ) -> Vec<u8> {
     let mut base = gen_base(ins, opc, bits, rev);
     if modrm.0 {
-        base.push(gen_modrm(ins, modrm.1, modrm.2, rev));
+        base.push(modrm::gen_modrm(ins, modrm.1, modrm.2, rev));
 
         if let Some(dst) = ins.dst() {
-            if let Some(sib) = gen_sib(dst) {
+            if let Some(sib) = sib::gen_sib(dst) {
                 base.push(sib);
             }
         }
         if let Some(src) = ins.src() {
-            if let Some(sib) = gen_sib(src) {
+            if let Some(sib) = sib::gen_sib(src) {
                 base.push(sib);
             }
         }
     }
 
     if let Some(dst) = ins.dst() {
-        if let Some(disp) = gen_disp(dst) {
+        if let Some(disp) = disp::gen_disp(dst) {
             base.extend(disp);
         }
     }
     if let Some(src) = ins.src() {
-        if let Some(disp) = gen_disp(src) {
+        if let Some(disp) = disp::gen_disp(src) {
             base.extend(disp);
         }
     }

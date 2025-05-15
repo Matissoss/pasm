@@ -5,6 +5,10 @@ pub mod modrm;
 pub mod rex;
 pub mod sib;
 
+// core for AVX
+pub mod avx;
+pub mod vex;
+
 // bin/target
 pub mod obj;
 pub mod reloc;

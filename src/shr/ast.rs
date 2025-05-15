@@ -92,7 +92,8 @@ pub enum IVariant {
     #[default]
     STD,
     MMX,
-    XMM,
+    XMM, // SSE/AVX
+    YMM, // AVX
 }
 
 // implementations
@@ -150,6 +151,7 @@ impl Instruction {
     pub fn which_variant(&self) -> IVariant {
         match self.dst() {
             Some(Operand::Reg(r)) => match r.size() {
+                Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => {
                     if r.purpose() == RPurpose::Mmx || r.purpose() == RPurpose::F128 {
@@ -159,6 +161,8 @@ impl Instruction {
                             Some(Operand::Reg(r)) => {
                                 if r.purpose() == RPurpose::Mmx {
                                     IVariant::MMX
+                                } else if r.purpose() == RPurpose::F256 {
+                                    IVariant::YMM
                                 } else if r.purpose() == RPurpose::F128 {
                                     IVariant::XMM
                                 } else {
@@ -172,6 +176,7 @@ impl Instruction {
                 _ => IVariant::STD,
             },
             Some(Operand::Mem(m)) => match m.size() {
+                Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => match self.src() {
                     Some(Operand::Reg(r)) => {
@@ -179,6 +184,8 @@ impl Instruction {
                             IVariant::MMX
                         } else if r.purpose() == RPurpose::F128 {
                             IVariant::XMM
+                        } else if r.purpose() == RPurpose::F128 {
+                            IVariant::YMM
                         } else {
                             IVariant::STD
                         }
@@ -263,6 +270,10 @@ impl Instruction {
     #[inline]
     pub fn src(&self) -> Option<&Operand> {
         self.oprs.get(1)
+    }
+    #[inline]
+    pub fn src2(&self) -> Option<&Operand> {
+        self.oprs.get(2)
     }
     #[inline]
     // operand existence

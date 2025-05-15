@@ -12,7 +12,7 @@ use crate::shr::{
 };
 
 // man, i love pattern matching and how readable it is...
-pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
+pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
     let mod_: u8 = {
         match (ins.dst(), ins.src()) {
             (Some(&Op::Mem(Mem::SIB(_, _, _, _))), _)
@@ -44,7 +44,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
         }
     };
 
-    let mut rev = rev;
+    let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
     let reg = if let Some(reg) = reg {
         reg
@@ -54,16 +54,16 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
             Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
         ) {
             gen_rmreg(ins.src())
-        } else if rev {
+        } else if modrm_reg_is_dst {
             gen_rmreg(ins.dst())
         } else {
             if let Some(Op::Mem(_) | Op::Segment(_)) = ins.src() {
-                rev = true;
+                modrm_reg_is_dst = true;
                 gen_rmreg(ins.dst())
             } else if let Some(Op::Reg(r)) = ins.src() {
                 let rp = r.purpose();
-                if rp == RPurpose::Mmx || rp == RPurpose::F128 {
-                    rev = true;
+                if (rp == RPurpose::Mmx || rp == RPurpose::F128) && !ins.mnem.is_avx() {
+                    modrm_reg_is_dst = true;
                     gen_rmreg(ins.dst())
                 } else {
                     gen_rmreg(ins.src())
@@ -85,7 +85,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, rev: bool) -> u8 {
                     Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
                 ) {
                     gen_rmreg(ins.dst())
-                } else if rev {
+                } else if modrm_reg_is_dst {
                     gen_rmreg(ins.src())
                 } else {
                     gen_rmreg(ins.dst())

@@ -148,16 +148,16 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
     }
 }
 
-fn calc_rex(ins: &Instruction, rev: bool) -> u8 {
+fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
     let wbs = get_wb(ins.src());
     let wbd = get_wb(ins.dst());
 
-    let mut rev = rev;
-    fix_rev(&mut rev, ins);
+    let mut modrm_reg_is_dst = modrm_reg_is_dst;
+    fix_rev(&mut modrm_reg_is_dst, ins);
 
     let w = !(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit());
-    let r = if !rev { wbs } else { wbd };
-    let mut b = if !rev { wbd } else { wbs };
+    let r = if !modrm_reg_is_dst { wbs } else { wbd };
+    let mut b = if !modrm_reg_is_dst { wbd } else { wbs };
     let mut x = false;
 
     match (ins.dst(), ins.src()) {

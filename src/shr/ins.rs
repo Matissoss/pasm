@@ -177,6 +177,9 @@ pub enum Mnemonic {
     EXTRACTPS, PCMPESTRM, PCMPISTRI, PCMPISTRM,
     
     PHMINPOSUW,
+
+    // AVX
+    VMOVAPS,
 }
 
 impl FromStr for Mnemonic {
@@ -203,6 +206,9 @@ impl Mnemonic {
     }
     pub fn allows_mem_mem(&self) -> bool {
         false
+    }
+    pub fn is_avx(&self) -> bool {
+        matches!(self, Self::VMOVAPS)
     }
     #[rustfmt::skip]
     pub fn defaults_to_64bit(&self) -> bool {
@@ -1724,6 +1730,25 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::BLENDPS),
                                     'd' => s(Ins::BLENDPD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
+            'v' => match rstr[1] {
+                'm' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'v' => match rstr[4] {
+                            'a' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::VMOVAPS),
                                     _ => n(),
                                 },
                                 _ => n(),
