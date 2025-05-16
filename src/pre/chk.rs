@@ -1157,13 +1157,60 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         // #####   # #    # #
         // #   #    #    #   #
         // AVX
-        Mnm::VMOVAPS => ot_chk(
+        Mnm::VMOVAPS | Mnm::VMOVUPS => ot_chk(
             ins,
             &[
                 (&[XMM, YMM, M128, M256], Optional::Needed),
                 (&[XMM, YMM, M128, M256], Optional::Needed),
             ],
             &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128)],
+            &[],
+        ),
+        Mnm::VADDSS
+        | Mnm::VSUBSS
+        | Mnm::VMULSS
+        | Mnm::VDIVSS
+        | Mnm::VRCPSS
+        | Mnm::VSQRTSS
+        | Mnm::VRSQRTSS
+        | Mnm::VMINSS
+        | Mnm::VMAXSS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VADDPS
+        | Mnm::VSUBPS
+        | Mnm::VDIVPS
+        | Mnm::VMULPS
+        | Mnm::VSQRTPS
+        | Mnm::VRSQRTPS
+        | Mnm::VMINPS
+        | Mnm::VMAXPS
+        | Mnm::VORPS
+        | Mnm::VANDNPS
+        | Mnm::VANDPS
+        | Mnm::VXORPS
+        | Mnm::VCMPPS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[
+                (XMM, YMM, M128),
+                (XMM, YMM, M256),
+                (YMM, XMM, M128),
+                (YMM, XMM, M256),
+                (YMM, YMM, M128),
+                (XMM, XMM, M256),
+            ],
             &[],
         ),
         _ => Some(RASMError::no_tip(
@@ -1179,6 +1226,79 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
 enum Optional {
     Needed,
     Optional,
+}
+
+fn avx_ot_chk(
+    ins: &Instruction,
+    ops: &[(&[AType], Optional)],
+    forb: &[(AType, AType, AType)],
+    addt: &[Mnm],
+) -> Option<RASMError> {
+    if let Some(err) = addt_chk(ins, addt) {
+        return Some(err);
+    }
+    if ops.is_empty() && !ins.oprs.is_empty() {
+        return Some(RASMError::no_tip(
+            Some(ins.line),
+            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
+        ));
+    }
+    for (idx, allowed) in ops.iter().enumerate() {
+        if let Some(op) = ins.oprs.get(idx) {
+            if let Some(err) = type_check(op, allowed.0, idx) {
+                return Some(err);
+            }
+        } else {
+            if allowed.1 == Optional::Needed {
+                return Some(RASMError::no_tip(
+                    Some(ins.line),
+                    Some(format!("Needed operand not found at index {}", idx)),
+                ));
+            } else {
+                break;
+            }
+        }
+    }
+    if ops.len() == 2 {
+        if let Some(err) = size_chk(ins) {
+            return Some(err);
+        }
+    }
+    if let Some(err) = avx_forb_chk(ins, forb) {
+        return Some(err);
+    }
+    None
+}
+
+fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<RASMError> {
+    let dst_t = if let Some(dst) = ins.dst() {
+        dst.atype()
+    } else {
+        return None;
+    };
+    let src_t = if let Some(src) = ins.src() {
+        src.atype()
+    } else {
+        return None;
+    };
+    let ssrc_t = if let Some(ssrc) = ins.src2() {
+        ssrc.atype()
+    } else {
+        return None;
+    };
+    for f in forb {
+        if (dst_t, src_t, ssrc_t) == *f {
+            return Some(RASMError::no_tip(
+                Some(ins.line),
+                Some(format!(
+                    "Destination, AVX Source and Source operand have forbidden combination: ({}, {})",
+                    f.0.to_string(),
+                    f.1.to_string()
+                )),
+            ));
+        }
+    }
+    None
 }
 
 fn ot_chk(

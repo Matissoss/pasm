@@ -15,6 +15,7 @@ pub fn avx_ins(
     modrm1: Option<u8>,
     pp: u8,
     map_select: u8,
+    vex_we: bool,
 ) -> Vec<u8> {
     let (modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
         (_, Some(Operand::Mem(_))) => (true, opc_rm),
@@ -30,5 +31,6 @@ pub fn avx_ins(
         modrm_reg_is_dst,
         pp,
         map_select,
+        vex_we,
     )
 }

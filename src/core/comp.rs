@@ -1306,7 +1306,18 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0xB8]), None),
 
         // AVX
-        Ins::VMOVAPS => (avx::avx_ins(ins, &[0x28], &[0x29], None, 0, 0x0F), None),
+        Ins::VMOVAPS => (
+            avx::avx_ins(ins, &[0x28], &[0x29], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVUPS => (
+            avx::avx_ins(ins, &[0x10], &[0x11], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VADDPS => (
+            avx::avx_ins(ins, &[0x58], &[0x58], None, 0, 0x0F, false),
+            None,
+        ),
         _ => (Vec::new(), None),
     }
 }
@@ -2050,6 +2061,7 @@ pub fn gen_ins_wpref(
     base
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn vex_gen_ins(
     ins: &Instruction,
     opc: &[u8],
@@ -2058,11 +2070,16 @@ pub fn vex_gen_ins(
     modrm_reg_is_dst: bool,
     pp: u8,
     map_select: u8,
+    vex_we: bool,
 ) -> Vec<u8> {
-    let mut base = vex::gen_vex(ins, pp, map_select, modrm_reg_is_dst).unwrap_or_default();
+    let mut base = vex::gen_vex(ins, pp, map_select, modrm_reg_is_dst, vex_we).unwrap_or_default();
     base.extend(opc);
     if modrm.0 {
-        base.push(modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst));
+        base.push(if ins.src2().is_some() {
+            vex::vex_modrm(ins, modrm.1, None, modrm_reg_is_dst)
+        } else {
+            modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst)
+        });
         if let Some(dst) = ins.dst() {
             if let Some(sib) = sib::gen_sib(dst) {
                 base.push(sib);
@@ -2070,6 +2087,11 @@ pub fn vex_gen_ins(
         }
         if let Some(src) = ins.src() {
             if let Some(sib) = sib::gen_sib(src) {
+                base.push(sib);
+            }
+        }
+        if let Some(ssrc) = ins.src2() {
+            if let Some(sib) = sib::gen_sib(ssrc) {
                 base.push(sib);
             }
         }
@@ -2081,6 +2103,11 @@ pub fn vex_gen_ins(
     }
     if let Some(src) = ins.src() {
         if let Some(disp) = disp::gen_disp(src) {
+            base.extend(disp);
+        }
+    }
+    if let Some(ssrc) = ins.src2() {
+        if let Some(disp) = disp::gen_disp(ssrc) {
             base.extend(disp);
         }
     }

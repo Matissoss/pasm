@@ -5,20 +5,25 @@
 
 use crate::shr::{
     ast::{IVariant, Instruction, Operand},
-    //reg::Register,
-    //mem::Mem
+    mem::Mem,
+    num::Number,
 };
 
 const TWO_BYTE_PFX: u8 = 0xC5;
-const _THREE_BYTE_PFX: u8 = 0xC4;
+const THREE_BYTE_PFX: u8 = 0xC4;
 
 pub fn gen_vex(
     ins: &Instruction,
     pp: u8,
-    _map_select: u8,
+    map_select: u8,
     modrm_reg_is_dst: bool,
+    vex_we: bool,
 ) -> Option<Vec<u8>> {
-    let ssrc = gen_vex4v(ins.src2());
+    let ssrc = if ins.src2().is_some() {
+        gen_vex4v(ins.src())
+    } else {
+        0b1111
+    };
     let pp = match pp {
         0x66 => 0b01,
         0xF3 => 0b10,
@@ -26,40 +31,61 @@ pub fn gen_vex(
         _ => 0b00,
     };
     let vlength = (ins.which_variant() == IVariant::YMM) as u8;
-    let (vexr, vex3) = if modrm_reg_is_dst {
-        (!needs_vex3(ins.dst()), needs_vex3(ins.src()))
-    } else {
-        (!needs_vex3(ins.src()), needs_vex3(ins.dst()))
+
+    let map_select = match map_select {
+        0x0F => 0b00001,
+        0xC8 => 0b00010,
+        0x3A => 0b00011,
+        _ => 0b00000,
     };
 
-    if vex3 {
-        todo!("VEX3 prefix needs to be done :)")
+    let nvex_dst = needs_vex3(ins.dst());
+    let nvex_src = needs_vex3(ins.src());
+
+    let (vexr, vexb) = if modrm_reg_is_dst {
+        (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_src)
+    } else {
+        (andn((nvex_src.0 || nvex_src.1) as u8, 1), nvex_dst)
+    };
+
+    if vexb.0 || vexb.1 {
+        Some(vec![
+            THREE_BYTE_PFX,
+            ((vexr) << 7
+                | andn(vexb.1 as u8, 0b0000_0001) << 6
+                | (andn(vexb.0 as u8, 0b0000_0001) << 5 | map_select)),
+            ((vex_we as u8) << 7 | ssrc << 3 | vlength << 2 | pp),
+        ])
     } else {
         Some(vec![
             TWO_BYTE_PFX,
-            (((vexr as u8) << 7) | ssrc << 3 | vlength << 2 | pp),
+            (((vexr) << 7) | ssrc << 3 | vlength << 2 | pp),
         ])
     }
 }
 
-fn needs_vex3(op: Option<&Operand>) -> bool {
+fn needs_vex3(op: Option<&Operand>) -> (bool, bool) {
     if let Some(op) = op {
         match op {
             Operand::Reg(r) => {
                 if r.needs_rex() {
-                    return true;
+                    return (true, false);
                 }
             }
             Operand::Mem(m) => {
                 let rr = m.needs_rex();
                 if rr.0 || rr.1 {
-                    return true;
+                    return rr;
                 }
             }
             _ => {}
         }
     }
-    false
+    (false, false)
+}
+
+const fn andn(num: u8, bits: u8) -> u8 {
+    !num & bits
 }
 
 // VEX.vvvv field
@@ -67,10 +93,112 @@ fn needs_vex3(op: Option<&Operand>) -> bool {
 fn gen_vex4v(op: Option<&Operand>) -> u8 {
     if let Some(o) = op {
         match o {
-            Operand::Reg(r) => (!(r.needs_rex() as u8) << 3) | !r.to_byte(),
+            Operand::Reg(r) => andn(((r.needs_rex() as u8) << 3) | r.to_byte(), 0b0000_1111),
             _ => 0b1111,
         }
     } else {
         0b1111
+    }
+}
+
+// copied from src/core/modrm.rs:gen_modrm
+pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
+    let mod_: u8 = {
+        match (ins.dst(), ins.src2()) {
+            (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::SIB(_, _, _, _))))
+            | (Some(&Operand::Mem(Mem::Direct(_, _))), _)
+            | (Some(&Operand::Mem(Mem::Index(_, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::Index(_, _, _))))
+            | (_, Some(&Operand::Mem(Mem::Direct(_, _)))) => 0b00,
+
+            (Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _))), _)
+            | (Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))))
+            | (_, Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _)))) => {
+                match Number::squeeze_i64(o as i64) {
+                    Number::Int8(_) => 0b01,
+                    _ => 0b10,
+                }
+            }
+            (Some(&Operand::Segment(s)), _) | (_, Some(&Operand::Segment(s))) => match s.address {
+                Mem::SIB(_, _, _, _) | Mem::Index(_, _, _) | Mem::Direct(_, _) => 0b00,
+                Mem::SIBOffset(_, _, _, o, _)
+                | Mem::Offset(_, o, _)
+                | Mem::IndexOffset(_, o, _, _) => match Number::squeeze_i64(o as i64) {
+                    Number::Int8(_) => 0b01,
+                    _ => 0b10,
+                },
+            },
+            _ => 0b11,
+        }
+    };
+
+    let mut modrm_reg_is_dst = modrm_reg_is_dst;
+
+    let reg = if let Some(reg) = reg {
+        reg
+    } else {
+        if modrm_reg_is_dst {
+            gen_rmreg(ins.dst())
+        } else {
+            if let Some(Operand::Mem(_) | Operand::Segment(_)) = ins.src2() {
+                modrm_reg_is_dst = true;
+                gen_rmreg(ins.dst())
+            } else {
+                gen_rmreg(ins.src2())
+            }
+        }
+    };
+    let rm = {
+        if ins.uses_sib() {
+            0b100
+        } else {
+            if let Some(rm) = rm {
+                rm
+            } else {
+                if modrm_reg_is_dst {
+                    gen_rmreg(ins.src2())
+                } else {
+                    gen_rmreg(ins.dst())
+                }
+            }
+        }
+    };
+
+    (mod_ << 6) + (reg << 3) + rm
+}
+
+fn gen_rmreg(op: Option<&Operand>) -> u8 {
+    if op.is_none() {
+        return 0;
+    };
+    match op.unwrap() {
+        Operand::DbgReg(r)
+        | Operand::CtrReg(r)
+        | Operand::Reg(r)
+        | Operand::Mem(Mem::Direct(r, _) | Mem::Offset(r, _, _)) => r.to_byte(),
+        Operand::SegReg(r) => r.to_byte(),
+        Operand::Segment(s) => match s.address {
+            Mem::Direct(r, _) => r.to_byte(),
+            Mem::IndexOffset(_, _, _, _)
+            | Mem::Index(_, _, _)
+            | Mem::SIB(_, _, _, _)
+            | Mem::SIBOffset(_, _, _, _, _) => 0b100,
+            _ => 0,
+        },
+        _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::shr::reg::Register;
+    #[test]
+    fn vex_asserts() {
+        let reg = gen_vex4v(Some(&Operand::Reg(Register::XMM9)));
+        println!("{:08b}", reg);
+        assert!(gen_vex4v(Some(&Operand::Reg(Register::XMM9))) == 0b0110);
     }
 }

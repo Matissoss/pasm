@@ -8,3 +8,5 @@ _start:
 	vmovaps %ymm0, %ymm1
 	vmovaps !yword (%rax), %ymm1
 	vmovaps %ymm0, !yword (%rax)
+
+	vmovaps %xmm8, %xmm9
