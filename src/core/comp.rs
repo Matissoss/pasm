@@ -114,6 +114,7 @@ pub fn compile_label(lbl: &'_ Vec<Instruction>, bits: u8) -> (Vec<u8>, Vec<Reloc
 
 pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<Relocation<'_>>) {
     match ins.mnem {
+        Ins::CPUID => (vec![0x0F, 0xA2], None),
         Ins::RET => (vec![0xC3], None),
         Ins::SYSCALL => (vec![0x0F, 0x05], None),
         Ins::PUSH => (ins_push(ins, bits), None),
@@ -206,6 +207,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::JNC => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
         Ins::JNG => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
         Ins::JNL => ins_jmplike(ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
+        Ins::JNO => ins_jmplike(ins, [vec![0x0F, 0x81], vec![]], 0, bits),
         Ins::JNP => ins_jmplike(ins, [vec![0x0F, 0x8B], vec![]], 0, bits),
         Ins::JNS => ins_jmplike(ins, [vec![0x0F, 0x89], vec![]], 0, bits),
         Ins::JPE => ins_jmplike(ins, [vec![0x0F, 0x8A], vec![]], 0, bits),
@@ -392,6 +394,17 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ),
             None,
         ),
+        Ins::MOVQ2DQ => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0xD6],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
 
         Ins::MOVMSKPD => (sse2::gen_movmskpd(ins, bits, &[0x0F, 0x50]), None),
 
@@ -436,6 +449,32 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 bits,
                 false,
             ),
+            None,
+        ),
+        Ins::CVTSS2SD => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0x5A],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::CVTPD2PS => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x5A],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::CVTPS2PD => (
+            gen_ins(ins, &[0x0F, 0x5A], (true, None, None), None, bits, false),
             None,
         ),
         Ins::CVTPI2PD => (
@@ -543,6 +582,47 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             }
         }
 
+        Ins::PADDUSB => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xDC], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xDC],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PADDUSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xDD], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xDD],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+
         Ins::PADDSB => {
             if ins.which_variant() == IVariant::MMX {
                 (mmx::ins_paddsx(ins, bits, true), None)
@@ -555,6 +635,46 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 (mmx::ins_paddsx(ins, bits, false), None)
             } else {
                 (sse2::ins_paddsx(ins, bits, false), None)
+            }
+        }
+        Ins::PSUBUSB => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xD8], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xD8],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PSUBUSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xD9], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xD9],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
             }
         }
 
@@ -579,6 +699,37 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 (sse2::ins_psubx(ins, bits, 3), None)
             }
         }
+        Ins::PSUBQ => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xFB], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xFB],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::MASKMOVDQU => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0xF7],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
 
         Ins::PSUBSB => {
             if ins.which_variant() == IVariant::MMX {
@@ -1306,6 +1457,14 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0xB8]), None),
 
         // AVX
+        Ins::VMOVDQA => (
+            avx::avx_ins(ins, &[0x6F], &[0x7F], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVMSKPD => (
+            avx::avx_ins(ins, &[0x50], &[0x50], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMOVAPS => (
             avx::avx_ins(ins, &[0x28], &[0x29], None, 0, 0x0F, false),
             None,
@@ -1558,7 +1717,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x12], &[0x12], None, 0, 0x0F, false),
             None,
         ),
-        _ => (Vec::new(), None),
+        //_ => (Vec::new(), None),
     }
 }
 

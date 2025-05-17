@@ -108,7 +108,7 @@ pub enum Mnemonic {
     CVTTPS2DQ, CVTDQ2PS,
 
     CVTPS2PD, CVTPD2PS,
-    CVTSS2SD, CVTPS2SS,
+    CVTSS2SD,
 
     PSUBQ  , PSHUFD    , PSLLDQ,
     PSRLDQ , PMULUDQ   , PSHUFLW,
@@ -148,7 +148,7 @@ pub enum Mnemonic {
     PACKUSWB, PACKSSWB, PACKSSDW,
     PUNPCKLBW, PUNPCKLWD, PUNPCKLDQ,
     PUNPCKHBW, PUNPCKHWD, PUNPCKHDQ,
-    POR, PAND, PANND, PXOR,
+    POR, PAND, PXOR,
     PSLLW, PSLLD, PSLLQ,
     PSRLW, PSRLD, PSRLQ,
     PSRAW, PSRAD,
@@ -221,8 +221,7 @@ pub enum Mnemonic {
     VMOVHPD , VMOVLPD,
     VMOVSD  , VMOVMSKPD,
 
-    VMOVDQA , VMOVQ2DQ,
-    VMOVDQ2Q,
+    VMOVDQA,
 }
 
 impl FromStr for Mnemonic {
@@ -835,10 +834,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     'n' => match rstr[3] {
                         'd' => match rstr[4] {
                             'n' => s(Ins::PANDN),
-                            _ => n(),
-                        },
-                        'n' => match rstr[4] {
-                            'd' => s(Ins::PANND),
                             _ => n(),
                         },
                         _ => n(),
@@ -2437,26 +2432,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'm' => match rstr[2] {
                     'o' => match rstr[3] {
                         'v' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'q' => match rstr[6] {
-                                    '2' => match rstr[7] {
-                                        'q' => s(Ins::VMOVDQ2Q),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            'q' => match rstr[5] {
-                                '2' => match rstr[6] {
-                                    'd' => match rstr[7] {
-                                        'q' => s(Ins::VMOVQ2DQ),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
                             'h' => match rstr[5] {
                                 'l' => match rstr[6] {
                                     'p' => match rstr[7] {

@@ -508,6 +508,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::JLE
         | Mnm::JG
         | Mnm::JGE => ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[]),
+        Mnm::CPUID => ot_chk(ins, &[], &[], &[]),
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####
@@ -734,8 +735,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::CVTDQ2PS
         | Mnm::CVTPS2PD
         | Mnm::CVTPD2PS
-        | Mnm::CVTSS2SD
-        | Mnm::CVTPS2SS => ot_chk(
+        | Mnm::CVTSS2SD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
@@ -849,10 +849,14 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::PADDQ
         | Mnm::PADDSB
         | Mnm::PADDSW
+        | Mnm::PADDUSB
+        | Mnm::PADDUSW
         | Mnm::PSUBB
         | Mnm::PSUBW
         | Mnm::PSUBSB
         | Mnm::PSUBSW
+        | Mnm::PSUBUSB
+        | Mnm::PSUBUSW
         | Mnm::PMULHW
         | Mnm::PMULLW
         | Mnm::PMADDWD
@@ -1157,13 +1161,22 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         // #####   # #    # #
         // #   #    #    #   #
         // AVX
-        Mnm::VMOVAPS | Mnm::VMOVAPD | Mnm::VMOVUPS | Mnm::VMOVUPD => ot_chk(
+        Mnm::VMOVAPS | Mnm::VMOVAPD | Mnm::VMOVUPS | Mnm::VMOVUPD | Mnm::VMOVDQA => ot_chk(
             ins,
             &[
                 (&[XMM, YMM, M128, M256], Optional::Needed),
                 (&[XMM, YMM, M128, M256], Optional::Needed),
             ],
             &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128), (MA, MA)],
+            &[],
+        ),
+        Mnm::VMOVMSKPD => avx_ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+            ],
+            &[],
             &[],
         ),
         Mnm::VMOVSD => avx_ot_chk(
