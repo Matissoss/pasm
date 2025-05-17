@@ -1523,6 +1523,19 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
+                'x' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'r' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                's' => s(Ins::VXORPS),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'r' => match rstr[2] {
                     'c' => match rstr[3] {
                         'p' => match rstr[4] {

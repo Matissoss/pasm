@@ -1163,6 +1163,35 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
                 (&[XMM, YMM, M128, M256], Optional::Needed),
                 (&[XMM, YMM, M128, M256], Optional::Needed),
             ],
+            &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128), (MA, MA)],
+            &[],
+        ),
+        Mnm::VMOVSS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, M32], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+                (&[XMM], Optional::Optional),
+            ],
+            &[(MA, MA, XMM), (XMM, MA, XMM), (MA, XMM, XMM)],
+            &[],
+        ),
+        Mnm::VMOVLPS | Mnm::VMOVHPS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, M64], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[M64], Optional::Optional),
+            ],
+            &[(MA, XMM, MA)],
+            &[],
+        ),
+        Mnm::VRCPPS | Mnm::VSQRTPS | Mnm::VRSQRTPS => ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
             &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128)],
             &[],
         ),
@@ -1188,20 +1217,64 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::VSUBPS
         | Mnm::VDIVPS
         | Mnm::VMULPS
-        | Mnm::VSQRTPS
-        | Mnm::VRSQRTPS
         | Mnm::VMINPS
         | Mnm::VMAXPS
         | Mnm::VORPS
         | Mnm::VANDNPS
         | Mnm::VANDPS
-        | Mnm::VXORPS
-        | Mnm::VCMPPS => avx_ot_chk(
+        | Mnm::VUNPCKLPS
+        | Mnm::VUNPCKHPS
+        | Mnm::VXORPS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
                 (&[XMM, YMM], Optional::Needed),
                 (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[
+                (XMM, YMM, M128),
+                (XMM, YMM, M256),
+                (YMM, XMM, M128),
+                (YMM, XMM, M256),
+                (YMM, YMM, M128),
+                (XMM, XMM, M256),
+            ],
+            &[],
+        ),
+        Mnm::VCOMISS | Mnm::VUCOMISS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::VMOVHLPS | Mnm::VMOVLHPS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCMPSS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCMPPS | Mnm::VSHUFPS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[I8], Optional::Needed),
             ],
             &[
                 (XMM, YMM, M128),

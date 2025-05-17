@@ -41,11 +41,20 @@ pub fn gen_vex(
 
     let nvex_dst = needs_vex3(ins.dst());
     let nvex_src = needs_vex3(ins.src());
+    let nvex_ssrc = needs_vex3(ins.src2());
 
-    let (vexr, vexb) = if modrm_reg_is_dst {
-        (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_src)
+    let (vexr, vexb) = if ins.src2().is_some() {
+        if modrm_reg_is_dst {
+            (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_ssrc)
+        } else {
+            (andn((nvex_ssrc.0 || nvex_ssrc.1) as u8, 1), nvex_dst)
+        }
     } else {
-        (andn((nvex_src.0 || nvex_src.1) as u8, 1), nvex_dst)
+        if modrm_reg_is_dst {
+            (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_src)
+        } else {
+            (andn((nvex_src.0 || nvex_src.1) as u8, 1), nvex_dst)
+        }
     };
 
     if vexb.0 || vexb.1 {
@@ -93,7 +102,7 @@ const fn andn(num: u8, bits: u8) -> u8 {
 fn gen_vex4v(op: Option<&Operand>) -> u8 {
     if let Some(o) = op {
         match o {
-            Operand::Reg(r) => andn(((r.needs_rex() as u8) << 3) | r.to_byte(), 0b0000_1111),
+            Operand::Reg(r) => andn((r.needs_rex() as u8) << 3 | r.to_byte(), 0b0000_1111),
             _ => 0b1111,
         }
     } else {
@@ -200,5 +209,8 @@ mod test {
         let reg = gen_vex4v(Some(&Operand::Reg(Register::XMM9)));
         println!("{:08b}", reg);
         assert!(gen_vex4v(Some(&Operand::Reg(Register::XMM9))) == 0b0110);
+        let reg = gen_vex4v(Some(&Operand::Reg(Register::XMM0)));
+        println!("{:08b}", reg);
+        assert!(gen_vex4v(Some(&Operand::Reg(Register::XMM0))) == 0b1111);
     }
 }
