@@ -589,6 +589,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     'r' => match rstr[3] {
                         'p' => match rstr[4] {
                             's' => s(Ins::VORPS),
+                            'd' => s(Ins::VORPD),
                             _ => n(),
                         },
                         _ => n(),
@@ -1395,6 +1396,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'd' => match rstr[4] {
                             'p' => match rstr[5] {
                                 's' => s(Ins::VANDPS),
+                                'd' => s(Ins::VANDPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1405,10 +1407,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'd' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VADDSS),
+                                'd' => s(Ins::VADDSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VADDPS),
+                                'd' => s(Ins::VADDPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1422,10 +1426,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'p' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VCMPSS),
+                                'd' => s(Ins::VCMPSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VCMPPS),
+                                'd' => s(Ins::VCMPPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1439,10 +1445,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'b' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VSUBSS),
+                                'd' => s(Ins::VSUBSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VSUBPS),
+                                'd' => s(Ins::VSUBPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1456,6 +1464,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'v' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VMOVSS),
+                                'd' => s(Ins::VMOVSD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1466,10 +1475,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'x' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VMAXSS),
+                                'd' => s(Ins::VMAXSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VMAXPS),
+                                'd' => s(Ins::VMAXPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1480,10 +1491,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'n' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VMINSS),
+                                'd' => s(Ins::VMINSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VMINPS),
+                                'd' => s(Ins::VMINPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1494,10 +1507,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'l' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VMULSS),
+                                'd' => s(Ins::VMULSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VMULPS),
+                                'd' => s(Ins::VMULPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1511,10 +1526,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'v' => match rstr[4] {
                             's' => match rstr[5] {
                                 's' => s(Ins::VDIVSS),
+                                'd' => s(Ins::VDIVSD),
                                 _ => n(),
                             },
                             'p' => match rstr[5] {
                                 's' => s(Ins::VDIVPS),
+                                'd' => s(Ins::VDIVPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1528,6 +1545,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         'r' => match rstr[4] {
                             'p' => match rstr[5] {
                                 's' => s(Ins::VXORPS),
+                                'd' => s(Ins::VXORPD),
                                 _ => n(),
                             },
                             _ => n(),
@@ -1971,6 +1989,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             'i' => match rstr[5] {
                                 's' => match rstr[6] {
                                     's' => s(Ins::VCOMISS),
+                                    'd' => s(Ins::VCOMISD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2000,10 +2019,12 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             't' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VSQRTPS),
+                                    'd' => s(Ins::VSQRTPD),
                                     _ => n(),
                                 },
                                 's' => match rstr[6] {
                                     's' => s(Ins::VSQRTSS),
+                                    'd' => s(Ins::VSQRTSD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2020,6 +2041,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             'n' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VANDNPS),
+                                    'd' => s(Ins::VANDNPD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2033,9 +2055,17 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'm' => match rstr[2] {
                     'o' => match rstr[3] {
                         'v' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'q' => match rstr[6] {
+                                    'a' => s(Ins::VMOVDQA),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
                             'h' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VMOVHPS),
+                                    'd' => s(Ins::VMOVHPD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2043,6 +2073,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             'l' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VMOVLPS),
+                                    'd' => s(Ins::VMOVLPD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2050,6 +2081,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             'u' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VMOVUPS),
+                                    'd' => s(Ins::VMOVUPD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2057,6 +2089,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             'a' => match rstr[5] {
                                 'p' => match rstr[6] {
                                     's' => s(Ins::VMOVAPS),
+                                    'd' => s(Ins::VMOVAPD),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2404,6 +2437,26 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'm' => match rstr[2] {
                     'o' => match rstr[3] {
                         'v' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'q' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'q' => s(Ins::VMOVDQ2Q),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'q' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'd' => match rstr[7] {
+                                        'q' => s(Ins::VMOVQ2DQ),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
                             'h' => match rstr[5] {
                                 'l' => match rstr[6] {
                                     'p' => match rstr[7] {
@@ -2424,6 +2477,19 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                                 },
                                 _ => n(),
                             },
+                            'm' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'k' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'd' => s(Ins::VMOVMSKPD),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
                             _ => n(),
                         },
                         _ => n(),
@@ -2437,6 +2503,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                                 'i' => match rstr[6] {
                                     's' => match rstr[7] {
                                         's' => s(Ins::VUCOMISS),
+                                        'd' => s(Ins::VUCOMISD),
                                         _ => n(),
                                     },
                                     _ => n(),

@@ -1310,40 +1310,80 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x28], &[0x29], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VMOVAPD => (
+            avx::avx_ins(ins, &[0x28], &[0x29], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMOVUPS => (
             avx::avx_ins(ins, &[0x10], &[0x11], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVUPD => (
+            avx::avx_ins(ins, &[0x10], &[0x11], None, 0x66, 0x0F, false),
             None,
         ),
         Ins::VADDPS => (
             avx::avx_ins(ins, &[0x58], &[0x58], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VADDPD => (
+            avx::avx_ins(ins, &[0x58], &[0x58], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VADDSS => (
             avx::avx_ins(ins, &[0x58], &[0x58], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VADDSD => (
+            avx::avx_ins(ins, &[0x58], &[0x58], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VSUBPS => (
             avx::avx_ins(ins, &[0x5C], &[0x5C], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VSUBPD => (
+            avx::avx_ins(ins, &[0x5C], &[0x5C], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VSUBSS => (
             avx::avx_ins(ins, &[0x5C], &[0x5C], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VSUBSD => (
+            avx::avx_ins(ins, &[0x5C], &[0x5C], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VMULPS => (
             avx::avx_ins(ins, &[0x59], &[0x59], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VMULPD => (
+            avx::avx_ins(ins, &[0x59], &[0x59], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMULSS => (
             avx::avx_ins(ins, &[0x59], &[0x59], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VMULSD => (
+            avx::avx_ins(ins, &[0x59], &[0x59], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VDIVPS => (
             avx::avx_ins(ins, &[0x5E], &[0x5E], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VDIVPD => (
+            avx::avx_ins(ins, &[0x5E], &[0x5E], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VDIVSS => (
             avx::avx_ins(ins, &[0x5E], &[0x5E], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VDIVSD => (
+            avx::avx_ins(ins, &[0x5E], &[0x5E], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VRCPPS => (
@@ -1358,8 +1398,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x51], &[0x51], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VSQRTPD => (
+            avx::avx_ins(ins, &[0x51], &[0x51], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VSQRTSS => (
             avx::avx_ins(ins, &[0x51], &[0x51], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VSQRTSD => (
+            avx::avx_ins(ins, &[0x51], &[0x51], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VRSQRTPS => (
@@ -1374,15 +1422,31 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x5D], &[0x5D], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VMINPD => (
+            avx::avx_ins(ins, &[0x5D], &[0x5D], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMINSS => (
             avx::avx_ins(ins, &[0x5D], &[0x5D], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VMINSD => (
+            avx::avx_ins(ins, &[0x5D], &[0x5D], None, 0xF2, 0x0F, false),
             None,
         ),
         Ins::VMAXPS => (
             avx::avx_ins(ins, &[0x5F], &[0x5F], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VMAXPD => (
+            avx::avx_ins(ins, &[0x5F], &[0x5F], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMAXSS => (
+            avx::avx_ins(ins, &[0x5F], &[0x5F], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VMAXSD => (
             avx::avx_ins(ins, &[0x5F], &[0x5F], None, 0xF3, 0x0F, false),
             None,
         ),
@@ -1390,8 +1454,28 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x56], &[0x56], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VORPD => (
+            avx::avx_ins(ins, &[0x56], &[0x56], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VANDPS => (
             avx::avx_ins(ins, &[0x54], &[0x54], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VANDPD => (
+            avx::avx_ins(ins, &[0x54], &[0x54], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VANDNPD => (
+            avx::avx_ins(ins, &[0x55], &[0x55], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VXORPD => (
+            avx::avx_ins(ins, &[0x57], &[0x57], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VCMPPD => (
+            avx::avx_ins_wimm3(ins, &[0xC2], &[0xC2], None, 0x66, 0x0F, false),
             None,
         ),
         Ins::VANDNPS => (
@@ -1410,12 +1494,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins_wimm3(ins, &[0xC2], &[0xC2], None, 0xF3, 0x0F, false),
             None,
         ),
+        Ins::VCMPSD => (
+            avx::avx_ins_wimm3(ins, &[0xC2], &[0xC2], None, 0xF2, 0x0F, false),
+            None,
+        ),
         Ins::VUCOMISS => (
             avx::avx_ins(ins, &[0x2E], &[0x2E], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VUCOMISD => (
+            avx::avx_ins(ins, &[0x2E], &[0x2E], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VCOMISS => (
             avx::avx_ins(ins, &[0x2F], &[0x2F], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VCOMISD => (
+            avx::avx_ins(ins, &[0x2F], &[0x2F], None, 0x66, 0x0F, false),
             None,
         ),
         Ins::VUNPCKLPS => (
@@ -1434,12 +1530,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x10], &[0x11], None, 0xF3, 0x0F, false),
             None,
         ),
+        Ins::VMOVSD => (
+            avx::avx_ins(ins, &[0x10], &[0x11], None, 0xF2, 0x0F, false),
+            None,
+        ),
         Ins::VMOVLPS => (
             avx::avx_ins(ins, &[0x12], &[0x13], None, 0, 0x0F, false),
             None,
         ),
+        Ins::VMOVLPD => (
+            avx::avx_ins(ins, &[0x12], &[0x13], None, 0x66, 0x0F, false),
+            None,
+        ),
         Ins::VMOVHPS => (
             avx::avx_ins(ins, &[0x16], &[0x17], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVHPD => (
+            avx::avx_ins(ins, &[0x16], &[0x17], None, 0x66, 0x0F, false),
             None,
         ),
         Ins::VMOVLHPS => (
