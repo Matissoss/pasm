@@ -3,6 +3,11 @@
 //  made by matissoss
 //  licensed under MPL 2.0
 
+// LINE_WIDTH is used in src/main.rs:print_supported_instructions
+// --------------------------------------------------------------
+// default = 25
+pub const LINE_WIDTH: usize = 25;
+
 // TIME defines if assembler will measure how long did it take to assemble a file.
 // -------------------------------------
 // default = true

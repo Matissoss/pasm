@@ -114,6 +114,7 @@ pub fn compile_label(lbl: &'_ Vec<Instruction>, bits: u8) -> (Vec<u8>, Vec<Reloc
 
 pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<Relocation<'_>>) {
     match ins.mnem {
+        Ins::__LAST => (vec![], None),
         Ins::CPUID => (vec![0x0F, 0xA2], None),
         Ins::RET => (vec![0xC3], None),
         Ins::SYSCALL => (vec![0x0F, 0x05], None),
@@ -1461,6 +1462,22 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x6F], &[0x7F], None, 0x66, 0x0F, false),
             None,
         ),
+        Ins::VMOVSLDUP => (
+            avx::avx_ins(ins, &[0x12], &[0x12], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VLDDQU => (
+            avx::avx_ins(ins, &[0xF0], &[0xF0], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVDDUP => (
+            avx::avx_ins(ins, &[0x12], &[0x12], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVSHDUP => (
+            avx::avx_ins(ins, &[0x16], &[0x16], None, 0xF3, 0x0F, false),
+            None,
+        ),
         Ins::VMOVMSKPD => (
             avx::avx_ins(ins, &[0x50], &[0x50], None, 0x66, 0x0F, false),
             None,
@@ -1483,6 +1500,30 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         Ins::VADDPS => (
             avx::avx_ins(ins, &[0x58], &[0x58], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VADDSUBPS => (
+            avx::avx_ins(ins, &[0xD0], &[0xD0], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VADDSUBPD => (
+            avx::avx_ins(ins, &[0xD0], &[0xD0], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VHADDPS => (
+            avx::avx_ins(ins, &[0x7C], &[0x7C], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VHADDPD => (
+            avx::avx_ins(ins, &[0x7C], &[0x7C], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VHSUBPS => (
+            avx::avx_ins(ins, &[0x7D], &[0x7D], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VHSUBPD => (
+            avx::avx_ins(ins, &[0x7D], &[0x7D], None, 0x66, 0x0F, false),
             None,
         ),
         Ins::VADDPD => (
@@ -1577,6 +1618,46 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x52], &[0x52], None, 0xF3, 0x0F, false),
             None,
         ),
+        Ins::VPMULDQ => (
+            avx::avx_ins(ins, &[0x28], &[0x28], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMULLD => (
+            avx::avx_ins(ins, &[0x40], &[0x40], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMINSB => (
+            avx::avx_ins(ins, &[0x38], &[0x38], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMINSD => (
+            avx::avx_ins(ins, &[0x39], &[0x39], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMINUB => (
+            avx::avx_ins(ins, &[0xDA], &[0xDA], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMINUW => (
+            avx::avx_ins(ins, &[0x3A], &[0x3A], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMAXSB => (
+            avx::avx_ins(ins, &[0x3C], &[0x3C], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMAXSD => (
+            avx::avx_ins(ins, &[0x3D], &[0x3D], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMAXUB => (
+            avx::avx_ins(ins, &[0xDE], &[0xDE], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMAXUW => (
+            avx::avx_ins(ins, &[0x3E], &[0x3E], None, 0x66, 0x38, false),
+            None,
+        ),
         Ins::VMINPS => (
             avx::avx_ins(ins, &[0x5D], &[0x5D], None, 0, 0x0F, false),
             None,
@@ -1633,6 +1714,94 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x57], &[0x57], None, 0x66, 0x0F, false),
             None,
         ),
+        Ins::VBLENDVPS => (
+            avx::avx_ins_rvmr(ins, &[0x4A], &[0x4A], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPBLENDVB => (
+            avx::avx_ins_rvmr(ins, &[0x4C], &[0x4C], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VBLENDVPD => (
+            avx::avx_ins_rvmr(ins, &[0x4B], &[0x4B], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPHMINPOSUW => (
+            avx::avx_ins(ins, &[0x41], &[0x41], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VEXTRACTPS => (
+            avx::avx_ins_wimm2(ins, &[0x17], &[0x17], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VMOVNTDQA => (
+            avx::avx_ins(ins, &[0x2A], &[0x2A], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPACKUSDW => (
+            avx::avx_ins(ins, &[0x2B], &[0x2B], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPCMPESTRM => (
+            avx::avx_ins_wimm2(ins, &[0x60], &[0x60], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPCMPESTRI => (
+            avx::avx_ins_wimm2(ins, &[0x61], &[0x61], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPCMPISTRM => (
+            avx::avx_ins_wimm2(ins, &[0x62], &[0x62], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPCMPISTRI => (
+            avx::avx_ins_wimm2(ins, &[0x63], &[0x63], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VINSERTPS => (
+            avx::avx_ins_wimm3(ins, &[0x21], &[0x21], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VBLENDPS => (
+            avx::avx_ins_wimm3(ins, &[0x0C], &[0x0C], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VBLENDPD => (
+            avx::avx_ins_wimm3(ins, &[0x0D], &[0x0D], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPCMPGTQ => (
+            avx::avx_ins(ins, &[0x37], &[0x37], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPCMPEQQ => (
+            avx::avx_ins(ins, &[0x29], &[0x29], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VMPSADBW => (
+            avx::avx_ins_wimm3(ins, &[0x42], &[0x42], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VROUNDSS => (
+            avx::avx_ins_wimm3(ins, &[0x0A], &[0x0A], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VROUNDSD => (
+            avx::avx_ins_wimm3(ins, &[0x0B], &[0x0B], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VROUNDPS => (
+            avx::avx_ins_wimm2(ins, &[0x08], &[0x08], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VROUNDPD => (
+            avx::avx_ins_wimm2(ins, &[0x09], &[0x09], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPBLENDW => (
+            avx::avx_ins_wimm3(ins, &[0x0E], &[0x0E], None, 0x66, 0x3A, false),
+            None,
+        ),
         Ins::VCMPPD => (
             avx::avx_ins_wimm3(ins, &[0xC2], &[0xC2], None, 0x66, 0x0F, false),
             None,
@@ -1643,6 +1812,18 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         Ins::VXORPS => (
             avx::avx_ins(ins, &[0x57], &[0x57], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VPTEST => (
+            avx::avx_ins(ins, &[0x17], &[0x17], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VDPPS => (
+            avx::avx_ins_wimm3(ins, &[0x40], &[0x40], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VDPPD => (
+            avx::avx_ins_wimm3(ins, &[0x41], &[0x41], None, 0x66, 0x3A, false),
             None,
         ),
         Ins::VCMPPS => (
@@ -1717,7 +1898,35 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x12], &[0x12], None, 0, 0x0F, false),
             None,
         ),
-        //_ => (Vec::new(), None),
+        Ins::VPEXTRB => (
+            avx::avx_ins_wimm2(ins, &[0x14], &[0x14], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPEXTRW => (
+            avx::avx_ins_wimm2(ins, &[0xC5], &[0xC5], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPEXTRD => (
+            avx::avx_ins_wimm2(ins, &[0x16], &[0x16], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPEXTRQ => (
+            avx::avx_ins_wimm2(ins, &[0x16], &[0x16], None, 0x66, 0x3A, true),
+            None,
+        ),
+        Ins::VPINSRB => (
+            avx::avx_ins_wimm3(ins, &[0x20], &[0x20], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPINSRD => (
+            avx::avx_ins_wimm3(ins, &[0x22], &[0x22], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPINSRQ => (
+            avx::avx_ins_wimm3(ins, &[0x22], &[0x22], None, 0x66, 0x3A, true),
+            None,
+        ),
+        //_ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }
 

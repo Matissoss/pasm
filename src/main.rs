@@ -57,6 +57,18 @@ fn main() {
         Help::main_help();
         process::exit(0)
     }
+    if cli.has_arg("supported-instructions") {
+        print_supported_instructions();
+        return;
+    }
+    if cli.has_arg("supported-extensions") {
+        print_supported_extensions();
+        return;
+    }
+    if cli.has_arg("supported-instructions-raw") {
+        print_supported_instructions_raw();
+        return;
+    }
 
     let infile: PathBuf = if let Some(path) = cli.get_kv_arg("-i") {
         PathBuf::from(path)
@@ -285,4 +297,49 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
         eprintln!("Couldn't save output to file: {}", why);
         process::exit(1);
     }
+}
+
+use crate::shr::ins::Mnemonic;
+fn print_supported_instructions() {
+    let ins_count = Mnemonic::__LAST as u16;
+    println!("RASM supports {} x86-64 instructions!", ins_count - 1);
+    println!("Here's a list of all of them:");
+    for idx in (2..ins_count).step_by(3) {
+        let ins2 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx - 2)) };
+        let ins1 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx - 1)) };
+        let ins0 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx)) };
+        println!(
+            "{ins2}{}{ins1}{}{ins0}",
+            " ".repeat(conf::LINE_WIDTH - ins2.len()),
+            " ".repeat(conf::LINE_WIDTH - ins1.len()),
+        )
+    }
+    let mut mod_ = ins_count % 3;
+    while mod_ != 0 {
+        let ins0 = unsafe {
+            format!(
+                "{:?}",
+                std::mem::transmute::<u16, Mnemonic>(ins_count - mod_)
+            )
+        };
+        if mod_ - 1 == 0 {
+            print!("{ins0}")
+        } else {
+            print!("{ins0}{}", " ".repeat(conf::LINE_WIDTH - ins0.len()));
+        }
+        mod_ -= 1;
+    }
+}
+fn print_supported_instructions_raw() {
+    for idx in 0..Mnemonic::__LAST as u16 {
+        if idx + 1 == Mnemonic::__LAST as u16 {
+            print!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) });
+        } else {
+            println!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) });
+        }
+    }
+}
+// these extension names are from /proc/cpuinfo flags section :)
+fn print_supported_extensions() {
+    print!("avx\navx2\nsse\nsse2\nsse3\nssse3\nsse4_1\nsse4_2\ncmov\npopcnt\nmmx\nsyscall\ncpuid\nmonitor\nclflush")
 }

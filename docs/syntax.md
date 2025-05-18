@@ -22,7 +22,7 @@ All instructions follow following order:
 mnemonic [additional mnemonic] operand_1, operand_2, operand_3, [...]
 ```
 
-Operand order is **same as in Intel-like Syntax** (destination, then source).
+Operand order is **same as in Intel-like Syntax** (destination, then source, then second source (used in `AVX`), etc.).
 
 ## Operand format
 
@@ -59,7 +59,7 @@ $-3.14
 Memory is same as in Intel-like syntax, but is started with `(` and ended with `)` (not `[`, `]`).
 Values there also must be prefixed (immediates can be non-prefixed there).
 
-A size specifier must be either after or before memory address.
+A size specifier must be either after or before memory address (both variants are supported, because why not?).
 
 RASM assembler supports: SIB, SIB with offset, Base, Index-only memory formats.
 
@@ -72,11 +72,11 @@ RASM assembler supports: SIB, SIB with offset, Base, Index-only memory formats.
 (%rcx * 4) !qword
 ```
 
-Memory can also relate to segments like `cs`. 
-Then it must be prefixed with `#` and split using `:`
+Memory can also relate to segments like `cs`. It must be prefixed with `#` and split using `:`
 
 ```
 #cs:(%rax)
+#fs:(%rax + %rcx * 4 + 20)
 ```
 
 ### Symbols
@@ -97,7 +97,8 @@ Size specifiers are prefixed with `!` (like other keywords)
 |       word          |         word        |        16      |
 |      dword          |        dword        |        32      |
 |      qword          |        qword        |        64      |
-|      oword          |        xword        |        128     |
+|      oword          |        xword        |       128      |
+|      yword          |        yword        |       256      |
 
 ### Keywords
 
@@ -131,7 +132,7 @@ and content (either string or number).
 ```
 
 > [!WARNING]
-> Constant/Readonly value in `bin` format cannot be strings as it is "inline"
+> Constant/Readonly value in `bin` format cannot be strings as it is "inline" - use manual `push`'es
 
 #### Uninitialized (.bss)
 
@@ -139,8 +140,8 @@ Uninitialized variable must have a name and size specifer (can be a number).
 
 ```
 !uninit name $13
-!uninit namealt !word
+!uninit eman !word
 ```
 
 > [!WARNING]
-> Uninitialized values cannot be used in `bin` format
+> Uninitialized values cannot be used in `bin` format - use manual `push`'es

@@ -222,6 +222,40 @@ pub enum Mnemonic {
     VMOVSD  , VMOVMSKPD,
 
     VMOVDQA,
+    
+    // derived from SSE3 extension
+    VADDSUBPS, VADDSUBPD,
+
+    VHADDPS, VHSUBPS,
+    VHADDPD, VHSUBPD,
+    VMOVSLDUP, VMOVSHDUP,
+    VMOVDDUP, VLDDQU,
+    
+    // derived from SSE4_1 and SSE4_2
+    VDPPS, VDPPD,
+    
+    VPTEST,
+    
+    VPEXTRB, VPEXTRW, VPEXTRD, VPEXTRQ,
+    VPINSRB, VPINSRD, VPINSRQ, VPMAXSB,
+    VPMAXSD, VPMAXUW, VPMINSB, VPMINSD,
+    VPMINUW, VPMULDQ, VPMULLD, VPMAXUB,
+    VPMINUB,
+    
+    VBLENDPS, VBLENDPD, VPBLENDW, VPCMPEQQ,
+    VROUNDPD, VROUNDPS, VROUNDSD, VROUNDSS,
+    VMPSADBW, VPCMPGTQ,
+    
+    VBLENDVPS, VBLENDVPD, VPBLENDVB, VINSERTPS,
+    VPACKUSDW, VPCMPESTRI,
+    VMOVNTDQA,
+
+    VEXTRACTPS, VPCMPESTRM, VPCMPISTRI, VPCMPISTRM,
+    
+    VPHMINPOSUW,
+
+    // this has no real purpose, but why not?
+    __LAST
 }
 
 impl FromStr for Mnemonic {
@@ -584,6 +618,17 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
         },
         5 => match rstr[0] {
             'v' => match rstr[1] {
+                'd' => match rstr[2] {
+                    'p' => match rstr[3] {
+                        'p' => match rstr[4] {
+                            's' => s(Ins::VDPPS),
+                            'd' => s(Ins::VDPPD),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'o' => match rstr[2] {
                     'r' => match rstr[3] {
                         'p' => match rstr[4] {
@@ -1285,10 +1330,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                                 'b' => s(Ins::PMINSB),
                                 _ => n(),
                             },
-                            'u' => match rstr[5] {
-                                'w' => s(Ins::PMINUW),
-                                _ => n(),
-                            },
+                            'u' => ins_ie(&rstr, 5, &cc::<6>("pminuw"), Ins::PMINUW),
                             _ => n(),
                         },
                         _ => n(),
@@ -1300,29 +1342,20 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                                 'b' => s(Ins::PMAXSB),
                                 _ => n(),
                             },
-                            'u' => match rstr[5] {
-                                'w' => s(Ins::PMAXUW),
-                                _ => n(),
-                            },
+                            'u' => ins_ie(&rstr, 5, &cc::<6>("pmaxuw"), Ins::PMAXUW),
                             _ => n(),
                         },
                         _ => n(),
                     },
                     'u' => match rstr[3] {
                         'l' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'q' => s(Ins::PMULDQ),
-                                _ => n(),
-                            },
+                            'd' => ins_ie(&rstr, 5, &cc::<6>("pmuldq"), Ins::PMULDQ),
                             'l' => match rstr[5] {
                                 'w' => s(Ins::PMULLW),
                                 'd' => s(Ins::PMULLD),
                                 _ => n(),
                             },
-                            'h' => match rstr[5] {
-                                'w' => s(Ins::PMULHW),
-                                _ => n(),
-                            },
+                            'h' => ins_ie(&rstr, 5, &cc::<6>("pmulhw"), Ins::PMULHW),
                             _ => n(),
                         },
                         _ => n(),
@@ -1370,22 +1403,11 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                'o' => match rstr[2] {
-                    'p' => match rstr[3] {
-                        'c' => match rstr[4] {
-                            'n' => match rstr[5] {
-                                't' => s(Ins::POPCNT),
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'o' => ins_ie(&rstr, 2, &cc::<6>("popcnt"), Ins::POPCNT),
                 _ => n(),
             },
             'v' => match rstr[1] {
+                'l' => ins_ie(&rstr, 2, &cc::<6>("vlddqu"), Ins::VLDDQU),
                 'a' => match rstr[2] {
                     'n' => match rstr[3] {
                         'd' => match rstr[4] {
@@ -1566,6 +1588,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
+                'p' => ins_ie(&rstr, 2, &cc::<7>("vptest"), Ins::VPTEST),
                 _ => n(),
             },
             _ => n(),
@@ -1607,79 +1630,16 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => n(),
                 },
                 'm' => match rstr[2] {
-                    'a' => match rstr[3] {
-                        'd' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'w' => match rstr[6] {
-                                    'd' => s(Ins::PMADDWD),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    'u' => match rstr[3] {
-                        'l' => match rstr[4] {
-                            'u' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    'q' => s(Ins::PMULUDQ),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
+                    'a' => ins_ie(&rstr, 3, &cc::<7>("pmaddwd"), Ins::PMADDWD),
+                    'u' => ins_ie(&rstr, 3, &cc::<7>("pmuludq"), Ins::PMULUDQ),
                     _ => n(),
                 },
                 'h' => match rstr[2] {
-                    'a' => match rstr[3] {
-                        'd' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                's' => match rstr[6] {
-                                    'w' => s(Ins::PHADDSW),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    's' => match rstr[3] {
-                        'u' => match rstr[4] {
-                            'b' => match rstr[5] {
-                                's' => match rstr[6] {
-                                    'w' => s(Ins::PHSUBSW),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
+                    'a' => ins_ie(&rstr, 3, &cc::<7>("phaddsw"), Ins::PHADDSW),
+                    's' => ins_ie(&rstr, 3, &cc::<7>("phsubsw"), Ins::PHSUBSW),
                     _ => n(),
                 },
-                'a' => match rstr[2] {
-                    'l' => match rstr[3] {
-                        'i' => match rstr[4] {
-                            'g' => match rstr[5] {
-                                'n' => match rstr[6] {
-                                    'r' => s(Ins::PALIGNR),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'a' => ins_ie(&rstr, 2, &cc::<7>("palignr"), Ins::PALIGNR),
                 'c' => match rstr[2] {
                     'm' => match rstr[3] {
                         'p' => match rstr[4] {
@@ -1709,22 +1669,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                'b' => match rstr[2] {
-                    'l' => match rstr[3] {
-                        'e' => match rstr[4] {
-                            'n' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    'w' => s(Ins::PBLENDW),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'b' => ins_ie(&rstr, 2, &cc::<7>("pblendw"), Ins::PBLENDW),
                 _ => n(),
             },
             'u' => match rstr[1] {
@@ -1793,123 +1738,33 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'm' => match rstr[1] {
-                'p' => match rstr[2] {
-                    's' => match rstr[3] {
-                        'a' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'b' => match rstr[6] {
-                                    'w' => s(Ins::MPSADBW),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'p' => ins_ie(&rstr, 2, &cc::<7>("mpsadbw"), Ins::MPSADBW),
                 'o' => match rstr[2] {
-                    'n' => match rstr[3] {
-                        'i' => match rstr[4] {
-                            't' => match rstr[5] {
-                                'o' => match rstr[6] {
-                                    'r' => s(Ins::MONITOR),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
+                    'n' => ins_ie(&rstr, 3, &cc::<7>("monitor"), Ins::MONITOR),
                     'v' => match rstr[3] {
                         'n' => match rstr[4] {
                             't' => match rstr[5] {
-                                'p' => match rstr[6] {
-                                    'd' => s(Ins::MOVNTPD),
-                                    _ => n(),
-                                },
-                                'd' => match rstr[6] {
-                                    'q' => s(Ins::MOVNTDQ),
-                                    _ => n(),
-                                },
+                                'p' => ins_ie(&rstr, 6, &cc::<7>("movntpd"), Ins::MOVNTPD),
+                                'd' => ins_ie(&rstr, 6, &cc::<7>("movntdq"), Ins::MOVNTDQ),
                                 _ => n(),
                             },
                             _ => n(),
                         },
                         'd' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'u' => match rstr[6] {
-                                    'p' => s(Ins::MOVDDUP),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            'q' => match rstr[5] {
-                                '2' => match rstr[6] {
-                                    'q' => s(Ins::MOVDQ2Q),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
+                            'd' => ins_ie(&rstr, 5, &cc::<7>("movddup"), Ins::MOVDDUP),
+                            'q' => ins_ie(&rstr, 5, &cc::<7>("movdq2q"), Ins::MOVDQ2Q),
                             _ => n(),
                         },
-                        'q' => match rstr[4] {
-                            '2' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    'q' => s(Ins::MOVQ2DQ),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        'h' => match rstr[4] {
-                            'l' => match rstr[5] {
-                                'p' => match rstr[6] {
-                                    's' => s(Ins::MOVHLPS),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        'l' => match rstr[4] {
-                            'h' => match rstr[5] {
-                                'p' => match rstr[6] {
-                                    's' => s(Ins::MOVLHPS),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
+                        'q' => ins_ie(&rstr, 4, &cc::<7>("movq2dq"), Ins::MOVQ2DQ),
+                        'h' => ins_ie(&rstr, 4, &cc::<7>("movhlps"), Ins::MOVHLPS),
+                        'l' => ins_ie(&rstr, 4, &cc::<7>("movlhps"), Ins::MOVLHPS),
                         _ => n(),
                     },
                     _ => n(),
                 },
                 _ => n(),
             },
-            's' => match rstr[1] {
-                'y' => match rstr[2] {
-                    's' => match rstr[3] {
-                        'c' => match rstr[4] {
-                            'a' => match rstr[5] {
-                                'l' => match rstr[6] {
-                                    'l' => s(Ins::SYSCALL),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
-                _ => n(),
-            },
+            's' => ins_ie(&rstr, 1, &cc::<7>("syscall"), Ins::SYSCALL),
             'c' => match rstr[1] {
                 'm' => match rstr[2] {
                     'o' => match rstr[3] {
@@ -1939,22 +1794,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                'l' => match rstr[2] {
-                    'f' => match rstr[3] {
-                        'l' => match rstr[4] {
-                            'u' => match rstr[5] {
-                                's' => match rstr[6] {
-                                    'h' => s(Ins::CLFLUSH),
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'l' => ins_ie(&rstr, 2, &cc::<7>("clflush"), Ins::CLFLUSH),
                 _ => n(),
             },
             'b' => match rstr[1] {
@@ -1978,6 +1818,37 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'v' => match rstr[1] {
+                'h' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'b' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::VHSUBPS),
+                                    'd' => s(Ins::VHSUBPD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    'a' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'p' => match rstr[6] {
+                                    's' => s(Ins::VHADDPS),
+                                    'd' => s(Ins::VHADDPD),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'c' => match rstr[2] {
                     'o' => match rstr[3] {
                         'm' => match rstr[4] {
@@ -2095,6 +1966,89 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
+                'p' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'b' => s(Ins::VPMINSB),
+                                    'd' => s(Ins::VPMINSD),
+                                    _   => n()
+                                }
+                                'u' => match rstr[6] {
+                                    'w' => s(Ins::VPMINUW),
+                                    'b' => s(Ins::VPMINUB),
+                                    _   => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        'u' => match rstr[4] {
+                            'l' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'q' => s(Ins::VPMULDQ),
+                                    _   => n()
+                                }
+                                'l' => match rstr[6] {
+                                    'd' => s(Ins::VPMULLD),
+                                    _   => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        'a' => match rstr[4] {
+                            'x' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'b' => s(Ins::VPMAXSB),
+                                    'd' => s(Ins::VPMAXSD),
+                                    _   => n()
+                                }
+                                'u' => match rstr[6] {
+                                    'w' => s(Ins::VPMAXUW),
+                                    'b' => s(Ins::VPMAXUB),
+                                    _   => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    }
+                    'i' => match rstr[3] {
+                        'n' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'r' => match rstr[6] {
+                                    'b' => s(Ins::VPINSRB),
+                                    'd' => s(Ins::VPINSRD),
+                                    'q' => s(Ins::VPINSRQ),
+                                    _   => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    }
+                    'e' => match rstr[3] {
+                        'x' => match rstr[4] {
+                            't' => match rstr[5] {
+                                'r' => match rstr[6] {
+                                    'b' => s(Ins::VPEXTRB),
+                                    'w' => s(Ins::VPEXTRW),
+                                    'd' => s(Ins::VPEXTRD),
+                                    'q' => s(Ins::VPEXTRQ),
+                                    _   => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    }
+                    _ => n()
+                }
                 _ => n(),
             },
             _ => n(),
@@ -2219,44 +2173,8 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                'm' => match rstr[2] {
-                    'u' => match rstr[3] {
-                        'l' => match rstr[4] {
-                            'h' => match rstr[5] {
-                                'r' => match rstr[6] {
-                                    's' => match rstr[7] {
-                                        'w' => s(Ins::PMULHRSW),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
-                'b' => match rstr[2] {
-                    'l' => match rstr[3] {
-                        'e' => match rstr[4] {
-                            'n' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    'v' => match rstr[7] {
-                                        'b' => s(Ins::PBLENDVB),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'm' => ins_ie(&rstr, 2, &cc::<8>("pmulhrsw"), Ins::PMULHRSW),
+                'b' => ins_ie(&rstr, 2, &cc::<8>("pblendvb"), Ins::PBLENDVB),
                 _ => n(),
             },
             'u' => match rstr[1] {
@@ -2306,26 +2224,8 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             _ => n(),
                         },
                         's' => match rstr[4] {
-                            's' => match rstr[5] {
-                                '2' => match rstr[6] {
-                                    's' => match rstr[7] {
-                                        'i' => s(Ins::CVTSS2SI),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            'd' => match rstr[5] {
-                                '2' => match rstr[6] {
-                                    's' => match rstr[7] {
-                                        'i' => s(Ins::CVTSD2SI),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
+                            's' => ins_ie(&rstr, 5, &cc::<8>("cvtss2si"), Ins::CVTSS2SI),
+                            'd' => ins_ie(&rstr, 5, &cc::<8>("cvtsd2si"), Ins::CVTSD2SI),
                             'i' => match rstr[5] {
                                 '2' => match rstr[6] {
                                     's' => match rstr[7] {
@@ -2340,16 +2240,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             _ => n(),
                         },
                         'p' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                '2' => match rstr[6] {
-                                    'p' => match rstr[7] {
-                                        'i' => s(Ins::CVTPD2PI),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
+                            'd' => ins_ie(&rstr, 5, &cc::<8>("cvtpd2pi"), Ins::CVTPD2PI),
                             'i' => match rstr[5] {
                                 '2' => match rstr[6] {
                                     'p' => match rstr[7] {
@@ -2363,14 +2254,8 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             },
                             's' => match rstr[5] {
                                 '2' => match rstr[6] {
-                                    'd' => match rstr[7] {
-                                        'q' => s(Ins::CVTPS2DQ),
-                                        _ => n(),
-                                    },
-                                    'p' => match rstr[7] {
-                                        'i' => s(Ins::CVTPS2PI),
-                                        _ => n(),
-                                    },
+                                    'd' => ins_ie(&rstr, 7, &cc::<8>("cvtps2dq"), Ins::CVTPS2DQ),
+                                    'p' => ins_ie(&rstr, 7, &cc::<8>("cvtps2pi"), Ins::CVTPS2PI),
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2383,28 +2268,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 },
                 _ => n(),
             },
-            'i' => match rstr[1] {
-                'n' => match rstr[2] {
-                    's' => match rstr[3] {
-                        'e' => match rstr[4] {
-                            'r' => match rstr[5] {
-                                't' => match rstr[6] {
-                                    'p' => match rstr[7] {
-                                        's' => s(Ins::INSERTPS),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
-                _ => n(),
-            },
+            'i' => ins_ie(&rstr, 1, &cc::<8>("insertps"), Ins::INSERTPS),
             'b' => match rstr[1] {
                 'l' => match rstr[2] {
                     'e' => match rstr[3] {
@@ -2430,35 +2294,41 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             'v' => match rstr[1] {
                 'm' => match rstr[2] {
+                    'p' => ins_ie(&rstr, 3, &cc::<8>("vmpsadbw"), Ins::VMPSADBW),
                     'o' => match rstr[3] {
                         'v' => match rstr[4] {
-                            'h' => match rstr[5] {
-                                'l' => match rstr[6] {
+                            'd' => ins_ie(&rstr, 5, &cc::<8>("vmovddup"), Ins::VMOVDDUP),
+                            'h' => ins_ie(&rstr, 5, &cc::<8>("vmovhlps"), Ins::VMOVHLPS),
+                            'l' => ins_ie(&rstr, 5, &cc::<8>("vmovlhps"), Ins::VMOVLHPS),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'p' => match rstr[2] {
+                    'c' => match rstr[3] {
+                        'm' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'g' => ins_ie(&rstr, 6, &cc::<8>("vpcmpgtq"), Ins::VPCMPGTQ),
+                                'e' => ins_ie(&rstr, 6, &cc::<8>("vpcmpeqq"), Ins::VPCMPEQQ),
+                                _   => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    },
+                    'b' => ins_ie(&rstr, 3, &cc::<8>("vpblendw"), Ins::VPBLENDW),
+                    _   => n()
+                }
+                'b' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'e' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'd' => match rstr[6] {
                                     'p' => match rstr[7] {
-                                        's' => s(Ins::VMOVHLPS),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            'l' => match rstr[5] {
-                                'h' => match rstr[6] {
-                                    'p' => match rstr[7] {
-                                        's' => s(Ins::VMOVLHPS),
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            'm' => match rstr[5] {
-                                's' => match rstr[6] {
-                                    'k' => match rstr[7] {
-                                        'p' => match rstr[8] {
-                                            'd' => s(Ins::VMOVMSKPD),
-                                            _ => n(),
-                                        },
+                                        's' => s(Ins::VBLENDPS),
+                                        'd' => s(Ins::VBLENDPD),
                                         _ => n(),
                                     },
                                     _ => n(),
@@ -2492,6 +2362,28 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => n(),
                 },
                 'r' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'u' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        's' => s(Ins::VROUNDSS),
+                                        'd' => s(Ins::VROUNDSD),
+                                        _ => n(),
+                                    },
+                                    'p' => match rstr[7] {
+                                        's' => s(Ins::VROUNDPS),
+                                        'd' => s(Ins::VROUNDPD),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
                     's' => match rstr[3] {
                         'q' => match rstr[4] {
                             'r' => match rstr[5] {
@@ -2557,28 +2449,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                'm' => match rstr[2] {
-                    'a' => match rstr[3] {
-                        'd' => match rstr[4] {
-                            'd' => match rstr[5] {
-                                'u' => match rstr[6] {
-                                    'b' => match rstr[7] {
-                                        's' => match rstr[8] {
-                                            'w' => s(Ins::PMADDUBSW),
-                                            _ => n(),
-                                        },
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
-                            _ => n(),
-                        },
-                        _ => n(),
-                    },
-                    _ => n(),
-                },
+                'm' => ins_ie(&rstr, 2, &cc::<9>("pmaddubsw"), Ins::PMADDUBSW),
                 'u' => match rstr[2] {
                     'n' => match rstr[3] {
                         'p' => match rstr[4] {
@@ -2630,30 +2501,8 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'v' => match rstr[2] {
                     't' => match rstr[3] {
                         't' => match rstr[4] {
-                            's' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    '2' => match rstr[7] {
-                                        's' => match rstr[8] {
-                                            'i' => s(Ins::CVTSD2SI),
-                                            _ => n(),
-                                        },
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
-                                _ => n(),
-                            },
                             'p' => match rstr[5] {
-                                'd' => match rstr[6] {
-                                    '2' => match rstr[7] {
-                                        'p' => match rstr[8] {
-                                            'i' => s(Ins::CVTTPD2PI),
-                                            _ => n(),
-                                        },
-                                        _ => n(),
-                                    },
-                                    _ => n(),
-                                },
+                                'd' => ins_ie(&rstr, 6, &cc::<9>("cvttpd2pi"), Ins::CVTTPD2PI),
                                 's' => match rstr[6] {
                                     '2' => match rstr[7] {
                                         'p' => match rstr[8] {
@@ -2678,15 +2527,62 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 },
                 _ => n(),
             },
-            'e' => match rstr[1] {
-                'x' => match rstr[2] {
-                    't' => match rstr[3] {
-                        'r' => match rstr[4] {
-                            'a' => match rstr[5] {
-                                'c' => match rstr[6] {
-                                    't' => match rstr[7] {
+            'e' => ins_ie(&rstr, 1, &cc::<9>("extractps"), Ins::EXTRACTPS),
+            'v' => match rstr[1] {
+                'i' => ins_ie(&rstr, 2, &cc::<9>("vinsertps"), Ins::VINSERTPS),
+                'p' => match rstr[2] {
+                    'b' => ins_ie(&rstr, 3, &cc::<9>("vpblendvb"), Ins::VPBLENDVB),
+                    'a' => ins_ie(&rstr, 3, &cc::<9>("vpackusdw"), Ins::VPACKUSDW),
+                    _ => n()
+                }
+                'b' => match rstr[2] {
+                    'l' => match rstr[3] {
+                        'e' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'v' => match rstr[7] {
                                         'p' => match rstr[8] {
-                                            's' => s(Ins::EXTRACTPS),
+                                            's' => s(Ins::VBLENDPS),
+                                            'd' => s(Ins::VBLENDPD),
+                                            _   => n()
+                                        }
+                                        _ => n()
+                                    }
+                                    _ => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    }
+                    _ => n()
+                }
+                'm' => match rstr[2] {
+                    'o' => match rstr[3] {
+                        'v' => match rstr[4] {
+                            'n' => ins_ie(&rstr, 5, &cc::<9>("vmovntdqa"), Ins::VMOVNTDQA),
+                            'm' => ins_ie(&rstr, 5, &cc::<9>("vmovmskpd"), Ins::VMOVMSKPD),
+                            's' => match rstr[5] {
+                                'l' => ins_ie(&rstr, 6, &cc::<9>("vmovsldup"), Ins::VMOVSLDUP),
+                                'h' => ins_ie(&rstr, 6, &cc::<9>("vmovshdup"), Ins::VMOVSHDUP),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'a' => match rstr[2] {
+                    'd' => match rstr[3] {
+                        'd' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'u' => match rstr[6] {
+                                    'b' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            's' => s(Ins::VADDSUBPS),
+                                            'd' => s(Ins::VADDSUBPD),
                                             _ => n(),
                                         },
                                         _ => n(),
@@ -2701,9 +2597,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => n(),
                 },
-                _ => n(),
-            },
-            'v' => match rstr[1] {
                 'u' => match rstr[2] {
                     'n' => match rstr[3] {
                         'p' => match rstr[4] {
@@ -2738,31 +2631,101 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             _ => n(),
         },
         10 => match rstr[0] {
-            'm' => ins_ie(&rstr, 1, &cc("maskmovdqu"), Ins::MASKMOVDQU),
+            'm' => ins_ie(&rstr, 1, &cc::<10>("maskmovdqu"), Ins::MASKMOVDQU),
             'p' => match rstr[1] {
-                'h' => ins_ie(&rstr, 2, &cc("phminposuw"), Ins::PHMINPOSUW),
+                'h' => ins_ie(&rstr, 2, &cc::<10>("phminposuw"), Ins::PHMINPOSUW),
                 'u' => match (rstr[6], rstr[7], rstr[8]) {
-                    ('h', 'q', 'd') => ins_ie(&rstr, 0, &cc("punpckhqdq"), Ins::PUNPCKHQDQ),
-                    ('l', 'q', 'd') => ins_ie(&rstr, 0, &cc("punpcklqdq"), Ins::PUNPCKLQDQ),
+                    ('h', 'q', 'd') => ins_ie(&rstr, 1, &cc::<10>("punpckhqdq"), Ins::PUNPCKHQDQ),
+                    ('l', 'q', 'd') => ins_ie(&rstr, 1, &cc::<10>("punpcklqdq"), Ins::PUNPCKLQDQ),
                     _ => n(),
                 },
                 _ => n(),
             },
+            'v' => match rstr[1] {
+                'p' => match rstr[2] {
+                    'c' => match rstr[3] {
+                        'm' => match rstr[4] {
+                            'p' => match rstr[5] {
+                                'i' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        't' => match rstr[8] {
+                                            'r' => match rstr[9] {
+                                                'm' => s(Ins::VPCMPISTRM),
+                                                'i' => s(Ins::VPCMPISTRI),
+                                                _   => n()
+                                            }
+                                            _ => n()
+                                        }
+                                        _ => n()
+                                    }
+                                    _ => n()
+                                }
+                                'e' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        't' => match rstr[8] {
+                                            'r' => match rstr[9] {
+                                                'm' => s(Ins::VPCMPESTRM),
+                                                'i' => s(Ins::VPCMPESTRI),
+                                                _   => n()
+                                            }
+                                            _ => n()
+                                        }
+                                        _ => n()
+                                    }
+                                    _ => n()
+                                }
+                                _ => n()
+                            }
+                            _ => n()
+                        }
+                        _ => n()
+                    }
+                    _ => n()
+                },
+                'e' => ins_ie(&rstr, 2, &cc::<10>("vextractps"), Ins::VEXTRACTPS),
+                _   => n()
+            },
             _ => n(),
         },
+        11 => ins_ie(&rstr, 0, &cc::<10>("vphminposuw"), Ins::VPHMINPOSUW),
         _ => n(),
     }
 }
 
 #[inline(always)]
-fn cc(str: &'static str) -> Vec<char> {
-    str.chars().collect()
+const fn cc_for_const(rep_n: usize, byte_arr: &'static [u8], str: &mut [char]) {
+    if rep_n == 0 {
+        return;
+    }
+    str[rep_n] = byte_arr[rep_n] as char;
+    cc_for_const(rep_n - 1, byte_arr, str)
 }
+
+#[inline(always)]
+const fn cc<const N: usize>(str: &'static str) -> [char; N] {
+    assert!(N == str.len());
+    let mut arr = [' '; N];
+    cc_for_const(N - 1, str.as_bytes(), &mut arr);
+    arr
+}
+
 #[inline(always)]
 fn ins_ie(chars: &[char], start: usize, target: &[char], res: Mnemonic) -> Option<Mnemonic> {
     if chars[start..] == target[start..] {
         Some(res)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn ins_test() {
+        println!(
+            "This version of RASM supports {} x86-64 instructions!",
+            Mnemonic::__LAST as u64
+        );
     }
 }

@@ -8,11 +8,14 @@ USAGE:
 rasmx86_64 [FLAG(s)]
 -------------------------
 [FLAG(s)]:
-	-h		; prints this message
-	-i=[PATH]	; specifies path to input file
-	-o=[PATH]	; specifies path to output file
-	-f=[FORMAT]	; specifies output format
-
+	-h			 	; prints this message
+	-i=[PATH]		 	; specifies path to input file
+	-o=[PATH]		 	; specifies path to output file
+	-f=[FORMAT]		 	; specifies output format
+	supported-extensions	 	; prints all supported x86(-64) extensions
+	supported-instructions 	 	; prints all supported instructions
+	supported-instructions-raw 	; prints all supported instructions without formatting
+	check			 	; checks file without assembling it
 [FORMAT]:
 	elf32		; compiles file into 32-bit version of ELF - relocatable file
 	elf64		; compiles file into 64-bit version of ELF - relocatable file
