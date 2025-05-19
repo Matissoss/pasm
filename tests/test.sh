@@ -30,10 +30,21 @@ for file in ./nasm/*.asm; do
 		echo "-------------------"
 		echo "$NASM_FILE | $RASM_FILE"
 		echo "NASM HEX DUMP: "
+		NXHD=$(xxd ${NASM_FILE/.asm/.bin})
 		xxd ${NASM_FILE/.asm/.bin}
 		echo "---"
 		echo "RASM HEX DUMP: "
+		RXHD=$(xxd ${RASM_FILE/.asm/.bin})
 		xxd ${RASM_FILE/.asm/.bin}
+
+		RTMP=$(mktemp)
+		NTMP=$(mktemp)
+
+		echo $RHXD > $RTMP
+		echo $NHXD > $NTMP
+
+		diff --side-by-side --suppress-common-lines "${NTMP}" "${RTMP}"
+
 		echo "---"
 		errors=$((errors+1))
 	fi

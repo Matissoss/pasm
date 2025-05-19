@@ -34,7 +34,7 @@ pub fn gen_vex(
 
     let map_select = match map_select {
         0x0F => 0b00001,
-        0xC8 => 0b00010,
+        0x38 => 0b00010,
         0x3A => 0b00011,
         _ => 0b00000,
     };
@@ -57,7 +57,7 @@ pub fn gen_vex(
         }
     };
 
-    if vexb.0 || vexb.1 {
+    if vexb.0 || vexb.1 || map_select == 0b00011 || map_select == 0b00010 {
         Some(vec![
             THREE_BYTE_PFX,
             ((vexr) << 7

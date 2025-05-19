@@ -115,7 +115,7 @@ pub fn avx_ins_rvmr(
         _ => (true, opc_rm),
     };
     let imm = match ins.oprs.get(3) {
-        Some(Operand::Reg(r)) => Some(vec![((r.needs_rex() as u8) << 3 | r.to_byte())]),
+        Some(Operand::Reg(r)) => Some(vec![((r.needs_rex() as u8) << 3 | r.to_byte()) << 4]),
         _ => None,
     };
 
