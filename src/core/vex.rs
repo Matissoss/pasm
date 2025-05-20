@@ -20,7 +20,11 @@ pub fn gen_vex(
     vex_we: bool,
 ) -> Option<Vec<u8>> {
     let ssrc = if ins.src2().is_some() {
-        gen_vex4v(ins.src())
+        if let Operand::Imm(_) = ins.src2().unwrap() {
+            0b1111
+        } else {
+            gen_vex4v(ins.src())
+        }
     } else {
         0b1111
     };

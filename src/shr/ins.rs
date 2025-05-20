@@ -2687,7 +2687,10 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             _ => n(),
         },
-        11 => ins_ie(&rstr, 0, &cc::<11>("vphminposuw"), Ins::VPHMINPOSUW),
+        11 => match rstr[0] {
+            'v' => ins_ie(&rstr, 1, &cc::<11>("vphminposuw"), Ins::VPHMINPOSUW),
+            _ => n(),
+        },
         _ => n(),
     }
 }
@@ -2727,5 +2730,6 @@ mod tests {
             "This version of RASM supports {} x86-64 instructions!",
             Mnemonic::__LAST as u64
         );
+        assert!(mnem_fromstr("vphminposuw") == Some(Mnemonic::VPHMINPOSUW));
     }
 }

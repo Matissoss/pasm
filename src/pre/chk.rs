@@ -1205,7 +1205,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::VPEXTRD |*/
+        Mnm::VPEXTRD |
         Mnm::VEXTRACTPS => ot_chk(
             ins,
             &[
@@ -1216,7 +1216,6 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        /*
         Mnm::VPEXTRQ => ot_chk(
             ins,
             &[

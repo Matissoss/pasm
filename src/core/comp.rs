@@ -2684,7 +2684,11 @@ pub fn vex_gen_ins(
     base.extend(opc);
     if modrm.0 {
         base.push(if ins.src2().is_some() {
-            vex::vex_modrm(ins, modrm.1, None, modrm_reg_is_dst)
+            if let Operand::Imm(_) = ins.src2().unwrap() {
+                modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst)
+            } else {
+                vex::vex_modrm(ins, modrm.1, None, modrm_reg_is_dst)
+            }
         } else {
             modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst)
         });
