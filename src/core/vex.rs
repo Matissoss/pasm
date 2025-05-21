@@ -5,6 +5,7 @@
 
 use crate::shr::{
     ast::{IVariant, Instruction, Operand},
+    ins::Mnemonic as Ins,
     mem::Mem,
     num::Number,
 };
@@ -61,7 +62,11 @@ pub fn gen_vex(
         }
     };
 
-    if vexb.0 || vexb.1 || map_select == 0b00011 || map_select == 0b00010 {
+    if vexb.0
+        || vexb.1
+        || ((map_select == 0b00011 || map_select == 0b00010) && !matches!(ins.mnem, Ins::VPMAXUB))
+        || vex_we
+    {
         Some(vec![
             THREE_BYTE_PFX,
             ((vexr) << 7

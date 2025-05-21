@@ -40,7 +40,6 @@ _start:
 	vpblendvb %ymm0, %ymm1, %ymm2, %ymm3
 
 	vinsertps %xmm0, %xmm1, %xmm2, $10
-	;vextractps %eax, %xmm1, $10
 
 	vpackusdw %xmm0, %xmm1, %xmm2
 	vpackusdw %ymm0, %ymm1, %ymm2

@@ -6,9 +6,48 @@
 use crate::{
     core::comp::vex_gen_ins,
     shr::ast::{Instruction, Operand},
+    shr::ins::Mnemonic as Ins,
     shr::num::Number,
+    shr::size::Size,
 };
 
+pub fn avx_ins_movx(
+    ins: &Instruction,
+    opc_rx: &[u8],
+    opc_xr: &[u8],
+    modrm1: Option<u8>,
+    pp: u8,
+    map_select: u8,
+    vex_we: bool,
+) -> Vec<u8> {
+    let (modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
+        (_, Some(Operand::Mem(_))) => (true, opc_rx),
+        (Some(Operand::Mem(_)), _) => (false, opc_xr),
+        (Some(Operand::Reg(r)), _) => {
+            if r.size() == Size::Dword || r.size() == Size::Qword {
+                if let Some(Operand::Reg(_)) = ins.src() {
+                    (false, opc_rx)
+                } else {
+                    (true, opc_rx)
+                }
+            } else {
+                (false, opc_xr)
+            }
+        }
+        _ => (false, opc_xr),
+    };
+
+    vex_gen_ins(
+        ins,
+        opc,
+        (true, modrm1),
+        None,
+        modrm_reg_is_dst,
+        pp,
+        map_select,
+        vex_we,
+    )
+}
 pub fn avx_ins(
     ins: &Instruction,
     opc_rm: &[u8],
@@ -80,7 +119,16 @@ pub fn avx_ins_wimm2(
     let (modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
         (_, Some(Operand::Mem(_))) => (true, opc_rm),
         (Some(Operand::Mem(_)), _) => (false, opc_mr),
-        _ => (true, opc_rm),
+        _ => {
+            if matches!(
+                ins.mnem,
+                Ins::VEXTRACTPS | Ins::VPEXTRB | Ins::VPEXTRD | Ins::VPEXTRQ
+            ) {
+                (false, opc_rm)
+            } else {
+                (true, opc_rm)
+            }
+        }
     };
     let imm = match ins.oprs.get(2) {
         Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
@@ -91,6 +139,35 @@ pub fn avx_ins_wimm2(
         ins,
         opc,
         (true, modrm1),
+        imm,
+        modrm_reg_is_dst,
+        pp,
+        map_select,
+        vex_we,
+    )
+}
+pub fn avx_ins_shift(
+    ins: &Instruction,
+    opc_noimm: &[u8],
+    opc_imm: &[u8],
+    modrm1: Option<u8>,
+    pp: u8,
+    map_select: u8,
+    vex_we: bool,
+) -> Vec<u8> {
+    let (modrm_reg_is_dst, opc) = match ins.src2() {
+        Some(Operand::Imm(_)) => (true, opc_imm),
+        _ => (true, opc_noimm),
+    };
+    let imm = match ins.oprs.get(2) {
+        Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
+        _ => None,
+    };
+
+    vex_gen_ins(
+        ins,
+        opc,
+        (true, if imm.is_some() { modrm1 } else { None }),
         imm,
         modrm_reg_is_dst,
         pp,

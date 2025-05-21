@@ -9,12 +9,6 @@ _start:
 	vptest %xmm0, !xword (%rax)
 	vptest %ymm0, !yword (%rax)
 
-	;vpextrb %rax, %xmm2, $10
-	;vpextrb %eax, %xmm2, $10
-	
-	;vpextrd %eax, %xmm2, $10
-	;vpextrq %rax, %xmm2, $10
-
 	vpinsrb %xmm1, %xmm2, !byte (%rax), $10
 	vpinsrb %xmm1, %xmm2, %eax, $10
 	
@@ -28,8 +22,6 @@ _start:
 
 	vpmaxuw %xmm1, %xmm2, %xmm3
 	vpmaxuw %ymm1, %ymm2, %ymm3
-	;vpmaxub %xmm1, %xmm2, %xmm3
-	;vpmaxub %ymm1, %ymm2, %ymm3
 	
 	vpminsb %xmm1, %xmm2, %xmm3
 	vpminsb %ymm1, %ymm2, %ymm3

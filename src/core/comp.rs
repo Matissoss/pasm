@@ -1926,6 +1926,201 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins_wimm3(ins, &[0x22], &[0x22], None, 0x66, 0x3A, true),
             None,
         ),
+
+        // MMX derived part 1
+        Ins::VPOR => (
+            avx::avx_ins(ins, &[0xEB], &[0xEB], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVD => (
+            avx::avx_ins_movx(ins, &[0x7E], &[0x6E], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVQ => (
+            avx::avx_ins_movx(ins, &[0x7E], &[0x6E], None, 0x66, 0x0F, true),
+            None,
+        ),
+        Ins::VPAND => (
+            avx::avx_ins(ins, &[0xDB], &[0xDB], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPXOR => (
+            avx::avx_ins(ins, &[0xEF], &[0xEF], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDB => (
+            avx::avx_ins(ins, &[0xFC], &[0xFC], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDW => (
+            avx::avx_ins(ins, &[0xFD], &[0xFD], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDD => (
+            avx::avx_ins(ins, &[0xFE], &[0xFE], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDQ => (
+            avx::avx_ins(ins, &[0xD4], &[0xD4], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBB => (
+            avx::avx_ins(ins, &[0xF8], &[0xF8], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBW => (
+            avx::avx_ins(ins, &[0xF9], &[0xF9], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBD => (
+            avx::avx_ins(ins, &[0xFA], &[0xFA], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBQ => (
+            avx::avx_ins(ins, &[0xFB], &[0xFB], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPANDN => (
+            avx::avx_ins(ins, &[0xDF], &[0xDF], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSLLW => (
+            avx::avx_ins_shift(ins, &[0xF1], &[0x71], Some(6), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSLLD => (
+            avx::avx_ins_shift(ins, &[0xF2], &[0x72], Some(6), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSLLQ => (
+            avx::avx_ins_shift(ins, &[0xF3], &[0x73], Some(6), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRLW => (
+            avx::avx_ins_shift(ins, &[0xD1], &[0x71], Some(2), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRLD => (
+            avx::avx_ins_shift(ins, &[0xD2], &[0x72], Some(2), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRLQ => (
+            avx::avx_ins_shift(ins, &[0xD3], &[0x73], Some(2), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRAW => (
+            avx::avx_ins_shift(ins, &[0xE1], &[0x71], Some(4), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRAD => (
+            avx::avx_ins_shift(ins, &[0xE2], &[0x72], Some(4), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBSB => (
+            avx::avx_ins(ins, &[0xE8], &[0xE8], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBSW => (
+            avx::avx_ins(ins, &[0xE9], &[0xE9], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDSB => (
+            avx::avx_ins(ins, &[0xEC], &[0xEC], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDSW => (
+            avx::avx_ins(ins, &[0xED], &[0xED], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMULHW => (
+            avx::avx_ins(ins, &[0xE5], &[0xE5], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMULLW => (
+            avx::avx_ins(ins, &[0xD5], &[0xD5], None, 0x66, 0x0F, false),
+            None,
+        ),
+        // part 2
+        Ins::VPADDUSB => (
+            avx::avx_ins(ins, &[0xDC], &[0xDC], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPADDUSW => (
+            avx::avx_ins(ins, &[0xDD], &[0xDD], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBUSB => (
+            avx::avx_ins(ins, &[0xD8], &[0xD8], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSUBUSW => (
+            avx::avx_ins(ins, &[0xD9], &[0xD9], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMADDWD => (
+            avx::avx_ins(ins, &[0xF5], &[0xF5], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPEQB => (
+            avx::avx_ins(ins, &[0x74], &[0x74], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPEQW => (
+            avx::avx_ins(ins, &[0x75], &[0x75], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPEQD => (
+            avx::avx_ins(ins, &[0x76], &[0x76], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPGTB => (
+            avx::avx_ins(ins, &[0x64], &[0x64], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPGTW => (
+            avx::avx_ins(ins, &[0x65], &[0x65], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPCMPGTD => (
+            avx::avx_ins(ins, &[0x66], &[0x66], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPACKUSWB => (
+            avx::avx_ins(ins, &[0x67], &[0x67], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPACKSSWB => (
+            avx::avx_ins(ins, &[0x63], &[0x63], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPACKSSDW => (
+            avx::avx_ins(ins, &[0x6B], &[0x6B], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKLBW => (
+            avx::avx_ins(ins, &[0x60], &[0x60], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKLWD => (
+            avx::avx_ins(ins, &[0x61], &[0x61], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKLDQ => (
+            avx::avx_ins(ins, &[0x62], &[0x62], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKHBW => (
+            avx::avx_ins(ins, &[0x68], &[0x68], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKHWD => (
+            avx::avx_ins(ins, &[0x69], &[0x69], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPUNPCKHDQ => (
+            avx::avx_ins(ins, &[0x6A], &[0x6A], None, 0x66, 0x0F, false),
+            None,
+        ),
         //_ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }

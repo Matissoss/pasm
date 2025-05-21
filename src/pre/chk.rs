@@ -1160,7 +1160,9 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         // #   #   # #     #
         // #####   # #    # #
         // #   #    #    #   #
-        // AVX
+        // AVX chk
+
+        // idk derived
         Mnm::VPINSRB => ot_chk(
             ins,
             &[
@@ -1194,19 +1196,17 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        /* to fix :)
         Mnm::VPEXTRB => ot_chk(
             ins,
             &[
-                (&[R32, R64, M32, M64], Optional::Needed),
+                (&[M8, R32, R64, M32, M64], Optional::Needed),
                 (&[XMM], Optional::Needed),
                 (&[I8], Optional::Needed),
             ],
             &[],
             &[],
         ),
-        Mnm::VPEXTRD |
-        Mnm::VEXTRACTPS => ot_chk(
+        Mnm::VPEXTRD | Mnm::VEXTRACTPS => ot_chk(
             ins,
             &[
                 (&[R32, M32], Optional::Needed),
@@ -1236,7 +1236,6 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        */
         Mnm::VROUNDSS | Mnm::VINSERTPS => ot_chk(
             ins,
             &[
@@ -1439,7 +1438,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::VPMINSB
         | Mnm::VPMINSD
         | Mnm::VPMAXUW
-        //| Mnm::VPMAXUB
+        | Mnm::VPMAXUB
         | Mnm::VPMINUW
         | Mnm::VPMINUB
         | Mnm::VPCMPEQQ
@@ -1548,6 +1547,104 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
                 (YMM, YMM, M128),
                 (XMM, XMM, M256),
             ],
+            &[],
+        ),
+
+        // MMX derived
+        Mnm::VPOR
+        | Mnm::VPAND
+        | Mnm::VPXOR
+        | Mnm::VPADDB
+        | Mnm::VPADDW
+        | Mnm::VPADDD
+        | Mnm::VPADDQ
+        | Mnm::VPSUBB
+        | Mnm::VPSUBD
+        | Mnm::VPSUBQ
+        | Mnm::VPSUBW
+        | Mnm::VPANDN
+        | Mnm::VPSUBSW
+        | Mnm::VPSUBSB
+        | Mnm::VPADDSB
+        | Mnm::VPADDSW
+        | Mnm::VPMULLW
+        | Mnm::VPSUBUSB
+        | Mnm::VPSUBUSW
+        | Mnm::VPADDUSB
+        | Mnm::VPADDUSW
+        | Mnm::VPMADDWD
+        | Mnm::VPCMPEQB
+        | Mnm::VPCMPEQW
+        | Mnm::VPCMPEQD
+        | Mnm::VPCMPGTB
+        | Mnm::VPCMPGTW
+        | Mnm::VPCMPGTD
+        | Mnm::VPACKUSWB
+        | Mnm::VPACKSSWB
+        | Mnm::VPACKSSDW
+        | Mnm::VPUNPCKLBW
+        | Mnm::VPUNPCKHBW
+        | Mnm::VPUNPCKLWD
+        | Mnm::VPUNPCKHWD
+        | Mnm::VPUNPCKLDQ
+        | Mnm::VPUNPCKHDQ
+        | Mnm::VPMULHW => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[
+                (XMM, YMM, M128),
+                (XMM, YMM, M256),
+                (YMM, XMM, M128),
+                (YMM, XMM, M256),
+                (YMM, YMM, M128),
+                (XMM, XMM, M256),
+            ],
+            &[],
+        ),
+        Mnm::VPSLLW
+        | Mnm::VPSLLD
+        | Mnm::VPSLLQ
+        | Mnm::VPSRLW
+        | Mnm::VPSRLD
+        | Mnm::VPSRLQ
+        | Mnm::VPSRAD
+        | Mnm::VPSRAW => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256, I8], Optional::Needed),
+            ],
+            &[
+                (XMM, YMM, M128),
+                (XMM, YMM, M256),
+                (YMM, XMM, M128),
+                (YMM, XMM, M256),
+                (YMM, YMM, M128),
+                (XMM, XMM, M256),
+            ],
+            &[],
+        ),
+        Mnm::VMOVD => ot_chk(
+            ins,
+            &[
+                (&[XMM, R32, M32], Optional::Needed),
+                (&[XMM, R32, M32], Optional::Needed),
+            ],
+            &[(M32, M32), (R32, R32), (XMM, XMM)],
+            &[],
+        ),
+        Mnm::VMOVQ => ot_chk(
+            ins,
+            &[
+                (&[XMM, R64, M64], Optional::Needed),
+                (&[XMM, R64, M64], Optional::Needed),
+            ],
+            &[(M64, M64), (R64, R64), (XMM, XMM)],
             &[],
         ),
         _ => Some(RASMError::no_tip(
