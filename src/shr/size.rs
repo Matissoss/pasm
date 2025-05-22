@@ -100,6 +100,7 @@ impl TryFrom<Keyword> for Size {
             Keyword::Qword => Ok(Self::Qword),
             Keyword::Xword => Ok(Self::Xword),
             Keyword::Yword => Ok(Self::Yword),
+            Keyword::Any => Ok(Self::Any),
             _ => Err(()),
         }
     }

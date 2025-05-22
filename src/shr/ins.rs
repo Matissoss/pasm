@@ -66,12 +66,6 @@ pub enum Mnemonic {
 
     COMISS , UCOMISS,
 
-    CVTSI2SS, 
-    CVTPI2PS,
-    CVTPS2PI,
-    CVTSS2SI,
-    CVTTPS2PI,
-
     SHUFPS, UNPCKLPS, UNPCKHPS,
 
     MOVAPS, MOVUPS, MOVSS,
@@ -99,16 +93,6 @@ pub enum Mnemonic {
 
     MOVDQA , MOVQ2DQ,
     MOVDQ2Q,
-
-    CVTPD2PI, CVTTPD2PI,
-
-    CVTPI2PD, CVTDQ2PD,
-    CVTSD2SI, CVTTSD2SI,
-    CVTSI2SD, CVTPS2DQ,
-    CVTTPS2DQ, CVTDQ2PS,
-
-    CVTPS2PD, CVTPD2PS,
-    CVTSS2SD,
 
     PSUBQ  , PSHUFD    , PSLLDQ,
     PSRLDQ , PMULUDQ   , PSHUFLW,
@@ -179,8 +163,16 @@ pub enum Mnemonic {
     PHMINPOSUW,
 
     // AVX/AVX2
+    // ---
+    // AVX support roadmap:
+    //  - [x] SSE/MMX derived
+    //  - [ ] avx-part2x
+    //  - [ ] FMA/AES
+    //  - [ ] conversions
+    // hopefully i can finish before end of 31.05.2025
+    // ---
     // derived from SSE
-    VMOVAPS , VMOVUPS,
+    VMOVAPS , VMOVUPS, 
     VADDPS  , VADDSS,
     VSUBPS  , VSUBSS,
     VMULPS  , VMULSS,
@@ -277,7 +269,79 @@ pub enum Mnemonic {
     
     VPUNPCKLBW, VPUNPCKLWD, VPUNPCKLDQ,
     VPUNPCKHBW, VPUNPCKHWD, VPUNPCKHDQ,
+
+    // AVX/AVX2 (and even SSE ;) ) part 2
+    // part a - tests/*/avx-part2a.asm
+    VPAVGB, VPAVGW,
+
+    VPHADDW, VPHADDD, VPHSUBW, VPHSUBD,
     
+    VZEROALL, VPALIGNR,
+
+    VZEROUPPER,
+    VINSERTF128, VEXTRACTF128, VBROADCASTSS, VBROADCASTSD,
+
+    VBROADCASTF128,
+
+    // part b - tests/*/avx-part2b.asm
+    STMXCSR, LDMXCSR,
+    
+    VPTESTPS, VPTESTPD, VLDMXCSR, VSTMXCSR,
+    
+    VMOVMSKPS,
+    
+    VPERMILPD, VPERMILPS, PCLMULQDQ,
+
+    VMASKMOVPS,VPERMIL2PD, VPERMIL2PS, VPERM2F128,
+
+    // part c - tests/*/avx-part2c.asm
+    VPINSRW, VPMAXSW, VPMINSW,
+    VPSRLDQ, VPSIGND, VPSIGNB, VPSIGNW,
+
+    VPMAXUSB, VPMAXUSW, VPSQLLDQ,
+    VPMAXUSD, VPMINUSB, VPHSUFLW,
+    VPMINUSW, VPMINUSD, VPMULUDQ, VPMULHUW,
+    
+    VPHSHUFHW, VPMULHRSW,
+
+    // this is FMA extension, but it uses VEX, so why not?
+    // /tests/*/fma.asm
+    VFMADDPD, VFMADDPS, VFMADDSS, VFMADDSD,
+    VFMSUBPD, VFMSUBPS, VFMSUBSS, VFMSUBSD,
+    VFNMADDPD, VFNMADDPS, VFNMADDSS, VFNMADDSD,
+    VFNMSUBPD, VFNMSUBPS, VFNMSUBSS, VFNMSUBSD,
+    VFMADDSUBPD, VFMADDSUBPS,
+    VFMSUBADDPD, VFMSUBADDPS,
+
+    // same but AES
+    // /tests/*/aes.asm
+    AESDEC, AESENC, AESIMC,
+    
+    VAESDEC, VAESENC, VAESIMC,
+    
+    AESDECLAST, AESENCLAST,
+    
+    VAESDECLAST, VAESENCLAST,
+    
+    AESKEYGENASSIST,
+    VAESKEYGENASSIST, // 16 chars :o
+
+    // i hate coding conversions, but i guess someone has to do them and actually test them :)
+    // so here are conversions from MMX/SSE/AVX
+    // /tests/*/cvt-part1.asm
+    CVTDQ2PD, CVTDQ2PS, CVTPD2DQ, CVTPD2PI, CVTPD2PS, CVTPI2PD, CVTPI2PS,
+    CVTPS2DQ, CVTPS2PD, CVTPS2PI, CVTSD2SI, CVTSD2SS, CVTSI2SD, CVTSI2SS,
+    CVTSS2SD, CVTSS2SI, 
+
+    CVTTPD2DQ, CVTTPD2PI, CVTTPS2DQ, CVTTPS2PI, CVTTSD2SI, CVTTSS2SI,
+
+    // /tests/*/cvt-part2.asm
+    VCVTDQ2PD, VCVTDQ2PS, VCVTPD2DQ, VCVTPD2PI, VCVTPD2PS, VCVTPI2PD, VCVTPI2PS,
+    VCVTPS2DQ, VCVTPS2PD, VCVTPS2PI, VCVTSD2SI, VCVTSD2SS, VCVTSI2SD, VCVTSI2SS,
+    VCVTSS2SD, VCVTSS2SI,
+
+    VCVTTPD2DQ, VCVTTPD2PI, VCVTTPS2DQ, VCVTTPS2PI, VCVTTSD2SI, VCVTTSS2SI,
+
     // this has no real purpose, but why not?
     __LAST
 }

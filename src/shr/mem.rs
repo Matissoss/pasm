@@ -24,14 +24,14 @@ impl Mem {
                 Err(_) => return Err(RASMError::with_tip(
                     None,
                     Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
-                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte")
+                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte or !any")
                 ))
             }
         } else {
             return Err(RASMError::with_tip(
                 None,
                 Some("No size specifier found in memory declaration"),
-                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word or !byte")
+                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word, !byte or !any")
             ));
         };
         mem_par(&mem_tok(memstr), size)

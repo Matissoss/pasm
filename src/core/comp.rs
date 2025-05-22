@@ -2121,7 +2121,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x6A], &[0x6A], None, 0x66, 0x0F, false),
             None,
         ),
-        //_ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
+        _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }
 

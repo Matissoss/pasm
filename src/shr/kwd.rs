@@ -10,6 +10,7 @@ pub enum Keyword {
     Word,
     Byte,
     Bits,
+    Any,
     Qword,
     Dword,
     Xword,
@@ -46,6 +47,9 @@ impl FromStr for Keyword {
         let kwd_raw = kwd_str.as_bytes();
         let kwd = kwd_raw;
         match kwd_raw.len() {
+            // experimental
+            3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
+            
             4 => match kwd_raw[0] as char {
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
@@ -81,6 +85,7 @@ impl ToString for Keyword {
     fn to_string(&self) -> String {
         match self {
             Self::Qword => String::from("qword"),
+            Self::Any => String::from("any"),
             Self::Dword => String::from("dword"),
             Self::Word => String::from("word"),
             Self::Byte => String::from("byte"),

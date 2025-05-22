@@ -102,6 +102,17 @@ impl TryFrom<&Token> for Operand {
     type Error = ();
     fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
         match tok {
+            // experimental
+            // idk what if this works (i hope so; will have to check)
+            Token::MemAddr(m) => match Mem::try_make(m, Some(super::kwd::Keyword::Any)) {
+                Ok(m) => Ok(Operand::Mem(m)),
+                Err(e) => {
+                    // we have to do error handling here :(
+                    eprintln!("{e}");
+                    std::process::exit(1);
+                }
+            },
+
             Token::Register(reg) => {
                 if reg.is_ctrl_reg() {
                     Ok(Self::CtrReg(*reg))
