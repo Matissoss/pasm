@@ -2213,6 +2213,79 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins(ins, &[0x1A], &[0x1A], None, 0x66, 0x38, false),
             None,
         ),
+        Ins::STMXCSR => (
+            gen_ins(ins, &[0x0F, 0xAE], (true, Some(3), None), None, bits, false),
+            None,
+        ),
+        Ins::LDMXCSR => (
+            gen_ins(ins, &[0x0F, 0xAE], (true, Some(2), None), None, bits, false),
+            None,
+        ),
+        Ins::VSTMXCSR => (
+            avx::avx_ins(ins, &[0xAE], &[0xAE], Some(3), 0, 0x0F, false),
+            None,
+        ),
+        Ins::VLDMXCSR => (
+            avx::avx_ins(ins, &[0xAE], &[0xAE], Some(2), 0, 0x0F, false),
+            None,
+        ),
+        Ins::VMOVMSKPS => (
+            avx::avx_ins(ins, &[0x50], &[0x50], None, 0, 0x0F, false),
+            None,
+        ),
+        Ins::VPERMILPS => {
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                (
+                    avx::avx_ins_wimm2(ins, &[0x04], &[0x04], None, 0x66, 0x3A, false),
+                    None,
+                )
+            } else {
+                (
+                    avx::avx_ins(ins, &[0x0C], &[0x0C], None, 0x66, 0x38, false),
+                    None,
+                )
+            }
+        }
+        Ins::VPERMILPD => {
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                (
+                    avx::avx_ins_wimm2(ins, &[0x05], &[0x05], None, 0x66, 0x3A, false),
+                    None,
+                )
+            } else {
+                (
+                    avx::avx_ins(ins, &[0x0D], &[0x0D], None, 0x66, 0x38, false),
+                    None,
+                )
+            }
+        }
+        Ins::PCLMULQDQ => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x3A, 0x44],
+                (true, None, None),
+                if let Some(Operand::Imm(n)) = ins.src2() {
+                    Some(vec![n.split_into_bytes()[0]])
+                } else {
+                    None
+                },
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::VPCLMULQDQ => (
+            avx::avx_ins_wimm3(ins, &[0x44], &[0x44], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPERM2F128 => (
+            avx::avx_ins_wimm3(ins, &[0x06], &[0x06], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::VPERM2I128 => (
+            avx::avx_ins_wimm3(ins, &[0x46], &[0x46], None, 0x66, 0x3A, false),
+            None,
+        ),
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }

@@ -1726,6 +1726,61 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // part2b
+        Mnm::STMXCSR | Mnm::VSTMXCSR | Mnm::LDMXCSR | Mnm::VLDMXCSR => {
+            ot_chk(ins, &[(&[M32], Optional::Needed)], &[], &[])
+        }
+        Mnm::VMOVMSKPS => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPERMILPD | Mnm::VPERMILPS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, M256, M128, I8], Optional::Needed),
+            ],
+            &[(XMM, MA, MA), (YMM, MA, MA)],
+            &[],
+        ),
+        Mnm::VPCLMULQDQ => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M256, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PCLMULQDQ => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPERM2F128 | Mnm::VPERM2I128 => avx_ot_chk(
+            ins,
+            &[
+                (&[YMM], Optional::Needed),
+                (&[YMM], Optional::Needed),
+                (&[YMM, M256], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::no_tip(
             Some(ins.line),
