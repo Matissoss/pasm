@@ -1781,6 +1781,81 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // part2c
+        Mnm::VPMAXSW
+        | Mnm::VPMINSW
+        | Mnm::VPSIGNB
+        | Mnm::VPSIGNW
+        | Mnm::VPSIGND
+        | Mnm::VPMULUDQ
+        | Mnm::VPMULHUW
+        | Mnm::VPMULHRSW => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPSRLDQ => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPINSRW => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[R32, M16], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        // part2c-ext
+        Mnm::VPMAXUD => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, M128, YMM, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::PMAXSW | Mnm::PMINSW | Mnm::PMULHUW => ot_chk(
+            ins,
+            &[
+                (&[XMM, MMX], Optional::Needed),
+                (&[XMM, MMX], Optional::Needed),
+            ],
+            &[(XMM, MMX), (MMX, XMM)],
+            &[],
+        ),
+        Mnm::PMAXUD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::PINSRW => ot_chk(
+            ins,
+            &[
+                (&[XMM, MMX], Optional::Needed),
+                (&[R32, M16], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::no_tip(
             Some(ins.line),

@@ -2286,6 +2286,148 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins_wimm3(ins, &[0x46], &[0x46], None, 0x66, 0x3A, false),
             None,
         ),
+        // part2c
+        Ins::VPINSRW => (
+            avx::avx_ins_wimm3(ins, &[0xC4], &[0xC4], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMAXSW => (
+            avx::avx_ins(ins, &[0xEE], &[0xEE], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMINSW => (
+            avx::avx_ins(ins, &[0xEA], &[0xEA], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSRLDQ => (
+            avx::avx_ins_wimm2(ins, &[0x73], &[0x73], Some(3), 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPSIGNB => (
+            avx::avx_ins(ins, &[0x08], &[0x08], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPSIGNW => (
+            avx::avx_ins(ins, &[0x09], &[0x09], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPSIGND => (
+            avx::avx_ins(ins, &[0x0A], &[0x0A], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VPMULUDQ => (
+            avx::avx_ins(ins, &[0xF4], &[0xF4], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMULHUW => (
+            avx::avx_ins(ins, &[0xE4], &[0xE4], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VPMULHRSW => (
+            avx::avx_ins(ins, &[0x0B], &[0x0B], None, 0x66, 0x38, false),
+            None,
+        ),
+        // part2c-ext
+        Ins::PMAXSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xEE], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xEE],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PINSRW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xC4], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xC4],
+                        (true, None, None),
+                        if let Some(Operand::Imm(n)) = ins.src2() {
+                            Some(vec![n.split_into_bytes()[0]])
+                        } else {
+                            None
+                        },
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PMINSW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xEA], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xEA],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        Ins::PMAXUD => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0x3F],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::VPMAXUD => (
+            avx::avx_ins(ins, &[0x3F], &[0x3F], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::PMULHUW => {
+            if ins.which_variant() == IVariant::MMX {
+                (
+                    gen_ins(ins, &[0x0F, 0xE4], (true, None, None), None, bits, false),
+                    None,
+                )
+            } else {
+                (
+                    gen_ins(
+                        ins,
+                        &[0x66, 0x0F, 0xE4],
+                        (true, None, None),
+                        None,
+                        bits,
+                        false,
+                    ),
+                    None,
+                )
+            }
+        }
+        // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }
