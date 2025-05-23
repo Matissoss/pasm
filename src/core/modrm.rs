@@ -51,7 +51,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: b
     } else {
         if matches!(
             ins.mnem,
-            Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
+            Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ | Mnemonic::VINSERTF128
         ) {
             gen_rmreg(ins.src())
         } else if modrm_reg_is_dst {
@@ -82,7 +82,7 @@ pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: b
             } else {
                 if matches!(
                     ins.mnem,
-                    Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ
+                    Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ | Mnemonic::VINSERTF128
                 ) {
                     gen_rmreg(ins.dst())
                 } else if modrm_reg_is_dst {

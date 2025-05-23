@@ -49,7 +49,7 @@ impl FromStr for Keyword {
         match kwd_raw.len() {
             // experimental
             3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
-            
+
             4 => match kwd_raw[0] as char {
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),

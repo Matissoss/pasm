@@ -85,11 +85,15 @@ pub fn avx_ins_wimm3(
     map_select: u8,
     vex_we: bool,
 ) -> Vec<u8> {
-    let (modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
+    let (mut modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
         (_, Some(Operand::Mem(_))) => (true, opc_rm),
         (Some(Operand::Mem(_)), _) => (false, opc_mr),
         _ => (true, opc_rm),
     };
+    if matches!(ins.mnem, Ins::VINSERTF128) {
+        modrm_reg_is_dst = false;
+    }
+
     let imm = match ins.oprs.get(3) {
         Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
         _ => None,

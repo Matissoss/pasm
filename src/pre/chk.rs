@@ -1647,6 +1647,86 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[(M64, M64), (R64, R64), (XMM, XMM)],
             &[],
         ),
+        // part2a
+        Mnm::VZEROALL | Mnm::VZEROUPPER => ot_chk(ins, &[], &[], &[]),
+        Mnm::PAVGB | Mnm::PAVGW => ot_chk(
+            ins,
+            &[
+                (&[XMM, MMX], Optional::Needed),
+                (&[XMM, MMX], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPAVGB | Mnm::VPAVGW | Mnm::VPHADDW | Mnm::VPHADDD | Mnm::VPHSUBW | Mnm::VPHSUBD => {
+            avx_ot_chk(
+                ins,
+                &[
+                    (&[XMM, YMM], Optional::Needed),
+                    (&[XMM, YMM], Optional::Needed),
+                    (&[XMM, YMM, M128, M256], Optional::Needed),
+                ],
+                &[],
+                &[],
+            )
+        }
+        Mnm::VBROADCASTF128 => avx_ot_chk_wthout(
+            ins,
+            &[(&[YMM], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::VBROADCASTSD => avx_ot_chk_wthout(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VBROADCASTSS => avx_ot_chk_wthout(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VEXTRACTF128 => avx_ot_chk_wthout(
+            ins,
+            &[
+                (&[XMM, M128], Optional::Needed),
+                (&[YMM], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VINSERTF128 => avx_ot_chk_wthout(
+            ins,
+            &[
+                (&[YMM], Optional::Needed),
+                (&[YMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VPALIGNR => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M256, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
         _ => Some(RASMError::no_tip(
             Some(ins.line),
             Some("Tried to use currently unsupported instruction."),
@@ -1662,7 +1742,7 @@ enum Optional {
     Optional,
 }
 
-fn avx_ot_chk(
+fn avx_ot_chk_wthout(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
@@ -1695,6 +1775,47 @@ fn avx_ot_chk(
     }
     if ops.len() == 2 {
         if let Some(err) = size_chk(ins) {
+            return Some(err);
+        }
+    }
+    if let Some(err) = avx_forb_chk(ins, forb) {
+        return Some(err);
+    }
+    None
+}
+fn avx_ot_chk(
+    ins: &Instruction,
+    ops: &[(&[AType], Optional)],
+    forb: &[(AType, AType, AType)],
+    addt: &[Mnm],
+) -> Option<RASMError> {
+    if let Some(err) = addt_chk(ins, addt) {
+        return Some(err);
+    }
+    if ops.is_empty() && !ins.oprs.is_empty() {
+        return Some(RASMError::no_tip(
+            Some(ins.line),
+            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
+        ));
+    }
+    for (idx, allowed) in ops.iter().enumerate() {
+        if let Some(op) = ins.oprs.get(idx) {
+            if let Some(err) = type_check(op, allowed.0, idx) {
+                return Some(err);
+            }
+        } else {
+            if allowed.1 == Optional::Needed {
+                return Some(RASMError::no_tip(
+                    Some(ins.line),
+                    Some(format!("Needed operand not found at index {}", idx)),
+                ));
+            } else {
+                break;
+            }
+        }
+    }
+    if ops.len() == 2 {
+        if let Some(err) = avx_size_chk(ins) {
             return Some(err);
         }
     }
@@ -1878,6 +1999,77 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
             }
         }
         Some(err)
+    }
+}
+fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
+    let dst = ins.dst().unwrap();
+    let src = ins.src().unwrap();
+
+    if let Operand::CtrReg(_) = dst {
+        return None;
+    }
+    if let Operand::CtrReg(_) = src {
+        return None;
+    }
+    // should work (i hope so)
+    match (dst.atype(), src.atype()) {
+        (AType::Register(_, s0) | AType::Memory(s0) | AType::SMemory(s0), AType::Immediate(s1)) => {
+            if s1 <= s0 {
+                None
+            } else {
+                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                    Some(RASMError::with_tip(
+                        Some(ins.line),
+                        Some("Tried to use immediate that is too large for destination operand"),
+                        Some(format!("Consider changing immediate to fit inside {s0}",)),
+                    ))
+                } else {
+                    None
+                }
+            }
+        }
+        (AType::Memory(s0) | AType::SMemory(s0), AType::Memory(s1) | AType::SMemory(s1)) => {
+            if s1 == s0 {
+                None
+            } else {
+                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                    Some(RASMError::with_tip(
+                        Some(ins.line),
+                        Some("Tried to use operand that cannot be used for destination operand"),
+                        Some(format!("Consider changing operand to be {s0}",)),
+                    ))
+                } else {
+                    None
+                }
+            }
+        }
+        (AType::Register(_, s0), AType::Register(_, s1)) => {
+            if let Some(ssrc) = ins.src2() {
+                if s1 == s0 && ssrc.size() == s0 {
+                    None
+                } else {
+                    Some(RASMError::with_tip(
+                        Some(ins.line),
+                        Some("Tried to use operand that cannot be used for destination operand"),
+                        Some(format!("Consider changing operand to be {s0}",)),
+                    ))
+                }
+            } else if s1 == s0 {
+                None
+            } else {
+                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                    Some(RASMError::with_tip(
+                        Some(ins.line),
+                        Some("Tried to use operand that cannot be used for destination operand"),
+                        Some(format!("Consider changing operand to be {s0}",)),
+                    ))
+                } else {
+                    None
+                }
+            }
+        }
+
+        _ => None,
     }
 }
 fn size_chk(ins: &Instruction) -> Option<RASMError> {

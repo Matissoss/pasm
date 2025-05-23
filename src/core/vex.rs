@@ -35,7 +35,8 @@ pub fn gen_vex(
         0xF2 => 0b11,
         _ => 0b00,
     };
-    let vlength = (ins.which_variant() == IVariant::YMM) as u8;
+    let vlength =
+        (ins.which_variant() == IVariant::YMM || matches!(ins.mnem, Ins::VEXTRACTF128)) as u8;
 
     let map_select = match map_select {
         0x0F => 0b00001,
@@ -154,17 +155,23 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
 
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
+    let ssrc = ins.src2();
+
+    if matches!(ins.mnem, Ins::VINSERTF128) {
+        modrm_reg_is_dst = true;
+    }
+
     let reg = if let Some(reg) = reg {
         reg
     } else {
         if modrm_reg_is_dst {
             gen_rmreg(ins.dst())
         } else {
-            if let Some(Operand::Mem(_) | Operand::Segment(_)) = ins.src2() {
+            if let Some(Operand::Mem(_) | Operand::Segment(_)) = ssrc {
                 modrm_reg_is_dst = true;
                 gen_rmreg(ins.dst())
             } else {
-                gen_rmreg(ins.src2())
+                gen_rmreg(ssrc)
             }
         }
     };
@@ -176,7 +183,7 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
                 rm
             } else {
                 if modrm_reg_is_dst {
-                    gen_rmreg(ins.src2())
+                    gen_rmreg(ssrc)
                 } else {
                     gen_rmreg(ins.dst())
                 }
@@ -207,6 +214,13 @@ fn gen_rmreg(op: Option<&Operand>) -> u8 {
         },
         _ => 0,
     }
+}
+
+pub const fn vex2(vexr: bool, ssrc: u8, vlength: bool, pp: u8) -> [u8; 2] {
+    [
+        TWO_BYTE_PFX,
+        ((vexr as u8) << 7 | ssrc << 3 | (vlength as u8) << 2 | pp),
+    ]
 }
 
 #[cfg(test)]
