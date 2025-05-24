@@ -1982,6 +1982,33 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // aes
+        Mnm::AESDEC | Mnm::AESENC | Mnm::AESIMC | Mnm::VAESIMC | Mnm::AESDECLAST => avx_ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::VAESDEC | Mnm::VAESENC | Mnm::VAESDECLAST => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::AESKEYGENASSIST | Mnm::VAESKEYGENASSIST => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::no_tip(
             Some(ins.line),

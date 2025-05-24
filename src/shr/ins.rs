@@ -332,13 +332,12 @@ pub enum Mnemonic {
     // same but AES
     // /tests/*/aes.asm
     AESDEC, AESENC, AESIMC,
-    
     VAESDEC, VAESENC, VAESIMC,
-    
+
     AESDECLAST, AESENCLAST,
     
     VAESDECLAST, VAESENCLAST,
-    
+
     AESKEYGENASSIST,
     VAESKEYGENASSIST, // 16 chars :o
 
@@ -1311,6 +1310,33 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => n(),
             },
             'a' => match rstr[1] {
+                'e' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'i' => match rstr[4] {
+                            'm' => match rstr[5] {
+                                'c' => s(Ins::AESIMC),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'e' => match rstr[4] {
+                            'n' => match rstr[5] {
+                                'c' => s(Ins::AESENC),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'd' => match rstr[4] {
+                            'e' => match rstr[5] {
+                                'c' => s(Ins::AESDEC),
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'n' => match rstr[2] {
                     'd' => match rstr[3] {
                         'n' => match rstr[4] {
@@ -2129,6 +2155,33 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => n(),
                 },
                 'a' => match rstr[2] {
+                    'e' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'i' => match rstr[5] {
+                                'm' => match rstr[6] {
+                                    'c' => s(Ins::VAESIMC),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'e' => match rstr[5] {
+                                'n' => match rstr[6] {
+                                    'c' => s(Ins::VAESENC),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'd' => match rstr[5] {
+                                'e' => match rstr[6] {
+                                    'c' => s(Ins::VAESDEC),
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
                     'n' => match rstr[3] {
                         'd' => match rstr[4] {
                             'n' => match rstr[5] {
@@ -3060,6 +3113,17 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             _ => n(),
         },
         10 => match rstr[0] {
+            'a' => match rstr[1] {
+                'e' => match rstr[2] {
+                    's' => match rstr[3] {
+                        'd' => ins_ie(&rstr, 4, &cc::<10>("aesdeclast"), Ins::AESDECLAST),
+                        'n' => ins_ie(&rstr, 4, &cc::<10>("aessenlast"), Ins::AESENCLAST),
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                _ => n(),
+            },
             'm' => ins_ie(&rstr, 1, &cc::<10>("maskmovdqu"), Ins::MASKMOVDQU),
             'p' => match rstr[1] {
                 'h' => ins_ie(&rstr, 2, &cc::<10>("phminposuw"), Ins::PHMINPOSUW),
@@ -3318,6 +3382,17 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'p' => ins_ie(&rstr, 2, &cc::<11>("vphminposuw"), Ins::VPHMINPOSUW),
                 'i' => ins_ie(&rstr, 2, &cc::<11>("vinsertf128"), Ins::VINSERTF128),
                 'e' => ins_ie(&rstr, 2, &cc::<11>("vextractf128"), Ins::VINSERTF128),
+                'a' => match rstr[2] {
+                    'e' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'd' => ins_ie(&rstr, 5, &cc::<11>("vaesdeclast"), Ins::VAESDECLAST),
+                            's' => ins_ie(&rstr, 5, &cc::<11>("vaesenclast"), Ins::VAESENCLAST),
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 _ => n(),
             },
             _ => n(),
@@ -3596,6 +3671,13 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             _ => n(),
         },
+        15 => ins_ie(&rstr, 1, &cc::<15>("aeskeygenassist"), Ins::AESKEYGENASSIST),
+        16 => ins_ie(
+            &rstr,
+            1,
+            &cc::<16>("vaeskeygenassist"),
+            Ins::VAESKEYGENASSIST,
+        ),
         _ => n(),
     }
 }

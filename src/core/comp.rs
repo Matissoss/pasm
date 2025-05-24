@@ -2672,6 +2672,101 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             avx::avx_ins_oopc(ins, &[0xB7], None, 0x66, 0x38, true),
             None,
         ),
+        // aes
+        Ins::AESDEC => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0xDE],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::AESENC => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0xDC],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::AESIMC => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0xDB],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::AESDECLAST => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0xDF],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::AESENCLAST => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x38, 0xDD],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::VAESDEC => (
+            avx::avx_ins_oopc(ins, &[0xDE], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VAESENC => (
+            avx::avx_ins_oopc(ins, &[0xDC], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VAESIMC => (
+            avx::avx_ins_oopc(ins, &[0xDB], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VAESENCLAST => (
+            avx::avx_ins_oopc(ins, &[0xDD], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VAESDECLAST => (
+            avx::avx_ins_oopc(ins, &[0xDF], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VAESKEYGENASSIST => (
+            avx::avx_ins_wimm2(ins, &[0xDF], &[0xDF], None, 0x66, 0x3A, false),
+            None,
+        ),
+        Ins::AESKEYGENASSIST => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x3A, 0xDF],
+                (true, None, None),
+                if let Some(Operand::Imm(i)) = ins.src2() {
+                    Some(vec![i.split_into_bytes()[0]])
+                } else {
+                    None
+                },
+                bits,
+                false,
+            ),
+            None,
+        ),
 
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
