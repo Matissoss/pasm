@@ -2954,7 +2954,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         // other
-        //_ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
+        _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }
 
