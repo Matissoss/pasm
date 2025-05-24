@@ -166,7 +166,7 @@ pub enum Mnemonic {
     // ---
     // AVX support roadmap:
     //  - [x] SSE/MMX derived
-    //  - [ ] avx-part2x
+    //  - [x] avx-part2x
     //  - [ ] FMA/AES
     //  - [ ] conversions
     // hopefully i can finish before end of 31.05.2025
@@ -307,13 +307,27 @@ pub enum Mnemonic {
     PINSRW, PMAXSW, PMINSW, VPMAXUD, PMAXUD, PMULHUW,
 
     // this is FMA extension, but it uses VEX, so why not?
-    // /tests/*/fma.asm
-    VFMADDPD, VFMADDPS, VFMADDSS, VFMADDSD,
-    VFMSUBPD, VFMSUBPS, VFMSUBSS, VFMSUBSD,
-    VFNMADDPD, VFNMADDPS, VFNMADDSS, VFNMADDSD,
-    VFNMSUBPD, VFNMSUBPS, VFNMSUBSS, VFNMSUBSD,
-    VFMADDSUBPD, VFMADDSUBPS,
-    VFMSUBADDPD, VFMSUBADDPS,
+    // /tests/*/fma-part1.asm
+    VFMADD132PD, VFMADD132PS, VFMADD132SS, VFMADD132SD,
+    VFMADD213PD, VFMADD213PS, VFMADD213SS, VFMADD213SD,
+    VFMADD231PD, VFMADD231PS, VFMADD231SS, VFMADD231SD,
+    VFMSUB132PD, VFMSUB132PS, VFMSUB132SS, VFMSUB132SD,
+    VFMSUB213PD, VFMSUB213PS, VFMSUB213SS, VFMSUB213SD,
+    VFMSUB231PD, VFMSUB231PS, VFMSUB231SS, VFMSUB231SD,
+    // /tests/*/fma-part2.asm
+    VFNMADD132PD, VFNMADD132PS, VFNMADD132SS, VFNMADD132SD,
+    VFNMADD213PD, VFNMADD213PS, VFNMADD213SS, VFNMADD213SD,
+    VFNMADD231PD, VFNMADD231PS, VFNMADD231SS, VFNMADD231SD,
+    VFNMSUB132PD, VFNMSUB132PS, VFNMSUB132SS, VFNMSUB132SD,
+    VFNMSUB213PD, VFNMSUB213PS, VFNMSUB213SS, VFNMSUB213SD,
+    VFNMSUB231PD, VFNMSUB231PS, VFNMSUB231SS, VFNMSUB231SD,
+    // /tests/*/fma-part3.asm
+    VFMADDSUB132PD, VFMADDSUB132PS,
+    VFMADDSUB213PD, VFMADDSUB213PS,
+    VFMADDSUB231PD, VFMADDSUB231PS,
+    VFMSUBADD132PD, VFMSUBADD132PS,
+    VFMSUBADD213PD, VFMSUBADD213PS,
+    VFMSUBADD231PD, VFMSUBADD231PS,
 
     // same but AES
     // /tests/*/aes.asm
@@ -3169,6 +3183,138 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
         },
         11 => match rstr[0] {
             'v' => match rstr[1] {
+                'f' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                'b' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        '3' => match rstr[8] {
+                                            '1' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB231SS),
+                                                    'd' => s(Ins::VFMSUB231SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB231PS),
+                                                    'd' => s(Ins::VFMSUB231PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        '1' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB213SS),
+                                                    'd' => s(Ins::VFMSUB213SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB213PS),
+                                                    'd' => s(Ins::VFMSUB213PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    '1' => match rstr[7] {
+                                        '3' => match rstr[8] {
+                                            '2' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB132SS),
+                                                    'd' => s(Ins::VFMSUB132SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMSUB132PS),
+                                                    'd' => s(Ins::VFMSUB132PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'a' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        '3' => match rstr[8] {
+                                            '1' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD231SS),
+                                                    'd' => s(Ins::VFMADD231SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD231PS),
+                                                    'd' => s(Ins::VFMADD231PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        '1' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD213SS),
+                                                    'd' => s(Ins::VFMADD213SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD213PS),
+                                                    'd' => s(Ins::VFMADD213PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    '1' => match rstr[7] {
+                                        '3' => match rstr[8] {
+                                            '2' => match rstr[9] {
+                                                's' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD132SS),
+                                                    'd' => s(Ins::VFMADD132SD),
+                                                    _ => n(),
+                                                },
+                                                'p' => match rstr[10] {
+                                                    's' => s(Ins::VFMADD132PS),
+                                                    'd' => s(Ins::VFMADD132PD),
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'p' => ins_ie(&rstr, 2, &cc::<11>("vphminposuw"), Ins::VPHMINPOSUW),
                 'i' => ins_ie(&rstr, 2, &cc::<11>("vinsertf128"), Ins::VINSERTF128),
                 'e' => ins_ie(&rstr, 2, &cc::<11>("vextractf128"), Ins::VINSERTF128),
@@ -3178,6 +3324,141 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
         },
         12 => match rstr[0] {
             'v' => match rstr[1] {
+                'f' => match rstr[2] {
+                    'n' => match rstr[3] {
+                        'm' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'u' => match rstr[6] {
+                                    'b' => match rstr[7] {
+                                        '2' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                '1' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB231SS),
+                                                        'd' => s(Ins::VFNMSUB231SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB231PS),
+                                                        'd' => s(Ins::VFNMSUB231PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            '1' => match rstr[9] {
+                                                '3' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB213SS),
+                                                        'd' => s(Ins::VFNMSUB213SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB213PS),
+                                                        'd' => s(Ins::VFNMSUB213PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        '1' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                '2' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB132SS),
+                                                        'd' => s(Ins::VFNMSUB132SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMSUB132PS),
+                                                        'd' => s(Ins::VFNMSUB132PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'a' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    'd' => match rstr[7] {
+                                        '2' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                '1' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD231SS),
+                                                        'd' => s(Ins::VFNMADD231SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD231PS),
+                                                        'd' => s(Ins::VFNMADD231PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            '1' => match rstr[9] {
+                                                '3' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD213SS),
+                                                        'd' => s(Ins::VFNMADD213SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD213PS),
+                                                        'd' => s(Ins::VFNMADD213PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        '1' => match rstr[8] {
+                                            '3' => match rstr[9] {
+                                                '2' => match rstr[10] {
+                                                    's' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD132SS),
+                                                        'd' => s(Ins::VFNMADD132SD),
+                                                        _ => n(),
+                                                    },
+                                                    'p' => match rstr[11] {
+                                                        's' => s(Ins::VFNMADD132PS),
+                                                        'd' => s(Ins::VFNMADD132PD),
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'e' => ins_ie(&rstr, 2, &cc::<12>("vextractf128"), Ins::VEXTRACTF128),
                 'b' => match rstr[11] {
                     'd' => ins_ie(&rstr, 2, &cc::<12>("vbroadcastsd"), Ins::VBROADCASTSD),
@@ -3188,7 +3469,133 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             _ => n(),
         },
-        14 => ins_ie(&rstr, 1, &cc::<14>("vbroadcastf128"), Ins::VBROADCASTF128),
+        14 => match rstr[0] {
+            'v' => match rstr[1] {
+                'f' => match rstr[2] {
+                    'm' => match rstr[3] {
+                        's' => match rstr[4] {
+                            'u' => match rstr[5] {
+                                'b' => match rstr[6] {
+                                    'a' => match rstr[7] {
+                                        'd' => match rstr[8] {
+                                            'd' => match rstr[9] {
+                                                '2' => match rstr[10] {
+                                                    '3' => match rstr[11] {
+                                                        '1' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMSUBADD231PS),
+                                                                'd' => s(Ins::VFMSUBADD231PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    '1' => match rstr[11] {
+                                                        '3' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMSUBADD213PS),
+                                                                'd' => s(Ins::VFMSUBADD213PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                '1' => match rstr[10] {
+                                                    '3' => match rstr[11] {
+                                                        '2' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMSUBADD132PS),
+                                                                'd' => s(Ins::VFMSUBADD132PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        'a' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'd' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'u' => match rstr[8] {
+                                            'b' => match rstr[9] {
+                                                '2' => match rstr[10] {
+                                                    '3' => match rstr[11] {
+                                                        '1' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMADDSUB231PS),
+                                                                'd' => s(Ins::VFMADDSUB231PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    '1' => match rstr[11] {
+                                                        '3' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMADDSUB213PS),
+                                                                'd' => s(Ins::VFMADDSUB213PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                '1' => match rstr[10] {
+                                                    '3' => match rstr[11] {
+                                                        '2' => match rstr[12] {
+                                                            'p' => match rstr[13] {
+                                                                's' => s(Ins::VFMADDSUB132PS),
+                                                                'd' => s(Ins::VFMADDSUB132PD),
+                                                                _ => n(),
+                                                            },
+                                                            _ => n(),
+                                                        },
+                                                        _ => n(),
+                                                    },
+                                                    _ => n(),
+                                                },
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
+                'b' => ins_ie(&rstr, 3, &cc::<14>("vbroadcastf128"), Ins::VBROADCASTF128),
+                _ => n(),
+            },
+            _ => n(),
+        },
         _ => n(),
     }
 }

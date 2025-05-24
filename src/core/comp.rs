@@ -2427,6 +2427,252 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 )
             }
         }
+        // fma-part1
+        Ins::VFMADD132PS => (
+            avx::avx_ins_oopc(ins, &[0x98], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD213PS => (
+            avx::avx_ins_oopc(ins, &[0xA8], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD231PS => (
+            avx::avx_ins_oopc(ins, &[0xB8], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD132PD => (
+            avx::avx_ins_oopc(ins, &[0x98], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADD213PD => (
+            avx::avx_ins_oopc(ins, &[0xA8], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADD231PD => (
+            avx::avx_ins_oopc(ins, &[0xB8], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADD132SS => (
+            avx::avx_ins_oopc(ins, &[0x99], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD213SS => (
+            avx::avx_ins_oopc(ins, &[0xA9], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD231SS => (
+            avx::avx_ins_oopc(ins, &[0xB9], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADD132SD => (
+            avx::avx_ins_oopc(ins, &[0x99], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADD213SD => (
+            avx::avx_ins_oopc(ins, &[0xA9], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADD231SD => (
+            avx::avx_ins_oopc(ins, &[0xB9], None, 0x66, 0x38, true),
+            None,
+        ),
+
+        Ins::VFMSUB132PS => (
+            avx::avx_ins_oopc(ins, &[0x9A], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB213PS => (
+            avx::avx_ins_oopc(ins, &[0xAA], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB231PS => (
+            avx::avx_ins_oopc(ins, &[0xBA], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB132PD => (
+            avx::avx_ins_oopc(ins, &[0x9A], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUB213PD => (
+            avx::avx_ins_oopc(ins, &[0xAA], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUB231PD => (
+            avx::avx_ins_oopc(ins, &[0xBA], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUB132SS => (
+            avx::avx_ins_oopc(ins, &[0x9B], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB213SS => (
+            avx::avx_ins_oopc(ins, &[0xAB], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB231SS => (
+            avx::avx_ins_oopc(ins, &[0xBB], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUB132SD => (
+            avx::avx_ins_oopc(ins, &[0x9B], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUB213SD => (
+            avx::avx_ins_oopc(ins, &[0xAB], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUB231SD => (
+            avx::avx_ins_oopc(ins, &[0xBB], None, 0x66, 0x38, true),
+            None,
+        ),
+        // fma-part2
+        Ins::VFNMADD132PS => (
+            avx::avx_ins_oopc(ins, &[0x9C], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD213PS => (
+            avx::avx_ins_oopc(ins, &[0xAC], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD231PS => (
+            avx::avx_ins_oopc(ins, &[0xBC], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD132PD => (
+            avx::avx_ins_oopc(ins, &[0x9C], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMADD213PD => (
+            avx::avx_ins_oopc(ins, &[0xAC], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMADD231PD => (
+            avx::avx_ins_oopc(ins, &[0xBC], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMADD132SS => (
+            avx::avx_ins_oopc(ins, &[0x9D], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD213SS => (
+            avx::avx_ins_oopc(ins, &[0xAD], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD231SS => (
+            avx::avx_ins_oopc(ins, &[0xBD], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMADD132SD => (
+            avx::avx_ins_oopc(ins, &[0x9D], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMADD213SD => (
+            avx::avx_ins_oopc(ins, &[0xAD], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMADD231SD => (
+            avx::avx_ins_oopc(ins, &[0xBD], None, 0x66, 0x38, true),
+            None,
+        ),
+
+        Ins::VFNMSUB132PS => (
+            avx::avx_ins_oopc(ins, &[0x9E], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB213PS => (
+            avx::avx_ins_oopc(ins, &[0xAE], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB231PS => (
+            avx::avx_ins_oopc(ins, &[0xBE], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB132PD => (
+            avx::avx_ins_oopc(ins, &[0x9E], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMSUB213PD => (
+            avx::avx_ins_oopc(ins, &[0xAE], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMSUB231PD => (
+            avx::avx_ins_oopc(ins, &[0xBE], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMSUB132SS => (
+            avx::avx_ins_oopc(ins, &[0x9F], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB213SS => (
+            avx::avx_ins_oopc(ins, &[0xAF], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB231SS => (
+            avx::avx_ins_oopc(ins, &[0xBF], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFNMSUB132SD => (
+            avx::avx_ins_oopc(ins, &[0x9F], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMSUB213SD => (
+            avx::avx_ins_oopc(ins, &[0xAF], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFNMSUB231SD => (
+            avx::avx_ins_oopc(ins, &[0xBF], None, 0x66, 0x38, true),
+            None,
+        ),
+        // fma-part3
+        Ins::VFMADDSUB132PS => (
+            avx::avx_ins_oopc(ins, &[0x96], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADDSUB213PS => (
+            avx::avx_ins_oopc(ins, &[0xA6], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADDSUB231PS => (
+            avx::avx_ins_oopc(ins, &[0xB6], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMADDSUB132PD => (
+            avx::avx_ins_oopc(ins, &[0x96], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADDSUB213PD => (
+            avx::avx_ins_oopc(ins, &[0xA6], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMADDSUB231PD => (
+            avx::avx_ins_oopc(ins, &[0xB6], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUBADD132PS => (
+            avx::avx_ins_oopc(ins, &[0x97], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUBADD213PS => (
+            avx::avx_ins_oopc(ins, &[0xA7], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUBADD231PS => (
+            avx::avx_ins_oopc(ins, &[0xB7], None, 0x66, 0x38, false),
+            None,
+        ),
+        Ins::VFMSUBADD132PD => (
+            avx::avx_ins_oopc(ins, &[0x97], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUBADD213PD => (
+            avx::avx_ins_oopc(ins, &[0xA7], None, 0x66, 0x38, true),
+            None,
+        ),
+        Ins::VFMSUBADD231PD => (
+            avx::avx_ins_oopc(ins, &[0xB7], None, 0x66, 0x38, true),
+            None,
+        ),
+
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }

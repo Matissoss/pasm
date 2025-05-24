@@ -1856,6 +1856,132 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // fma-part1
+        Mnm::VFMADD132PD
+        | Mnm::VFMADD213PD
+        | Mnm::VFMADD231PD
+        | Mnm::VFMSUB132PD
+        | Mnm::VFMSUB213PD
+        | Mnm::VFMSUB231PD
+        | Mnm::VFMADD132PS
+        | Mnm::VFMADD213PS
+        | Mnm::VFMADD231PS
+        | Mnm::VFMSUB132PS
+        | Mnm::VFMSUB213PS
+        | Mnm::VFMSUB231PS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VFMADD132SS
+        | Mnm::VFMADD213SS
+        | Mnm::VFMADD231SS
+        | Mnm::VFMSUB132SS
+        | Mnm::VFMSUB213SS
+        | Mnm::VFMSUB231SS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VFMADD132SD
+        | Mnm::VFMADD213SD
+        | Mnm::VFMADD231SD
+        | Mnm::VFMSUB132SD
+        | Mnm::VFMSUB213SD
+        | Mnm::VFMSUB231SD => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        // fma-part2
+        Mnm::VFNMADD132PD
+        | Mnm::VFNMADD213PD
+        | Mnm::VFNMADD231PD
+        | Mnm::VFNMSUB132PD
+        | Mnm::VFNMSUB213PD
+        | Mnm::VFNMSUB231PD
+        | Mnm::VFNMADD132PS
+        | Mnm::VFNMADD213PS
+        | Mnm::VFNMADD231PS
+        | Mnm::VFNMSUB132PS
+        | Mnm::VFNMSUB213PS
+        | Mnm::VFNMSUB231PS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VFNMADD132SS
+        | Mnm::VFNMADD213SS
+        | Mnm::VFNMADD231SS
+        | Mnm::VFNMSUB132SS
+        | Mnm::VFNMSUB213SS
+        | Mnm::VFNMSUB231SS => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VFNMADD132SD
+        | Mnm::VFNMADD213SD
+        | Mnm::VFNMADD231SD
+        | Mnm::VFNMSUB132SD
+        | Mnm::VFNMSUB213SD
+        | Mnm::VFNMSUB231SD => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        // fma-part3
+        Mnm::VFMADDSUB132PS
+        | Mnm::VFMADDSUB213PS
+        | Mnm::VFMADDSUB231PS
+        | Mnm::VFMSUBADD132PS
+        | Mnm::VFMSUBADD213PS
+        | Mnm::VFMSUBADD231PS
+        | Mnm::VFMADDSUB132PD
+        | Mnm::VFMADDSUB213PD
+        | Mnm::VFMADDSUB231PD
+        | Mnm::VFMSUBADD132PD
+        | Mnm::VFMSUBADD213PD
+        | Mnm::VFMSUBADD231PD => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::no_tip(
             Some(ins.line),

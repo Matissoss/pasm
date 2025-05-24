@@ -48,6 +48,31 @@ pub fn avx_ins_movx(
         vex_we,
     )
 }
+
+pub fn avx_ins_oopc(
+    ins: &Instruction,
+    opc: &[u8],
+    modrm1: Option<u8>,
+    pp: u8,
+    map_select: u8,
+    vex_we: bool,
+) -> Vec<u8> {
+    let modrm_reg_is_dst = match (ins.dst(), ins.src()) {
+        (_, Some(Operand::Mem(_))) => true,
+        (Some(Operand::Mem(_)), _) => false,
+        _ => true,
+    };
+    vex_gen_ins(
+        ins,
+        opc,
+        (true, modrm1),
+        None,
+        modrm_reg_is_dst,
+        pp,
+        map_select,
+        vex_we,
+    )
+}
 pub fn avx_ins(
     ins: &Instruction,
     opc_rm: &[u8],
