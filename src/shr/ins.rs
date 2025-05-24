@@ -168,8 +168,8 @@ pub enum Mnemonic {
     //  - [x] SSE/MMX derived
     //  - [x] avx-part2x
     //  - [x] FMA/AES
-    //  - [ ] conversions
-    // hopefully i can finish before end of 31.05.2025
+    //  - [x] conversions
+    // hopefully i can finish before end of 31.05.2025 (spoiler: i did it :D)
     // ---
     // derived from SSE
     VMOVAPS , VMOVUPS, 
@@ -355,12 +355,12 @@ pub enum Mnemonic {
     CVTTSD2SI, CVTTSS2SI,
 
     // /tests/*/cvt-part2.asm
-    VCVTPD2DQ, VCVTPD2PI, VCVTPD2PS, VCVTPI2PD,
-    VCVTPI2PS, VCVTPS2DQ, VCVTPS2PD,
+    VCVTPD2DQ, VCVTPD2PS,
+    VCVTPS2DQ, VCVTPS2PD,
     VCVTSD2SI, VCVTSD2SS, VCVTSI2SD, VCVTSI2SS,
     VCVTSS2SD, VCVTSS2SI, VCVTDQ2PD, VCVTDQ2PS,
 
-    VCVTTPD2DQ, VCVTTPD2PI, VCVTTPS2DQ, VCVTTPS2PI, VCVTTSD2SI, VCVTTSS2SI,
+    VCVTTPD2DQ, VCVTTPS2DQ, VCVTTSD2SI, VCVTTSS2SI,
 
     // this has no real purpose, but why not?
     __LAST
@@ -3032,6 +3032,96 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             'e' => ins_ie(&rstr, 1, &cc::<9>("extractps"), Ins::EXTRACTPS),
             'v' => match rstr[1] {
+                'c' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        't' => match rstr[4] {
+                            'd' => match rstr[5] {
+                                'q' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'd' => s(Ins::VCVTDQ2PD),
+                                            's' => s(Ins::VCVTDQ2PS),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            's' => match rstr[5] {
+                                'i' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        's' => match rstr[8] {
+                                            'd' => s(Ins::VCVTSI2SD),
+                                            's' => s(Ins::VCVTSI2SS),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                's' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        's' => match rstr[8] {
+                                            'd' => s(Ins::VCVTSS2SD),
+                                            'i' => s(Ins::VCVTSS2SI),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        's' => match rstr[8] {
+                                            'i' => s(Ins::VCVTSD2SI),
+                                            's' => s(Ins::VCVTSD2SS),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            'p' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'd' => s(Ins::VCVTPS2PD),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::VCVTPS2DQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            's' => s(Ins::VCVTPD2PS),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::VCVTPD2DQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 'i' => ins_ie(&rstr, 2, &cc::<9>("vinsertps"), Ins::VINSERTPS),
                 'p' => match rstr[2] {
                     'b' => ins_ie(&rstr, 3, &cc::<9>("vpblendvb"), Ins::VPBLENDVB),
@@ -3308,6 +3398,50 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => n(),
                 },
                 'e' => ins_ie(&rstr, 2, &cc::<10>("vextractps"), Ins::VEXTRACTPS),
+                'c' => match rstr[2] {
+                    'v' => match rstr[3] {
+                        't' => match rstr[4] {
+                            't' => match rstr[5] {
+                                's' => match rstr[6] {
+                                    'd' => {
+                                        ins_ie(&rstr, 7, &cc::<10>("vcvttsd2si"), Ins::VCVTTSD2SI)
+                                    }
+                                    's' => {
+                                        ins_ie(&rstr, 7, &cc::<10>("vcvttss2si"), Ins::VCVTTSS2SI)
+                                    }
+                                    _ => n(),
+                                },
+                                'p' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        '2' => match rstr[8] {
+                                            'd' => match rstr[9] {
+                                                'q' => s(Ins::VCVTTPS2DQ),
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    'd' => match rstr[7] {
+                                        '2' => match rstr[8] {
+                                            'd' => match rstr[9] {
+                                                'q' => s(Ins::VCVTTPD2DQ),
+                                                _ => n(),
+                                            },
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            _ => n(),
+                        },
+                        _ => n(),
+                    },
+                    _ => n(),
+                },
                 _ => n(),
             },
             _ => n(),

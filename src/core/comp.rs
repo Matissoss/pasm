@@ -2828,8 +2828,133 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
+        // cvt-part2
+        Ins::VCVTPD2DQ => (
+            avx::avx_ins_oopc(ins, &[0xE6], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTPD2PS => (
+            avx::avx_ins_oopc(ins, &[0x5A], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTPS2DQ => (
+            avx::avx_ins_oopc(ins, &[0x5B], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTPS2PD => (avx::avx_ins_oopc(ins, &[0x5A], None, 0, 0x0F, false), None),
+        Ins::VCVTSD2SI => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2D],
+                None,
+                0xF2,
+                0x0F,
+                if let Some(o) = ins.dst() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
+        Ins::VCVTSD2SS => (
+            avx::avx_ins_oopc(ins, &[0x5A], None, 0xF2, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTSI2SD => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2A],
+                None,
+                0xF2,
+                0x0F,
+                if let Some(o) = ins.src2() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
+        Ins::VCVTSI2SS => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2A],
+                None,
+                0xF3,
+                0x0F,
+                if let Some(o) = ins.src2() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
+        Ins::VCVTSS2SD => (
+            avx::avx_ins_oopc(ins, &[0x5A], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTSS2SI => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2D],
+                None,
+                0xF3,
+                0x0F,
+                if let Some(o) = ins.dst() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
+        Ins::VCVTDQ2PD => (
+            avx::avx_ins_oopc(ins, &[0xE6], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTDQ2PS => (avx::avx_ins_oopc(ins, &[0x5B], None, 0, 0x0F, false), None),
+        Ins::VCVTTPD2DQ => (
+            avx::avx_ins_oopc(ins, &[0xE6], None, 0x66, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTTPS2DQ => (
+            avx::avx_ins_oopc(ins, &[0x5B], None, 0xF3, 0x0F, false),
+            None,
+        ),
+        Ins::VCVTTSD2SI => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2C],
+                None,
+                0xF2,
+                0x0F,
+                if let Some(o) = ins.dst() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
+        Ins::VCVTTSS2SI => (
+            avx::avx_ins_oopc(
+                ins,
+                &[0x2C],
+                None,
+                0xF3,
+                0x0F,
+                if let Some(o) = ins.dst() {
+                    o.size() == Size::Qword
+                } else {
+                    false
+                },
+            ),
+            None,
+        ),
         // other
-        _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
+        //_ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
 }
 

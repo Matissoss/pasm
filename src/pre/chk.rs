@@ -2032,6 +2032,88 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // cvt-part2
+        Mnm::VCVTSI2SD | Mnm::VCVTSI2SS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[R64, R32, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTSS2SD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTDQ2PS | Mnm::VCVTTPD2DQ | Mnm::VCVTTPS2DQ => avx_ot_chk(
+            ins,
+            &[
+                (&[YMM, XMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTDQ2PD => ot_chk(
+            ins,
+            &[
+                (&[YMM, XMM], Optional::Needed),
+                (&[XMM, M64, M128], Optional::Needed),
+            ],
+            &[(YMM, M64), (XMM, M128)],
+            &[],
+        ),
+        Mnm::VCVTSD2SS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTTSD2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTSS2SI | Mnm::VCVTTSS2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTSD2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::VCVTPD2DQ | Mnm::VCVTPD2PS | Mnm::VCVTPS2DQ | Mnm::VCVTPS2PD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
 
         _ => Some(RASMError::no_tip(
             Some(ins.line),
