@@ -29,6 +29,6 @@ pub fn gen_movxxs(ins: &Instruction, bits: u8, opcrm: &[u8], opcmr: &[u8]) -> Ve
 
 pub fn gen_cvt4x(ins: &Instruction, bits: u8, iopc: &[u8]) -> Vec<u8> {
     let mut opc = vec![0xF3];
-    opc.extend(gen_ins(ins, iopc, (true, None, None), None, bits, false));
+    opc.extend(gen_ins(ins, iopc, (true, None, None), None, bits, true));
     opc
 }

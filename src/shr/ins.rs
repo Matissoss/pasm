@@ -167,7 +167,7 @@ pub enum Mnemonic {
     // AVX support roadmap:
     //  - [x] SSE/MMX derived
     //  - [x] avx-part2x
-    //  - [ ] FMA/AES
+    //  - [x] FMA/AES
     //  - [ ] conversions
     // hopefully i can finish before end of 31.05.2025
     // ---
@@ -344,16 +344,21 @@ pub enum Mnemonic {
     // i hate coding conversions, but i guess someone has to do them and actually test them :)
     // so here are conversions from MMX/SSE/AVX
     // /tests/*/cvt-part1.asm
-    CVTDQ2PD, CVTDQ2PS, CVTPD2DQ, CVTPD2PI, CVTPD2PS, CVTPI2PD, CVTPI2PS,
-    CVTPS2DQ, CVTPS2PD, CVTPS2PI, CVTSD2SI, CVTSD2SS, CVTSI2SD, CVTSI2SS,
-    CVTSS2SD, CVTSS2SI, 
+    CVTPS2DQ, CVTPS2PD, CVTPS2PI, CVTPI2PD,
+    CVTPI2PS, CVTPD2DQ, CVTPD2PI, CVTPD2PS,
+    CVTDQ2PD, CVTDQ2PS,
+    CVTSD2SI, CVTSD2SS, CVTSI2SD, 
+    CVTSI2SS, CVTSS2SD, CVTSS2SI, 
 
-    CVTTPD2DQ, CVTTPD2PI, CVTTPS2DQ, CVTTPS2PI, CVTTSD2SI, CVTTSS2SI,
+    CVTTPD2DQ, CVTTPD2PI,
+    CVTTPS2DQ, CVTTPS2PI, 
+    CVTTSD2SI, CVTTSS2SI,
 
     // /tests/*/cvt-part2.asm
-    VCVTDQ2PD, VCVTDQ2PS, VCVTPD2DQ, VCVTPD2PI, VCVTPD2PS, VCVTPI2PD, VCVTPI2PS,
-    VCVTPS2DQ, VCVTPS2PD, VCVTPS2PI, VCVTSD2SI, VCVTSD2SS, VCVTSI2SD, VCVTSI2SS,
-    VCVTSS2SD, VCVTSS2SI,
+    VCVTPD2DQ, VCVTPD2PI, VCVTPD2PS, VCVTPI2PD,
+    VCVTPI2PS, VCVTPS2DQ, VCVTPS2PD,
+    VCVTSD2SI, VCVTSD2SS, VCVTSI2SD, VCVTSI2SS,
+    VCVTSS2SD, VCVTSS2SI, VCVTDQ2PD, VCVTDQ2PS,
 
     VCVTTPD2DQ, VCVTTPD2PI, VCVTTPS2DQ, VCVTTPS2PI, VCVTTSD2SI, VCVTTSS2SI,
 
@@ -393,9 +398,12 @@ impl Mnemonic {
     pub fn defaults_to_64bit(&self) -> bool {
         matches!(
             self,
-            Self::PUSH | Self::POP   | Self::PADDB |
-            Self::PADDW| Self::PADDD | Self::PADDQ |
-            Self::PINSRD
+            Self::PUSH     | Self::POP     | Self::PADDB |
+            Self::PADDW    | Self::PADDD   | Self::PADDQ |
+            Self::PINSRD   | Self::CVTPD2PI| Self::CVTTPD2PI|
+            Self::CVTTPS2PI| Self::CVTPI2PS| Self::CVTPS2PI|
+            Self::CVTPS2DQ | Self::CVTSS2SD| Self::CVTPI2PD|
+            Self::CVTPS2PD
         )
     }
 }
@@ -2588,8 +2596,28 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             _ => n(),
                         },
                         's' => match rstr[4] {
-                            's' => ins_ie(&rstr, 5, &cc::<8>("cvtss2si"), Ins::CVTSS2SI),
-                            'd' => ins_ie(&rstr, 5, &cc::<8>("cvtsd2si"), Ins::CVTSD2SI),
+                            'd' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'i' => s(Ins::CVTSD2SI),
+                                        's' => s(Ins::CVTSD2SS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
+                            's' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    's' => match rstr[7] {
+                                        'i' => s(Ins::CVTSS2SI),
+                                        'd' => s(Ins::CVTSS2SD),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
                             'i' => match rstr[5] {
                                 '2' => match rstr[6] {
                                     's' => match rstr[7] {
@@ -2604,7 +2632,21 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             _ => n(),
                         },
                         'p' => match rstr[4] {
-                            'd' => ins_ie(&rstr, 5, &cc::<8>("cvtpd2pi"), Ins::CVTPD2PI),
+                            'd' => match rstr[5] {
+                                '2' => match rstr[6] {
+                                    'd' => match rstr[7] {
+                                        'q' => s(Ins::CVTPD2DQ),
+                                        _ => n(),
+                                    },
+                                    'p' => match rstr[7] {
+                                        'i' => s(Ins::CVTPD2PI),
+                                        's' => s(Ins::CVTPD2PS),
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
+                                _ => n(),
+                            },
                             'i' => match rstr[5] {
                                 '2' => match rstr[6] {
                                     'p' => match rstr[7] {
@@ -2618,8 +2660,15 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             },
                             's' => match rstr[5] {
                                 '2' => match rstr[6] {
-                                    'd' => ins_ie(&rstr, 7, &cc::<8>("cvtps2dq"), Ins::CVTPS2DQ),
-                                    'p' => ins_ie(&rstr, 7, &cc::<8>("cvtps2pi"), Ins::CVTPS2PI),
+                                    'd' => match rstr[7] {
+                                        'q' => s(Ins::CVTPS2DQ),
+                                        _ => n(),
+                                    },
+                                    'p' => match rstr[7] {
+                                        'd' => s(Ins::CVTPS2PD),
+                                        'i' => s(Ins::CVTPS2PI),
+                                        _ => n(),
+                                    },
                                     _ => n(),
                                 },
                                 _ => n(),
@@ -2937,8 +2986,26 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 'v' => match rstr[2] {
                     't' => match rstr[3] {
                         't' => match rstr[4] {
+                            's' => match rstr[5] {
+                                'd' => ins_ie(&rstr, 6, &cc::<9>("cvttsd2si"), Ins::CVTTSD2SI),
+                                's' => ins_ie(&rstr, 6, &cc::<9>("cvttss2si"), Ins::CVTTSS2SI),
+                                _ => n(),
+                            },
                             'p' => match rstr[5] {
-                                'd' => ins_ie(&rstr, 6, &cc::<9>("cvttpd2pi"), Ins::CVTTPD2PI),
+                                'd' => match rstr[6] {
+                                    '2' => match rstr[7] {
+                                        'p' => match rstr[8] {
+                                            'i' => s(Ins::CVTTPD2PI),
+                                            _ => n(),
+                                        },
+                                        'd' => match rstr[8] {
+                                            'q' => s(Ins::CVTTPD2DQ),
+                                            _ => n(),
+                                        },
+                                        _ => n(),
+                                    },
+                                    _ => n(),
+                                },
                                 's' => match rstr[6] {
                                     '2' => match rstr[7] {
                                         'p' => match rstr[8] {

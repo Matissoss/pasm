@@ -334,21 +334,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::UNPCKLPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x14]), None),
         Ins::UNPCKHPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x15]), None),
 
-        Ins::CVTSI2SS => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2A]), None),
-        Ins::CVTPS2PI => (
-            gen_ins(ins, &[0x0F, 0x2D], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::CVTTPS2PI => (
-            gen_ins(ins, &[0x0F, 0x2C], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::CVTPI2PS => (
-            gen_ins(ins, &[0x0F, 0x2A], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
-
         // SSE2
         Ins::MOVNTI => (
             gen_ins(ins, &[0x0F, 0xC3], (true, None, None), None, bits, false),
@@ -440,96 +425,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::ANDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x54]), None),
         Ins::ANDNPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
         Ins::XORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
-
-        Ins::CVTPD2PI => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2D],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTSS2SD => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x5A],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTPD2PS => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x5A],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTPS2PD => (
-            gen_ins(ins, &[0x0F, 0x5A], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::CVTPI2PD => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2A],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTPS2DQ => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x5B],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTDQ2PS => (
-            gen_ins(ins, &[0x0F, 0x5B], (true, None, None), None, bits, false),
-            None,
-        ),
-        Ins::CVTDQ2PD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xE6]), None),
-        Ins::CVTSD2SI => (sse2::sgen_ins(ins, bits, true, &[0x66, 0x0F, 0x2D]), None),
-        Ins::CVTSI2SD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2A]), None),
-        Ins::CVTTPS2DQ => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x5B],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
-        Ins::CVTTSD2SI => (sse2::sgen_ins(ins, bits, false, &[0x66, 0x0F, 0x2C]), None),
-        Ins::CVTTPD2PI => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2C],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
-            None,
-        ),
 
         Ins::PSHUFLW => (sse2::ins_shuff(ins, bits, &[0xF2, 0x0F, 0x70]), None),
         Ins::PSHUFHW => (sse2::ins_shuff(ins, bits, &[0xF3, 0x0F, 0x70]), None),
@@ -2767,7 +2662,172 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ),
             None,
         ),
-
+        // cvt-part1
+        Ins::CVTPD2PI => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2D],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTSS2SD => (
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0x5A],
+                (true, None, None),
+                None,
+                0xF3,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTPD2PS => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x5A],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTPS2PD => (
+            gen_ins(ins, &[0x0F, 0x5A], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::CVTPI2PD => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2A],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTPD2DQ => (
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0xE6],
+                (true, None, None),
+                None,
+                0xF2,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTSD2SS => (
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0x5A],
+                (true, None, None),
+                None,
+                0xF2,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTPS2DQ => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x5B],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTDQ2PS => (
+            gen_ins(ins, &[0x0F, 0x5B], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::CVTDQ2PD => (
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0xE6],
+                (true, None, None),
+                None,
+                0xF3,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTSD2SI => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2D]), None),
+        Ins::CVTSI2SD => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2A]), None),
+        Ins::CVTTPS2DQ => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0x5B],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTTSD2SI => (
+            sse2::sgen_ins_wrev(ins, bits, false, &[0x66, 0x0F, 0x2C]),
+            None,
+        ),
+        Ins::CVTTPD2PI => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0x2C],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTSI2SS => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2A]), None),
+        Ins::CVTPS2PI => (
+            gen_ins(ins, &[0x0F, 0x2D], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::CVTTPS2PI => (
+            gen_ins(ins, &[0x0F, 0x2C], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::CVTPI2PS => (
+            gen_ins(ins, &[0x0F, 0x2A], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::CVTTPD2DQ => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0xE6],
+                (true, None, None),
+                None,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTTSS2SI => (
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0x2C],
+                (true, None, None),
+                None,
+                0xF3,
+                bits,
+                true,
+            ),
+            None,
+        ),
+        Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
@@ -3635,9 +3695,16 @@ pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
         (false, None)
     };
 
+    // for instructions that have opcode starting with 0x66 (SSE)
+    let mut opcode_start = 0;
+
     let mut used_66 = ins.which_variant() == IVariant::MMX;
+
     let mut size_ovr = if let Some(dst) = ins.dst() {
-        if let Some(s) = gen_size_ovr(ins, dst, bits, rex_bool) {
+        if opc[0] == 0x66 {
+            opcode_start = 1;
+            vec![0x66]
+        } else if let Some(s) = gen_size_ovr(ins, dst, bits, rex_bool) {
             if !used_66 {
                 used_66 = s == 0x66;
                 vec![s]
@@ -3668,7 +3735,7 @@ pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
         base.push(rex);
     }
 
-    base.extend(opc);
+    base.extend(&opc[opcode_start..]);
     base
 }
 

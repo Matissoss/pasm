@@ -515,36 +515,6 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         //     #      #  #
         // #####  #####  #####
         // (SSE)
-        Mnm::CVTSS2SI => ot_chk(
-            ins,
-            &[
-                (&[R32, R64], Optional::Needed),
-                (&[XMM, M32], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
-        Mnm::CVTPS2PI | Mnm::CVTTPS2PI => ot_chk(
-            ins,
-            &[(&[MMX], Optional::Needed), (&[XMM, M64], Optional::Needed)],
-            &[],
-            &[],
-        ),
-        Mnm::CVTPI2PS => ot_chk(
-            ins,
-            &[(&[XMM], Optional::Needed), (&[MMX, M64], Optional::Needed)],
-            &[],
-            &[],
-        ),
-        Mnm::CVTSI2SS => ot_chk(
-            ins,
-            &[
-                (&[XMM], Optional::Needed),
-                (&[XMM, R32, R64, M32, M64], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
         Mnm::CMPSS => ot_chk(
             ins,
             &[
@@ -726,46 +696,6 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-
-        Mnm::CVTPD2PI
-        | Mnm::CVTTPD2PI
-        | Mnm::CVTPI2PD
-        | Mnm::CVTPS2DQ
-        | Mnm::CVTTPS2DQ
-        | Mnm::CVTDQ2PS
-        | Mnm::CVTPS2PD
-        | Mnm::CVTPD2PS
-        | Mnm::CVTSS2SD => ot_chk(
-            ins,
-            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
-            &[],
-            &[],
-        ),
-        Mnm::CVTDQ2PD => ot_chk(
-            ins,
-            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
-            &[],
-            &[],
-        ),
-        Mnm::CVTSD2SI | Mnm::CVTTSD2SI => ot_chk(
-            ins,
-            &[
-                (&[R32, R64], Optional::Needed),
-                (&[XMM, M64], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
-        Mnm::CVTSI2SD => ot_chk(
-            ins,
-            &[
-                (&[XMM], Optional::Needed),
-                (&[XMM, R32, R64, M32, M64], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
-
         Mnm::MASKMOVDQU => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
@@ -2005,6 +1935,99 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
                 (&[XMM], Optional::Needed),
                 (&[XMM, M128], Optional::Needed),
                 (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        // cvt-part1
+        Mnm::CVTPD2PI => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSS2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTTPD2PI => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPS2PI | Mnm::CVTTPS2PI => ot_chk(
+            ins,
+            &[(&[MMX], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPI2PS | Mnm::CVTPI2PD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[MMX, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSI2SS => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[R32, R64, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTPD2DQ
+        | Mnm::CVTPS2DQ
+        | Mnm::CVTTPS2DQ
+        | Mnm::CVTTPD2DQ
+        | Mnm::CVTDQ2PS
+        | Mnm::CVTPD2PS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSS2SD => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTDQ2PD | Mnm::CVTPS2PD | Mnm::CVTSD2SS => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        Mnm::CVTTSS2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSD2SI | Mnm::CVTTSD2SI => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::CVTSI2SD => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, R32, R64, M32, M64], Optional::Needed),
             ],
             &[],
             &[],

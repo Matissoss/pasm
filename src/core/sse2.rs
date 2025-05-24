@@ -12,15 +12,37 @@ use crate::shr::{
     reg::Purpose as RPurpose,
 };
 
-pub fn sgen_ins(ins: &Instruction, bits: u8, pd: bool, opc: &[u8]) -> Vec<u8> {
-    let mut fin_opc = if pd { vec![0x66] } else { vec![0xF2] };
-    fin_opc.extend(opc);
+pub fn sgen_ins_wrev(ins: &Instruction, bits: u8, pd: bool, opc: &[u8]) -> Vec<u8> {
     let imm = if let Some(Operand::Imm(n)) = ins.oprs.get(2) {
         Some(vec![n.split_into_bytes()[0]])
     } else {
         None
     };
-    gen_ins(ins, &fin_opc, (true, None, None), imm, bits, false)
+    gen_ins_wpref(
+        ins,
+        opc,
+        (true, None, None),
+        imm,
+        if pd { 0x66 } else { 0xF2 },
+        bits,
+        true,
+    )
+}
+pub fn sgen_ins(ins: &Instruction, bits: u8, pd: bool, opc: &[u8]) -> Vec<u8> {
+    let imm = if let Some(Operand::Imm(n)) = ins.oprs.get(2) {
+        Some(vec![n.split_into_bytes()[0]])
+    } else {
+        None
+    };
+    gen_ins_wpref(
+        ins,
+        opc,
+        (true, None, None),
+        imm,
+        if pd { 0x66 } else { 0xF2 },
+        bits,
+        false,
+    )
 }
 pub fn gen_movxxd(ins: &Instruction, bits: u8, opcrm: &[u8], opcmr: &[u8]) -> Vec<u8> {
     let finopc = match (ins.dst().unwrap(), ins.src().unwrap()) {

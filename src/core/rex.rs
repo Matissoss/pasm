@@ -152,11 +152,23 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
     let wbs = get_wb(ins.src());
     let wbd = get_wb(ins.dst());
 
+    let sized = if let Some(o) = ins.dst() {
+        o.size()
+    } else {
+        Size::Unknown
+    };
+    let sizes = if let Some(o) = ins.src() {
+        o.size()
+    } else {
+        Size::Unknown
+    };
+
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
     fix_rev(&mut modrm_reg_is_dst, ins);
 
-    let w = !(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit());
-    let r = if !modrm_reg_is_dst { wbs } else { wbd };
+    let w = !(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit())
+        && (sized == Size::Qword || sizes == Size::Qword);
+    let mut r = if !modrm_reg_is_dst { wbs } else { wbd };
     let mut b = if !modrm_reg_is_dst { wbd } else { wbs };
     let mut x = false;
 
@@ -167,9 +179,13 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
         (Some(Operand::Mem(m)), _) | (_, Some(Operand::Mem(m))) => (b, x) = m.needs_rex(),
         _ => {}
     }
-    if let Some(Operand::Reg(r)) = ins.dst() {
-        if r.needs_rex() {
-            b = true;
+    if let Some(Operand::Reg(reg)) = ins.dst() {
+        if reg.needs_rex() {
+            if modrm_reg_is_dst {
+                r = true;
+            } else {
+                b = true;
+            }
         }
     }
 
