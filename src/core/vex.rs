@@ -13,22 +13,27 @@ use crate::shr::{
 const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
-pub fn gen_vex(
+#[allow(clippy::too_many_arguments)]
+pub fn gen_vex_norm(
     ins: &Instruction,
     pp: u8,
     map_select: u8,
     modrm_reg_is_dst: bool,
     vex_we: bool,
+    dst: Option<&Operand>,
+    src: Option<&Operand>,
+    src2: Option<&Operand>
 ) -> Option<Vec<u8>> {
-    let ssrc = if ins.src2().is_some() {
-        if let Operand::Imm(_) = ins.src2().unwrap() {
+    let ssrc = if let Some(src2) = src2 {
+        if let Operand::Imm(_) = src2 {
             0b1111
         } else {
-            gen_vex4v(ins.src())
+            gen_vex4v(src)
         }
     } else {
         0b1111
     };
+
     let pp = match pp {
         0x66 => 0b01,
         0xF3 => 0b10,
@@ -45,11 +50,84 @@ pub fn gen_vex(
         _ => 0b00000,
     };
 
-    let nvex_dst = needs_vex3(ins.dst());
-    let nvex_src = needs_vex3(ins.src());
-    let nvex_ssrc = needs_vex3(ins.src2());
+    let nvex_dst = needs_vex3(dst);
+    let nvex_src = needs_vex3(src);
+    let nvex_ssrc = needs_vex3(src2);
 
-    let (vexr, vexb) = if ins.src2().is_some() {
+    let (vexr, vexb) = if src2.is_some() {
+        if modrm_reg_is_dst {
+            (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_ssrc)
+        } else {
+            (andn((nvex_ssrc.0 || nvex_ssrc.1) as u8, 1), nvex_dst)
+        }
+    } else {
+        if modrm_reg_is_dst {
+            (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_src)
+        } else {
+            (andn((nvex_src.0 || nvex_src.1) as u8, 1), nvex_dst)
+        }
+    };
+
+    if vexb.0
+        || vexb.1
+        || ((map_select == 0b00011 || map_select == 0b00010) && !matches!(ins.mnem, Ins::VPMAXUB))
+        || vex_we
+    {
+        Some(vec![
+            THREE_BYTE_PFX,
+            ((vexr) << 7
+                | andn(vexb.1 as u8, 0b0000_0001) << 6
+                | (andn(vexb.0 as u8, 0b0000_0001) << 5 | map_select)),
+            ((vex_we as u8) << 7 | ssrc << 3 | vlength << 2 | pp),
+        ])
+    } else {
+        Some(vec![
+            TWO_BYTE_PFX,
+            (((vexr) << 7) | ssrc << 3 | vlength << 2 | pp),
+        ])
+    }
+}
+pub fn gen_vex(
+    ins: &Instruction,
+    pp: u8,
+    map_select: u8,
+    modrm_reg_is_dst: bool,
+    vex_we: bool,
+) -> Option<Vec<u8>> {
+    let dst = ins.dst();
+    let src = ins.src();
+    let src2 = ins.src2();
+    let ssrc = if let Some(src2) = src2 {
+        if let Operand::Imm(_) = src2 {
+            0b1111
+        } else {
+            gen_vex4v(src)
+        }
+    } else {
+        0b1111
+    };
+
+    let pp = match pp {
+        0x66 => 0b01,
+        0xF3 => 0b10,
+        0xF2 => 0b11,
+        _ => 0b00,
+    };
+    let vlength =
+        (ins.which_variant() == IVariant::YMM || matches!(ins.mnem, Ins::VEXTRACTF128)) as u8;
+
+    let map_select = match map_select {
+        0x0F => 0b00001,
+        0x38 => 0b00010,
+        0x3A => 0b00011,
+        _ => 0b00000,
+    };
+
+    let nvex_dst = needs_vex3(dst);
+    let nvex_src = needs_vex3(src);
+    let nvex_ssrc = needs_vex3(src2);
+
+    let (vexr, vexb) = if src2.is_some() {
         if modrm_reg_is_dst {
             (andn((nvex_dst.0 || nvex_dst.1) as u8, 1), nvex_ssrc)
         } else {
@@ -122,8 +200,10 @@ fn gen_vex4v(op: Option<&Operand>) -> u8 {
 
 // copied from src/core/modrm.rs:gen_modrm
 pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
+    let dst = ins.dst();
+    let src2 = ins.src2();
     let mod_: u8 = {
-        match (ins.dst(), ins.src2()) {
+        match (dst, src2) {
             (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)
             | (_, Some(&Operand::Mem(Mem::SIB(_, _, _, _))))
             | (Some(&Operand::Mem(Mem::Direct(_, _))), _)
@@ -155,7 +235,7 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
 
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
-    let ssrc = ins.src2();
+    let ssrc = src2;
 
     if matches!(ins.mnem, Ins::VINSERTF128) {
         modrm_reg_is_dst = true;
@@ -165,11 +245,11 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
         reg
     } else {
         if modrm_reg_is_dst {
-            gen_rmreg(ins.dst())
+            gen_rmreg(dst)
         } else {
             if let Some(Operand::Mem(_) | Operand::Segment(_)) = ssrc {
                 modrm_reg_is_dst = true;
-                gen_rmreg(ins.dst())
+                gen_rmreg(dst)
             } else {
                 gen_rmreg(ssrc)
             }
@@ -185,7 +265,80 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
                 if modrm_reg_is_dst {
                     gen_rmreg(ssrc)
                 } else {
-                    gen_rmreg(ins.dst())
+                    gen_rmreg(dst)
+                }
+            }
+        }
+    };
+
+    (mod_ << 6) + (reg << 3) + rm
+}
+
+pub fn vex_modrm_norm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool, dst: Option<&Operand>, src2: Option<&Operand>) -> u8 {
+    let mod_: u8 = {
+        match (dst, src2) {
+            (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::SIB(_, _, _, _))))
+            | (Some(&Operand::Mem(Mem::Direct(_, _))), _)
+            | (Some(&Operand::Mem(Mem::Index(_, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::Index(_, _, _))))
+            | (_, Some(&Operand::Mem(Mem::Direct(_, _)))) => 0b00,
+
+            (Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _))), _)
+            | (Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))), _)
+            | (_, Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))))
+            | (_, Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _)))) => {
+                match Number::squeeze_i64(o as i64) {
+                    Number::Int8(_) => 0b01,
+                    _ => 0b10,
+                }
+            }
+            (Some(&Operand::Segment(s)), _) | (_, Some(&Operand::Segment(s))) => match s.address {
+                Mem::SIB(_, _, _, _) | Mem::Index(_, _, _) | Mem::Direct(_, _) => 0b00,
+                Mem::SIBOffset(_, _, _, o, _)
+                | Mem::Offset(_, o, _)
+                | Mem::IndexOffset(_, o, _, _) => match Number::squeeze_i64(o as i64) {
+                    Number::Int8(_) => 0b01,
+                    _ => 0b10,
+                },
+            },
+            _ => 0b11,
+        }
+    };
+
+    let mut modrm_reg_is_dst = modrm_reg_is_dst;
+
+    let ssrc = src2;
+
+    if matches!(ins.mnem, Ins::VINSERTF128) {
+        modrm_reg_is_dst = true;
+    }
+
+    let reg = if let Some(reg) = reg {
+        reg
+    } else {
+        if modrm_reg_is_dst {
+            gen_rmreg(dst)
+        } else {
+            if let Some(Operand::Mem(_) | Operand::Segment(_)) = ssrc {
+                modrm_reg_is_dst = true;
+                gen_rmreg(dst)
+            } else {
+                gen_rmreg(ssrc)
+            }
+        }
+    };
+    let rm = {
+        if ins.uses_sib() {
+            0b100
+        } else {
+            if let Some(rm) = rm {
+                rm
+            } else {
+                if modrm_reg_is_dst {
+                    gen_rmreg(ssrc)
+                } else {
+                    gen_rmreg(dst)
                 }
             }
         }

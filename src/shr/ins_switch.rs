@@ -441,9 +441,9 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     },
                     _ => None,
                 },
-                b'q' => match rstr[2] {
-                    b'd' => match rstr[3] {
-                        b'e' => Some(Ins::CQDE),
+                b'd' => match rstr[2] {
+                    b'q' => match rstr[3] {
+                        b'e' => Some(Ins::CDQE),
                         _ => None,
                     },
                     _ => None,
@@ -1667,16 +1667,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             b'p' => match rstr[5] {
                                 b'e' => Some(Ins::CMOVPE),
                                 b'o' => Some(Ins::CMOVPO),
-                                _ => None,
-                            },
-                            _ => None,
-                        },
-                        _ => None,
-                    },
-                    b'p' => match rstr[3] {
-                        b's' => match rstr[4] {
-                            b't' => match rstr[5] {
-                                b'r' => Some(Ins::CMPSTR),
                                 _ => None,
                             },
                             _ => None,

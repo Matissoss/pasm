@@ -40,7 +40,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::BSF
+        Mnm::BSF | Mnm::ADCX | Mnm::ADOX | Mnm::BSWAP
         | Mnm::BSR
         | Mnm::BT
         | Mnm::BTC
