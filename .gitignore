@@ -2,4 +2,3 @@
 /target
 /tests/.ignore
 /ins_adder/target
-/src/shr/ins_switch.rs
