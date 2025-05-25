@@ -15,10 +15,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 b't' => Some(Ins::BT),
                 _ => None,
             },
-            b'i' => match rstr[1] {
-                b'n' => Some(Ins::IN),
-                _ => None,
-            },
             b'o' => match rstr[1] {
                 b'r' => Some(Ins::OR),
                 _ => None,
@@ -49,7 +45,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             b'i' => match rstr[1] {
                 b'n' => match rstr[2] {
                     b'c' => Some(Ins::INC),
-                    b's' => Some(Ins::INS),
                     b't' => Some(Ins::INT),
                     _ => None,
                 },
@@ -211,30 +206,16 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     b'r' => Some(Ins::LAR),
                     _ => None,
                 },
-                b'd' => match rstr[2] {
-                    b's' => Some(Ins::LDS),
-                    _ => None,
-                },
-                b'f' => match rstr[2] {
-                    b's' => Some(Ins::LFS),
-                    _ => None,
-                },
-                b'g' => match rstr[2] {
-                    b's' => Some(Ins::LGS),
-                    _ => None,
-                },
-                b't' => match rstr[2] {
-                    b'r' => Some(Ins::LTR),
-                    _ => None,
-                },
                 b'e' => match rstr[2] {
                     b'a' => Some(Ins::LEA),
-                    b's' => Some(Ins::LES),
                     _ => None,
                 },
                 b's' => match rstr[2] {
                     b'l' => Some(Ins::LSL),
-                    b's' => Some(Ins::LSS),
+                    _ => None,
+                },
+                b't' => match rstr[2] {
+                    b'r' => Some(Ins::LTR),
                     _ => None,
                 },
                 _ => None,
@@ -504,6 +485,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         _ => None,
                     },
                     b's' => match rstr[3] {
+                        b'b' => Some(Ins::INSB),
                         b'd' => Some(Ins::INSD),
                         b'w' => Some(Ins::INSW),
                         _ => None,
@@ -541,10 +523,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                     _ => None,
                 },
                 b'o' => match rstr[2] {
-                    b'd' => match rstr[3] {
-                        b's' => Some(Ins::LODS),
-                        _ => None,
-                    },
                     b'o' => match rstr[3] {
                         b'p' => Some(Ins::LOOP),
                         _ => None,
@@ -824,20 +802,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 },
                 _ => None,
             },
-            b'i' => match rstr[1] {
-                b'r' => match rstr[2] {
-                    b'e' => match rstr[3] {
-                        b't' => match rstr[4] {
-                            b'd' => Some(Ins::IRETD),
-                            b'q' => Some(Ins::IRETQ),
-                            _ => None,
-                        },
-                        _ => None,
-                    },
-                    _ => None,
-                },
-                _ => None,
-            },
             b'o' => match rstr[1] {
                 b'u' => match rstr[2] {
                     b't' => match rstr[3] {
@@ -987,6 +951,32 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         b's' => match rstr[4] {
                             b'd' => Some(Ins::CMPSD),
                             b's' => Some(Ins::CMPSS),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'i' => match rstr[1] {
+                b'n' => match rstr[2] {
+                    b'd' => match rstr[3] {
+                        b'x' => match rstr[4] {
+                            b'b' => Some(Ins::INDXB),
+                            b'd' => Some(Ins::INDXD),
+                            b'w' => Some(Ins::INDXW),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                b'r' => match rstr[2] {
+                    b'e' => match rstr[3] {
+                        b't' => match rstr[4] {
+                            b'd' => Some(Ins::IRETD),
+                            b'q' => Some(Ins::IRETQ),
                             _ => None,
                         },
                         _ => None,
@@ -2593,6 +2583,21 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
             },
             b'i' => match rstr[1] {
                 b'n' => match rstr[2] {
+                    b'p' => match rstr[3] {
+                        b'o' => match rstr[4] {
+                            b'r' => match rstr[5] {
+                                b't' => match rstr[6] {
+                                    b'b' => Some(Ins::INPORTB),
+                                    b'd' => Some(Ins::INPORTD),
+                                    b'w' => Some(Ins::INPORTW),
+                                    _ => None,
+                                },
+                                _ => None,
+                            },
+                            _ => None,
+                        },
+                        _ => None,
+                    },
                     b'v' => match rstr[3] {
                         b'p' => match rstr[4] {
                             b'c' => match rstr[5] {

@@ -44,6 +44,7 @@ fn needs_rex(ins: &Instruction) -> bool {
     }
     match &ins.mnem {
         Mnm::BSF
+        | Mnm::INVPCID
         | Mnm::ADCX
         | Mnm::ADOX
         | Mnm::BSWAP

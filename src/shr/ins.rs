@@ -390,10 +390,13 @@ pub enum Mnemonic {
     
     CMPXCHG16B,
     // /tests/*/norm-part2.asm
-    ENTER, HLT, HRESET, IN, INS, INSD, INSW, INT,
+    ENTER, HLT, HRESET, 
+    INPORTB, INPORTW, INPORTD, 
+    INDXB, INDXD, INDXW,
+    INSB, INSD, INSW, INT,
     INT3, INTO, INT1, INVD, INVLPG, INVPCID,
-    IRET, IRETD, IRETQ, LAHF, LAR, LDS, LEAVE,
-    LES, LFS, LGS, LSS, LLDT, LMSW, LODS, LODSB, LODSW, LODSD, LODSQ,
+    IRET, IRETD, IRETQ, LAHF, LAR, LEAVE, LLDT, LMSW,
+    LODSB, LODSW, LODSD, LODSQ,
     // /tests/*/norm-part3.asm
     LOOP, LOOPE, LOOPNE, LSL, LTR, LZCNT, MOVBE,
     MOVDIRI, MOVSTR, MOVSTRB, MOVSTRW, MOVSTRD, MOVSTRQ,
@@ -457,8 +460,14 @@ impl ToString for Mnemonic {
 }
 
 impl Mnemonic {
-    pub fn allows_diff_size(&self, _left: Option<Size>, _right: Option<Size>) -> bool {
-        false
+    pub fn allows_diff_size(&self, left: Option<Size>, right: Option<Size>) -> bool {
+        if matches!(&self, Self::LAR) {
+            let l = left.unwrap();
+            let r = right.unwrap();
+            l == Size::Word && r == Size::Dword
+        } else {
+            false
+        }
     }
     pub fn allows_mem_mem(&self) -> bool {
         false

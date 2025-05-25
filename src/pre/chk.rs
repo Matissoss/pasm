@@ -315,6 +315,15 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         CLDEMOTE => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
         CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+        // part 2
+        INTO => ot_chk(ins, &[], &[], &[]),
+        INVPCID => ot_chk(
+            ins,
+            &[(&[R32], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
         // # # #  # # #    #
@@ -598,12 +607,20 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
         CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
         CMPXCHG16B => ot_chk(ins, &[(&[M128], Optional::Needed)], &[], &[]),
-
+        // part 2
+        INVPCID => ot_chk(
+            ins,
+            &[(&[R64], Optional::Needed), (&[M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        IRETQ | LODSQ => ot_chk(ins, &[], &[], &[]),
         _ => shr_chk(ins),
     }
 }
 
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
+    use Mnm::*;
     match ins.mnem {
         Mnm::JA
         | Mnm::JB
@@ -634,6 +651,28 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::JG
         | Mnm::JGE => ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[]),
         Mnm::CPUID => ot_chk(ins, &[], &[], &[]),
+
+        ENTER => ot_chk(
+            ins,
+            &[(&[I8, I16], Optional::Needed), (&[I8], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        HLT | INSB | INSW | INSD | INT3 | INT1 | IRET | IRETD | LAHF | LEAVE | LODSB | LODSW
+        | LODSD => ot_chk(ins, &[], &[], &[]),
+        HRESET => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        INDXB | INDXW | INDXD | INVD | INVLPG => ot_chk(ins, &[], &[], &[]),
+        INPORTB | INPORTW | INPORTD | INT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        LAR => ot_chk(
+            ins,
+            &[
+                (&[R16], Optional::Needed),
+                (&[R16, M16, R32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        LLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####
@@ -2620,7 +2659,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                     Some(RASMError::with_tip(
                         Some(ins.line),
                         Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to be {s0}",)),
+                        Some(format!("Consider changing operand to fit inside {s0}",)),
                     ))
                 } else {
                     None
