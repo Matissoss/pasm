@@ -40,7 +40,13 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::CMOVA
+        Mnm::BSF
+        | Mnm::BSR
+        | Mnm::BT
+        | Mnm::BTC
+        | Mnm::BTS
+        | Mnm::BTR
+        | Mnm::CMOVA
         | Mnm::CMOVB
         | Mnm::CMOVC
         | Mnm::CMOVE
@@ -103,6 +109,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         | Mnm::AND
         | Mnm::NOT
         | Mnm::NEG
+        | Mnm::ADC
         | Mnm::XOR => {
             matches!(
                 (ins.dst(), ins.src()),

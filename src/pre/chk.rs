@@ -43,6 +43,7 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
 }
 
 fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
+    use Mnm::*;
     if gen_rex(ins, false).is_some() {
         return Some(RASMError::no_tip(
             Some(ins.line),
@@ -150,7 +151,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR => ot_chk(
+        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -250,6 +251,29 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::POPF | Mnm::POPFD | Mnm::PUSHF | Mnm::PUSHFD => {
             ot_chk(ins, &[], &[], &[])
         }
+        BSF | BSR => ot_chk(
+            ins,
+            &[
+                (&[R16, R32], Optional::Needed),
+                (&[R16, R32, M16, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::BT | BTC | BTR | BTS => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, M16, M32], Optional::Needed),
+                (&[I8, R16, R32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        CBW | CMC | CWD | CDQ | CQO | CLD | CLI => ot_chk(ins, &[], &[], &[]),
+        AAD | AAM => ot_chk(ins, &[(&[I8], Optional::Optional)], &[], &[]),
+
+        // 32-bit only
+        DAA | DAS | AAA | AAS => ot_chk(ins, &[], &[], &[]),
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
         // # # #  # # #    #
@@ -274,6 +298,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
 }
 
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
+    use Mnm::*;
     match ins.mnem {
         Mnm::CMOVA
         | Mnm::CMOVB
@@ -371,7 +396,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR => ot_chk(
+        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | ADC => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -474,6 +499,25 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::PUSHF | Mnm::POPF | Mnm::POPFQ | Mnm::PUSHFQ => {
             ot_chk(ins, &[], &[], &[])
         }
+        BSF | BSR => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R16, R32, M16, M32, M64, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnm::BT | BTC | BTR | BTS => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
+                (&[I8, R16, R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        CBW | CMC | CWD | CDQ | CQO | CLD | CLI => ot_chk(ins, &[], &[], &[]),
         _ => shr_chk(ins),
     }
 }

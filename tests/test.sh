@@ -3,7 +3,10 @@
 set -e
 
 cargo test -- --nocapture
-cargo fmt
+
+if [[ $1 == '-f' ]]; then
+	cargo fmt
+fi
 cargo clippy
 
 errors=0

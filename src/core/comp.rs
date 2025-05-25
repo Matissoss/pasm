@@ -2953,6 +2953,62 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ),
             None,
         ),
+        // norm-part1a
+        Ins::BT => (ins_bt(ins, &[0x0F, 0xA3], &[0x0F, 0xBA], bits, 4), None),
+        Ins::BTS => (ins_bt(ins, &[0x0F, 0xAB], &[0x0F, 0xBA], bits, 5), None),
+        Ins::BTC => (ins_bt(ins, &[0x0F, 0xBB], &[0x0F, 0xBA], bits, 7), None),
+        Ins::BTR => (ins_bt(ins, &[0x0F, 0xB3], &[0x0F, 0xBA], bits, 6), None),
+        Ins::CLC => (vec![0xF8], None),
+        Ins::CMC => (vec![0xF5], None),
+        Ins::CWD => (vec![0x66, 0x99], None),
+        Ins::CDQ => (vec![0x99], None),
+        Ins::CQO => (vec![0b0100_1000, 0x99], None),
+        Ins::DAA => (vec![0x27], None),
+        Ins::DAS => (vec![0x2F], None),
+        Ins::CLD => (vec![0xFC], None),
+        Ins::CBW => (vec![0x66, 0x98], None),
+        Ins::CLI => (vec![0xFA], None),
+        Ins::AAA => (vec![0x37], None),
+        Ins::AAS => (vec![0x3F], None),
+        Ins::AAD => (
+            vec![
+                0xD5,
+                if let Some(Operand::Imm(n)) = ins.dst() {
+                    n.split_into_bytes()[0]
+                } else {
+                    0x0A
+                },
+            ],
+            None,
+        ),
+        Ins::AAM => (
+            vec![
+                0xD4,
+                if let Some(Operand::Imm(n)) = ins.dst() {
+                    n.split_into_bytes()[0]
+                } else {
+                    0x0A
+                },
+            ],
+            None,
+        ),
+        Ins::ADC => (
+            add_like_ins(
+                ins,
+                &[0x14, 0x15, 0x80, 0x81, 0x83, 0x10, 0x11, 0x12, 0x13],
+                2,
+                bits,
+            ),
+            None,
+        ),
+        Ins::BSF => (
+            gen_ins(ins, &[0x0F, 0xBC], (true, None, None), None, bits, true),
+            None,
+        ),
+        Ins::BSR => (
+            gen_ins(ins, &[0x0F, 0xBD], (true, None, None), None, bits, true),
+            None,
+        ),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
@@ -2964,6 +3020,22 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_bt(ins: &Instruction, opc_noimm: &[u8], opc_imm: &[u8], bits: u8, modrm: u8) -> Vec<u8> {
+    let imm = if let Some(Operand::Imm(n)) = ins.src() {
+        Some(vec![n.split_into_bytes()[0]])
+    } else {
+        None
+    };
+
+    let (opc, modrm) = if imm.is_some() {
+        (opc_imm, Some(modrm))
+    } else {
+        (opc_noimm, None)
+    };
+
+    gen_ins(ins, opc, (true, modrm, None), imm, bits, false)
+}
 
 fn ins_cmovcc(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8> {
     gen_ins(ins, opc, (true, None, None), None, bits, true)

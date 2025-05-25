@@ -362,7 +362,8 @@ pub enum Mnemonic {
 
     VCVTTPD2DQ, VCVTTPS2DQ, VCVTTSD2SI, VCVTTSS2SI,
 
-    // /tests/*/norm-part1.asm
+    // /tests/*/norm-part1X.asm
+    // X = a
     BT,
     
     CLC, CMC, CWD, CDQ, CQO, DAA,
@@ -370,6 +371,7 @@ pub enum Mnemonic {
     AAS, ADC, BSF, BSR, BTC, BTR,
     BTS, CBW,
 
+    // X = b
     ADCX, ADOX, ANDN, ARPL, BLSI, BLSR,
     BZHI, CWDE, CQDE, CLAC, CLTS, CLUI,
     CLWB,
@@ -378,6 +380,7 @@ pub enum Mnemonic {
 
     BLSMSK, CMPSTR,
     
+    // X = c
     CMPSTRD, CMPSTRQ, CMPSTRW, CMPXCHG,
     ENDBR32, ENDBR64,
     
