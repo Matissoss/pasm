@@ -3011,15 +3011,40 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         // part b
         Ins::ADCX => (
-            gen_ins_wpref(ins, &[0x0F, 0x38, 0xF6], (true, None, None), None, 0x66, bits, true),
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0x38, 0xF6],
+                (true, None, None),
+                None,
+                0x66,
+                bits,
+                true,
+            ),
             None,
         ),
         Ins::ADOX => (
-            gen_ins_wpref(ins, &[0x0F, 0x38, 0xF6], (true, None, None), None, 0xF3, bits, true),
+            gen_ins_wpref(
+                ins,
+                &[0x0F, 0x38, 0xF6],
+                (true, None, None),
+                None,
+                0xF3,
+                bits,
+                true,
+            ),
             None,
         ),
         Ins::ANDN => (
-            vex_gen_ins(ins, &[0xF2], (true, None), None, true, 0, 0x38, ins.size() == Size::Qword),
+            vex_gen_ins(
+                ins,
+                &[0xF2],
+                (true, None),
+                None,
+                true,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+            ),
             None,
         ),
         Ins::CWDE => (vec![0x98], None),
@@ -3027,35 +3052,163 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CLAC => (vec![0x0F, 0x01, 0xCA], None),
         Ins::CLTS => (vec![0x0F, 0x06], None),
         Ins::CLUI => (vec![0xF3, 0x0F, 0x01, 0xEE], None),
-        Ins::CLWB => (gen_ins(ins, &[0x66, 0x0F, 0xAE], (true, Some(6), None), None, bits, false), None),
+        Ins::CLWB => (
+            gen_ins(
+                ins,
+                &[0x66, 0x0F, 0xAE],
+                (true, Some(6), None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
         Ins::ARPL => (
             gen_ins(ins, &[0x63], (true, None, None), None, bits, false),
             None,
         ),
 
         // i know, it's complicated... but it works :)
-        Ins::BLSR 
-            => (vex_gen_ins_norm(ins, &[0xF3], (true, Some(1)), None, false, 0, 0x38, ins.size() == Size::Qword,
-            ins.src(), ins.dst(), ins.src()
-            ), None),
-        Ins::BLSI 
-            => (vex_gen_ins_norm(ins, &[0xF3], (true, Some(3)), None, false, 0, 0x38, ins.size() == Size::Qword,
-            ins.src(), ins.dst(), ins.src()
-            ), None),
-        Ins::BZHI
-            => (vex_gen_ins_norm(ins, &[0xF5], (true, None), None, true, 0, 0x38, ins.size() == Size::Qword,
-            ins.dst(), ins.src2(), ins.src()
-            ), None),
-        Ins::BEXTR
-            => (vex_gen_ins_norm(ins, &[0xF7], (true, None), None, true, 0, 0x38, ins.size() == Size::Qword,
-            ins.dst(), ins.src2(), ins.src()
-            ), None),
-        Ins::BLSMSK
-            => (vex_gen_ins_norm(ins, &[0xF3], (true, Some(2)), None, true, 0, 0x38, ins.size() == Size::Qword,
-            ins.dst(), ins.src2(), ins.src()
-            ), None),
-        Ins::BSWAP 
-            => (gen_ins(ins, &[0x0F, (0xC8 + if let Some(Operand::Reg(r)) = ins.dst() {r.to_byte()} else {0})], (false, None, None), None, bits, false), None),
+        Ins::BLSR => (
+            vex_gen_ins_norm(
+                ins,
+                &[0xF3],
+                (true, Some(1)),
+                None,
+                false,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+                ins.src(),
+                ins.dst(),
+                ins.src(),
+            ),
+            None,
+        ),
+        Ins::BLSI => (
+            vex_gen_ins_norm(
+                ins,
+                &[0xF3],
+                (true, Some(3)),
+                None,
+                false,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+                ins.src(),
+                ins.dst(),
+                ins.src(),
+            ),
+            None,
+        ),
+        Ins::BZHI => (
+            vex_gen_ins_norm(
+                ins,
+                &[0xF5],
+                (true, None),
+                None,
+                true,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+                ins.dst(),
+                ins.src2(),
+                ins.src(),
+            ),
+            None,
+        ),
+        Ins::BEXTR => (
+            vex_gen_ins_norm(
+                ins,
+                &[0xF7],
+                (true, None),
+                None,
+                true,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+                ins.dst(),
+                ins.src2(),
+                ins.src(),
+            ),
+            None,
+        ),
+        Ins::BLSMSK => (
+            vex_gen_ins_norm(
+                ins,
+                &[0xF3],
+                (true, Some(2)),
+                None,
+                true,
+                0,
+                0x38,
+                ins.size() == Size::Qword,
+                ins.dst(),
+                ins.src2(),
+                ins.src(),
+            ),
+            None,
+        ),
+        Ins::BSWAP => (
+            gen_ins(
+                ins,
+                &[
+                    0x0F,
+                    (0xC8
+                        + if let Some(Operand::Reg(r)) = ins.dst() {
+                            r.to_byte()
+                        } else {
+                            0
+                        }),
+                ],
+                (false, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        // part c
+        Ins::CMPSTRB => (vec![0xA6], None),
+        Ins::CMPSTRW => (vec![0x66, 0xA7], None),
+        Ins::CMPSTRD => (vec![0xA7], None),
+        Ins::CMPSTRQ => (vec![0b0100_1000, 0xA7], None),
+        Ins::ENDBR64 => (vec![0xF3, 0x0F, 0x1E, 0xFA], None),
+        Ins::ENDBR32 => (vec![0xF3, 0x0F, 0x1E, 0xFB], None),
+        Ins::CMPXCHG => (
+            gen_ins(
+                ins,
+                &[0x0F, (0xB1 - ((ins.size() == Size::Byte) as u8))],
+                (true, None, None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::CLDEMOTE => (
+            gen_ins(ins, &[0x0F, 0x1C], (true, Some(0), None), None, bits, false),
+            None,
+        ),
+        Ins::CLRSSBSY => (
+            gen_ins(
+                ins,
+                &[0xF3, 0x0F, 0xAE],
+                (true, Some(6), None),
+                None,
+                bits,
+                false,
+            ),
+            None,
+        ),
+        Ins::CMPXCHG8B => (
+            gen_ins(ins, &[0x0F, 0xC7], (true, Some(1), None), None, bits, false),
+            None,
+        ),
+        Ins::CMPXCHG16B => (
+            gen_ins(ins, &[0x0F, 0xC7], (true, Some(1), None), None, bits, false),
+            None,
+        ),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
@@ -3829,10 +3982,27 @@ pub fn vex_gen_ins_norm(
     src: Option<&Operand>,
     ssrc: Option<&Operand>,
 ) -> Vec<u8> {
-    let mut base = vex::gen_vex_norm(ins, pp, map_select, modrm_reg_is_dst, vex_we, dst, src, ssrc).unwrap_or_default();
+    let mut base = vex::gen_vex_norm(
+        ins,
+        pp,
+        map_select,
+        modrm_reg_is_dst,
+        vex_we,
+        dst,
+        src,
+        ssrc,
+    )
+    .unwrap_or_default();
     base.extend(opc);
     if modrm.0 {
-        base.push(vex::vex_modrm_norm(ins, modrm.1, None, modrm_reg_is_dst, dst, ssrc));
+        base.push(vex::vex_modrm_norm(
+            ins,
+            modrm.1,
+            None,
+            modrm_reg_is_dst,
+            dst,
+            ssrc,
+        ));
         if let Some(dst) = ins.dst() {
             if let Some(sib) = sib::gen_sib(dst) {
                 base.push(sib);

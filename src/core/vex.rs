@@ -22,7 +22,7 @@ pub fn gen_vex_norm(
     vex_we: bool,
     dst: Option<&Operand>,
     src: Option<&Operand>,
-    src2: Option<&Operand>
+    src2: Option<&Operand>,
 ) -> Option<Vec<u8>> {
     let ssrc = if let Some(src2) = src2 {
         if let Operand::Imm(_) = src2 {
@@ -274,7 +274,14 @@ pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_i
     (mod_ << 6) + (reg << 3) + rm
 }
 
-pub fn vex_modrm_norm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool, dst: Option<&Operand>, src2: Option<&Operand>) -> u8 {
+pub fn vex_modrm_norm(
+    ins: &Instruction,
+    reg: Option<u8>,
+    rm: Option<u8>,
+    modrm_reg_is_dst: bool,
+    dst: Option<&Operand>,
+    src2: Option<&Operand>,
+) -> u8 {
     let mod_: u8 = {
         match (dst, src2) {
             (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)

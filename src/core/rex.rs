@@ -11,6 +11,9 @@ use crate::shr::{
 };
 
 fn needs_rex(ins: &Instruction) -> bool {
+    if ins.mnem == Mnm::CMPXCHG16B {
+        return true;
+    }
     let (size_d, size_s) = match (ins.dst(), ins.src()) {
         (Some(d), Some(s)) => (d.size(), s.size()),
         (Some(d), None) => (d.size(), Size::Unknown),
@@ -40,7 +43,11 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::BSF | Mnm::ADCX | Mnm::ADOX | Mnm::BSWAP
+        Mnm::BSF
+        | Mnm::ADCX
+        | Mnm::ADOX
+        | Mnm::BSWAP
+        | Mnm::CMPXCHG
         | Mnm::BSR
         | Mnm::BT
         | Mnm::BTC
@@ -173,8 +180,9 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
     fix_rev(&mut modrm_reg_is_dst, ins);
 
-    let w = !(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit())
-        && (sized == Size::Qword || sizes == Size::Qword);
+    let w = (!(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit())
+        && (sized == Size::Qword || sizes == Size::Qword))
+        || matches!(ins.mnem, Mnm::CMPXCHG16B);
     let mut r = if !modrm_reg_is_dst { wbs } else { wbd };
     let mut b = if !modrm_reg_is_dst { wbd } else { wbs };
     let mut x = false;

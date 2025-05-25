@@ -1618,20 +1618,6 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                 _ => None,
             },
             b'c' => match rstr[1] {
-                b'o' => match rstr[2] {
-                    b'm' => match rstr[3] {
-                        b'i' => match rstr[4] {
-                            b's' => match rstr[5] {
-                                b'd' => Some(Ins::COMISD),
-                                b's' => Some(Ins::COMISS),
-                                _ => None,
-                            },
-                            _ => None,
-                        },
-                        _ => None,
-                    },
-                    _ => None,
-                },
                 b'm' => match rstr[2] {
                     b'o' => match rstr[3] {
                         b'v' => match rstr[4] {
@@ -1667,6 +1653,20 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                             b'p' => match rstr[5] {
                                 b'e' => Some(Ins::CMOVPE),
                                 b'o' => Some(Ins::CMOVPO),
+                                _ => None,
+                            },
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                b'o' => match rstr[2] {
+                    b'm' => match rstr[3] {
+                        b'i' => match rstr[4] {
+                            b's' => match rstr[5] {
+                                b'd' => Some(Ins::COMISD),
+                                b's' => Some(Ins::COMISS),
                                 _ => None,
                             },
                             _ => None,
@@ -2696,6 +2696,7 @@ pub fn mnem_fromstr(str: &str) -> Option<Ins> {
                         b's' => match rstr[4] {
                             b't' => match rstr[5] {
                                 b'r' => match rstr[6] {
+                                    b'b' => Some(Ins::CMPSTRB),
                                     b'd' => Some(Ins::CMPSTRD),
                                     b'q' => Some(Ins::CMPSTRQ),
                                     b'w' => Some(Ins::CMPSTRW),

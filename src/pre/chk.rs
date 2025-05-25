@@ -276,15 +276,45 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         DAA | DAS | AAA | AAS => ot_chk(ins, &[], &[], &[]),
 
         // part b
-        CWDE | CDQE | CLAC | CLTS | CLUI  => ot_chk(ins, &[], &[], &[]),
-        CLWB  => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
-        BLSI | ADCX | ADOX | BLSR | BLSMSK
-            => ot_chk(ins, &[(&[R32], Optional::Needed), (&[R32, M32], Optional::Needed)], &[], &[]),
-        BSWAP
-            => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
-        ANDN | BZHI | BEXTR
-            => ot_chk(ins, &[(&[R32], Optional::Needed), (&[R32], Optional::Needed), (&[R32, M32], Optional::Needed)], &[], &[]),
-        ARPL => ot_chk(ins, &[(&[R16, M16], Optional::Needed), (&[R16], Optional::Needed)], &[], &[]),
+        CWDE | CDQE | CLAC | CLTS | CLUI => ot_chk(ins, &[], &[], &[]),
+        CLWB => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        BLSI | ADCX | ADOX | BLSR | BLSMSK => ot_chk(
+            ins,
+            &[(&[R32], Optional::Needed), (&[R32, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        BSWAP => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
+        ANDN | BZHI | BEXTR => ot_chk(
+            ins,
+            &[
+                (&[R32], Optional::Needed),
+                (&[R32], Optional::Needed),
+                (&[R32, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        ARPL => ot_chk(
+            ins,
+            &[(&[R16, M16], Optional::Needed), (&[R16], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        // part c
+        CMPSTRB | CMPSTRW | CMPSTRD | ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
+        CMPXCHG => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                (&[R8, R16, R32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        CLDEMOTE => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
         // # # #  # # #    #
@@ -531,16 +561,43 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         CBW | CMC | CWD | CDQ | CQO | CLD | CLI => ot_chk(ins, &[], &[], &[]),
 
         // part b
-        CWDE | CDQE | CLAC | CLTS | CLUI  => ot_chk(ins, &[], &[], &[]),
-        CLWB  => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
-        BLSI | ADCX | ADOX | BLSR | BLSMSK
-            => ot_chk(ins, &[(&[R32, R64], Optional::Needed), (&[R32, M32, R64, M64], Optional::Needed)], &[], &[]),
-        BSWAP
-            => ot_chk(ins, &[(&[R32, R64], Optional::Needed)], &[], &[]),
-        ANDN | BZHI | BEXTR
-            => ot_chk(ins, &[(&[R32, R64], Optional::Needed), (&[R32, R64], Optional::Needed), (&[R32, M32, R64, M64], Optional::Needed)], &[], &[]),
-        // 32-bit only 
-        // ARPL => ot_chk(ins, &[(&[R16, M16], Optional::Needed), (&[R16], Optional::Needed)], &[], &[]),
+        CWDE | CDQE | CLAC | CLTS | CLUI => ot_chk(ins, &[], &[], &[]),
+        CLWB => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        BLSI | ADCX | ADOX | BLSR | BLSMSK => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, M32, R64, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        BSWAP => ot_chk(ins, &[(&[R32, R64], Optional::Needed)], &[], &[]),
+        ANDN | BZHI | BEXTR => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, R64], Optional::Needed),
+                (&[R32, M32, R64, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        // part c
+        CMPSTRB | CMPSTRW | CMPSTRD | ENDBR64 | ENDBR32 | CMPSTRQ => ot_chk(ins, &[], &[], &[]),
+        CMPXCHG => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32, R64, M64], Optional::Needed),
+                (&[R8, R16, R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        CLDEMOTE => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+        CMPXCHG16B => ot_chk(ins, &[(&[M128], Optional::Needed)], &[], &[]),
 
         _ => shr_chk(ins),
     }
