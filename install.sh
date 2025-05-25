@@ -1,3 +1,7 @@
+# Pre-build
+echo "Running pre-build script(s)..."
+./instradd.sh
+echo "Starting installer..."
 
 RASM_BIN="rasmx86_64"
 
@@ -7,13 +11,30 @@ echo "-----------------------"
 set -e
 
 if [[ $1 == "" ]] || [[ $1 == "-h" ]]; then
-	echo "help:"
+	echo "flags:"
+	echo "  -t  : test"
 	echo "  -l  : local install (installs binary inside of ~/.local/bin)"
 	echo "  -lu : local install (installs binary inside of ~/.local/bin) without tests"
 	echo "  -c  : local install with cargo"
 	echo "  -cu : local install with cargo without tests"
 	echo "  -d  : dev build (building for ALL supported targets; not recommended)"
 	echo "  -h  : help"
+fi
+
+if [[ $1 == "-t" ]]; then
+	cargo test
+	cargo fmt
+	cargo clippy
+	if [[ $? != 0 ]]; then
+		echo "This version of RASM is not functional (errors were found during tests)"
+	fi
+	cd tests
+	./test.sh
+	if [[ $? != 0 ]]; then
+		echo "This version of RASM is not functional (errors were found during tests)"
+	fi
+	cd ..
+	exit 0
 fi
 
 if [[ $1 == "-c" ]]; then

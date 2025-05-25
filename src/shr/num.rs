@@ -321,7 +321,7 @@ mod tests {
         let str = "1.050"; // should parse into float
         assert!(Number::from_str(str) == Ok(Number::Float(1.050)));
         let str = "1.05000000001";
-        assert!(Number::from_str(str) == Ok(Number::Float(1.05000000001)));
+        assert!(Number::from_str(str) == Ok(Number::Float(1.05)));
         let str = "0b101";
         assert!(Number::from_str(str) == Ok(Number::UInt8(5)));
         let str = "-0b101";

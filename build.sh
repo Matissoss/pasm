@@ -1,3 +1,6 @@
+# Pre-build
+./instradd.sh
+
 # Tests!
 set -e
 
