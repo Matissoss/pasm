@@ -53,3 +53,55 @@ _start:
 	sar rax, 1
 	sar rax, cl
 	sar rax, 10
+	
+	rol al, 1
+	rol al, cl
+	rol al, 10
+	rol ax, 1
+	rol ax, cl
+	rol ax, 10
+	rol eax, 1
+	rol eax, cl
+	rol eax, 10
+	rol rax, 1
+	rol rax, cl
+	rol rax, 10
+	
+	ror al, 1
+	ror al, cl
+	ror al, 10
+	ror ax, 1
+	ror ax, cl
+	ror ax, 10
+	ror eax, 1
+	ror eax, cl
+	ror eax, 10
+	ror rax, 1
+	ror rax, cl
+	ror rax, 10
+	
+	rcl al, 1
+	rcl al, cl
+	rcl al, 10
+	rcl ax, 1
+	rcl ax, cl
+	rcl ax, 10
+	rcl eax, 1
+	rcl eax, cl
+	rcl eax, 10
+	rcl rax, 1
+	rcl rax, cl
+	rcl rax, 10
+	
+	rcr al, 1
+	rcr al, cl
+	rcr al, 10
+	rcr ax, 1
+	rcr ax, cl
+	rcr ax, 10
+	rcr eax, 1
+	rcr eax, cl
+	rcr eax, 10
+	rcr rax, 1
+	rcr rax, cl
+	rcr rax, 10

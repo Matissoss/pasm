@@ -173,7 +173,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR => {
+        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => {
             if let Some(err) = operand_check(ins, (true, true)) {
                 Some(err)
             } else {
@@ -323,6 +323,51 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // part 3
+        MULX | PEXT | PDEP => ot_chk(
+            ins,
+            &[
+                (&[R32], Optional::Needed),
+                (&[R32], Optional::Needed),
+                (&[R32, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        MOVZX => ot_chk(
+            ins,
+            &[
+                (&[R16, R32], Optional::Needed),
+                (&[R8, R16, M8, M16], Optional::Needed),
+            ],
+            &[(R16, M16), (R16, M16)],
+            &[],
+        ),
+        MOVSTRB | MOVSTRW | MOVSTRD => ot_chk(ins, &[], &[], &[]),
+        MOVDIRI => ot_chk(
+            ins,
+            &[(&[M32], Optional::Needed), (&[R32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        MOVBE => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, M16, M32], Optional::Needed),
+                (&[R16, R32, M16, M32], Optional::Needed),
+            ],
+            &[(RA, RA), (MA, MA)],
+            &[],
+        ),
+        LZCNT => ot_chk(
+            ins,
+            &[
+                (&[R16, R32], Optional::Needed),
+                (&[R16, M16, R32, M32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
@@ -339,7 +384,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ => Some(RASMError::no_tip(
+        Mnm::MOVQ | MOVSTRQ => Some(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction unsupported in 32-bit mode"),
         )),
@@ -468,7 +513,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR => {
+        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => {
             if let Some(err) = operand_check(ins, (true, true)) {
                 Some(err)
             } else {
@@ -615,6 +660,55 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         IRETQ | LODSQ => ot_chk(ins, &[], &[], &[]),
+
+        // part 3
+        MULX | PEXT | PDEP => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, R64], Optional::Needed),
+                (&[R32, R64, M32, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        MOVZX => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R8, R16, M8, M16], Optional::Needed),
+            ],
+            &[(R16, M16), (R16, R16)],
+            &[],
+        ),
+        MOVSTRB | MOVSTRW | MOVSTRD | MOVSTRQ => ot_chk(ins, &[], &[], &[]),
+        MOVDIRI => ot_chk(
+            ins,
+            &[
+                (&[M32, M64], Optional::Needed),
+                (&[R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        MOVBE => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
+                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
+            ],
+            &[(RA, RA), (MA, MA)],
+            &[],
+        ),
+        LZCNT => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         _ => shr_chk(ins),
     }
 }
@@ -622,7 +716,26 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     match ins.mnem {
-        Mnm::JA
+        LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
+        PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
+            ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[])
+        }
+        LSL => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64], Optional::Needed),
+                (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        OUTIB | OUTIW | OUTID => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        OUTRB | OUTRW | OUTRD | OUTSB | OUTSW | OUTSD => ot_chk(ins, &[], &[], &[]),
+
+        LOOP
+        | LOOPNE
+        | LOOPE
+        | Mnm::JA
         | Mnm::JB
         | Mnm::JC
         | Mnm::JO

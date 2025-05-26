@@ -43,7 +43,11 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::BSF
+        Mnm::ROL
+        | Mnm::ROR
+        | Mnm::RCL
+        | Mnm::RCR
+        | Mnm::BSF
         | Mnm::INVPCID
         | Mnm::ADCX
         | Mnm::ADOX
@@ -83,6 +87,11 @@ fn needs_rex(ins: &Instruction) -> bool {
         | Mnm::CMOVNBE
         | Mnm::CMOVNLE
         | Mnm::CMOVNGE
+        | Mnm::MOVZX
+        | Mnm::MOVDIRI
+        | Mnm::MOVBE
+        | Mnm::LZCNT
+        | Mnm::LSL
         | Mnm::CMOVNAE => true,
         Mnm::MOVMSKPD => true,
         Mnm::CVTSS2SI => true,
