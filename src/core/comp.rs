@@ -7,6 +7,7 @@ use std::borrow::Cow;
 
 use crate::{
     core::{
+        api::*,
         avx, disp, mmx, modrm,
         reloc::{RCategory, RType, Relocation},
         rex, sib, sse, sse2, sse3, sse4, ssse3, vex,
@@ -2324,7 +2325,12 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
         // fma-part1
         Ins::VFMADD132PS => (
-            avx::avx_ins_oopc(ins, &[0x98], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x98])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::SRC, OpOrd::DST, OpOrd::VSRC])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD213PS => (
@@ -3688,14 +3694,26 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
             _ => invalid(26),
         }
     } else if let Operand::CtrReg(_) = dst {
-        gen_ins(ins, &[0x0F, 0x22], (true, None, None), None, bits, true)
+        GenAPI::new()
+            .opcode(&[0x0F, 0x22])
+            .modrm(true, None, None)
+            .ord(&[OpOrd::SRC, OpOrd::DST])
+            .rex(true)
+            .assemble(ins, bits)
     } else if let Operand::DbgReg(_) = dst {
-        gen_ins(ins, &[0x0F, 0x23], (true, None, None), None, bits, true)
+        GenAPI::new()
+            .opcode(&[0x0F, 0x23])
+            .modrm(true, None, None)
+            .ord(&[OpOrd::SRC, OpOrd::DST])
+            .rex(true)
+            .assemble(ins, bits)
     } else if let Operand::SegReg(_) = dst {
         match src {
-            Operand::Reg(_) | Operand::Mem(_) => {
-                gen_ins(ins, &[0x8E], (true, None, None), None, bits, false)
-            }
+            Operand::Reg(_) | Operand::Mem(_) => GenAPI::new()
+                .opcode(&[0x8E])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             _ => invalid(25),
         }
     } else if let Operand::Mem(_) | Operand::Segment(_) = dst {
@@ -3706,18 +3724,25 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
                     Size::Word | Size::Dword | Size::Qword => 0x89,
                     _ => invalid(24),
                 };
-                gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
-            Operand::Imm(n) => {
+            Operand::Imm(_) => {
                 let size = dst.size();
                 let opc = match size {
                     Size::Byte => 0xC6,
                     Size::Word | Size::Dword | Size::Qword => 0xC7,
                     _ => invalid(23),
                 };
-                let mut imm = n.split_into_bytes();
-                extend_imm(&mut imm, size as u8 + 1);
-                gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false)
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, Some(0), None)
+                    .rex(true)
+                    .imm_atindex(1, size as u16 + 1)
+                    .assemble(ins, bits)
             }
             _ => invalid(22),
         }

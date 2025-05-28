@@ -38,7 +38,7 @@ pub fn gen_vex_norm(
         0x66 => 0b01,
         0xF3 => 0b10,
         0xF2 => 0b11,
-        _ => 0b00,
+        _ => pp,
     };
     let vlength =
         (ins.which_variant() == IVariant::YMM || matches!(ins.mnem, Ins::VEXTRACTF128)) as u8;
@@ -47,7 +47,7 @@ pub fn gen_vex_norm(
         0x0F => 0b00001,
         0x38 => 0b00010,
         0x3A => 0b00011,
-        _ => 0b00000,
+        _ => map_select,
     };
 
     let nvex_dst = needs_vex3(dst);
@@ -111,7 +111,7 @@ pub fn gen_vex(
         0x66 => 0b01,
         0xF3 => 0b10,
         0xF2 => 0b11,
-        _ => 0b00,
+        _ => pp,
     };
     let vlength =
         (ins.which_variant() == IVariant::YMM || matches!(ins.mnem, Ins::VEXTRACTF128)) as u8;
@@ -120,7 +120,7 @@ pub fn gen_vex(
         0x0F => 0b00001,
         0x38 => 0b00010,
         0x3A => 0b00011,
-        _ => 0b00000,
+        _ => map_select,
     };
 
     let nvex_dst = needs_vex3(dst);

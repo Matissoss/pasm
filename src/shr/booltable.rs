@@ -48,9 +48,25 @@ impl BoolTable16 {
     }
     pub fn get(&self, idx: u8) -> Option<bool> {
         if idx < 16 {
-            Some((self.data >> idx) == 0x01)
+            let tmp = 0x01 << idx;
+            Some(self.data & tmp == tmp)
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn booltable_test() {
+        let mut booltable = BoolTable16::new();
+        booltable.set(1, true);
+        assert!(booltable.data == 0b0000_0010);
+        booltable.set(0, true);
+        assert!(booltable.data == 0b0000_0011);
+        dbg!(booltable.get(0));
+        assert!(booltable.get(0) == Some(true));
     }
 }
