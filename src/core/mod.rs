@@ -5,6 +5,9 @@ pub mod modrm;
 pub mod rex;
 pub mod sib;
 
+// new api!
+pub mod api;
+
 // core for AVX
 pub mod avx;
 pub mod vex;

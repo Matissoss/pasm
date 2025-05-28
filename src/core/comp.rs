@@ -4591,7 +4591,6 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
         _ => None,
     }
 }
-
 fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
     if let Some(d) = ins.dst() {
         if let Some(s) = gen_segm_pref_op(d) {

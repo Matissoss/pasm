@@ -1,0 +1,472 @@
+// rasmx86_64 - src/core/api.rs
+// ----------------------------
+// made by matissoss
+// licensed under MPL 2.0
+
+const REX_PFX: u8 = 0x0;
+const VEX_PFX: u8 = 0x1;
+const EVEX_PFX: u8 = 0x2;
+const CAN_H66O: u8 = 0x3; // can use 0x66 override
+const CAN_H67O: u8 = 0x4; // can use 0x67 override
+const CAN_SEGM: u8 = 0x5; // can use segment override
+const USE_MODRM: u8 = 0x6; // can use modrm
+const OBY_CONST: u8 = 0x7; // one byte const - first addt byte goes as metadata, second as
+const TBY_CONST: u8 = 0x8; // two byte const
+const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index)
+                           //const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
+                           //const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
+
+use crate::{
+    core::{disp, modrm, rex, sib, vex},
+    shr::{
+        ast::{Instruction, Operand},
+        booltable::BoolTable16,
+        error::RASMError,
+        reg::Register,
+        size::Size,
+    },
+};
+
+#[repr(C)]
+pub struct VexDetails {
+    pp: u8,
+    map_select: u8,
+    vex_we: bool,
+    vlength: MegaBool
+}
+
+#[repr(transparent)]
+pub struct MegaBool {
+    data: u8
+}
+
+#[repr(transparent)]
+pub struct OperandOrder {
+    ord: u8,
+}
+
+#[derive(Copy, Clone)]
+#[repr(u8)]
+pub enum OpOrd {
+    DST = 0b00,
+    SRC = 0b01,
+    VSRC = 0b10, // vex source (second source operand)
+    TSRC = 0b11, // third source
+}
+
+// size = 16B (could be 37B!)
+#[repr(C)]
+pub struct GenAPI {
+    opcode_ptr: *const u8,
+    opcode_mtd: u8,
+    prefix: u8, // if VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
+    // X = VEX.w/e,
+    // YYYYY = map_select
+    // ZZ = pp
+    // otherwise normal prefix like 0xF2/0xF3
+    flags: BoolTable16,
+
+    // less essential - can be used with other context depending on flags
+    modrm_ovr: ModrmTuple,
+    ord: OperandOrder,
+    addt: u16,
+}
+
+#[repr(transparent)]
+pub struct ModrmTuple {
+    data: u8, // 0bXX_YYY_ZZZ : X1 = reg is Some, X2 = rm is Some, YYY = reg, ZZZ = rm
+}
+
+impl GenAPI {
+    pub fn new() -> Self {
+        Self {
+            opcode_ptr: std::ptr::null(),
+            opcode_mtd: 0,
+            prefix: 0,
+            flags: BoolTable16::new()
+                .setc(CAN_H66O, true)
+                .setc(CAN_H67O, true)
+                .setc(CAN_SEGM, true),
+            ord: OperandOrder { ord: 0 },
+            modrm_ovr: ModrmTuple::new(None, None),
+            addt: 0,
+        }
+    }
+    pub fn prefix(mut self, pfx: u8) -> Self {
+        self.prefix = pfx;
+        self
+    }
+    pub fn opcode(mut self, opc: &[u8]) -> Self {
+        if opc.len() > 0b111 {
+            panic!("Tried to use opcode of len() >= 8");
+        }
+        self.opcode_ptr = opc.as_ptr();
+        self.opcode_mtd = (opc.len() as u8) << 5;
+        self
+    }
+    pub fn modrm(mut self, modrm: bool, reg: Option<u8>, rm: Option<u8>) -> Self {
+        self.flags.set(USE_MODRM, modrm);
+        self.modrm_ovr = ModrmTuple::new(reg, rm);
+        self
+    }
+    pub fn can_h67(mut self, h67: bool) -> Self {
+        self.flags.set(CAN_H67O, h67);
+        self
+    }
+    pub fn can_h66(mut self, h66: bool) -> Self {
+        self.flags.set(CAN_H66O, h66);
+        self
+    }
+    pub fn evex(mut self, evex: bool) -> Self {
+        self.flags.set(EVEX_PFX, evex);
+        self
+    }
+    pub fn rex(mut self, rex: bool) -> Self {
+        self.flags.set(REX_PFX, rex);
+        self
+    }
+    pub fn vex(mut self, vex: bool, vex_details: VexDetails) -> Self {
+        self.flags.set(VEX_PFX, vex);
+        self.prefix = {
+            (vex_details.vex_we as u8) << 7 |
+            vex_details.map_select << 2 |
+            vex_details.pp
+        };
+        self.addt &= 0x00FF;
+        self.addt |= (vex_details.vlength.data as u16) << 0xFF;
+        self
+    }
+    pub fn imm_atindex(mut self, idx: u8) -> Self {
+        self.flags.set(IMM_ATIDX, true);
+        self.addt = idx as u16;
+        self
+    }
+    pub fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
+        self.flags.set(OBY_CONST, true);
+        self.addt = (extend_to as u16) << 8 | imm as u16;
+        self
+    }
+    pub fn imm_const16(mut self, imm: u16) -> Self {
+        self.flags.set(TBY_CONST, true);
+        self.addt = imm;
+        self
+    }
+    pub fn get_opcode(&self) -> Option<&[u8]> {
+        let size = (self.opcode_mtd & 0b111_00000) >> 5;
+
+        if self.opcode_ptr.is_null() {
+            RASMError::warn("Somehow opcode pointer is null!".to_string());
+            return None;
+        }
+        if size == 0 {
+            return None;
+        }
+        Some(unsafe { std::slice::from_raw_parts(self.opcode_ptr, size as usize) })
+    }
+    #[allow(clippy::nonminimal_bool)]
+    pub fn validate(&self) -> Option<RASMError> {
+        let imm_flag0 = self.flags.get(OBY_CONST).unwrap();
+        let imm_flag1 = self.flags.get(TBY_CONST).unwrap();
+        let imm_flag2 = self.flags.get(IMM_ATIDX).unwrap();
+
+        if (imm_flag0 && imm_flag1) || (imm_flag1 && imm_flag2) || (imm_flag0 && imm_flag2) {
+            return Some(RASMError::no_tip(
+                None,
+                Some("GenAPI flag error: OBY_CONST, TBY_CONST or IMM_ATIDX flags were set (only one can be at time)!")
+            ));
+        }
+
+        let pfx_flag0 = self.flags.get(REX_PFX).unwrap();
+        let pfx_flag1 = self.flags.get(VEX_PFX).unwrap();
+        let pfx_flag2 = self.flags.get(EVEX_PFX).unwrap();
+
+        if (pfx_flag0 && pfx_flag1) || (pfx_flag1 && pfx_flag2) || (pfx_flag0 && pfx_flag2) {
+            return Some(RASMError::no_tip(
+                None,
+                Some("GenAPI flag error: EVEX_PFX, VEX_PFX or REX_PFX flags were set (only one can be at time)!")
+            ));
+        }
+
+        None
+    }
+    pub fn assemble(&self, ins: &Instruction, bits: u8) -> Vec<u8> {
+        let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
+        let rex_flag_set = self.flags.get(REX_PFX).unwrap();
+        let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
+
+        let mut base = {
+            let mut base = Vec::new();
+
+            let rex = if rex_flag_set {
+                rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
+            } else {
+                0x00
+            };
+
+            if !(vex_flag_set || evex_flag_set) {
+                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3) {
+                    base.push(self.prefix);
+                }
+                if let Some(segm) = gen_segm_pref(ins) {
+                    base.push(segm);
+                }
+                if let Some(size_ovr) = gen_size_ovr(ins, bits, rex & 0x8 == 0x8) {
+                    if self.prefix != size_ovr {
+                        base.push(size_ovr);
+                    }
+                }
+            }
+
+            if rex_flag_set && rex != 0x00 {
+                base.push(rex);
+            }
+            if vex_flag_set {
+                if let Some(vex) = vex::gen_vex(
+                    ins,
+                    self.prefix & 0b0000_0011,
+                    (self.prefix & 0b0111_1100) >> 2,
+                    self.ord.modrm_reg_is_dst(),
+                    self.prefix & 0b1000_0000 == 0b1000_0000,
+                ) {
+                    base.extend(vex);
+                }
+            }
+            if evex_flag_set {
+                panic!("EVEX prefix is not availiable!");
+            }
+            base
+        };
+
+        if self.flags.get(USE_MODRM).unwrap() {
+            base.push(modrm::gen_modrm(
+                ins,
+                self.modrm_ovr.reg(),
+                self.modrm_ovr.rm(),
+                self.ord.modrm_reg_is_dst(),
+            ));
+
+            if let Some(sib) = sib::gen_sib_ins(ins) {
+                base.push(sib);
+            }
+            if let Some(disp) = disp::gen_disp_ins(ins) {
+                base.extend(disp);
+            }
+        }
+        base
+    }
+    pub fn try_assemble(&self, ins: &Instruction, bits: u8) -> Result<Vec<u8>, RASMError> {
+        if let Some(err) = self.validate() {
+            Err(err)
+        } else {
+            Ok(self.assemble(ins, bits))
+        }
+    }
+}
+
+fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<u8> {
+    if let Some(dst) = ins.dst() {
+        if let Some(sizeovr) = gen_size_ovr_op(ins, dst, bits, rexw) {
+            return Some(sizeovr);
+        }
+    }
+    if let Some(src) = ins.src() {
+        if let Some(sizeovr) = gen_size_ovr_op(ins, src, bits, rexw) {
+            return Some(sizeovr);
+        }
+    }
+    None
+}
+
+fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option<u8> {
+    let (size, is_mem) = match op {
+        Operand::Reg(r) => (r.size(), false),
+        Operand::CtrReg(r) => (r.size(), false),
+        Operand::Mem(m) => (m.size(), false),
+        Operand::Segment(s) => (s.address.size(), true),
+        _ => return None,
+    };
+    if size == Size::Byte || size == Size::Xword {
+        return None;
+    }
+    match bits {
+        32 => match (size, is_mem) {
+            (Size::Word, false) => Some(0x66),
+            (Size::Word, true) => Some(0x67),
+            (Size::Dword, _) => None,
+            _ => panic!("{:?}", op),
+        },
+        16 => match (size, is_mem) {
+            (Size::Word, _) => None,
+            (Size::Dword, true) => Some(0x67),
+            (Size::Dword, false) => Some(0x66),
+            _ => panic!("{:?}", op),
+        },
+        64 => match (size, is_mem) {
+            (Size::Qword, false) => {
+                if ins.mnem.defaults_to_64bit() || rexw || ins.uses_cr() || ins.uses_dr() {
+                    None
+                } else {
+                    Some(0x66)
+                }
+            }
+            (Size::Dword, false) | (Size::Qword, true) => None,
+            (Size::Word, false) => Some(0x66),
+            (Size::Word, true) => Some(0x67),
+            (Size::Dword, true) => Some(0x67),
+            _ => panic!("{:?}", op),
+        },
+        _ => None,
+    }
+}
+fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
+    if let Some(d) = ins.dst() {
+        if let Some(s) = gen_segm_pref_op(d) {
+            return Some(s);
+        }
+    }
+    if let Some(d) = ins.src() {
+        if let Some(s) = gen_segm_pref_op(d) {
+            return Some(s);
+        }
+    }
+    None
+}
+
+fn gen_segm_pref_op(op: &Operand) -> Option<u8> {
+    if let Operand::Segment(s) = op {
+        match s.segment {
+            Register::CS => Some(0x2E),
+            Register::SS => Some(0x36),
+            Register::DS => Some(0x3E),
+            Register::ES => Some(0x26),
+            Register::FS => Some(0x64),
+            Register::GS => Some(0x65),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+impl Default for VexDetails {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl VexDetails {
+    pub fn new() -> Self {
+        Self {
+            pp: 0,
+            map_select: 0,
+            vex_we: false,
+            vlength: MegaBool::set(None),
+        }
+    }
+    pub fn vlength(mut self, b: Option<bool>) -> Self{
+        self.vlength = MegaBool::set(b);
+        self
+    }
+    pub fn vex_we(mut self, b: bool) -> Self{
+        self.vex_we = b;
+        self
+    }
+    pub fn map_select(mut self, u: u8) -> Self{
+        self.map_select = u;
+        self
+    }
+    pub fn pp(mut self, u: u8) -> Self{
+        self.pp = u;
+        self
+    }
+}
+
+impl MegaBool {
+    fn set(op: Option<bool>) -> Self {
+        Self {
+            data: (op.is_some() as u8) << 1 | op.unwrap_or(false) as u8
+        }
+    }
+    #[allow(dead_code)]
+    fn get(&self) -> Option<bool> {
+        if self.data & 0b0000_0010 == 0b10 {
+            Some(self.data & 0b01 == 0b01)
+        } else {
+            None
+        }
+    }
+}
+
+impl OperandOrder {
+    pub fn new(op: &[OpOrd]) -> Option<Self> {
+        if op.len() > 4 {
+            None
+        } else {
+            let mut val = 0;
+            let mut idx = 0;
+            while idx < op.len() {
+                val += (op[idx] as u8) << idx << 1;
+                idx += 1;
+            }
+            Some(Self { ord: val })
+        }
+    }
+    pub fn get(&self, idx: u8) -> Option<OpOrd> {
+        if idx > 4 {
+            None
+        } else {
+            unsafe {
+                Some(std::mem::transmute::<u8, OpOrd>(
+                    (self.ord & (0b11 << idx << 1)) >> idx >> 1,
+                ))
+            }
+        }
+    }
+    pub fn modrm_reg_is_dst(&self) -> bool {
+        self.ord & 0b11_00_00_00 == (OpOrd::SRC as u8) << 6
+    }
+}
+
+impl ModrmTuple {
+    pub fn new(reg: Option<u8>, rm: Option<u8>) -> Self {
+        Self {
+            data: ((reg.is_some() as u8) << 7
+                | (rm.is_some() as u8) << 6
+                | reg.unwrap_or(0) << 3
+                | rm.unwrap_or(0)),
+        }
+    }
+    pub fn rm(&self) -> Option<u8> {
+        if self.data & 0b01_000000 == 0b01_000000 {
+            Some(self.data & 0b000111)
+        } else {
+            None
+        }
+    }
+    pub fn reg(&self) -> Option<u8> {
+        if self.data & 0b10_000000 == 0b10_000000 {
+            Some((self.data & 0b00_111000) >> 3)
+        } else {
+            None
+        }
+    }
+    pub fn data(&self) -> u8 {
+        self.data
+    }
+}
+
+impl Default for GenAPI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn general_api_check() {
+        println!("{}", size_of::<GenAPI>());
+        assert!(size_of::<GenAPI>() == 16);
+    }
+}

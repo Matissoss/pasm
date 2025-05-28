@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod atype;
+pub mod booltable;
 pub mod error;
 pub mod ins;
 pub mod ins_switch;

@@ -3,7 +3,25 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Operand, mem::Mem, reg::Register};
+use crate::shr::{
+    ast::{Instruction, Operand},
+    mem::Mem,
+    reg::Register,
+};
+
+pub fn gen_sib_ins(ins: &Instruction) -> Option<u8> {
+    if let Some(dst) = ins.dst() {
+        if let Some(sib) = gen_sib(dst) {
+            return Some(sib);
+        }
+    }
+    if let Some(src) = ins.src() {
+        if let Some(sib) = gen_sib(src) {
+            return Some(sib);
+        }
+    }
+    None
+}
 
 pub fn gen_sib(op: &Operand) -> Option<u8> {
     match op {

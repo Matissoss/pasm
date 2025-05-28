@@ -3,7 +3,25 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Operand as Op, mem::Mem, num::Number};
+use crate::shr::{
+    ast::{Instruction, Operand as Op},
+    mem::Mem,
+    num::Number,
+};
+
+pub fn gen_disp_ins(ins: &Instruction) -> Option<Vec<u8>> {
+    if let Some(dst) = ins.dst() {
+        if let Some(disp) = gen_disp(dst) {
+            return Some(disp);
+        }
+    }
+    if let Some(src) = ins.src() {
+        if let Some(disp) = gen_disp(src) {
+            return Some(disp);
+        }
+    }
+    None
+}
 
 pub fn gen_disp(op: &Op) -> Option<Vec<u8>> {
     match op {

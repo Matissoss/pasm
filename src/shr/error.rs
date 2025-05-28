@@ -165,6 +165,15 @@ impl RASMError {
     pub fn set_line(&mut self, newline: usize) {
         self.line = Some(newline);
     }
+    pub fn warn(msg: String) {
+        let err = Self {
+            line: None,
+            etype: ExceptionType::Warn,
+            msg: Some(msg),
+            tip: None,
+        };
+        println!("{}", err);
+    }
 }
 
 pub struct Blank;
