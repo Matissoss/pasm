@@ -21,7 +21,15 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 - beta
     - [ ] Support for most of (atleast 50%) "normal" x86-64 instructions
     - [ ] Extended Relocations/Symbols, Support for comptime mathematical evaluations and label attributes
-    - [ ] Support for `AVX-512*`
+- beta-avx512
+    - [ ] AVX-512F
+    - [ ] AVX-512VL, AVX-512DQ, AVX-512BW
+    - [ ] AVX-512CD, AVX-512ER, AVX-512PF
+    - [ ] VBMI2, VBMI, BITALG
+    - [ ] GFNI, VAES, VPCLMULQDQ
+    - [ ] IFMA, 4VNNIW, VNNI, 4FMAPS
+    - [ ] AVX-FP16
+    - [ ] other (VPOPCNTDQ, VPCLMULQDQ)
 - stable
     - [ ] Stable Version `*-stable0`
 

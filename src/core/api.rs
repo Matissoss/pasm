@@ -20,7 +20,7 @@ const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
 
 //
 // Extended flags combo (not used):
-// - EXT_FLGS1 : first byte of addt is BoolTable8 (+8 flags)
+// - EXT_FLGS1 : addt2 is BoolTable8 (+8 flags)
 // - EXT_FLGS2 : addt is BoolTable16 (+16 flags)
 // - EXT_FLGS1 + EXT_FLGS2: reserved
 // - EXT_FLGSx + !CAN_SEGM: reserved
@@ -66,12 +66,17 @@ pub enum OpOrd {
     TSRC = 0b11,     // third source
 }
 
+#[repr(transparent)]
+struct Opcode {
+    opcode: u64,
+}
+
 // size = 16B (could be 37B!)
 #[repr(C)]
 pub struct GenAPI {
-    // Opcode
-    opcode_ptr: *const u8,
-    opcode_mtd: u8,
+    opcode: Opcode,
+
+    flags: BoolTable16,
 
     // if (E)VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
     // X = (E)VEX.w/e,
@@ -80,8 +85,6 @@ pub struct GenAPI {
     // otherwise normal prefix like 0xF2/0xF3
     prefix: u8,
 
-    flags: BoolTable16,
-
     // less essential - can be used with other context depending on flags
 
     // can be used with other context if USE_MODRM flag is NOT set
@@ -89,6 +92,9 @@ pub struct GenAPI {
 
     // can be used with other context if USE_MODRM flag is NOT set (because why would you need it?)
     ord: OperandOrder,
+
+    // this one is unused
+    addt2: u8,
 
     // depending on flags:
     // - IMM_ATIDX, OBY_CONST, TBY_CONST - immediate + metadata,
@@ -106,8 +112,7 @@ pub struct ModrmTuple {
 impl GenAPI {
     pub fn new() -> Self {
         Self {
-            opcode_ptr: std::ptr::null(),
-            opcode_mtd: 0,
+            opcode: Opcode { opcode: 0 },
             prefix: 0,
             flags: BoolTable16::new()
                 .setc(CAN_H66O, true)
@@ -122,6 +127,7 @@ impl GenAPI {
             .unwrap(),
             modrm_ovr: ModrmTuple::new(None, None),
             addt: 0,
+            addt2: 0,
         }
     }
     pub fn prefix(mut self, pfx: u8) -> Self {
@@ -132,8 +138,7 @@ impl GenAPI {
         if opc.len() > 0b0000_0111 {
             panic!("Tried to use opcode of len() >= 8");
         }
-        self.opcode_ptr = opc.as_ptr();
-        self.opcode_mtd = (opc.len() as u8) << 5;
+        self.opcode = Opcode::from_bytes(opc);
         self
     }
     pub fn modrm(mut self, modrm: bool, reg: Option<u8>, rm: Option<u8>) -> Self {
@@ -186,18 +191,6 @@ impl GenAPI {
     pub fn ord(mut self, ord: &[OpOrd]) -> Self {
         self.ord = OperandOrder::new(ord).expect("Failed to create operand order");
         self
-    }
-    pub fn get_opcode(&self) -> Option<&[u8]> {
-        let size = (self.opcode_mtd & 0b111_00000) >> 5;
-
-        if self.opcode_ptr.is_null() {
-            RASMError::warn("Somehow opcode pointer is null!".to_string());
-            return None;
-        }
-        if size == 0 {
-            return None;
-        }
-        Some(unsafe { std::slice::from_raw_parts(self.opcode_ptr, size as usize) })
     }
     #[allow(clippy::nonminimal_bool)]
     pub fn validate(&self) -> Option<RASMError> {
@@ -277,7 +270,8 @@ impl GenAPI {
             base
         };
 
-        base.extend(self.get_opcode().expect("Failed to fetch opcode"));
+        let (opc, sz) = self.opcode.collect();
+        base.extend(&opc[..sz]);
 
         if self.flags.get(USE_MODRM).unwrap() {
             base.push(modrm::modrm(ins, self));
@@ -581,6 +575,29 @@ impl ModrmTuple {
 impl Default for GenAPI {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Opcode {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let size = bytes.len();
+        assert!(size <= 0b110 && size != 0);
+        let opcode: u64 = {
+            (*bytes.first().unwrap_or(&0) as u64) << 56
+                | (*bytes.get(1).unwrap_or(&0) as u64) << 48
+                | (*bytes.get(2).unwrap_or(&0) as u64) << 40
+                | (*bytes.get(3).unwrap_or(&0) as u64) << 32
+                | (*bytes.get(4).unwrap_or(&0) as u64) << 24
+                | (*bytes.get(5).unwrap_or(&0) as u64) << 16
+                | (*bytes.get(6).unwrap_or(&0) as u64) << 8
+                | (size as u64 & 0xFF)
+        };
+        Self { opcode }
+    }
+    fn collect(&self) -> ([u8; 8], usize) {
+        let size = (self.opcode & 0x0000_0000_0000_00FF) as usize;
+        let opc = self.opcode & 0xFFFF_FFFF_FFFF_FF00;
+        (opc.to_be_bytes(), size)
     }
 }
 
