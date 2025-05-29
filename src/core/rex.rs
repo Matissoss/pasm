@@ -44,6 +44,9 @@ fn needs_rex(ins: &Instruction) -> bool {
     }
     match &ins.mnem {
         Mnm::ROL
+        | Mnm::RDRAND
+        | Mnm::RDSEED
+        | Mnm::RDSSPQ
         | Mnm::ROR
         | Mnm::RCL
         | Mnm::RCR

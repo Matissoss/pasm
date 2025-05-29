@@ -144,6 +144,17 @@ impl Operand {
             Self::SegReg(_) => Size::Word,
         }
     }
+    pub fn ext_atype(&self) -> AType {
+        match self {
+            Self::Mem(m) => m.atype(),
+            Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => {
+                AType::ExtendedRegister(*r)
+            }
+            Self::Imm(n) => n.atype(),
+            Self::SymbolRef(_) => AType::Symbol,
+            Self::Segment(s) => s.address.atype(),
+        }
+    }
 }
 
 impl ToAType for Operand {

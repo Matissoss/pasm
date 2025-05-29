@@ -408,8 +408,8 @@ pub enum Mnemonic {
     RCL, RCR, ROL, ROR,
     // /tests/*/norm-part4.asm
     RDMSR, RDPID, RDPKRU, RDPMC, RDRAND,
-    RDSEED, RDSSPQ, RDTSC, RDTSCP, RORX,
-    RSM, RSTORSSP, SAHF, SARX, SBB, SCAS,
+    RDSEED, RDSSPQ, RDSSPD, RDTSC, RDTSCP, RORX,
+    RSM, RSTORSSP, SAHF, SARX, SHLX, SHRX, SBB,
     SCASB, SCASW, SCASD, SCASQ,
     SENDUIPI, SERIALIZE, SETSSBY,
     // /tests/*/setcc.asm
@@ -419,7 +419,7 @@ pub enum Mnemonic {
     SETNGE, SETNLE, SETNO, SETNP, SETNS, SETNZ, SETO,
     SETP, SETPE, SETPO, SETS, SETZ,
     // /tests/*/norm-part5.asm
-    SFENCE, SGDT, SHLD, SHLX, SHRX,
+    SFENCE, SGDT, SHLD,
     SHRD, SIDT, SLDT, SMSW, STAC, STC, STD,
     STI, STOS, STOSB, STOSW, STOSD, STOSQ,
     STR, STUI, SYSENTER, SYSEXIT, SYSRET,
@@ -468,6 +468,19 @@ impl Mnemonic {
             let l = left.unwrap();
             let r = right.unwrap();
             l == Size::Word && r == Size::Dword
+        } else if matches!(
+            &self,
+            Self::SHL
+                | Self::SHR
+                | Self::SAL
+                | Self::SAR
+                | Self::ROL
+                | Self::ROR
+                | Self::RCL
+                | Self::RCR
+        ) {
+            let r = right.unwrap();
+            r == Size::Byte
         } else {
             false
         }

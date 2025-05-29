@@ -3,7 +3,10 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{reg::Purpose as RegisterPurpose, size::Size};
+use crate::shr::{
+    reg::{Purpose as RegisterPurpose, Register},
+    size::Size,
+};
 
 pub const CR: AType = AType::Register(RegisterPurpose::Ctrl, Size::Any);
 pub const DR: AType = AType::Register(RegisterPurpose::Dbg, Size::Any);
@@ -39,6 +42,7 @@ pub enum AType {
     Register(RegisterPurpose, Size), // register
     Memory(Size),                    // memory
     SMemory(Size),                   // segment memory
+    ExtendedRegister(Register),
     Symbol,
 }
 
@@ -52,6 +56,9 @@ impl ToString for AType {
         match self {
             Self::Register(rp, sz) => {
                 format!("{} {} register", rp.to_string(), sz)
+            }
+            Self::ExtendedRegister(rg) => {
+                format!("{} register", rg.to_string())
             }
             Self::Memory(sz) => {
                 format!("{} memory", sz)

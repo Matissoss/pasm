@@ -280,29 +280,6 @@ impl GenAPI {
         base.extend(self.get_opcode().expect("Failed to fetch opcode"));
 
         if self.flags.get(USE_MODRM).unwrap() {
-            /*
-            let modrm_fn = {
-                if vex_flag_set {
-                    if ins.src2().is_some() {
-                        if let Operand::Imm(_) = ins.src2().unwrap() {
-                            modrm::gen_modrm
-                        } else {
-                            vex::vex_modrm
-                        }
-                    } else {
-                        modrm::gen_modrm
-                    }
-                } else {
-                    modrm::gen_modrm
-                }
-            };
-            base.push(modrm_fn(
-                ins,
-                self.modrm_ovr.reg(),
-                self.modrm_ovr.rm(),
-                self.modrm_reg_is_dst(),
-            ));
-            */
             base.push(modrm::modrm(ins, self));
 
             if let Some(sib) = sib::gen_sib_ins(ins) {

@@ -3493,6 +3493,140 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 3, bits),
             None,
         ),
+        // part 4
+        Ins::RDMSR => (vec![0x0F, 0x32], None),
+        Ins::RDPID => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .prefix(0xF3)
+                .modrm(true, Some(7), None)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RDPKRU => (vec![0x0F, 0x01, 0xEE], None),
+        Ins::RDPMC => (vec![0x0F, 0x33], None),
+        Ins::RDRAND => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(6), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RDSEED => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RDSSPD | Ins::RDSSPQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x1E])
+                .modrm(true, Some(1), None)
+                .prefix(0xF3)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RDTSC => (vec![0x0F, 0x31], None),
+        Ins::RDTSCP => (vec![0x0F, 0x01, 0xF9], None),
+        Ins::RORX => (
+            GenAPI::new()
+                .opcode(&[0xF0])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x3A)
+                        .pp(0xF2)
+                        .vex_we(ins.size() == Size::Qword)
+                        .vlength(Some(false)),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RSM => (vec![0x0F, 0xAA], None),
+        Ins::RSTORSSP => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x01])
+                .modrm(true, Some(5), None)
+                .prefix(0xF3)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SAHF => (vec![0x9E], None),
+        Ins::SHLX => (
+            GenAPI::new()
+                .opcode(&[0xF7])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .pp(0x66)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHRX => (
+            GenAPI::new()
+                .opcode(&[0xF7])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .pp(0xF2)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SARX => (
+            GenAPI::new()
+                .opcode(&[0xF7])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .pp(0xF3)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SBB => (
+            add_like_ins(
+                ins,
+                &[0x1C, 0x1D, 0x80, 0x81, 0x83, 0x18, 0x19, 0x1A, 0x1B],
+                3,
+                bits,
+            ),
+            None,
+        ),
+        Ins::SCASB => (vec![0xAE], None),
+        Ins::SCASW => (vec![0x66, 0xAF], None),
+        Ins::SCASD => (vec![0xAF], None),
+        Ins::SCASQ => (vec![0x48, 0xAF], None),
+        Ins::SENDUIPI => (
+            GenAPI::new()
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(6), None)
+                .can_h66(false)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SERIALIZE => (vec![0x0F, 0x01, 0xE8], None),
+        // for some reason NASM generates this as no opcode at all?
+        Ins::SETSSBY => (vec![], None),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }

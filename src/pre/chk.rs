@@ -14,6 +14,8 @@ use crate::shr::{
     size::Size,
 };
 
+use AType::*;
+
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     let mut errors: Vec<(String, Vec<RASMError>)> = Vec::new();
 
@@ -151,7 +153,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC => ot_chk(
+        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC | SBB => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -173,51 +175,15 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => {
-            if let Some(err) = operand_check(ins, (true, true)) {
-                Some(err)
-            } else {
-                if let Some(err) = type_check(ins.dst().unwrap(), &[R8, R16, R32, M8, M16, M32], 1)
-                {
-                    return Some(err);
-                }
-                match ins.src().unwrap() {
-                    Operand::Reg(Register::CL) => None,
-                    Operand::Imm(i) => {
-                        if let Some(u) = i.get_uint() {
-                            match Number::squeeze_u64(u) {
-                                Number::UInt8(_) => None,
-                                _ => Some(RASMError::with_tip(
-                                    Some(ins.line),
-                                    Some("Expected to found 8-bit number, found larger one instead"),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
-                                ))
-                            }
-                        } else if let Some(i) = i.get_int() {
-                            match Number::squeeze_i64(i) {
-                                Number::Int8(_) => None,
-                                _ => Some(RASMError::with_tip(
-                                    Some(ins.line),
-                                    Some("Expected to found 8-bit number, found larger one instead"),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
-                                ))
-                            }
-                        } else {
-                            Some(RASMError::with_tip(
-                                Some(ins.line),
-                                Some("Found non-compatible immediate for sal/shl/shr/sar instruction"),
-                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register")
-                            ))
-                        }
-                    }
-                    _ => Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Source operand type mismatch, expected 8-bit number or cl register"),
-                        Some("Consider changing source operand to 8-bit number or cl register"),
-                    )),
-                }
-            }
-        }
+        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                (&[ExtendedRegister(Register::CL), I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         Mnm::TEST => ot_chk(
             ins,
             &[
@@ -369,6 +335,31 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
 
+        RDRAND | RDSEED => ot_chk(ins, &[(&[R16, R32], Optional::Needed)], &[], &[]),
+        RDPID => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
+        RDSSPD => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
+        RDSSPQ => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
+        RORX => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        SHLX | SHRX | SARX => ot_chk(
+            ins,
+            &[
+                (&[R32], Optional::Needed),
+                (&[R32, M32], Optional::Needed),
+                (&[R32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
         // # # #  # # #    #
@@ -384,7 +375,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ | MOVSTRQ => Some(RASMError::no_tip(
+        Mnm::MOVQ | MOVSTRQ | SCASQ => Some(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction unsupported in 32-bit mode"),
         )),
@@ -491,7 +482,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | ADC => ot_chk(
+        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | ADC | SBB => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -513,54 +504,15 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => {
-            if let Some(err) = operand_check(ins, (true, true)) {
-                Some(err)
-            } else {
-                if let Some(err) = type_check(
-                    ins.dst().unwrap(),
-                    &[R8, R16, R32, R64, M8, M16, M32, M64],
-                    1,
-                ) {
-                    return Some(err);
-                }
-                match ins.src().unwrap() {
-                    Operand::Reg(Register::CL) => None,
-                    Operand::Imm(i) => {
-                        if let Some(u) = i.get_uint() {
-                            match Number::squeeze_u64(u) {
-                                Number::UInt8(_) => None,
-                                _ => Some(RASMError::with_tip(
-                                    Some(ins.line),
-                                    Some("expected to found 8-bit number, found larger one instead"),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
-                                ))
-                            }
-                        } else if let Some(i) = i.get_int() {
-                            match Number::squeeze_i64(i) {
-                                Number::Int8(_) => None,
-                                _ => Some(RASMError::with_tip(
-                                    Some(ins.line),
-                                    Some("expected to found 8-bit number, found larger one instead"),
-                                    Some("sal/shl/shr/sar expect 8-bit number (like 1) or cl register")
-                                ))
-                            }
-                        } else {
-                            Some(RASMError::with_tip(
-                                Some(ins.line),
-                                Some("found non-compatible immediate for sal/shl/shr/sar instruction"),
-                                Some("sal/shl/shr/sar only allow for 8-bit number (like 255 or -128) or cl register")
-                            ))
-                        }
-                    }
-                    _ => Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Source operand type mismatch, expected 8-bit number or cl register"),
-                        Some("Consider changing source operand to 8-bit number or cl register"),
-                    )),
-                }
-            }
-        }
+        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+                (&[ExtendedRegister(Register::CL), I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         Mnm::TEST => ot_chk(
             ins,
             &[
@@ -709,6 +661,33 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        // part 4
+        SCASQ => ot_chk(ins, &[], &[], &[]),
+        SENDUIPI => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
+        RDRAND | RDSEED => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed)], &[], &[]),
+        RDSSPD => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
+        RDSSPQ => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
+        RORX => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, R64, M32, M64], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        SHLX | SHRX | SARX => ot_chk(
+            ins,
+            &[
+                (&[R32, R64], Optional::Needed),
+                (&[R32, R64, M32, M64], Optional::Needed),
+                (&[R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        RDPID => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
         _ => shr_chk(ins),
     }
 }
@@ -786,6 +765,10 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         LLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
+
+        RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF | SCASB | SCASW | SCASD
+        | SERIALIZE | SETSSBY => ot_chk(ins, &[], &[], &[]),
+        RSTORSSP => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####
@@ -2589,41 +2572,8 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
     None
 }
 
-fn operand_check(ins: &Instruction, ops: (bool, bool)) -> Option<RASMError> {
-    match (ins.dst(), ops.0) {
-        (None, false) | (Some(_), true) => {}
-        (Some(_), false) => {
-            return Some(RASMError::with_tip(
-                None,
-                Some("Unexpected destination operand found: expected none, found some"),
-                Some("Consider removing destination operand"),
-            ))
-        }
-        (None, true) => {
-            return Some(RASMError::with_tip(
-                None,
-                Some("Expected destination operand, found nothing"),
-                Some("Consider adding destination operand"),
-            ))
-        }
-    };
-    match (ins.src(), ops.1) {
-        (None, false) | (Some(_), true) => None,
-        (Some(_), false) => Some(RASMError::with_tip(
-            None,
-            Some("Unexpected source operand found: expected none, found some"),
-            Some("Consider removing source operand"),
-        )),
-        (None, true) => Some(RASMError::with_tip(
-            None,
-            Some("Expected source operand, found nothing"),
-            Some("Consider adding source operand"),
-        )),
-    }
-}
-
 fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASMError> {
-    if find(accepted, operand.atype()) {
+    if find(accepted, operand.atype()) || find_ext(accepted, operand.ext_atype()) {
         None
     } else {
         let err = RASMError::with_tip(
@@ -2838,12 +2788,39 @@ fn find_bool(addts: &[Mnm], searched: &Mnm) -> bool {
     false
 }
 
+fn find_ext(items: &[AType], searched: AType) -> bool {
+    let (size, regprp, reg) = match searched {
+        AType::Register(prp, size) => (size, Some(prp), None),
+        AType::Immediate(size) => (size, None, None),
+        AType::SMemory(size) | AType::Memory(size) => (size, None, None),
+        AType::Symbol => (Size::Any, None, None),
+        AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(r)),
+    };
+    for i in items {
+        let (isize, iregprp, ireg) = match i {
+            AType::Register(prp, size) => (*size, Some(*prp), None),
+            AType::Immediate(size) => (*size, None, None),
+            AType::SMemory(size) | AType::Memory(size) => (*size, None, None),
+            AType::Symbol => (Size::Any, None, None),
+            AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(*r)),
+        };
+        if let (Some(ireg), Some(reg)) = (ireg, reg) {
+            if ireg == reg {
+                return true;
+            }
+        } else if isize == size && regprp == iregprp {
+            return true;
+        }
+    }
+    false
+}
 fn find(items: &[AType], searched: AType) -> bool {
     let (size, regprp) = match searched {
         AType::Register(prp, size) => (size, Some(prp)),
         AType::Immediate(size) => (size, None),
         AType::SMemory(size) | AType::Memory(size) => (size, None),
         AType::Symbol => (Size::Any, None),
+        _ => (Size::Unknown, None),
     };
     for i in items {
         let (isize, iregprp) = match i {
@@ -2851,6 +2828,7 @@ fn find(items: &[AType], searched: AType) -> bool {
             AType::Immediate(size) => (size, None),
             AType::SMemory(size) | AType::Memory(size) => (size, None),
             AType::Symbol => (&Size::Any, None),
+            _ => (&Size::Unknown, None),
         };
         if isize == &size && regprp.as_ref() == iregprp {
             return true;
