@@ -11,6 +11,9 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 
 ## roadmap
 
+> [!NOTE]
+> This roadmap is not final and may (and will) change.
+
 - alpha
     - [x] MVP
     - [x] Better variable support
@@ -19,8 +22,9 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for: `SSE`, `SSE2`, `SSE3`, `SSSE3`, `SSE4_1`, `SSE4_2`, `MMX` x86(-64) extensions
     - [x] Support for `AVX` and `AVX2` extensions
 - beta
-    - [ ] Support for most of (atleast 50%) "normal" x86-64 instructions
+    - [ ] Support for most of "normal" (to norm-part6) x86-64 instructions
     - [ ] Extended Relocations/Symbols, Support for comptime mathematical evaluations and label attributes
+    - [ ] Improved segmentation
 - beta-avx512
     - [ ] AVX-512F
     - [ ] AVX-512VL, AVX-512DQ, AVX-512BW
@@ -30,6 +34,13 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] IFMA, 4VNNIW, VNNI, 4FMAPS
     - [ ] AVX-FP16
     - [ ] other (VPOPCNTDQ, VPCLMULQDQ)
+- beta-macro
+    - [ ] Support for inline (or not) macros with C-like syntax
+    - [ ] Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
+    - [ ] Support for local (and global) scope aliases
+    - [ ] Support for custom opcodes (using assembler's API) (to support unsupported instructions)
+- beta-fpu
+    - [ ] Support for x87 ISA (mostly instructions prefixed with `F`)
 - stable
     - [ ] Stable Version `*-stable0`
 
