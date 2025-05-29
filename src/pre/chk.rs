@@ -769,6 +769,13 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF | SCASB | SCASW | SCASD
         | SERIALIZE | SETSSBY => ot_chk(ins, &[], &[], &[]),
         RSTORSSP => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+
+        SETA | SETAE | SETB | SETBE | SETC | SETE | SETG | SETGE | SETL | SETLE | SETNA
+        | SETNAE | SETNB | SETNBE | SETNC | SETNE | SETNG | SETNL | SETNGE | SETNLE | SETNO
+        | SETNP | SETNS | SETNZ | SETO | SETP | SETPE | SETPO | SETS | SETZ => {
+            ot_chk(ins, &[(&[R8, M8], Optional::Needed)], &[], &[])
+        }
+
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####

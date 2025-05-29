@@ -1,0 +1,33 @@
+!bits $64
+!global _start
+_start:
+	seta %al
+	setae %al
+	setb %al
+	setbe %al
+	setc %al
+	sete %al
+	setg %al
+	setge %al
+	setl %al
+	setle %al
+	setna %al
+	setnae %al
+	setnb %al
+	setnbe %al
+	setnc %al
+	setne %al
+	setng %al
+	setnge %al
+	setnl %al
+	setnle %al
+	setno %al
+	setnp %al
+	setns %al
+	setnz %al
+	seto %al
+	setp %al
+	setpe %al
+	setpo %al
+	sets %al
+	setz %al

@@ -3627,6 +3627,148 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::SERIALIZE => (vec![0x0F, 0x01, 0xE8], None),
         // for some reason NASM generates this as no opcode at all?
         Ins::SETSSBY => (vec![], None),
+
+        // setcc
+        Ins::SETO => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x90])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SETNO => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x91])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SETB | Ins::SETC | Ins::SETNAE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x92])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETAE | Ins::SETNB | Ins::SETNC => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x93])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETE | Ins::SETZ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x94])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SETNE | Ins::SETNZ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x95])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETBE | Ins::SETNA => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x96])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETA | Ins::SETNBE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x97])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x98])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SETNS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x99])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETP | Ins::SETPE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9A])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETNP | Ins::SETPO => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9B])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETL | Ins::SETNGE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9C])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETGE | Ins::SETNL => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9D])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETLE | Ins::SETNG => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9E])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
+        Ins::SETG | Ins::SETNLE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x9F])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
