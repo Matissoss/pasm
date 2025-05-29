@@ -130,6 +130,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         | Mnm::NOT
         | Mnm::NEG
         | Mnm::ADC
+        | Mnm::SBB
         | Mnm::XOR => {
             matches!(
                 (ins.dst(), ins.src()),

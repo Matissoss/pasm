@@ -1,6 +1,6 @@
 section .text
 	bits 64
-
+	global _start
 _start:
 	xor rax, 10
 	xor rax, 256
