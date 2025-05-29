@@ -279,6 +279,14 @@ impl Instruction {
         self.oprs.first()
     }
     #[inline]
+    pub fn reg_byte(&self, idx: usize) -> Option<u8> {
+        if let Some(Operand::Reg(r)) = self.oprs.get(idx) {
+            Some(r.to_byte())
+        } else {
+            None
+        }
+    }
+    #[inline]
     pub fn src(&self) -> Option<&Operand> {
         self.oprs.get(1)
     }
@@ -295,6 +303,37 @@ impl Instruction {
             (None, Some(_)) => (false, true),
             (None, None) => (false, false),
         }
+    }
+    #[inline]
+    pub fn get_sib_idx(&self) -> Option<usize> {
+        if let Some(Operand::Mem(
+            Mem::SIB(_, _, _, _)
+            | Mem::SIBOffset(_, _, _, _, _)
+            | Mem::Index(_, _, _)
+            | Mem::IndexOffset(_, _, _, _),
+        )) = self.dst()
+        {
+            return Some(0);
+        }
+        if let Some(Operand::Mem(
+            Mem::SIB(_, _, _, _)
+            | Mem::SIBOffset(_, _, _, _, _)
+            | Mem::Index(_, _, _)
+            | Mem::IndexOffset(_, _, _, _),
+        )) = self.src()
+        {
+            return Some(1);
+        }
+        if let Some(Operand::Mem(
+            Mem::SIB(_, _, _, _)
+            | Mem::SIBOffset(_, _, _, _, _)
+            | Mem::Index(_, _, _)
+            | Mem::IndexOffset(_, _, _, _),
+        )) = self.src2()
+        {
+            return Some(2);
+        }
+        None
     }
     #[inline]
     pub fn uses_sib(&self) -> bool {

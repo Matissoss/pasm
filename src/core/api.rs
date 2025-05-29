@@ -10,11 +10,22 @@ const CAN_H66O: u8 = 0x3; // can use 0x66 override
 const CAN_H67O: u8 = 0x4; // can use 0x67 override
 const CAN_SEGM: u8 = 0x5; // can use segment override
 const USE_MODRM: u8 = 0x6; // can use modrm
-const OBY_CONST: u8 = 0x7; // one byte const - first addt byte goes as metadata, second as
+const OBY_CONST: u8 = 0x7; // one byte const - 1st addt B goes as metadata, 2nd as immediate
 const TBY_CONST: u8 = 0x8; // two byte const
 const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
-                           //const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
-                           //const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
+#[allow(unused)]
+const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
+#[allow(unused)]
+const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
+
+//
+// Extended flags combo (not used):
+// - EXT_FLGS1 : first byte of addt is BoolTable8 (+8 flags)
+// - EXT_FLGS2 : addt is BoolTable16 (+16 flags)
+// - EXT_FLGS1 + EXT_FLGS2: reserved
+// - EXT_FLGSx + !CAN_SEGM: reserved
+// - EXT_FLGSx + !CAN_H67O: reserved
+// - [...]: reserved
 
 use crate::{
     core::{disp, modrm, rex, sib, vex},
@@ -45,33 +56,48 @@ pub struct OperandOrder {
     ord: u8,
 }
 
-#[derive(Copy, Clone)]
+#[allow(non_camel_case_types)]
+#[derive(Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OpOrd {
-    DST = 0b00,
-    SRC = 0b01,
-    VSRC = 0b10, // vex source (second source operand)
-    TSRC = 0b11, // third source
+    MODRM_RM = 0b00,
+    MODRM_REG = 0b01,
+    VEX_VVVV = 0b10, // vex source (second source operand)
+    TSRC = 0b11,     // third source
 }
 
 // size = 16B (could be 37B!)
 #[repr(C)]
 pub struct GenAPI {
+    // Opcode
     opcode_ptr: *const u8,
     opcode_mtd: u8,
-    prefix: u8, // if VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
-    // X = VEX.w/e,
+
+    // if (E)VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
+    // X = (E)VEX.w/e,
     // YYYYY = map_select
     // ZZ = pp
     // otherwise normal prefix like 0xF2/0xF3
+    prefix: u8,
+
     flags: BoolTable16,
 
     // less essential - can be used with other context depending on flags
+
+    // can be used with other context if USE_MODRM flag is NOT set
     modrm_ovr: ModrmTuple,
+
+    // can be used with other context if USE_MODRM flag is NOT set (because why would you need it?)
     ord: OperandOrder,
+
+    // depending on flags:
+    // - IMM_ATIDX, OBY_CONST, TBY_CONST - immediate + metadata,
+    // - VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
+    // otherwise unused
     addt: u16,
 }
 
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct ModrmTuple {
     data: u8, // 0bXX_YYY_ZZZ : X1 = reg is Some, X2 = rm is Some, YYY = reg, ZZZ = rm
@@ -87,7 +113,13 @@ impl GenAPI {
                 .setc(CAN_H66O, true)
                 .setc(CAN_H67O, true)
                 .setc(CAN_SEGM, true),
-            ord: OperandOrder::new(&[OpOrd::DST, OpOrd::SRC, OpOrd::VSRC]).unwrap(),
+            ord: OperandOrder::new(&[
+                OpOrd::MODRM_RM,
+                OpOrd::MODRM_REG,
+                OpOrd::VEX_VVVV,
+                OpOrd::TSRC,
+            ])
+            .unwrap(),
             modrm_ovr: ModrmTuple::new(None, None),
             addt: 0,
         }
@@ -235,13 +267,7 @@ impl GenAPI {
                 base.push(rex);
             }
             if vex_flag_set {
-                if let Some(vex) = vex::gen_vex(
-                    ins,
-                    self.prefix & 0b0000_0011,
-                    (self.prefix & 0b0111_1100) >> 2,
-                    self.ord.modrm_reg_is_dst(),
-                    self.prefix & 0b1000_0000 == 0b1000_0000,
-                ) {
+                if let Some(vex) = vex::vex(ins, self) {
                     base.extend(vex);
                 }
             }
@@ -254,6 +280,7 @@ impl GenAPI {
         base.extend(self.get_opcode().expect("Failed to fetch opcode"));
 
         if self.flags.get(USE_MODRM).unwrap() {
+            /*
             let modrm_fn = {
                 if vex_flag_set {
                     if ins.src2().is_some() {
@@ -275,6 +302,8 @@ impl GenAPI {
                 self.modrm_ovr.rm(),
                 self.modrm_reg_is_dst(),
             ));
+            */
+            base.push(modrm::modrm(ins, self));
 
             if let Some(sib) = sib::gen_sib_ins(ins) {
                 base.push(sib);
@@ -316,6 +345,44 @@ impl GenAPI {
     }
     pub fn modrm_reg_is_dst(&self) -> bool {
         self.ord.modrm_reg_is_dst()
+    }
+    pub fn get_modrm(&self) -> ModrmTuple {
+        self.modrm_ovr
+    }
+    pub fn get_ord(&self) -> [OpOrd; 4] {
+        self.ord.deserialize()
+    }
+    // fails if VEX flag is not set
+    pub fn get_pp(&self) -> Option<u8> {
+        if self.flags.get(VEX_PFX).unwrap() {
+            Some(self.prefix & 0b11)
+        } else {
+            None
+        }
+    }
+    // fails if VEX flag is not set
+    pub fn get_map_select(&self) -> Option<u8> {
+        if self.flags.get(VEX_PFX).unwrap() {
+            Some((self.prefix & 0b0111_1100) >> 2)
+        } else {
+            None
+        }
+    }
+    // fails if VEX flag is not set
+    pub fn get_vex_we(&self) -> Option<bool> {
+        if self.flags.get(VEX_PFX).unwrap() {
+            Some(self.prefix & 0b1000_0000 == 0b1000_0000)
+        } else {
+            None
+        }
+    }
+    // fails if VEX flag is not set
+    pub fn get_vex_vlength(&self) -> Option<MegaBool> {
+        if self.flags.get(VEX_PFX).unwrap() {
+            Some(MegaBool::from_byte(((self.addt & 0xFF00) >> 8) as u8))
+        } else {
+            None
+        }
     }
 }
 
@@ -445,13 +512,15 @@ impl VexDetails {
 }
 
 impl MegaBool {
-    fn set(op: Option<bool>) -> Self {
+    pub fn from_byte(b: u8) -> Self {
+        Self { data: b }
+    }
+    pub fn set(op: Option<bool>) -> Self {
         Self {
             data: (op.is_some() as u8) << 1 | op.unwrap_or(false) as u8,
         }
     }
-    #[allow(dead_code)]
-    fn get(&self) -> Option<bool> {
+    pub fn get(&self) -> Option<bool> {
         if self.data & 0b0000_0010 == 0b10 {
             Some(self.data & 0b01 == 0b01)
         } else {
@@ -479,14 +548,25 @@ impl OperandOrder {
             None
         } else {
             unsafe {
-                Some(std::mem::transmute::<u8, OpOrd>(
-                    (self.ord & (0b11 << (idx << 1))) >> (idx >> 1),
-                ))
+                // multiply by 2
+                if idx == 0 {
+                    return Some(std::mem::transmute::<u8, OpOrd>(self.ord & 0b11));
+                }
+                let opr = (self.ord >> (idx << 1)) & 0b11;
+                Some(std::mem::transmute::<u8, OpOrd>(opr))
             }
         }
     }
     pub fn modrm_reg_is_dst(&self) -> bool {
-        self.ord & 0b00_00_00_11 == OpOrd::SRC as u8
+        self.ord & 0b00_00_00_11 == OpOrd::MODRM_REG as u8
+    }
+    #[allow(clippy::needless_range_loop)]
+    pub fn deserialize(&self) -> [OpOrd; 4] {
+        let mut arr = [OpOrd::MODRM_RM; 4];
+        for idx in 0..4 {
+            arr[idx] = self.get(idx as u8).unwrap();
+        }
+        arr
     }
 }
 
@@ -513,6 +593,9 @@ impl ModrmTuple {
             None
         }
     }
+    pub fn deserialize(&self) -> (Option<u8>, Option<u8>) {
+        (self.reg(), self.rm())
+    }
     pub fn data(&self) -> u8 {
         self.data
     }
@@ -531,6 +614,19 @@ mod tests {
     fn general_api_check() {
         println!("{}", size_of::<GenAPI>());
         assert!(size_of::<GenAPI>() == 16);
+    }
+    #[test]
+    fn ord_check() {
+        use OpOrd::*;
+        assert!(MODRM_RM as u8 == 0);
+        assert!(MODRM_REG as u8 == 1);
+        assert!(VEX_VVVV as u8 == 2);
+        assert!(TSRC as u8 == 3);
+        let ord = OperandOrder::new(&[MODRM_RM, MODRM_REG, VEX_VVVV]).unwrap();
+        assert!(ord.get(0) == Some(MODRM_RM));
+        assert!(ord.get(1) == Some(MODRM_REG));
+        assert!(ord.get(2) == Some(VEX_VVVV));
+        assert!(ord.deserialize()[0..3] == [MODRM_RM, MODRM_REG, VEX_VVVV]);
     }
 }
 

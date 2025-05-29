@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::core::api;
 use crate::shr::{
     ast::{Instruction as Ins, Operand as Op},
     ins::Mnemonic,
@@ -10,6 +11,67 @@ use crate::shr::{
     num::Number,
     reg::Purpose as RPurpose,
 };
+
+type Instruction = Ins;
+type Operand = Op;
+pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
+    use api::OpOrd::*;
+
+    let ord = &ctx.get_ord()[0..3];
+    let (dst, src) = match ord {
+        [MODRM_REG, VEX_VVVV, MODRM_RM] => (ins.src2(), ins.dst()),
+        [MODRM_RM, VEX_VVVV, MODRM_REG] => (ins.dst(), ins.src2()),
+        [VEX_VVVV, MODRM_REG, _] => (None, ins.src()),
+        [VEX_VVVV, MODRM_RM, _] => (ins.src(), None),
+        [MODRM_REG, MODRM_RM, _] => (ins.src(), ins.dst()),
+        [MODRM_RM, MODRM_REG, _] => (ins.dst(), ins.src()),
+        _ => (ins.dst(), ins.src()),
+    };
+
+    let (mut reg, mut rm) = ctx.get_modrm().deserialize();
+    let mod_ = {
+        if let Some(sibidx) = ins.get_sib_idx() {
+            match ins.oprs.get(sibidx).unwrap() {
+                Operand::Mem(Mem::SIB(_, _, _, _) | Mem::Index(_, _, _)) => 0b00,
+                Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::IndexOffset(_, o, _, _)) => {
+                    match o {
+                        -127..255 => 0b01,
+                        _ => 0b10,
+                    }
+                }
+                _ => 0b11,
+            }
+        } else {
+            match (dst, src) {
+                (Some(Operand::Mem(Mem::Direct(_, _))), _)
+                | (_, Some(Operand::Mem(Mem::Direct(_, _)))) => 0b00,
+                (Some(Operand::Mem(Mem::Offset(_, o, _))), _)
+                | (_, Some(Operand::Mem(Mem::Offset(_, o, _)))) => match o {
+                    -127..=255 => 0b01,
+                    _ => 0b10,
+                },
+                _ => 0b11,
+            }
+        }
+    };
+
+    if reg.is_none() {
+        reg = Some(gen_rmreg(src));
+    }
+
+    if rm.is_none() {
+        rm = if ins.uses_sib() {
+            Some(0b100)
+        } else {
+            Some(gen_rmreg(dst))
+        }
+    }
+    bmodrm(mod_, reg.unwrap_or(0), rm.unwrap_or(0))
+}
+
+const fn bmodrm(mod_: u8, reg: u8, rm: u8) -> u8 {
+    (mod_ << 6) + (reg << 3) + rm
+}
 
 // man, i love pattern matching and how readable it is...
 pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {

@@ -22,6 +22,7 @@ use crate::{
         var::{VarContent, Variable},
     },
 };
+use OpOrd::*;
 
 #[inline]
 pub fn make_globals(symbols: &mut [Symbol], globals: &[String]) {
@@ -2329,7 +2330,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .opcode(&[0x98])
                 .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
                 .modrm(true, None, None)
-                .ord(&[OpOrd::SRC, OpOrd::DST, OpOrd::VSRC])
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
                 .assemble(ins, bits),
             None,
         ),
@@ -3074,104 +3075,77 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
 
-        // i know, it's complicated... but it works :)
         Ins::BLSR => (
-            vex_gen_ins_norm(
-                ins,
-                &[0xF3],
-                (true, Some(1)),
-                None,
-                false,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-                ins.src(),
-                ins.dst(),
-                ins.src(),
-            ),
+            GenAPI::new()
+                .opcode(&[0xF3])
+                .modrm(true, Some(1), None)
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::BLSI => (
-            vex_gen_ins_norm(
-                ins,
-                &[0xF3],
-                (true, Some(3)),
-                None,
-                false,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-                ins.src(),
-                ins.dst(),
-                ins.src(),
-            ),
+            GenAPI::new()
+                .opcode(&[0xF3])
+                .modrm(true, Some(3), None)
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::BZHI => (
-            vex_gen_ins_norm(
-                ins,
-                &[0xF5],
-                (true, None),
-                None,
-                true,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-                ins.dst(),
-                ins.src2(),
-                ins.src(),
-            ),
+            GenAPI::new()
+                .opcode(&[0xF5])
+                .modrm(true, None, None)
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
             None,
         ),
         Ins::BEXTR => (
-            vex_gen_ins_norm(
-                ins,
-                &[0xF7],
-                (true, None),
-                None,
-                true,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-                ins.dst(),
-                ins.src2(),
-                ins.src(),
-            ),
+            GenAPI::new()
+                .opcode(&[0xF7])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
             None,
         ),
         Ins::BLSMSK => (
-            vex_gen_ins_norm(
-                ins,
-                &[0xF3],
-                (true, Some(2)),
-                None,
-                true,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-                ins.dst(),
-                ins.src2(),
-                ins.src(),
-            ),
+            GenAPI::new()
+                .opcode(&[0xF3])
+                .modrm(true, Some(2), None)
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::BSWAP => (
-            gen_ins(
-                ins,
-                &[
-                    0x0F,
-                    (0xC8
-                        + if let Some(Operand::Reg(r)) = ins.dst() {
-                            r.to_byte()
-                        } else {
-                            0
-                        }),
-                ],
-                (false, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC8 + ins.reg_byte(0).unwrap_or(0)])
+                .modrm(false, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         // part c
@@ -3697,14 +3671,14 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
         GenAPI::new()
             .opcode(&[0x0F, 0x22])
             .modrm(true, None, None)
-            .ord(&[OpOrd::SRC, OpOrd::DST])
+            .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
             .rex(true)
             .assemble(ins, bits)
     } else if let Operand::DbgReg(_) = dst {
         GenAPI::new()
             .opcode(&[0x0F, 0x23])
             .modrm(true, None, None)
-            .ord(&[OpOrd::SRC, OpOrd::DST])
+            .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
             .rex(true)
             .assemble(ins, bits)
     } else if let Operand::SegReg(_) = dst {
