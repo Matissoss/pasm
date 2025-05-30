@@ -3946,6 +3946,71 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::XSETBV => (vec![0x0F, 0x01, 0xD1], None),
         Ins::XSUSLDTRK => (vec![0xF2, 0x0F, 0x01, 0xE8], None),
         Ins::XTEST => (vec![0x0F, 0x01, 0xD6], None),
+        // sha.asm
+        Ins::SHA1MSG1 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xC9])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA1NEXTE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xC8])
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA1MSG2 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xCA])
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA1RNDS4 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0xCC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .rex(true)
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA256RNDS2 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xCB])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA256MSG2 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xCD])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHA256MSG1 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xCC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }

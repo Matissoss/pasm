@@ -879,6 +879,24 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             ot_chk(ins, &[(&[M32, M64], Optional::Needed)], &[], &[])
         }
 
+        // sha
+        SHA1MSG1 | SHA1MSG2 | SHA1NEXTE | SHA256MSG1 | SHA256MSG2 | SHA256RNDS2 => ot_chk(
+            ins,
+            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        SHA1RNDS4 => ot_chk(
+            ins,
+            &[
+                (&[XMM], Optional::Needed),
+                (&[XMM, M128], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
         // #####  #####  #####
         // #      #      #
         // #####  #####  #####
