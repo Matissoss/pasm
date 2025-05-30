@@ -3,20 +3,23 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-const REX_PFX: u8 = 0x0;
-const VEX_PFX: u8 = 0x1;
-const EVEX_PFX: u8 = 0x2;
-const CAN_H66O: u8 = 0x3; // can use 0x66 override
-const CAN_H67O: u8 = 0x4; // can use 0x67 override
-const CAN_SEGM: u8 = 0x5; // can use segment override
-const USE_MODRM: u8 = 0x6; // can use modrm
-const OBY_CONST: u8 = 0x7; // one byte const - 1st addt B goes as metadata, 2nd as immediate
-const TBY_CONST: u8 = 0x8; // two byte const
-const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
+pub const REX_PFX: u8 = 0x0;
+pub const VEX_PFX: u8 = 0x1;
+pub const EVEX_PFX: u8 = 0x2;
+pub const CAN_H66O: u8 = 0x3; // can use 0x66 override
+pub const CAN_H67O: u8 = 0x4; // can use 0x67 override
+pub const CAN_SEGM: u8 = 0x5; // can use segment override
+pub const USE_MODRM: u8 = 0x6; // can use modrm
+pub const OBY_CONST: u8 = 0x7; // one byte const - 1st addt B goes as metadata, 2nd as immediate
+pub const TBY_CONST: u8 = 0x8; // two byte const
+pub const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
+pub const SET_MODRM: u8 = 0xA; // MODRM.mod is set to byte specified in addt2
+pub const STRICT_PFX: u8 = 0xB; // makes all prefixes exclusive (e.g. if REX isn't set, then it cannot be generated)
+
 #[allow(unused)]
-const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
+pub const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
 #[allow(unused)]
-const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
+pub const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
 
 //
 // Extended flags combo (not used):
@@ -146,6 +149,11 @@ impl GenAPI {
         self.modrm_ovr = ModrmTuple::new(reg, rm);
         self
     }
+    pub fn modrm_mod(mut self, mod_: u8) -> Self {
+        self.flags.set(SET_MODRM, true);
+        self.addt2 = mod_ & 0b11;
+        self
+    }
     pub fn can_h67(mut self, h67: bool) -> Self {
         self.flags.set(CAN_H67O, h67);
         self
@@ -192,6 +200,16 @@ impl GenAPI {
         self.ord = OperandOrder::new(ord).expect("Failed to create operand order");
         self
     }
+    pub fn get_flag(&self, idx: u8) -> Option<bool> {
+        self.flags.get(idx)
+    }
+    pub fn set_flag(mut self, idx: u8) -> Self {
+        self.flags.set(idx, true);
+        self
+    }
+    pub fn get_addt2(&self) -> u8 {
+        self.addt2
+    }
     #[allow(clippy::nonminimal_bool)]
     pub fn validate(&self) -> Option<RASMError> {
         let imm_flag0 = self.flags.get(OBY_CONST).unwrap();
@@ -226,7 +244,9 @@ impl GenAPI {
         let mut base = {
             let mut base = Vec::new();
 
-            let rex = if rex_flag_set {
+            let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
+                && !self.get_flag(STRICT_PFX).unwrap()
+            {
                 rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
             } else {
                 0x00
@@ -243,14 +263,16 @@ impl GenAPI {
             };
 
             if !(vex_flag_set || evex_flag_set) {
-                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3) {
+                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
                     base.push(self.prefix);
                 }
                 if let Some(segm) = gen_segm_pref(ins) {
                     base.push(segm);
                 }
                 if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
-                    if self.prefix != size_ovr {
+                    if (self.prefix != size_ovr)
+                        && (size_ovr == 0x66 && self.flags.get(CAN_H66O).unwrap())
+                    {
                         base.push(size_ovr);
                     }
                 }
@@ -322,6 +344,10 @@ impl GenAPI {
     }
     pub fn get_ord(&self) -> [OpOrd; 4] {
         self.ord.deserialize()
+    }
+    pub fn strict_pfx(mut self) -> Self {
+        self.flags.set(STRICT_PFX, true);
+        self
     }
     // fails if VEX flag is not set
     pub fn get_pp(&self) -> Option<u8> {

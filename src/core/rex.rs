@@ -11,7 +11,7 @@ use crate::shr::{
 };
 
 fn needs_rex(ins: &Instruction) -> bool {
-    if ins.mnem == Mnm::CMPXCHG16B {
+    if matches!(ins.mnem, Mnm::CMPXCHG16B) {
         return true;
     }
     let (size_d, size_s) = match (ins.dst(), ins.src()) {
@@ -43,6 +43,8 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
+        Mnm::SHLD | Mnm::SHRD | Mnm::SMSW | Mnm::WRFSBASE | Mnm::WRGSBASE => true,
+
         Mnm::ROL
         | Mnm::RDRAND
         | Mnm::RDSEED
@@ -173,6 +175,9 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
             }
         }
         _ => {}
+    }
+    if matches!(ins.mnem, Mnm::UD1 | Mnm::UD2) {
+        *r = true;
     }
 }
 

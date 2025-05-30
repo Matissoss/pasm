@@ -32,15 +32,10 @@ impl BoolTable16 {
     pub fn new() -> Self {
         Self { data: 0 }
     }
-    // WARN: this function should only be used at initialization :)
     pub fn set(&mut self, idx: u8, bool: bool) {
-        if !bool {
-            return;
-        }
-        // math
-        self.data |= (bool as u16) << idx
+        let mask = 0xFFFF ^ (0b1 << idx);
+        self.data = (self.data & mask) | ((bool as u16) << idx)
     }
-    // WARN: this function should only be used at initialization :)
     // this one is for chaining
     pub fn setc(mut self, idx: u8, bool: bool) -> Self {
         self.set(idx, bool);

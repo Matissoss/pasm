@@ -29,7 +29,7 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     };
 
     let (mut reg, mut rm) = ctx.get_modrm().deserialize();
-    let mod_ = {
+    let mut mod_ = {
         if let Some(sibidx) = ins.get_sib_idx() {
             match ins.oprs.get(sibidx).unwrap() {
                 Operand::Mem(Mem::SIB(_, _, _, _) | Mem::Index(_, _, _)) => 0b00,
@@ -54,6 +54,10 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
             }
         }
     };
+
+    if let Some(true) = ctx.get_flag(api::SET_MODRM) {
+        mod_ = ctx.get_addt2() & 0b11;
+    }
 
     if reg.is_none() {
         reg = Some(gen_rmreg(src));

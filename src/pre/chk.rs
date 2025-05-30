@@ -359,6 +359,16 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        SHLD | SHRD => ot_chk(
+            ins,
+            &[
+                (&[R16, M16, R32, M32], Optional::Needed),
+                (&[R16, R32], Optional::Needed),
+                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
@@ -375,7 +385,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ | MOVSTRQ | SCASQ => Some(RASMError::no_tip(
+        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => Some(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction unsupported in 32-bit mode"),
         )),
@@ -688,6 +698,17 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         RDPID => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
+        WRFSBASE | WRGSBASE => ot_chk(ins, &[(&[R32, R64], Optional::Needed)], &[], &[]),
+        SHLD | SHRD => ot_chk(
+            ins,
+            &[
+                (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
+                (&[R16, R32, R64], Optional::Needed),
+                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         _ => shr_chk(ins),
     }
 }
@@ -710,6 +731,41 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         ),
         OUTIB | OUTIW | OUTID => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
         OUTRB | OUTRW | OUTRD | OUTSB | OUTSW | OUTSD => ot_chk(ins, &[], &[], &[]),
+
+        SFENCE | STAC | STC | STD | STI | STOSB | STOSW | STOSD | STOSQ | STUI | SYSENTER
+        | SYSEXIT | SYSRET | TESTUI | UD2 | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => {
+            ot_chk(ins, &[], &[], &[])
+        }
+        TPAUSE | UMWAIT => ot_chk(
+            ins,
+            &[
+                (&[R32], Optional::Needed),
+                (&[ExtendedRegister(Register::EDX)], Optional::Optional),
+                (&[ExtendedRegister(Register::EAX)], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        UD0 | UD1 => ot_chk(
+            ins,
+            &[(&[R32], Optional::Needed), (&[R32, M32], Optional::Needed)],
+            &[],
+            &[],
+        ),
+        UMONITOR => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed)], &[], &[]),
+        SMSW => ot_chk(ins, &[(&[R16, R32, R64, M16], Optional::Needed)], &[], &[]),
+        STR | VERR | VERW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
+        // rm 64-bit
+        SHLD | SHRD => ot_chk(
+            ins,
+            &[
+                (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
+                (&[R16, R32, R64], Optional::Needed),
+                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         LOOP
         | LOOPNE

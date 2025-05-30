@@ -3769,6 +3769,123 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
 
+        // norm-part5
+        Ins::SFENCE => (vec![0x0F, 0xAE, 0xF8], None),
+        Ins::STAC => (vec![0x0F, 0x01, 0xCB], None),
+        Ins::STC => (vec![0xF9], None),
+        Ins::STD => (vec![0xFD], None),
+        Ins::STI => (vec![0xFB], None),
+        Ins::STUI => (vec![0xF3, 0x0F, 0x01, 0xEF], None),
+        Ins::STOSB => (vec![0xAA], None),
+        Ins::STOSW => (vec![0x66, 0xAB], None),
+        Ins::STOSD => (vec![0xAB], None),
+        Ins::STOSQ => (vec![0x48, 0xAB], None),
+        Ins::SYSENTER => (vec![0x0F, 0x34], None),
+        Ins::SYSEXIT => (vec![0x0F, 0x35], None),
+        Ins::SYSRET => (vec![0x0F, 0x07], None),
+        Ins::TESTUI => (vec![0xF3, 0x0F, 0x01, 0xED], None),
+        Ins::UD2 => (vec![0x0F, 0x0B], None),
+        Ins::UD0 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xFF])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UD1 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xB9])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::TPAUSE => (
+            GenAPI::new()
+                .modrm(true, Some(6), None)
+                .prefix(0x66)
+                .opcode(&[0x0F, 0xAE])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UMWAIT => (
+            GenAPI::new()
+                .modrm(true, Some(6), None)
+                .prefix(0xF2)
+                .opcode(&[0x0F, 0xAE])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UMONITOR => (
+            GenAPI::new()
+                .modrm(true, Some(6), None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0xAE])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SMSW => (
+            GenAPI::new()
+                .modrm(true, Some(4), None)
+                .opcode(&[0x0F, 0x01])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::STR => (
+            GenAPI::new()
+                .modrm(true, Some(1), None)
+                .opcode(&[0x0F, 0x00])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VERR => (
+            GenAPI::new()
+                .modrm(true, Some(4), None)
+                .opcode(&[0x0F, 0x00])
+                .can_h66(false)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VERW => (
+            GenAPI::new()
+                .modrm(true, Some(5), None)
+                .opcode(&[0x0F, 0x00])
+                .can_h66(false)
+                .assemble(ins, bits),
+            None,
+        ),
+        /*
+        Ins::WRFSBASE => (
+            GenAPI::new()
+                .modrm(true, Some(2), None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0xAE])
+                .assemble(ins, bits)
+            , None),
+        Ins::WRGSBASE => (
+            GenAPI::new()
+                .modrm(true, Some(3), None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0xAE])
+                .rex(true)
+                .assemble(ins, bits)
+            , None),
+            */
+        Ins::SHLD => (
+            ins_shlx(ins, &[0x0F, 0xA4], &[0x0F, 0xA5]).assemble(ins, bits),
+            None,
+        ),
+        Ins::SHRD => (
+            ins_shlx(ins, &[0x0F, 0xAC], &[0x0F, 0xAD]).assemble(ins, bits),
+            None,
+        ),
+        Ins::UIRET => (vec![0xF3, 0x0F, 0x01, 0xEC], None),
+        Ins::WAIT | Ins::FWAIT => (vec![0x9B], None),
+        Ins::WBINVD => (vec![0x0F, 0x09], None),
+        Ins::WRMSR => (vec![0x0F, 0x30], None),
+        Ins::WRPKRU => (vec![0x0F, 0x01, 0xEF], None),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
@@ -3780,6 +3897,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
+    let mut api = GenAPI::new().rex(true).modrm(true, None, None);
+    if let Some(Operand::Imm(_)) = ins.src2() {
+        api = api.opcode(opc_imm).imm_atindex(2, 1);
+    } else {
+        api = api.opcode(opc_rm);
+    }
+    api
+}
 
 fn ins_shrtjmp(ins: &Instruction, mut opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>) {
     match ins.dst().unwrap() {
