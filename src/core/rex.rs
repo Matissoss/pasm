@@ -43,7 +43,24 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::SHLD | Mnm::SHRD | Mnm::SMSW | Mnm::WRFSBASE | Mnm::WRGSBASE => true,
+        Mnm::XADD
+        | Mnm::XRSTOR
+        | Mnm::XRSTOR64
+        | Mnm::XRSTORS
+        | Mnm::XRSTORS64
+        | Mnm::XSAVE
+        | Mnm::XSAVE64
+        | Mnm::XSAVEC
+        | Mnm::XSAVEC64
+        | Mnm::XSAVEOPT
+        | Mnm::XSAVEOPT64
+        | Mnm::XSAVES
+        | Mnm::XSAVES64
+        | Mnm::SHLD
+        | Mnm::SHRD
+        | Mnm::SMSW
+        | Mnm::WRFSBASE
+        | Mnm::WRGSBASE => true,
 
         Mnm::ROL
         | Mnm::RDRAND
@@ -133,6 +150,7 @@ fn needs_rex(ins: &Instruction) -> bool {
         | Mnm::NEG
         | Mnm::ADC
         | Mnm::SBB
+        | Mnm::XCHG
         | Mnm::XOR => {
             matches!(
                 (ins.dst(), ins.src()),

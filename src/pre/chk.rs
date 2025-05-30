@@ -153,6 +153,15 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
+        XCHG => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+            ],
+            &[(MA, MA)],
+            &[],
+        ),
         Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC | SBB => ot_chk(
             ins,
             &[
@@ -369,6 +378,15 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        XADD => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                (&[R8, R16, R32], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         // #   #  #   #  #   #
         // ## ##  ## ##   # #
@@ -490,6 +508,15 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                 (DR, MA),
                 (MA, DR),
             ],
+            &[],
+        ),
+        XCHG => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+            ],
+            &[(MA, MA)],
             &[],
         ),
         Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | ADC | SBB => ot_chk(
@@ -709,6 +736,15 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        XADD => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+                (&[R8, R16, R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
         _ => shr_chk(ins),
     }
 }
@@ -830,6 +866,17 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | SETNAE | SETNB | SETNBE | SETNC | SETNE | SETNG | SETNL | SETNGE | SETNLE | SETNO
         | SETNP | SETNS | SETNZ | SETO | SETP | SETPE | SETPO | SETS | SETZ => {
             ot_chk(ins, &[(&[R8, M8], Optional::Needed)], &[], &[])
+        }
+
+        // norm-part6
+        XABORT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        XACQUIRE | XRELEASE | XEND | XGETBV | XLAT | XLATB | XLATB64 | XRESLDTRK | XSETBV
+        | XSUSLDTRK | XTEST => ot_chk(ins, &[], &[], &[]),
+
+        XBEGIN => ot_chk(ins, &[(&[Symbol], Optional::Needed)], &[], &[]),
+        XRSTOR | XRSTORS | XRSTORS64 | XSAVE | XSAVE64 | XSAVEC | XSAVEC64 | XSAVEOPT
+        | XSAVEOPT64 | XSAVES | XSAVES64 | XRSTOR64 => {
+            ot_chk(ins, &[(&[M32, M64], Optional::Needed)], &[], &[])
         }
 
         // #####  #####  #####

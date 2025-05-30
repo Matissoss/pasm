@@ -3856,23 +3856,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        /*
-        Ins::WRFSBASE => (
-            GenAPI::new()
-                .modrm(true, Some(2), None)
-                .prefix(0xF3)
-                .opcode(&[0x0F, 0xAE])
-                .assemble(ins, bits)
-            , None),
-        Ins::WRGSBASE => (
-            GenAPI::new()
-                .modrm(true, Some(3), None)
-                .prefix(0xF3)
-                .opcode(&[0x0F, 0xAE])
-                .rex(true)
-                .assemble(ins, bits)
-            , None),
-            */
         Ins::SHLD => (
             ins_shlx(ins, &[0x0F, 0xA4], &[0x0F, 0xA5]).assemble(ins, bits),
             None,
@@ -3886,6 +3869,83 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::WBINVD => (vec![0x0F, 0x09], None),
         Ins::WRMSR => (vec![0x0F, 0x30], None),
         Ins::WRPKRU => (vec![0x0F, 0x01, 0xEF], None),
+
+        // norm-part6
+        Ins::XABORT => (
+            GenAPI::new()
+                .imm_atindex(0, 1)
+                .opcode(&[0xC6, 0xF8])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XACQUIRE => (vec![0xF2], None),
+        Ins::XRELEASE => (vec![0xF3], None),
+        Ins::XADD => (
+            GenAPI::new()
+                .opcode(&[0x0F, (0xC0 + ((ins.size() != Size::Byte) as u8))])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XBEGIN => ins_xbegin(ins),
+        Ins::XCHG => (ins_xchg(ins).assemble(ins, bits), None),
+        Ins::XEND => (vec![0x0F, 0x01, 0xD5], None),
+        Ins::XGETBV => (vec![0x0F, 0x01, 0xD0], None),
+        Ins::XLAT | Ins::XLATB => (vec![0xD7], None),
+        Ins::XLATB64 => (vec![0x48, 0xD7], None),
+        Ins::XRESLDTRK => (vec![0xF2, 0x0F, 0x01, 0xE9], None),
+
+        Ins::XRSTOR | Ins::XRSTOR64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(5), None)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XRSTORS | Ins::XRSTORS64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(3), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XSAVE | Ins::XSAVE64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(4), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XSAVEC | Ins::XSAVEC64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(4), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XSAVEOPT | Ins::XSAVEOPT64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(6), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XSAVES | Ins::XSAVES64 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(5), None)
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XSETBV => (vec![0x0F, 0x01, 0xD1], None),
+        Ins::XSUSLDTRK => (vec![0xF2, 0x0F, 0x01, 0xE8], None),
+        Ins::XTEST => (vec![0x0F, 0x01, 0xD6], None),
         // other
         _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
     }
@@ -3897,6 +3957,93 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_xchg(ins: &Instruction) -> GenAPI {
+    let mut api = GenAPI::new().rex(true);
+    match ins.size() {
+        Size::Byte => {
+            api = api.opcode(&[0x86]);
+            if let Some(Operand::Reg(_)) = ins.dst() {
+                api = api.ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+            } else {
+                api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV])
+            }
+            api = api.modrm(true, None, None);
+        }
+        Size::Word => {
+            if let Some(Operand::Reg(r)) = ins.dst() {
+                if r == &Register::AX {
+                    let s = if let Some(Operand::Reg(r1)) = ins.src() {
+                        r1.to_byte()
+                    } else {
+                        0
+                    };
+                    api = api.opcode(&[(0x90 + s)]);
+                } else {
+                    api = api.opcode(&[0x87]);
+                    api = api.modrm(true, None, None);
+                    api = api.ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                }
+            } else {
+                api = api.opcode(&[0x87]);
+                api = api.modrm(true, None, None);
+                api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
+            }
+        }
+        Size::Dword | Size::Qword => {
+            if let Some(Operand::Reg(r)) = ins.dst() {
+                if r == &Register::EAX || r == &Register::RAX {
+                    let s = if let Some(Operand::Reg(r1)) = ins.src() {
+                        r1.to_byte()
+                    } else {
+                        0
+                    };
+                    api = api.opcode(&[(0x90 + s)]);
+                } else {
+                    if let Some(Operand::Reg(Register::EAX | Register::RAX)) = ins.src() {
+                        api = api.opcode(&[(0x90 + r.to_byte())]);
+                    } else {
+                        api = api.opcode(&[0x87]);
+                        api = api.modrm(true, None, None);
+                        api = api.ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+                    }
+                }
+            } else {
+                if let Some(Operand::Reg(_)) = ins.src() {
+                    api = api.opcode(&[0x87]);
+                    api = api.modrm(true, None, None);
+                    api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
+                } else {
+                    api = api.opcode(&[0x87]);
+                    api = api.modrm(true, None, None);
+                    api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
+                }
+            }
+        }
+        _ => invalid(3977),
+    }
+    api
+}
+
+fn ins_xbegin(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
+    let symb_name = if let Some(Operand::SymbolRef(str)) = ins.dst() {
+        str
+    } else {
+        invalid(3923)
+    };
+
+    (
+        vec![0xC7, 0xF8],
+        Some(Relocation {
+            symbol: Cow::Owned(symb_name),
+            rtype: RType::PCRel32,
+            addend: -4,
+            catg: RCategory::Jump,
+            offset: 2,
+            size: 4,
+        }),
+    )
+}
 
 fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
     let mut api = GenAPI::new().rex(true).modrm(true, None, None);
