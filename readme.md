@@ -22,9 +22,11 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for: `SSE`, `SSE2`, `SSE3`, `SSSE3`, `SSE4_1`, `SSE4_2`, `MMX` x86(-64) extensions
     - [x] Support for `AVX` and `AVX2` extensions
 - beta
-    - [ ] Support for most of "normal" (to norm-part6) x86-64 instructions
-    - [ ] Extended Relocations/Symbols, Support for comptime mathematical evaluations and label attributes
+    - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
+    - [ ] Extended Relocations/Symbols, Support for comptime mathematical evaluations, imports/includes and label attributes
+    - [ ] Tests for relocations and other things
     - [ ] Improved segmentation
+    - [ ] Overall polish
 - beta-avx512
     - [ ] AVX-512F
     - [ ] AVX-512VL, AVX-512DQ, AVX-512BW

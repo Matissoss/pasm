@@ -61,10 +61,6 @@ fn main() {
         print_supported_instructions();
         return;
     }
-    if cli.has_arg("supported-extensions") {
-        print_supported_extensions();
-        return;
-    }
     if cli.has_arg("supported-instructions-raw") {
         print_supported_instructions_raw();
         return;
@@ -338,8 +334,4 @@ fn print_supported_instructions_raw() {
             println!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) });
         }
     }
-}
-// these extension names are from /proc/cpuinfo flags section :)
-fn print_supported_extensions() {
-    print!("avx\navx2\nsse\nsse2\nsse3\nssse3\nsse4_1\nsse4_2\ncmov\npopcnt\nmmx\nsyscall\ncpuid\nmonitor\nclflush")
 }

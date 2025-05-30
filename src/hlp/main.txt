@@ -1,18 +1,17 @@
-rasmx86_64 	    25.05
--------------------------
+rasmx86_64 	    25.05-beta0
+-------------------------------
 DISCLAIMER:
- This is MVP version of rasm asssembler and it doesn't support 100% of functionality.
- This is WIP assembler - use at your own risk.
--------------------------
+This assembler is in beta.
+Use at your own risk.
+-------------------------------
 USAGE:
 rasmx86_64 [FLAG(s)]
--------------------------
+-------------------------------
 [FLAG(s)]:
 	-h			 	; prints this message
 	-i=[PATH]		 	; specifies path to input file
 	-o=[PATH]		 	; specifies path to output file
 	-f=[FORMAT]		 	; specifies output format
-	supported-extensions	 	; prints all supported x86(-64) extensions
 	supported-instructions 	 	; prints all supported instructions
 	supported-instructions-raw 	; prints all supported instructions without formatting
 	check			 	; checks file without assembling it
@@ -21,6 +20,6 @@ rasmx86_64 [FLAG(s)]
 	elf64		; compiles file into 64-bit version of ELF - relocatable file
 	bin		; compiles file into 'flat binary' (only instructions, nothing else)
 [PATH]: path :)
--------------------------
+-------------------------------
 made by matissoss <matissossgamedev@proton.me>
 licensed under MPL 2.0
