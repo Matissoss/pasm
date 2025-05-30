@@ -12,7 +12,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 ## roadmap
 
 > [!NOTE]
-> This roadmap is not final and may (and will) change.
+> This roadmap is not final and may (will) change.
 
 - alpha
     - [x] MVP
@@ -23,9 +23,19 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for `AVX` and `AVX2` extensions
 - beta
     - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
-    - [ ] Extended Relocations/Symbols, Support for comptime mathematical evaluations, imports/includes and label attributes
+    - [ ] Transforming `Mem` enum into struct
+    - [ ] Parser support for closures `()` other than memory address
+    - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types)
+    - [ ] Support for comptime mathematical evaluations (`$()` closure)
+    - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
+    - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
+    - [ ] Support for imports/includes and label attributes (`#()` closure)
     - [ ] Tests for relocations and other things
-    - [ ] Improved segmentation
+    - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct) and migrating code away from legacy API (`src/core/rex.rs`)
+    - [ ] Better target handling (ELF reworked)
+    - [ ] Support for runtime mathematical evaluations (`&()` closure)
+    - [ ] Support for "modifiers" that is: `base:mod1:mod2` (for AVX-512, like: `%xmm0:k3:z` or segments)
+    - [ ] Create documentation
     - [ ] Overall polish
 - beta-avx512
     - [ ] AVX-512F
@@ -41,6 +51,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
     - [ ] Support for local (and global) scope aliases
     - [ ] Support for custom opcodes (using assembler's API) (to support unsupported instructions)
+    - [ ] Create documentation for macros
 - beta-fpu
     - [ ] Support for x87 ISA (mostly instructions prefixed with `F`)
 - stable
