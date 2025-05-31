@@ -4395,7 +4395,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
         }
         (Operand::Segment(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dstm.address.size() {
+            let opc = match dstm.address.size().unwrap_or_default() {
                 Size::Byte => opc[2],
                 Size::Word => opc[3],
                 Size::Dword => opc[3],
@@ -4408,13 +4408,19 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 }
                 _ => invalid(19),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dstm.address.size()) {
-                extend_imm(&mut imm, 2);
-            } else if let (Size::Byte, Size::Dword) = (srci.size(), dstm.address.size()) {
-                extend_imm(&mut imm, 4);
-            } else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) =
-                (ins.mnem, srci.size(), dstm.address.size())
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dstm.address.size().unwrap_or_default())
             {
+                extend_imm(&mut imm, 2);
+            } else if let (Size::Byte, Size::Dword) =
+                (srci.size(), dstm.address.size().unwrap_or_default())
+            {
+                extend_imm(&mut imm, 4);
+            } else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) = (
+                ins.mnem,
+                srci.size(),
+                dstm.address.size().unwrap_or_default(),
+            ) {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
                 extend_imm(&mut imm, 4);
@@ -4431,7 +4437,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dstm.size() {
+            let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => opc[2],
                 Size::Word => opc[3],
                 Size::Dword => opc[3],
@@ -4444,12 +4450,15 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 }
                 _ => invalid(18),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dstm.size()) {
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 2);
-            } else if let (Size::Byte, Size::Dword) = (srci.size(), dstm.size()) {
+            } else if let (Size::Byte, Size::Dword) = (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 4);
             } else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) =
-                (ins.mnem, srci.size(), dstm.size())
+                (ins.mnem, srci.size(), dstm.size().unwrap_or_default())
             {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
@@ -4474,7 +4483,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
             gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         }
         (Operand::Segment(m), Operand::Reg(_)) => {
-            let opc = match m.address.size() {
+            let opc = match m.address.size().unwrap_or_default() {
                 Size::Byte => opc[7],
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(16),
@@ -4482,7 +4491,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
             gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         }
         (Operand::Mem(m), Operand::Reg(_)) => {
-            let opc = match m.size() {
+            let opc = match m.size().unwrap_or_default() {
                 Size::Byte => opc[7],
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(15),
@@ -4543,7 +4552,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
         }
         (Operand::Segment(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dstm.address.size() {
+            let opc = match dstm.address.size().unwrap_or_default() {
                 Size::Byte => 0x80,
                 Size::Qword | Size::Word | Size::Dword => {
                     if imm.len() == 1 {
@@ -4558,10 +4567,12 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 }
                 _ => invalid(12),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dstm.address.size()) {
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dstm.address.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 2);
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
-                (srci.size(), dstm.address.size())
+                (srci.size(), dstm.address.size().unwrap_or_default())
             {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
@@ -4572,7 +4583,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dstm.size() {
+            let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => 0x80,
                 Size::Qword | Size::Word | Size::Dword => {
                     if imm.len() == 1 {
@@ -4587,9 +4598,13 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 }
                 _ => invalid(11),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dstm.size()) {
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 2);
-            } else if let (Size::Byte, Size::Dword | Size::Qword) = (srci.size(), dstm.size()) {
+            } else if let (Size::Byte, Size::Dword | Size::Qword) =
+                (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
                 extend_imm(&mut imm, 4);
@@ -4606,7 +4621,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
             gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         }
         (Operand::Mem(m), Operand::Reg(_)) => {
-            let opc = match m.size() {
+            let opc = match m.size().unwrap_or_default() {
                 Size::Byte => 0x38,
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(9),
@@ -4614,7 +4629,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
             gen_ins(ins, &[opc], (true, None, None), None, bits, false)
         }
         (Operand::Segment(m), Operand::Reg(_)) => {
-            let opc = match m.address.size() {
+            let opc = match m.address.size().unwrap_or_default() {
                 Size::Byte => 0x38,
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(8),
@@ -4665,15 +4680,17 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
         }
         (Operand::Segment(dsts), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dsts.address.size() {
+            let opc = match dsts.address.size().unwrap_or_default() {
                 Size::Byte => 0xF6,
                 Size::Qword | Size::Word | Size::Dword => 0xF7,
                 _ => invalid(5),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dsts.address.size()) {
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dsts.address.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 2);
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
-                (srci.size(), dsts.address.size())
+                (srci.size(), dsts.address.size().unwrap_or_default())
             {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
@@ -4684,14 +4701,18 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let mut imm = srci.split_into_bytes();
-            let opc = match dstm.size() {
+            let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => 0xF6,
                 Size::Qword | Size::Word | Size::Dword => 0xF7,
                 _ => invalid(4),
             };
-            if let (Size::Word | Size::Byte, Size::Word) = (srci.size(), dstm.size()) {
+            if let (Size::Word | Size::Byte, Size::Word) =
+                (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 2);
-            } else if let (Size::Byte, Size::Dword | Size::Qword) = (srci.size(), dstm.size()) {
+            } else if let (Size::Byte, Size::Dword | Size::Qword) =
+                (srci.size(), dstm.size().unwrap_or_default())
+            {
                 extend_imm(&mut imm, 4);
             } else if srci.size() != Size::Byte {
                 extend_imm(&mut imm, 4);
@@ -5168,8 +5189,8 @@ fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option
     let (size, is_mem) = match op {
         Operand::Reg(r) => (r.size(), false),
         Operand::CtrReg(r) => (r.size(), false),
-        Operand::Mem(m) => (m.size(), false),
-        Operand::Segment(s) => (s.address.size(), true),
+        Operand::Mem(m) => (m.size().unwrap_or_default(), false),
+        Operand::Segment(s) => (s.address.size().unwrap_or_default(), true),
         _ => return None,
     };
     if size == Size::Byte || size == Size::Xword {

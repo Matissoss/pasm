@@ -5,6 +5,8 @@
 
 #![allow(clippy::collapsible_else_if)]
 #![allow(clippy::manual_map)]
+#![allow(clippy::to_string_trait_impl)]
+#![allow(clippy::if_same_then_else)]
 
 //  global imports go here
 use std::{
@@ -113,15 +115,19 @@ fn main() {
 
     if let Some(form) = cli.get_kv_arg("-f") {
         assemble_file(ast, &outfile, form);
-        if conf::TIME {
+        if conf::TIME && cli.has_arg("-t") {
             let end = time::SystemTime::now();
             println!(
-                "Assembling {:?} took {}s and ended without errors!",
+                "Assembling {:?} took {}",
                 infile,
-                match end.duration_since(start.unwrap()) {
-                    Ok(t) => t.as_secs_f32(),
-                    Err(e) => e.duration().as_secs_f32(),
-                }
+                ColString::new(format!(
+                    "{}s",
+                    match end.duration_since(start.unwrap()) {
+                        Ok(t) => t.as_secs_f32(),
+                        Err(e) => e.duration().as_secs_f32(),
+                    }
+                ))
+                .set_color(Color::RED)
             )
         }
     }

@@ -10,9 +10,9 @@ use crate::{
     shr::{
         atype::{AType, ToAType},
         error::RASMError,
-        kwd::Keyword,
         mem::Mem,
         reg::{Purpose, Register},
+        size::Size,
     },
 };
 
@@ -58,7 +58,7 @@ impl FromStr for Segment {
             tmp_buf.push(c);
         }
         let str = String::from_iter(tmp_buf.iter());
-        let mem = Mem::try_make(&str, Some(Keyword::Byte))?;
+        let mem = Mem::new(&str, Size::Any)?;
 
         Ok(Self {
             segment: seg_reg,
@@ -81,21 +81,6 @@ impl ToString for Segment {
 
 impl ToAType for Segment {
     fn atype(&self) -> AType {
-        AType::Memory(self.address.size())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::shr::{reg::Register as Reg, size::Size};
-    #[test]
-    fn test_parse() {
-        assert!(
-            Ok(Segment {
-                segment: Register::FS,
-                address: Mem::SIB(Reg::RAX, Reg::RBX, Size::Qword, Size::Byte)
-            }) == dbg!(Segment::from_str("fs:(%rax, %rbx * $8)"))
-        )
+        AType::Memory(self.address.size().unwrap_or(Size::Unknown))
     }
 }

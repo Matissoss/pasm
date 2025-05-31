@@ -3,449 +3,747 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::{
-    conf::*,
-    shr::{
-        atype::{AType, ToAType},
-        error::RASMError,
-        kwd::Keyword,
-        num::Number,
-        reg::{Purpose as RPurpose, Register},
-        size::Size,
-    },
+use crate::shr::{
+    atype::AType,
+    booltable::BoolTable8,
+    error::RASMError,
+    num::Number,
+    reg::{Purpose as RPurpose, Register},
+    size::Size,
 };
+
 use std::str::FromStr;
 
+pub const RIP_ADDRESSING: u8 = 0x0;
+pub const OBY_OFFSET: u8 = 0x1;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(C)]
+pub struct Mem {
+    // layout:
+    // - 1st-4th: offset
+    // - 5th: regs:
+    //   XX_YYY_ZZZ:
+    //      XX: sentinels for base and index (first for base, second for index)
+    //      YYY: value of base register
+    //      ZZZ: value of index register
+    // - 6th: metadata_1:
+    //   XXXX_YYYA,
+    //      XXXX - size (byte, word, dword, qword, xword, yword, zword, any)
+    //      YYY - scale: (1, 2, 4, 8)
+    //      A - sentinel for offset
+    // - 7th: metadata_2:
+    //      BBBF_FFCD
+    //      BBB - size of used registers (byte, word, dword or qword registers)
+    //      C - base uses REX
+    //      D - index uses REX
+    //      FFF - reserved
+    //  - 8th: flags
+    offset: i32,
+    regs: u8,
+    metadata_1: u8,
+    metadata_2: u8,
+    flags: BoolTable8,
+}
+
 impl Mem {
-    pub fn try_make(memstr: &str, size_spec: Option<Keyword>) -> Result<Self, RASMError> {
-        let size = if let Some(kwd) = size_spec {
-            match Size::try_from(kwd){
-                Ok(s) => s,
-                Err(_) => return Err(RASMError::with_tip(
-                    None,
-                    Some(format!("Invalid size specifier found `{}` in memory declaration", kwd.to_string())),
-                    Some("Consider changing size specifier to either one: !qword, !dword, !word, !byte or !any")
-                ))
-            }
-        } else {
-            return Err(RASMError::with_tip(
-                None,
-                Some("No size specifier found in memory declaration"),
-                Some("Consider adding size specifier after memory declaration like: !qword, !dword, !word, !byte or !any")
-            ));
-        };
-        mem_par(&mem_tok(memstr), size)
-    }
-    pub fn size(&self) -> Size {
-        match self {
-            Self::Index(_, _, size)
-            | Self::IndexOffset(_, _, _, size)
-            | Self::SIBOffset(_, _, _, _, size)
-            | Self::SIB(_, _, _, size)
-            | Self::Offset(_, _, size)
-            | Self::Direct(_, size) => *size,
+    fn blank() -> Self {
+        Self {
+            offset: 0,
+            regs: 0,
+            metadata_1: 0,
+            metadata_2: 0,
+            flags: BoolTable8::new(),
         }
+    }
+    pub fn new(str: &str, sz: Size) -> Result<Self, RASMError> {
+        match mem_par_new(mem_tok_new(str)) {
+            Ok(mut o) => {
+                mem_chk(&mut o);
+                o.set_size(sz);
+                Ok(o)
+            }
+            Err(e) => Err(e),
+        }
+    }
+    // type
+    pub fn is_sib(&self) -> bool {
+        self.index().is_some() && self.scale().is_some() && self.base().is_some()
+    }
+
+    // getters
+    pub fn atype(&self) -> AType {
+        let sz = self.size().unwrap_or(Size::Unknown);
+        AType::Memory(sz)
+    }
+
+    // returns size of base or index
+    pub fn addrsize(&self) -> Option<Size> {
+        Self::compressed_size((self.metadata_2 & 0b1110_0000) >> 5)
     }
     pub fn needs_rex(&self) -> (bool, bool) {
-        match self {
-            Self::Direct(b, _) | Self::Offset(b, _, _) => (b.needs_rex(), false),
-            Self::Index(i, _, _) | Self::IndexOffset(i, _, _, _) => (false, i.needs_rex()),
-            Self::SIB(b, i, _, _) | Self::SIBOffset(b, i, _, _, _) => {
-                (b.needs_rex(), i.needs_rex())
+        (self.base_rex(), self.index_rex())
+    }
+    // returns size of memory address
+    pub fn size(&self) -> Option<Size> {
+        Self::compressed_size((self.metadata_1 & 0b1111_0000) >> 4)
+    }
+    pub fn base_rex(&self) -> bool {
+        self.metadata_2 & 0b0000_0010 == 0b0000_0010
+    }
+    pub fn index_rex(&self) -> bool {
+        self.metadata_2 & 0b0000_0001 == 0b0000_0001
+    }
+    pub fn base(&self) -> Option<Register> {
+        if self.get_flag(RIP_ADDRESSING).unwrap_or(false) {
+            return Some(Register::RIP);
+        }
+        if self.regs & 0b1000_0000 == 0b1000_0000 {
+            let val = (self.regs & 0b0011_1000) >> 3;
+            Self::compressed_reg(
+                self.addrsize().unwrap_or(Size::Unknown),
+                self.base_rex(),
+                val,
+            )
+        } else {
+            None
+        }
+    }
+    pub fn index(&self) -> Option<Register> {
+        if self.get_flag(RIP_ADDRESSING).unwrap_or(false) {
+            return None;
+        }
+        if self.regs & 0b0100_0000 == 0b0100_0000 {
+            let val = self.regs & 0b0000_0111;
+            Self::compressed_reg(
+                self.addrsize().unwrap_or(Size::Unknown),
+                self.index_rex(),
+                val,
+            )
+        } else {
+            None
+        }
+    }
+    pub fn offset_x86(&self) -> Option<([u8; 4], usize)> {
+        if let Some(off) = self.offset() {
+            let size = if self.flags.get(OBY_OFFSET).unwrap_or(false) {
+                1
+            } else {
+                4
+            };
+            let off_le = off.to_le_bytes();
+            Some((off_le, size))
+        } else {
+            None
+        }
+    }
+    pub fn offset(&self) -> Option<i32> {
+        if self.metadata_1 & 0b0000_0001 == 0b0000_0001 {
+            Some(self.offset)
+        } else {
+            None
+        }
+    }
+    pub fn scale(&self) -> Option<Size> {
+        Self::compressed_size((self.metadata_1 & 0b0000_1110) >> 1)
+    }
+    pub fn get_flag(&self, idx: u8) -> Option<bool> {
+        self.flags.get(idx)
+    }
+
+    // setters
+    pub fn set_addrsize(&mut self, addrsize: Size) {
+        let sz = Self::compressed_size_rev(addrsize).unwrap_or(0b000) & 0b111;
+        // clear addr size
+        let mask = !0b1110_0000;
+        // set addr_size
+        self.metadata_2 = (self.metadata_2 & mask) | sz << 5;
+    }
+    // false if it fails
+    // fails, if addrsize != base.size()
+    pub fn set_base(&mut self, base: Register) -> bool {
+        let bb = base.to_byte();
+        let rx = base.needs_rex() as u8;
+
+        // check
+        if self.addrsize().unwrap_or(Size::Unknown) != base.size() {
+            return false;
+        }
+        // set guardian
+        self.regs = (self.regs & !0b1000_0000) | 0b1000_0000;
+
+        // set rex
+        let mask = !0b0000_0010;
+        self.metadata_2 = (self.metadata_2 & mask) | rx << 1;
+        // set base
+        let mask = !0b0011_1000;
+        self.regs = (self.regs & mask) | bb << 3;
+        true
+    }
+    // false if it fails
+    // fails, if addrsize != base.size()
+    pub fn set_index(&mut self, index: Register) -> bool {
+        let bb = index.to_byte();
+        let rx = index.needs_rex() as u8;
+
+        // check
+        if self.addrsize().unwrap_or(Size::Unknown) != index.size() {
+            return false;
+        }
+        // set guardian
+        self.regs = (self.regs & !0b0100_0000) | 0b0100_0000;
+
+        // set rex
+        let mask = !0b0000_0001;
+        self.metadata_2 = (self.metadata_2 & mask) | rx;
+        // set index
+        let mask = !0b0000_0111;
+        self.regs = (self.regs & mask) | bb;
+        true
+    }
+    pub fn set_offset(&mut self, offset: i32) {
+        self.metadata_1 = (self.metadata_1 & !0b0000_0001) | 0b0000_0001;
+        if <i32 as TryInto<i8>>::try_into(offset).is_ok() {
+            self.flags.set(OBY_OFFSET, true);
+        }
+        self.offset = offset;
+    }
+    pub fn clear_offset(&mut self) {
+        self.metadata_1 &= !0b0000_0001;
+    }
+    pub fn set_size(&mut self, sz: Size) {
+        let sz = Self::compressed_size_rev(sz).unwrap_or(0b1111);
+        let mask = !0b1111_0000;
+        self.metadata_1 = (self.metadata_1 & mask) | sz << 4
+    }
+    pub fn set_scale(&mut self, sz: Size) {
+        let sz = Self::compressed_size_rev(sz).unwrap_or(0b111);
+        let mask = !0b0000_1110;
+        self.metadata_1 = (self.metadata_1 & mask) | (sz << 1);
+    }
+    pub fn set_flag(&mut self, idx: u8) {
+        self.flags.set(idx, true)
+    }
+    pub fn clear_flag(&mut self, idx: u8) {
+        self.flags.set(idx, false)
+    }
+
+    // misc
+    fn compressed_reg(sz: Size, rex: bool, reg: u8) -> Option<Register> {
+        use Register::*;
+        match sz {
+            Size::Byte => {
+                if rex {
+                    match reg {
+                        0b000 => Some(R8B),
+                        0b001 => Some(R9B),
+                        0b010 => Some(R10B),
+                        0b011 => Some(R11B),
+                        0b100 => Some(R12B),
+                        0b101 => Some(R13B),
+                        0b110 => Some(R14B),
+                        0b111 => Some(R15B),
+                        _ => None,
+                    }
+                } else {
+                    match reg {
+                        0b000 => Some(AL),
+                        0b001 => Some(CL),
+                        0b010 => Some(DL),
+                        0b011 => Some(BL),
+                        0b100 => Some(AH),
+                        0b101 => Some(CH),
+                        0b110 => Some(DH),
+                        0b111 => Some(BH),
+                        _ => None,
+                    }
+                }
             }
+            Size::Word => {
+                if rex {
+                    match reg {
+                        0b000 => Some(R8W),
+                        0b001 => Some(R9W),
+                        0b010 => Some(R10W),
+                        0b011 => Some(R11W),
+                        0b100 => Some(R12W),
+                        0b101 => Some(R13W),
+                        0b110 => Some(R14W),
+                        0b111 => Some(R15W),
+                        _ => None,
+                    }
+                } else {
+                    match reg {
+                        0b000 => Some(AX),
+                        0b001 => Some(CX),
+                        0b010 => Some(DX),
+                        0b011 => Some(BX),
+                        0b100 => Some(SP),
+                        0b101 => Some(BP),
+                        0b110 => Some(SI),
+                        0b111 => Some(DI),
+                        _ => None,
+                    }
+                }
+            }
+            Size::Dword => {
+                if rex {
+                    match reg {
+                        0b000 => Some(R8D),
+                        0b001 => Some(R9D),
+                        0b010 => Some(R10D),
+                        0b011 => Some(R11D),
+                        0b100 => Some(R12D),
+                        0b101 => Some(R13D),
+                        0b110 => Some(R14D),
+                        0b111 => Some(R15D),
+                        _ => None,
+                    }
+                } else {
+                    match reg {
+                        0b000 => Some(EAX),
+                        0b001 => Some(ECX),
+                        0b010 => Some(EDX),
+                        0b011 => Some(EBX),
+                        0b100 => Some(ESP),
+                        0b101 => Some(EBP),
+                        0b110 => Some(ESI),
+                        0b111 => Some(EDI),
+                        _ => None,
+                    }
+                }
+            }
+            Size::Qword => {
+                if rex {
+                    match reg {
+                        0b000 => Some(R8),
+                        0b001 => Some(R9),
+                        0b010 => Some(R10),
+                        0b011 => Some(R11),
+                        0b100 => Some(R12),
+                        0b101 => Some(R13),
+                        0b110 => Some(R14),
+                        0b111 => Some(R15),
+                        _ => None,
+                    }
+                } else {
+                    match reg {
+                        0b000 => Some(RAX),
+                        0b001 => Some(RCX),
+                        0b010 => Some(RDX),
+                        0b011 => Some(RBX),
+                        0b100 => Some(RSP),
+                        0b101 => Some(RBP),
+                        0b110 => Some(RSI),
+                        0b111 => Some(RDI),
+                        _ => None,
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+    fn compressed_size_rev(sz: Size) -> Option<u8> {
+        match sz {
+            Size::Byte => Some(0b0000),
+            Size::Word => Some(0b0001),
+            Size::Dword => Some(0b0010),
+            Size::Qword => Some(0b0011),
+            Size::Xword => Some(0b0100),
+            Size::Yword => Some(0b0101),
+            Size::Any => Some(0b1111),
+            _ => None,
+        }
+    }
+    fn compressed_size(sz: u8) -> Option<Size> {
+        match sz {
+            0b0000 => Some(Size::Byte),
+            0b0001 => Some(Size::Word),
+            0b0010 => Some(Size::Dword),
+            0b0011 => Some(Size::Qword),
+            0b0100 => Some(Size::Xword),
+            0b0101 => Some(Size::Yword),
+            0b1111 => Some(Size::Any),
+            _ => None,
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Mem {
-    // example: (%rax+20) !dword
-    Offset(Register, i32, Size),
-    // example: (%rax) !dword
-    Direct(Register, Size),
-    // example: (%rax * 2) !dword - uses scale and index, no base (SIB)
-    Index(Register, Size, Size),
-    IndexOffset(Register, i32, Size, Size),
-    SIB(Register, Register, Size, Size),
-    SIBOffset(Register, Register, Size, i32, Size),
-}
+type Error = RASMError;
 
-#[derive(PartialEq, Debug, Clone)]
-enum MemTok {
-    Reg(Register),
-    Num(i32),
-    Unknown(String),
+#[derive(PartialEq)]
+enum Token {
+    Register(Register),
+    Number(i32),
+    Error(Error),
+    // (
     Start,
+    // )
     End,
-    Plus,
-    Minus,
-    Star,
-    Underline,
+    // +
+    Add,
+    // -
+    Sub,
+    // *
+    Mul,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum NumberVariant {
-    Multiply,
-    Minus,
-    Plus,
+fn mem_chk(mem: &mut Mem) {
+    let base = mem.base();
+    let index = mem.index();
+    let scale = mem.scale();
+    let offset = mem.offset();
+
+    if let (None, Some(_)) = (base, index) {
+        match index.unwrap().size() {
+            Size::Word => mem.set_base(Register::BP),
+            Size::Dword => mem.set_base(Register::EBP),
+            Size::Qword => mem.set_base(Register::RBP),
+            _ => false,
+        };
+    }
+
+    if let (Some(_), Some(_), None) = (base, index, scale) {
+        mem.set_scale(Size::Byte);
+    }
+    if let (None, None, Some(_)) = (base, index, offset) {
+        mem.set_flag(RIP_ADDRESSING);
+    }
 }
 
-fn mem_par(toks: &[MemTok], size: Size) -> Result<Mem, RASMError> {
-    if !toks.starts_with(&[MemTok::Start]) {
-        return Err(RASMError::with_tip(
-            None,
-            Some(format!(
-                "Expected memory to start with: {}, found unexpected token",
-                MEM_START
-            )),
-            Some(format!("Consider starting memory with {}", MEM_START)),
-        ));
-    }
-    if !toks.ends_with(&[MemTok::End]) {
-        return Err(RASMError::with_tip(
-            None,
-            Some(format!("Expected memory closing symbol '{}'", MEM_CLOSE)),
-            Some(format!(
-                "Consider ending memory with '{}' character",
-                MEM_CLOSE
-            )),
-        ));
-    }
+fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
+    let mut mem = Mem::blank();
 
-    let too_many_reg_e: RASMError = RASMError::with_tip(
-        None,
-        Some("Too many registers found in one memory declaration"),
-        Some("maximum amount of registers is 2"),
-    );
-
-    let mut variant: NumberVariant = NumberVariant::Plus;
-    let mut tried_base: bool = false;
+    let mut unspec_reg: Option<Register> = None;
     let mut base: Option<Register> = None;
     let mut index: Option<Register> = None;
-    let mut scale: Option<Size> = None;
     let mut offset: Option<i32> = None;
-    for t in toks[1..toks.len() - 1].iter() {
-        match t {
-            MemTok::Reg(r) => {
-                if tried_base {
-                    if index.is_none() {
-                        index = Some(*r);
-                        tried_base = false;
-                    } else {
-                        return Err(too_many_reg_e);
-                    }
+    let mut scale: Option<Size> = None;
+
+    if !toks.starts_with(&[Token::Start]) {
+        return Err(Error::no_tip(
+            None,
+            Some("Memory declaration doesn't start with opening brace {"),
+        ));
+    }
+    if !toks.ends_with(&[Token::End]) {
+        return Err(Error::no_tip(
+            None,
+            Some("Memory declaration doesn't end with closing brace }"),
+        ));
+    }
+    let iter = toks.into_iter();
+    // if number was prefixed with *
+    let mut mul_modf = false;
+    let mut num_ismin = false;
+    for tok in iter {
+        match tok {
+            Token::Error(e) => return Err(e),
+            Token::Register(r) => {
+                if unspec_reg.is_none() {
+                    unspec_reg = Some(r);
+                } else if base.is_none() {
+                    base = Some(r);
+                } else if index.is_none() {
+                    index = Some(r);
                 } else {
-                    if base.is_none() {
-                        base = Some(*r);
-                    } else if index.is_none() {
-                        index = Some(*r);
-                    } else {
-                        return Err(too_many_reg_e);
-                    }
+                    return Err(Error::no_tip(
+                        None,
+                        Some("Memory declaration has too many (3+) registers!"),
+                    ));
                 }
             }
-            MemTok::Underline => tried_base = true,
-            MemTok::Num(n) => {
-                if variant == NumberVariant::Multiply {
-                    if let Ok(s) = Size::try_from(*n as u16) {
-                        if scale.is_none() {
-                            scale = Some(s);
-                        } else {
-                            return Err(RASMError::with_tip(
-                                None,
-                                Some("Too many scales found in one memory declaration. Expected only 1 scale, found 2 (or more)"),
-                                Some("Consider removing last scale (prefixed with '*')")
-                            ));
-                        }
-                    } else {
-                        return Err(RASMError::with_tip(
-                            None,
-                            Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                            Some("Consider changing scale into number: 1, 2, 4 or 8")
-                        ));
-                    }
-                } else {
-                    if offset.is_none() {
-                        if variant == NumberVariant::Minus {
-                            offset = Some(-n);
-                        } else {
-                            offset = Some(*n);
-                        }
-                    } else if scale.is_none() {
-                        if let Ok(s) = Size::try_from(*n as u16) {
-                            scale = Some(s);
-                        } else {
-                            return Err(RASMError::with_tip(
-                                None,
-                                Some(format!("Found invalid'ly formatted scale: expected either 1, 2, 4 or 8, found {}", n)),
-                                Some("Consider changing scale into number: 1, 2, 4 or 8")
-                            ));
-                        }
-                    } else {
-                        return Err(RASMError::with_tip(
-                            None,
-                            Some("Too many numbers found in one memory declaration. Expected max 2 numbers, found 3 (or more)".to_string()),
-                            Some("Consider removing last scale (prefixed with '+' or '-')")
-                        ));
-                    }
+            Token::Mul => mul_modf = true,
+            Token::Add | Token::Sub => {
+                if unspec_reg.is_some() {
+                    base = unspec_reg;
+                    unspec_reg = None;
                 }
-
-                variant = NumberVariant::Plus;
+                if tok == Token::Sub {
+                    num_ismin = true;
+                }
             }
-            MemTok::Plus => variant = NumberVariant::Plus,
-            MemTok::Minus => variant = NumberVariant::Minus,
-            MemTok::Star => variant = NumberVariant::Multiply,
-            MemTok::Unknown(s) => {
-                return Err(RASMError::with_tip(
+            Token::Number(n) => {
+                if mul_modf {
+                    if unspec_reg.is_some() {
+                        index = unspec_reg;
+                        unspec_reg = None;
+                    }
+                    if let Ok(sz) = Size::try_from(n as u16) {
+                        match sz {
+                            Size::Byte | Size::Word | Size::Dword | Size::Qword => {}
+                            _ => return Err(Error::no_tip(
+                                None,
+                                Some(
+                                    "Memory declaration's scale is larger than 8 (maximum scale)!",
+                                ),
+                            )),
+                        }
+                        scale = Some(sz);
+                    } else {
+                        return Err(Error::no_tip(
+                            None,
+                            Some("Memory declaration has scale, but it isn't either 1, 2, 4 or 8!"),
+                        ));
+                    }
+                    mul_modf = false;
+                } else {
+                    let n = if num_ismin { -n } else { n };
+                    offset = Some(n);
+                }
+            }
+            Token::Start | Token::End => continue,
+        }
+    }
+    if let (Some(base), Some(index)) = (base, index) {
+        if base.size() != index.size() {
+            return Err(Error::no_tip(
+                None,
+                Some("Base and index registers in memory declaration have different sizes."),
+            ));
+        } else {
+            mem.set_addrsize(base.size());
+            let _ = mem.set_base(base);
+            let _ = mem.set_index(index);
+        }
+    } else if let Some(index) = index {
+        mem.set_addrsize(index.size());
+        base = match index.size() {
+            Size::Qword => Some(Register::RBP),
+            Size::Dword => Some(Register::EBP),
+            Size::Word => Some(Register::BP),
+            _ => {
+                return Err(Error::no_tip(
                     None,
-                    Some(format!(
-                        "Found unknown token inside memory declaration: `{}`",
-                        s
-                    )),
-                    Some("Consider changing this token into number, register, ',' or '_'"),
+                    Some("Index has size that doesn't match 16/32/64 bits!"),
                 ))
             }
-            MemTok::Start | MemTok::End => {
-                return Err(RASMError::with_tip(
-                    None,
-                    Some("Found memory closing/starting delimeter inside memory declaration"),
-                    Some("Consider removing closing/starting delimeter from memory declaration"),
-                ))
-            }
-        }
+        };
+        let _ = mem.set_base(base.unwrap());
+        let _ = mem.set_index(index);
+    } else if let Some(base) = base {
+        mem.set_addrsize(base.size());
+        let _ = mem.set_base(base);
     }
 
-    let mut rsize = Size::Any;
-    if let Some(base) = base {
-        if base.purpose() != RPurpose::General {
-            return Err(RASMError::no_tip(
-                None,
-                Some("Base register in this memory declaration isn't general purpose"),
-            ));
-        }
-        rsize = base.size();
+    if let (Some(r), None) = (unspec_reg, base) {
+        mem.set_addrsize(r.size());
+        unspec_reg = None;
+        mem.set_base(r);
     }
-    if let Some(index) = index {
-        if index.purpose() != RPurpose::General {
-            return Err(RASMError::no_tip(
-                None,
-                Some("Index register in this memory declaration isn't general purpose".to_string()),
-            ));
-        }
-        if index.size() != rsize {
-            return Err(RASMError::no_tip(
-                None,
-                Some(format!("Memory cannot be created, because one of registers is of invalid size: base size = {rsize}")),
-            ));
-        }
+    if let (Some(r), None) = (unspec_reg, index) {
+        mem.set_addrsize(r.size());
+        mem.set_index(r);
     }
 
-    match (base, index, scale, offset) {
-        (Some(b), Some(i), Some(s), Some(o)) => Ok(Mem::SIBOffset(b, i, s, o, size)),
-        (Some(b), Some(i), Some(s), None) => Ok(Mem::SIB(b, i, s, size)),
-        (None, Some(b), None, Some(o)) | (Some(b), None, None, Some(o)) => {
-            Ok(Mem::Offset(b, o, size))
-        }
-        (Some(b), None, None, None) => Ok(Mem::Direct(b, size)),
-        (Some(b), Some(i), None, None) => Ok(Mem::SIB(b, i, Size::Byte, size)),
-        (Some(i), None, Some(s), None) => Ok(Mem::Index(i, s, size)),
-        (Some(i), None, Some(s), Some(o)) => Ok(Mem::IndexOffset(i, o, s, size)),
-        (Some(b), Some(i), None, Some(o)) => Ok(Mem::SIBOffset(b, i, Size::Byte, o, size)),
-        (None, None, None, None) => Err(RASMError::no_tip(
-            None,
-            Some("Tried to make memory operand out of nothing `()`"),
-        )),
-        _ => Err(RASMError::no_tip(
-            None,
-            Some(format!(
-                "Unexpected memory combo: base = {:?}, index = {:?}, scale = {:?}, offset = {:?}\n\tThis should not happen (bug)",
-                base, index, scale, offset
-            )),
-        )),
+    if let Some(scale) = scale {
+        mem.set_scale(scale);
     }
+    if let Some(offset) = offset {
+        mem.set_offset(offset);
+    }
+
+    Ok(mem)
 }
 
-fn mem_tok(str: &str) -> Vec<MemTok> {
-    let mut pfx: Option<char> = None;
-    let mut tmp_buf: Vec<char> = Vec::new();
-    let mut tokens: Vec<MemTok> = Vec::new();
-    for c in str.chars() {
-        match (pfx, c) {
-            (None, ' ' | '\t') => continue,
-            (_, ',' | '+' | '-' | '*') => {
-                if !tmp_buf.is_empty() {
-                    if let Some(m) = mem_tok_make(&tmp_buf, pfx) {
-                        tokens.push(m);
-                    } else {
-                        tokens.push(MemTok::Unknown(String::from_iter(tmp_buf.iter())));
-                    }
+fn mem_tok_new(str: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    let bytes: &[u8] = str.as_bytes();
+    let mut tmp_buf: Vec<u8> = Vec::new();
+    for b in bytes {
+        match b {
+            b')' => {
+                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                    tokens.push(tok);
+                    tmp_buf = Vec::new();
                 }
-                pfx = None;
-                tmp_buf = Vec::new();
-                match c {
-                    '+' => tokens.push(MemTok::Plus),
-                    '-' => tokens.push(MemTok::Minus),
-                    '*' => tokens.push(MemTok::Star),
-                    _ => {}
-                }
+                tokens.push(Token::End);
             }
-            (_, '_') => tokens.push(MemTok::Underline),
-            (_, MEM_START) => tokens.push(MemTok::Start),
-            (_, MEM_CLOSE) => {
-                if !tmp_buf.is_empty() {
-                    if let Some(m) = mem_tok_make(&tmp_buf, pfx) {
-                        tokens.push(m);
-                    } else {
-                        tokens.push(MemTok::Unknown(String::from_iter(tmp_buf.iter())));
-                    }
+            b'(' => {
+                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                    tokens.push(tok);
+                    tmp_buf = Vec::new();
                 }
-                tokens.push(MemTok::End)
+                tokens.push(Token::Start);
             }
-            (None, PREFIX_REG) => pfx = Some(PREFIX_REG),
-            (None, PREFIX_VAL) => pfx = Some(PREFIX_VAL),
-            (_, ' ') => continue,
-            (_, _) => tmp_buf.push(c),
+            b'*' => {
+                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                    tokens.push(tok);
+                    tmp_buf = Vec::new();
+                }
+                tokens.push(Token::Mul);
+            }
+            b'-' => {
+                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                    tokens.push(tok);
+                    tmp_buf = Vec::new();
+                }
+                tokens.push(Token::Sub);
+            }
+            b'+' => {
+                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                    tokens.push(tok);
+                    tmp_buf = Vec::new();
+                }
+                tokens.push(Token::Add);
+            }
+            b' ' | b'\t' => continue,
+            _ => tmp_buf.push(*b),
         }
     }
+
     tokens
 }
 
-fn mem_tok_make(tmp_buf: &[char], pfx: Option<char>) -> Option<MemTok> {
-    let str = String::from_iter(tmp_buf.iter());
-    match pfx {
-        Some(PREFIX_REG) => res2op::<Register, (), MemTok>(Register::from_str(&str)),
-        _ => {
-            if let Ok(numb) = Number::from_str(&str) {
-                match numb.get_int() {
-                    Some(i) => res2op::<i32, _, MemTok>(i.try_into()),
-                    None => {
-                        if let Some(i) = numb.get_uint() {
-                            res2op::<i32, _, MemTok>(i.try_into())
-                        } else {
-                            None
-                        }
-                    }
+fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
+    if buf.is_empty() {
+        return None;
+    }
+    if let Some(prefix) = buf.first() {
+        let utf8_buf = String::from_utf8_lossy(buf);
+        if prefix == &b'%' {
+            if let Ok(reg) = Register::from_str(&utf8_buf[1..]) {
+                if reg.purpose() != RPurpose::General {
+                    Some(Token::Error(Error::no_tip(
+                        None,
+                        Some("Tried to use register which purpose isn't general (like *ax, *bx, etc.)")
+                    )))
+                } else {
+                    Some(Token::Register(reg))
                 }
             } else {
                 None
             }
+        } else if prefix == &b'$' {
+            match Number::from_str(&utf8_buf[1..]) {
+                Ok(num) => Some(Token::Number(num.get_as_i32())),
+                Err(error) => Some(Token::Error(error)),
+            }
+        } else {
+            match Number::from_str(&utf8_buf) {
+                Ok(num) => Some(Token::Number(num.get_as_i32())),
+                Err(_) => None,
+            }
         }
-    }
-}
-
-// allows me to save up to 4 lines...
-// ... by adding 8 more lines (ok, maybe 4 lines are saved)
-#[rustfmt::skip]
-#[inline]
-fn res2op<T, Y, E>(res: Result<T, Y>) -> Option<E> where T: Into<E> {
-    match res {
-        Ok(t) => Some(t.into()),
-        Err(_) => None,
-    }
-}
-
-impl From<i32> for MemTok {
-    fn from(num: i32) -> MemTok {
-        MemTok::Num(num)
-    }
-}
-
-impl From<Register> for MemTok {
-    fn from(reg: Register) -> MemTok {
-        MemTok::Reg(reg)
-    }
-}
-
-impl ToAType for Mem {
-    fn atype(&self) -> AType {
-        AType::Memory(self.size())
+    } else {
+        None
     }
 }
 
 #[allow(clippy::to_string_trait_impl)]
 impl ToString for Mem {
     fn to_string(&self) -> String {
-        match self {
-            Self::Direct(bs, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{MEM_CLOSE}",
-                bs.to_string()
-            ),
-            Self::Offset(bs, of, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{}{}{MEM_CLOSE}",
-                bs.to_string(),
-                if of <= &0 {
-                    format!("- {of}")
-                } else {
-                    format!("+ {of}")
-                }
-            ),
-            Self::Index(id, sc, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {sc}{MEM_CLOSE}",
-                id.to_string()
-            ),
-            Self::IndexOffset(id, of, sc, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} * {} {}{MEM_CLOSE}",
-                id.to_string(),
-                <Size as Into<u8>>::into(*sc),
-                if of <= &0 {
-                    format!("- {of}")
-                } else {
-                    format!("+ {of}")
-                }
-            ),
-            Self::SIB(bs, id, sc, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {}{MEM_CLOSE}",
-                bs.to_string(),
-                id.to_string(),
-                <Size as Into<u8>>::into(*sc)
-            ),
-            Self::SIBOffset(bs, id, sc, of, sz) => format!(
-                "{PREFIX_KWD}{sz} {MEM_START}{PREFIX_REG}{} + {PREFIX_REG}{} * {} {}{MEM_CLOSE}",
-                bs.to_string(),
-                id.to_string(),
-                <Size as Into<u8>>::into(*sc),
-                if of <= &0 {
-                    format!("- {of}")
-                } else {
-                    format!("+ {of}")
-                }
-            ),
+        let mut str = String::new();
+        str.push('(');
+        if let Some(reg) = self.base() {
+            str.push('%');
+            str.push_str(&reg.to_string());
+            if self.index().is_some() {
+                str.push_str(" + ");
+            }
         }
+        if let Some(reg) = self.index() {
+            str.push('%');
+            str.push_str(&reg.to_string());
+            str.push_str(" * ");
+        }
+        if let Some(scale) = self.scale() {
+            str.push('$');
+            str.push_str(&(<Size as Into<u8>>::into(scale).to_string()));
+        }
+        if let Some(offset) = self.offset() {
+            let is_neg = offset.is_negative();
+            let to_add = if is_neg { " - " } else { " + " };
+            str.push_str(to_add);
+            str.push('$');
+            if is_neg {
+                str.push_str(&offset.to_string()[1..]);
+            } else {
+                str.push_str(&offset.to_string());
+            }
+        }
+        str.push(')');
+        str
     }
 }
 
 #[cfg(test)]
-mod mem_test {
+mod new_test {
     use super::*;
     #[test]
-    fn mem_tok_t() {
-        assert!(
-            vec![
-                MemTok::Start,
-                MemTok::Reg(Register::RAX),
-                MemTok::Underline,
-                MemTok::Num(20),
-                MemTok::Num(20),
-                MemTok::End,
-            ] == mem_tok("(%rax, _, $20, 20)")
-        )
+    fn mem_api_check() {
+        assert!(size_of::<Mem>() == 8);
+        let mut mem = Mem::blank();
+        mem.set_addrsize(Size::Qword);
+        assert_eq!(mem.addrsize(), Some(Size::Qword));
+        mem.set_addrsize(Size::Dword);
+        assert_eq!(mem.addrsize(), Some(Size::Dword));
+        mem.set_offset(0x01);
+        assert_eq!(mem.offset(), Some(0x01));
+        mem.clear_offset();
+        assert_eq!(mem.offset(), None);
+        let _ = mem.set_base(Register::EAX);
+        assert_eq!(mem.base(), Some(Register::EAX));
+        let _ = mem.set_index(Register::EAX);
+        assert_eq!(mem.index(), Some(Register::EAX));
+        assert_eq!(mem.base(), Some(Register::EAX));
+        mem.set_scale(Size::Byte);
+        assert_eq!(mem.scale(), Some(Size::Byte));
+        let mut mem = Mem::blank();
+        mem.set_addrsize(Size::Qword);
+        mem.set_index(Register::RCX);
+        assert_eq!(mem.index(), Some(Register::RCX));
     }
     #[test]
-    fn mem_par_t() {
-        let memtoks = vec![
-            MemTok::Start,
-            MemTok::Reg(Register::RAX),
-            MemTok::Num(20),
-            MemTok::End,
-        ];
-        assert!(Ok(Mem::Offset(Register::RAX, 20, Size::Dword)) == mem_par(&memtoks, Size::Dword));
-        let memtoks = vec![
-            MemTok::Start,
-            MemTok::Underline,
-            MemTok::Reg(Register::RAX),
-            MemTok::Num(8),
-            MemTok::End,
-        ];
-        assert!(Ok(Mem::Offset(Register::RAX, 8, Size::Byte)) == mem_par(&memtoks, Size::Byte));
+    fn mem_par_check() {
+        let str = "(%rax)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.index(), None);
+        assert!(!mem.is_sib());
+        assert_eq!(mem.base(), Some(Register::RAX));
+        let str = "(%rax + %rcx)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RAX));
+        assert_eq!(mem.index(), Some(Register::RCX));
+        assert_eq!(mem.scale(), Some(Size::Byte));
+        let str = "(%rax + $20)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RAX));
+        assert_eq!(mem.offset(), Some(20));
+        let str = "(%rax + %rcx * $4 + $20)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RAX));
+        assert_eq!(mem.index(), Some(Register::RCX));
+        assert_eq!(mem.scale(), Some(Size::Dword));
+        assert_eq!(mem.offset(), Some(20));
+        let str = "(%rcx*$4)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RBP));
+        assert_eq!(mem.index(), Some(Register::RCX));
+        assert_eq!(mem.scale(), Some(Size::Dword));
+        let str = "(%rcx * $4 + $20)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RBP));
+        assert_eq!(mem.index(), Some(Register::RCX));
+        assert_eq!(mem.scale(), Some(Size::Dword));
+        assert_eq!(mem.offset(), Some(20));
+        let str = "(-0xFF)";
+        let mem = Mem::new(str, Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RIP));
+        assert_eq!(mem.offset(), Some(-0xFF));
     }
 }

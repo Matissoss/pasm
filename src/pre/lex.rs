@@ -230,7 +230,7 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
         match (&line[0], &line[1]){
              (Token::MemAddr(m), Token::Keyword(k))
             |(Token::Keyword(k), Token::MemAddr(m)) => {
-                match Mem::try_make(m, Some(*k)){
+                match Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown)){
                     Ok(m) => return Ok(Operand::Mem(m)),
                     Err(e) => return Err(e),
                 }
@@ -244,20 +244,9 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
                         Some(format!("Couldn't parse size specifier `{}`", k.to_string())),
                     ))
                 };
-                let segment = Segment::from_str(s)?;
-                let mem_new = match segment.address{
-                    Mem::Offset(b, o, _)        => Mem::Offset(b, o, size),
-                    Mem::Direct(b, _)           => Mem::Direct(b, size),
-                    Mem::Index (i, s, _)        => Mem::Index (i, s, size),
-                    Mem::IndexOffset(i, s,o, _) => Mem::IndexOffset(i, s,o, size),
-                    Mem::SIB   (b,i,s,_)        => Mem::SIB   (b, i, s, size),
-                    //Mem::RipRelative(o,_)       => Mem::RipRelative(o, size),
-                    Mem::SIBOffset(b,i,s,o,_)   => Mem::SIBOffset(b,i,s,o,size),
-                };
-                return Ok(Operand::Segment(Segment{
-                    segment: segment.segment,
-                    address: mem_new
-                }));
+                let mut segment = Segment::from_str(s)?;
+                segment.address.set_size(size);
+                return Ok(Operand::Segment(segment));
             }
             _ => return Err(RASMError::no_tip(
                 None,

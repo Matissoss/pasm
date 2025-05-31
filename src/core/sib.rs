@@ -5,8 +5,8 @@
 
 use crate::shr::{
     ast::{Instruction, Operand},
-    mem::Mem,
     reg::Register,
+    segment::Segment,
 };
 
 pub fn gen_sib_ins(ins: &Instruction) -> Option<u8> {
@@ -20,39 +20,37 @@ pub fn gen_sib_ins(ins: &Instruction) -> Option<u8> {
             return Some(sib);
         }
     }
+    if let Some(src) = ins.src2() {
+        if let Some(sib) = gen_sib(src) {
+            return Some(sib);
+        }
+    }
     None
 }
 
 pub fn gen_sib(op: &Operand) -> Option<u8> {
     match op {
-        Operand::Segment(s) => match s.address {
-            Mem::SIB(base, index, scale, _) | Mem::SIBOffset(base, index, scale, _, _) => {
-                Some(sib(scale as u8, index.to_byte(), base.to_byte()))
-            }
-            Mem::Index(index, scale, _) | Mem::IndexOffset(index, _, scale, _) => {
-                Some(sib(scale as u8, index.to_byte(), 0b101))
-            }
-            Mem::Offset(base, _, _) => {
-                if base == Register::RSP {
-                    Some(sib(0, 0, base.to_byte()))
+        Operand::Mem(m)
+        | Operand::Segment(Segment {
+            segment: _,
+            address: m,
+        }) => {
+            if m.is_sib() {
+                let base = if let Some(r) = m.base() {
+                    r.to_byte()
+                } else {
+                    0b101
+                };
+                let index = m.index().unwrap();
+                let scale = m.scale().unwrap();
+                Some(sib(scale as u8, index.to_byte(), base))
+            } else {
+                if let (Some(_), Some(Register::RSP)) = (m.offset(), m.base()) {
+                    Some(sib(0, Register::RSP.to_byte(), Register::RSP.to_byte()))
                 } else {
                     None
                 }
             }
-            _ => None,
-        },
-        Operand::Mem(Mem::Offset(base, _, _)) => {
-            if base == &Register::RSP {
-                Some(sib(0, base.to_byte(), base.to_byte()))
-            } else {
-                None
-            }
-        }
-        Operand::Mem(
-            Mem::SIB(base, index, scale, _) | Mem::SIBOffset(base, index, scale, _, _),
-        ) => Some(sib(*scale as u8, index.to_byte(), base.to_byte())),
-        Operand::Mem(Mem::Index(index, scale, _) | Mem::IndexOffset(index, _, scale, _)) => {
-            Some(sib(*scale as u8, index.to_byte(), 0b101))
         }
         _ => None,
     }

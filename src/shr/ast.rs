@@ -104,7 +104,7 @@ impl TryFrom<&Token> for Operand {
         match tok {
             // experimental
             // idk what if this works (i hope so; will have to check)
-            Token::MemAddr(m) => match Mem::try_make(m, Some(super::kwd::Keyword::Any)) {
+            Token::MemAddr(m) => match Mem::new(m, Size::Any) {
                 Ok(m) => Ok(Operand::Mem(m)),
                 Err(e) => {
                     // we have to do error handling here :(
@@ -138,9 +138,9 @@ impl Operand {
             Self::Reg(r) => r.size(),
             Self::CtrReg(r) => r.size(),
             Self::DbgReg(r) => r.size(),
-            Self::Mem(m) => m.size(),
+            Self::Mem(m) => m.size().unwrap_or(Size::Unknown),
             Self::SymbolRef(_) => Size::Any,
-            Self::Segment(s) => s.address.size(),
+            Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
             Self::SegReg(_) => Size::Word,
         }
     }
@@ -197,7 +197,7 @@ impl Instruction {
                 }
                 _ => IVariant::STD,
             },
-            Some(Operand::Mem(m)) => match m.size() {
+            Some(Operand::Mem(m)) => match m.size().unwrap_or(Size::Unknown) {
                 Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => match self.src() {
@@ -317,57 +317,26 @@ impl Instruction {
     }
     #[inline]
     pub fn get_sib_idx(&self) -> Option<usize> {
-        if let Some(Operand::Mem(
-            Mem::SIB(_, _, _, _)
-            | Mem::SIBOffset(_, _, _, _, _)
-            | Mem::Index(_, _, _)
-            | Mem::IndexOffset(_, _, _, _),
-        )) = self.dst()
-        {
-            return Some(0);
+        if let Some(Operand::Mem(m)) = self.dst() {
+            if m.is_sib() {
+                return Some(0);
+            }
         }
-        if let Some(Operand::Mem(
-            Mem::SIB(_, _, _, _)
-            | Mem::SIBOffset(_, _, _, _, _)
-            | Mem::Index(_, _, _)
-            | Mem::IndexOffset(_, _, _, _),
-        )) = self.src()
-        {
-            return Some(1);
+        if let Some(Operand::Mem(m)) = self.src() {
+            if m.is_sib() {
+                return Some(1);
+            }
         }
-        if let Some(Operand::Mem(
-            Mem::SIB(_, _, _, _)
-            | Mem::SIBOffset(_, _, _, _, _)
-            | Mem::Index(_, _, _)
-            | Mem::IndexOffset(_, _, _, _),
-        )) = self.src2()
-        {
-            return Some(2);
+        if let Some(Operand::Mem(m)) = self.src2() {
+            if m.is_sib() {
+                return Some(2);
+            }
         }
         None
     }
     #[inline]
     pub fn uses_sib(&self) -> bool {
-        matches!(
-            (self.dst(), self.src()),
-            (
-                Some(Operand::Mem(
-                    Mem::SIB(_, _, _, _)
-                        | Mem::SIBOffset(_, _, _, _, _)
-                        | Mem::Index(_, _, _)
-                        | Mem::IndexOffset(_, _, _, _),
-                )),
-                _,
-            ) | (
-                _,
-                Some(Operand::Mem(
-                    Mem::SIB(_, _, _, _)
-                        | Mem::SIBOffset(_, _, _, _, _)
-                        | Mem::Index(_, _, _)
-                        | Mem::IndexOffset(_, _, _, _),
-                )),
-            ),
-        )
+        self.get_sib_idx().is_some()
     }
 }
 

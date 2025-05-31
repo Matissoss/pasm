@@ -11,7 +11,10 @@ if [[ $1 == '-r' ]]; then
 	cd tests
 fi
 
-cargo test -- --nocapture
+NASM_FLAGS="-Wno-prefix-seg -Wno-prefix-hle -Wno-label-orphan"
+RASM_FLAGS="-t"
+
+cargo test -q
 cargo clippy
 
 errors=0
@@ -23,8 +26,8 @@ for file in ./nasm/*.asm; do
 	NASM_FILE_RES=${NASM_FILE/.asm/.bin}
 	RASM_FILE_RES=${RASM_FILE/.asm/.bin}
 
-	nasm $NASM_FILE -o $NASM_FILE_RES -f bin
-	cargo run -- -i=$RASM_FILE -o=$RASM_FILE_RES -f=bin
+	nasm $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS
+	cargo run -q -- -i=$RASM_FILE -o=$RASM_FILE_RES -f=bin $RASM_FLAGS
 	
 	NASM_RES=$(xxd $NASM_FILE_RES)
 	RASM_RES=$(xxd $RASM_FILE_RES)
@@ -51,7 +54,7 @@ done
 
 for file in ./elf/*.asm; do
 	rm -f main.o
-	cargo r -- -i=$file -o=main -f=elf64
+	cargo r -q -- -i=$file -o=main -f=elf64 $RASM_FLAGS
 	readelf_res=$(readelf -a "main" | grep -i "error:|warning:" || true)
 	if [[ $readelf_res != "" ]]; then
 		errors=$((errors+1))

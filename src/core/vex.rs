@@ -8,8 +8,7 @@ use crate::core::api;
 use crate::shr::{
     ast::{IVariant, Instruction, Operand},
     ins::Mnemonic as Ins,
-    mem::Mem,
-    num::Number,
+    segment::Segment,
 };
 
 const TWO_BYTE_PFX: u8 = 0xC5;
@@ -255,37 +254,86 @@ fn gen_vex4v(op: Option<&Operand>) -> u8 {
 pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
     let dst = ins.dst();
     let src2 = ins.src2();
-    let mod_: u8 = {
-        match (dst, src2) {
-            (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::SIB(_, _, _, _))))
-            | (Some(&Operand::Mem(Mem::Direct(_, _))), _)
-            | (Some(&Operand::Mem(Mem::Index(_, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::Index(_, _, _))))
-            | (_, Some(&Operand::Mem(Mem::Direct(_, _)))) => 0b00,
-
-            (Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _))), _)
-            | (Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))))
-            | (_, Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _)))) => {
-                match Number::squeeze_i64(o as i64) {
-                    Number::Int8(_) => 0b01,
-                    _ => 0b10,
+    let mod_ = {
+        if let Some(sibidx) = ins.get_sib_idx() {
+            match ins.oprs.get(sibidx).unwrap() {
+                Operand::Mem(m)
+                | Operand::Segment(Segment {
+                    address: m,
+                    segment: _,
+                }) => {
+                    if m.is_sib() {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    } else {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    }
                 }
+                _ => 0b11,
             }
-            (Some(&Operand::Segment(s)), _) | (_, Some(&Operand::Segment(s))) => match s.address {
-                Mem::SIB(_, _, _, _) | Mem::Index(_, _, _) | Mem::Direct(_, _) => 0b00,
-                Mem::SIBOffset(_, _, _, o, _)
-                | Mem::Offset(_, o, _)
-                | Mem::IndexOffset(_, o, _, _) => match Number::squeeze_i64(o as i64) {
-                    Number::Int8(_) => 0b01,
-                    _ => 0b10,
-                },
-            },
-            _ => 0b11,
+        } else {
+            match (dst, src2) {
+                (
+                    Some(
+                        Operand::Mem(m)
+                        | Operand::Segment(Segment {
+                            address: m,
+                            segment: _,
+                        }),
+                    ),
+                    _,
+                )
+                | (
+                    _,
+                    Some(
+                        Operand::Mem(m)
+                        | Operand::Segment(Segment {
+                            address: m,
+                            segment: _,
+                        }),
+                    ),
+                ) => {
+                    if m.is_sib() {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    } else {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    }
+                }
+                _ => 0b11,
+            }
         }
     };
-
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
     let ssrc = src2;
@@ -335,37 +383,86 @@ pub fn vex_modrm_norm(
     dst: Option<&Operand>,
     src2: Option<&Operand>,
 ) -> u8 {
-    let mod_: u8 = {
-        match (dst, src2) {
-            (Some(&Operand::Mem(Mem::SIB(_, _, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::SIB(_, _, _, _))))
-            | (Some(&Operand::Mem(Mem::Direct(_, _))), _)
-            | (Some(&Operand::Mem(Mem::Index(_, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::Index(_, _, _))))
-            | (_, Some(&Operand::Mem(Mem::Direct(_, _)))) => 0b00,
-
-            (Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _))), _)
-            | (Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))), _)
-            | (_, Some(&Operand::Mem(Mem::IndexOffset(_, o, _, _))))
-            | (_, Some(&Operand::Mem(Mem::SIBOffset(_, _, _, o, _) | Mem::Offset(_, o, _)))) => {
-                match Number::squeeze_i64(o as i64) {
-                    Number::Int8(_) => 0b01,
-                    _ => 0b10,
+    let mod_ = {
+        if let Some(sibidx) = ins.get_sib_idx() {
+            match ins.oprs.get(sibidx).unwrap() {
+                Operand::Mem(m)
+                | Operand::Segment(Segment {
+                    address: m,
+                    segment: _,
+                }) => {
+                    if m.is_sib() {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    } else {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    }
                 }
+                _ => 0b11,
             }
-            (Some(&Operand::Segment(s)), _) | (_, Some(&Operand::Segment(s))) => match s.address {
-                Mem::SIB(_, _, _, _) | Mem::Index(_, _, _) | Mem::Direct(_, _) => 0b00,
-                Mem::SIBOffset(_, _, _, o, _)
-                | Mem::Offset(_, o, _)
-                | Mem::IndexOffset(_, o, _, _) => match Number::squeeze_i64(o as i64) {
-                    Number::Int8(_) => 0b01,
-                    _ => 0b10,
-                },
-            },
-            _ => 0b11,
+        } else {
+            match (dst, src2) {
+                (
+                    Some(
+                        Operand::Mem(m)
+                        | Operand::Segment(Segment {
+                            address: m,
+                            segment: _,
+                        }),
+                    ),
+                    _,
+                )
+                | (
+                    _,
+                    Some(
+                        Operand::Mem(m)
+                        | Operand::Segment(Segment {
+                            address: m,
+                            segment: _,
+                        }),
+                    ),
+                ) => {
+                    if m.is_sib() {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    } else {
+                        if let Some((_, sz)) = m.offset_x86() {
+                            if sz == 1 {
+                                0b01
+                            } else {
+                                0b10
+                            }
+                        } else {
+                            0b00
+                        }
+                    }
+                }
+                _ => 0b11,
+            }
         }
     };
-
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
     let ssrc = src2;
@@ -412,19 +509,19 @@ fn gen_rmreg(op: Option<&Operand>) -> u8 {
         return 0;
     };
     match op.unwrap() {
-        Operand::DbgReg(r)
-        | Operand::CtrReg(r)
-        | Operand::Reg(r)
-        | Operand::Mem(Mem::Direct(r, _) | Mem::Offset(r, _, _)) => r.to_byte(),
+        Operand::DbgReg(r) | Operand::CtrReg(r) | Operand::Reg(r) => r.to_byte(),
+        Operand::Mem(m)
+        | Operand::Segment(Segment {
+            address: m,
+            segment: _,
+        }) => {
+            if m.is_sib() {
+                0b100
+            } else {
+                m.base().unwrap().to_byte()
+            }
+        }
         Operand::SegReg(r) => r.to_byte(),
-        Operand::Segment(s) => match s.address {
-            Mem::Direct(r, _) => r.to_byte(),
-            Mem::IndexOffset(_, _, _, _)
-            | Mem::Index(_, _, _)
-            | Mem::SIB(_, _, _, _)
-            | Mem::SIBOffset(_, _, _, _, _) => 0b100,
-            _ => 0,
-        },
         _ => 0,
     }
 }

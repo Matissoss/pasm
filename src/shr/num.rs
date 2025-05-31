@@ -174,6 +174,21 @@ const MAX_F32: f64 = f32::MAX as f64;
 const MIN_F32: f64 = f32::MIN as f64;
 
 impl Number {
+    pub fn get_as_i32(&self) -> i32 {
+        match self {
+            Self::Double(f) => *f as i32,
+            Self::Int64(i) => *i as i32,
+            Self::UInt64(i) => *i as i32,
+            Self::Float(f) => *f as i32,
+            Self::Int32(i) => *i,
+            Self::UInt32(i) => *i as i32,
+            Self::Int16(i) => *i as i32,
+            Self::UInt16(i) => *i as i32,
+            Self::UInt8(i) => *i as i32,
+            Self::Int8(i) => *i as i32,
+            Self::Char(i) => *i as i32,
+        }
+    }
     pub fn squeeze_u64(numb: u64) -> Self {
         #[allow(overlapping_range_endpoints, clippy::match_overlapping_arm)]
         match numb {

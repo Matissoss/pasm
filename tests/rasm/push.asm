@@ -7,6 +7,6 @@ _start:
 	push $65537
 	push (%rax) !qword
 	push (%rax+$8) !qword
-	push (%rax,%rcx*$4+$20) !qword
-	push (%rax,%rcx*$4) !qword
+	push (%rax+%rcx*$4+$20) !qword
+	push (%rax+%rcx*$4) !qword
 	push (%rcx*$4) !qword

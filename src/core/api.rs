@@ -401,8 +401,8 @@ fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Opt
     let (size, is_mem) = match op {
         Operand::Reg(r) => (r.size(), false),
         Operand::CtrReg(r) => (r.size(), false),
-        Operand::Mem(m) => (m.size(), false),
-        Operand::Segment(s) => (s.address.size(), true),
+        Operand::Mem(m) => (m.addrsize().unwrap_or(Size::Unknown), false),
+        Operand::Segment(s) => (s.address.addrsize().unwrap_or(Size::Unknown), true),
         _ => return None,
     };
     if size == Size::Byte || size == Size::Xword {
