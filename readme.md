@@ -25,16 +25,18 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
     - [x] Transforming `Mem` enum into struct
     - [ ] Parser support for closures `()` other than memory address
-    - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types)
-    - [ ] Support for comptime mathematical evaluations (`$()` closure)
+    - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
+    - [ ] Support for constant user defined mathematical values (that aren't symbols!)
+    - [ ] Support for comptime mathematical evaluations (`$()` closure) with types
     - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
     - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
     - [ ] Support for imports/includes and label attributes (`#()` closure)
     - [ ] Tests for relocations and other things
     - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct) and migrating code away from legacy API (`src/core/rex.rs`)
-    - [ ] Better target handling (ELF reworked)
-    - [ ] Support for runtime mathematical evaluations (`&()` closure)
+    - [ ] Variables overhaul
+    - [ ] Better target handling (ELF reworked + support for DWARF)
     - [ ] Support for "modifiers" that is: `base:mod1:mod2` (for AVX-512, like: `%xmm0:k3:z` or segments)
+    - [ ] Support for runtime mathematical evaluations (`&()` closure; transpiles into sequential instructions like `addss`, `sub`, `imul` depending on type (modifier 0))
     - [ ] Create documentation
     - [ ] Overall polish
 - beta-avx512
