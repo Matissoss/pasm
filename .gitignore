@@ -1,4 +1,5 @@
 /.build
 /target
+/tests/.tmp
 /tests/.ignore
 /ins_adder/target
