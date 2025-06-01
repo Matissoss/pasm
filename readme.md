@@ -25,7 +25,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 - beta
     - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
     - [x] Transforming `Mem` enum into struct
-    - [ ] Parser support for closures `()` other than memory address
+    - [x] Parser support for closures `()` other than memory address
     - [ ] Support for "modifiers" that is: `base:mod1:mod2` (in future for AVX-512 like: `%xmm0:k3:z` or segments) and integrate with closures
     - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
     - [ ] Support for constant user defined mathematical values (that aren't symbols!)

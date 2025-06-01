@@ -21,13 +21,12 @@ pub const TIME: bool = true;
 // default = false
 pub const FAST_MODE: bool = false;
 
-// MEM_START and MEM_CLOSE defines character that will begin/end memory address
-// p.e. (if MEM_START == '(' and MEM_CLOSE == ')'): mov %rax, !dword (%rsi-$4)
+// CLOSURE_START and CLOSURE_END defines character that will begin/end closures
 // means that: destination = %rsi - $4
 // -------------------------------------
-// default : MEM_START = '(', MEM_CLOSE = ')'
-pub const MEM_START: char = '(';
-pub const MEM_CLOSE: char = ')';
+// default : CLOSURE_START = '(', CLOSURE_END = ')'
+pub const CLOSURE_START: char = '(';
+pub const CLOSURE_END: char = ')';
 
 // COMMENT_S or in other words: comment start
 // ------------------------------------------

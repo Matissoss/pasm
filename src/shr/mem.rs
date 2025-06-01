@@ -376,10 +376,6 @@ enum Token {
     Register(Register),
     Number(i32),
     Error(Error),
-    // (
-    Start,
-    // )
-    End,
     // +
     Add,
     // -
@@ -420,18 +416,6 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
     let mut offset: Option<i32> = None;
     let mut scale: Option<Size> = None;
 
-    if !toks.starts_with(&[Token::Start]) {
-        return Err(Error::no_tip(
-            None,
-            Some("Memory declaration doesn't start with opening brace {"),
-        ));
-    }
-    if !toks.ends_with(&[Token::End]) {
-        return Err(Error::no_tip(
-            None,
-            Some("Memory declaration doesn't end with closing brace }"),
-        ));
-    }
     let iter = toks.into_iter();
     // if number was prefixed with *
     let mut mul_modf = false;
@@ -492,7 +476,6 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
                     offset = Some(n);
                 }
             }
-            Token::Start | Token::End => continue,
         }
     }
     if let (Some(base), Some(index)) = (base, index) {
@@ -552,20 +535,6 @@ fn mem_tok_new(str: &str) -> Vec<Token> {
     let mut tmp_buf: Vec<u8> = Vec::new();
     for b in bytes {
         match b {
-            b')' => {
-                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
-                    tokens.push(tok);
-                    tmp_buf = Vec::new();
-                }
-                tokens.push(Token::End);
-            }
-            b'(' => {
-                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
-                    tokens.push(tok);
-                    tmp_buf = Vec::new();
-                }
-                tokens.push(Token::Start);
-            }
             b'*' => {
                 if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
                     tokens.push(tok);
@@ -589,6 +558,11 @@ fn mem_tok_new(str: &str) -> Vec<Token> {
             }
             b' ' | b'\t' => continue,
             _ => tmp_buf.push(*b),
+        }
+    }
+    if !tmp_buf.is_empty() {
+        if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+            tokens.push(tok);
         }
     }
 
@@ -696,27 +670,27 @@ mod new_test {
     }
     #[test]
     fn mem_par_check() {
-        let str = "(%rax)";
+        let str = "%rax";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.index(), None);
         assert!(!mem.is_sib());
         assert_eq!(mem.base(), Some(Register::RAX));
-        let str = "(%rax + %rcx)";
+        let str = "%rax + %rcx";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Some(Size::Byte));
-        let str = "(%rax + $20)";
+        let str = "%rax + $20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.offset(), Some(20));
-        let str = "(%rax + %rcx * $4 + $20)";
+        let str = "%rax + %rcx * $4 + $20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
@@ -724,14 +698,14 @@ mod new_test {
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Some(Size::Dword));
         assert_eq!(mem.offset(), Some(20));
-        let str = "(%rcx*$4)";
+        let str = "%rcx*$4";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Some(Size::Dword));
-        let str = "(%rcx * $4 + $20)";
+        let str = "%rcx * $4 + $20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
@@ -739,7 +713,7 @@ mod new_test {
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Some(Size::Dword));
         assert_eq!(mem.offset(), Some(20));
-        let str = "(-0xFF)";
+        let str = "-0xFF";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();

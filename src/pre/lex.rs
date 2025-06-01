@@ -228,15 +228,15 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
 
     if line.len() == 2 {
         match (&line[0], &line[1]){
-             (Token::MemAddr(m), Token::Keyword(k))
-            |(Token::Keyword(k), Token::MemAddr(m)) => {
+             (Token::Closure(' ', m), Token::Keyword(k))
+            |(Token::Keyword(k), Token::Closure(' ', m)) => {
                 match Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown)){
                     Ok(m) => return Ok(Operand::Mem(m)),
                     Err(e) => return Err(e),
                 }
             },
-             (Token::Segment(s), Token::Keyword(k))
-            |(Token::Keyword(k), Token::Segment(s)) => {
+             (Token::Closure('#', s), Token::Keyword(k))
+            |(Token::Keyword(k), Token::Closure('#', s)) => {
                 let size = match Size::try_from(*k){
                     Ok(s) => s,
                     Err(_) => return Err(RASMError::no_tip(

@@ -15,7 +15,6 @@ pub enum Token {
     Immediate(Number),
     Keyword(Keyword),
     Mnemonic(Mnm),
-    MemAddr(String),
     Label(String),
     SymbolRef(String),
     String(String),
@@ -26,6 +25,10 @@ pub enum Token {
     UnknownVal(String, RASMError),
     Unknown(String),
     Comma,
+
+    MemAddr(String),
+    //       pfx   content
+    Closure(char, String),
 }
 
 pub struct Tokenizer;
@@ -35,6 +38,8 @@ impl Tokenizer {
         let mut tokens: Vec<Token> = Vec::new();
         let mut tmp_buf: Vec<char> = Vec::new();
         let mut inside_closure: Option<char> = None;
+        let mut closure_pfx: Option<char> = None;
+        let mut delimeter_count: usize = 0;
 
         for b in line.as_bytes() {
             let c = *b as char;
@@ -57,7 +62,7 @@ impl Tokenizer {
                     tmp_buf = Vec::new();
                 }
 
-                (Some(MEM_START), ',') => tmp_buf.push(c),
+                (Some(CLOSURE_START), ',') => tmp_buf.push(c),
 
                 (Some(PREFIX_REG | PREFIX_KWD | PREFIX_VAL), ',') => {
                     if !tmp_buf.is_empty() {
@@ -82,7 +87,7 @@ impl Tokenizer {
 
                 (None, PREFIX_REF) => inside_closure = Some(PREFIX_REF),
 
-                (Some(MEM_START), ' ') => continue,
+                (Some(CLOSURE_START), ' ') => continue,
 
                 (None | Some(PREFIX_VAL | PREFIX_REG | PREFIX_KWD), ' ' | '\t' | '\n') => {
                     if !tmp_buf.is_empty() {
@@ -98,19 +103,38 @@ impl Tokenizer {
                     inside_closure = Some(c)
                 }
 
-                (None, MEM_START) => {
-                    tmp_buf.push(MEM_START);
-                    inside_closure = Some(c);
+                (Some(CLOSURE_START), CLOSURE_START) => {
+                    delimeter_count += 1;
+                    tmp_buf.push(CLOSURE_START)
                 }
 
-                (Some(MEM_START | PREFIX_SEG), MEM_CLOSE) => {
-                    tmp_buf.push(MEM_CLOSE);
-                    tokens.push(Token::make_from(
-                        inside_closure,
-                        String::from_iter(tmp_buf.iter()),
-                    ));
-                    inside_closure = None;
-                    tmp_buf = Vec::new();
+                (
+                    Some(PREFIX_REG | PREFIX_VAL | PREFIX_KWD | PREFIX_SEG | ' ') | None,
+                    CLOSURE_START,
+                ) => {
+                    if delimeter_count != 0 {
+                        tmp_buf.push(CLOSURE_START);
+                    } else {
+                        closure_pfx = inside_closure;
+                        inside_closure = Some(CLOSURE_START);
+                    }
+                    delimeter_count += 1;
+                }
+
+                (Some(CLOSURE_START | PREFIX_SEG), CLOSURE_END) => {
+                    if delimeter_count == 1 {
+                        tokens.push(Token::make_closure(
+                            closure_pfx.unwrap_or(' '),
+                            String::from_iter(tmp_buf.iter()),
+                        ));
+                        closure_pfx = None;
+                        inside_closure = None;
+                        tmp_buf = Vec::new();
+                        delimeter_count = 0;
+                    } else {
+                        delimeter_count -= 1;
+                        tmp_buf.push(CLOSURE_END);
+                    }
                 }
                 _ => tmp_buf.push(c),
             }
@@ -126,6 +150,9 @@ impl Tokenizer {
 }
 
 impl Token {
+    fn make_closure(prefix: char, val: String) -> Self {
+        Self::Closure(prefix, val)
+    }
     fn make_from(prefix: Option<char>, val: String) -> Self {
         match prefix {
             Some(PREFIX_REG) => match Register::from_str(&val) {
@@ -136,7 +163,7 @@ impl Token {
                 Ok(val) => Self::Immediate(val),
                 Err(err) => Self::UnknownVal(val, err),
             },
-            Some(MEM_START) => Self::MemAddr(val),
+            Some(CLOSURE_START) => Self::Closure(' ', val),
             Some(PREFIX_KWD) => {
                 if let Ok(kwd) = Keyword::from_str(val.trim()) {
                     Self::Keyword(kwd)
@@ -176,6 +203,35 @@ impl ToString for Token {
             Self::Segment(s) => s.to_string(),
             Self::Comma => ','.to_string(),
             Self::UnknownSegment(s, _) => s.to_string(),
+            Self::Closure(pfx, content) => format!("{pfx}({content})"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn tok_test() {
+        let str = "()";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(tokens, vec![Token::Closure(' ', "".to_string())]);
+        let str = "$()";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(tokens, vec![Token::Closure('$', "".to_string())]);
+        let str = "(%rax+%rcx+$4+$20)";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![Token::Closure(' ', "%rax+%rcx+$4+$20".to_string())]
+        );
+        // nested closures!
+        let str = "$(@())";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(tokens, vec![Token::Closure('$', "@()".to_string())]);
+        // nested nested nest closures!
+        let str = "$(@(@(@())))";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(tokens, vec![Token::Closure('$', "@(@(@()))".to_string())]);
     }
 }
