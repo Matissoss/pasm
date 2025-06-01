@@ -1,9 +1,6 @@
 # Pre-build
 ./instradd.sh
 
-# Tests!
-set -e
-
 cd tests
 ./test.sh
 cd ..

@@ -345,6 +345,20 @@ impl GenAPI {
     pub fn get_ord(&self) -> [OpOrd; 4] {
         self.ord.deserialize()
     }
+    pub fn get_ord_oprs<'a>(&self, ins: &'a Instruction) -> [Option<&'a Operand>; 3] {
+        use OpOrd::*;
+        let ord = self.ord.deserialize();
+        match &ord[..3] {
+            //  MODRM.r/m   MODRM.reg   (E)VEX.vvvv
+            [MODRM_REG, VEX_VVVV, MODRM_RM] => [ins.src2(), ins.dst(), ins.src()],
+            [MODRM_RM, VEX_VVVV, MODRM_REG] => [ins.dst(), ins.src2(), ins.src()],
+            [VEX_VVVV, MODRM_REG, _] => [None, ins.src(), ins.dst()],
+            [VEX_VVVV, MODRM_RM, _] => [ins.src(), None, ins.dst()],
+            [MODRM_REG, MODRM_RM, _] => [ins.src(), ins.dst(), ins.src2()],
+            [MODRM_RM, MODRM_REG, _] => [ins.dst(), ins.src(), ins.src2()],
+            _ => [None, None, None],
+        }
+    }
     pub fn strict_pfx(mut self) -> Self {
         self.flags.set(STRICT_PFX, true);
         self

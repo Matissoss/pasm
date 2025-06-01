@@ -316,6 +316,23 @@ impl Instruction {
         }
     }
     #[inline]
+    pub fn get_opr(&self, idx: usize) -> Option<&Operand> {
+        self.oprs.get(idx)
+    }
+    #[inline]
+    pub fn get_mem_idx(&self) -> Option<usize> {
+        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.dst() {
+            return Some(0);
+        }
+        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.src() {
+            return Some(1);
+        }
+        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.src2() {
+            return Some(2);
+        }
+        None
+    }
+    #[inline]
     pub fn get_sib_idx(&self) -> Option<usize> {
         if let Some(Operand::Mem(m)) = self.dst() {
             if m.is_sib() {

@@ -8,8 +8,6 @@ RASM_BIN="rasmx86_64"
 echo "RASM Instalation Script"
 echo "-----------------------"
 
-set -e
-
 if [[ $1 == "" ]] || [[ $1 == "-h" ]]; then
 	echo "flags:"
 	echo "  -t  : test"

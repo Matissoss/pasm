@@ -21,10 +21,12 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for 32-bit (`protected`) and 16-bit (`real`) modes; `cr`, `dr`, `eflags` and `segments` (`cs`, `fs`, etc.)
     - [x] Support for: `SSE`, `SSE2`, `SSE3`, `SSSE3`, `SSE4_1`, `SSE4_2`, `MMX` x86(-64) extensions
     - [x] Support for `AVX` and `AVX2` extensions
+    - [x] moving into beta phase (release of beta0)...
 - beta
     - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
     - [x] Transforming `Mem` enum into struct
     - [ ] Parser support for closures `()` other than memory address
+    - [ ] Support for "modifiers" that is: `base:mod1:mod2` (in future for AVX-512 like: `%xmm0:k3:z` or segments) and integrate with closures
     - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
     - [ ] Support for constant user defined mathematical values (that aren't symbols!)
     - [ ] Support for comptime mathematical evaluations (`$()` closure) with types
@@ -35,10 +37,10 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct) and migrating code away from legacy API (`src/core/rex.rs`)
     - [ ] Variables overhaul
     - [ ] Better target handling (ELF reworked + support for DWARF)
-    - [ ] Support for "modifiers" that is: `base:mod1:mod2` (for AVX-512, like: `%xmm0:k3:z` or segments)
     - [ ] Support for runtime mathematical evaluations (`&()` closure; transpiles into sequential instructions like `addss`, `sub`, `imul` depending on type (modifier 0))
     - [ ] Create documentation
     - [ ] Overall polish
+    - [ ] moving into beta-avx512 phase...
 - beta-avx512
     - [ ] AVX-512F
     - [ ] AVX-512VL, AVX-512DQ, AVX-512BW
@@ -48,6 +50,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] IFMA, 4VNNIW, VNNI, 4FMAPS
     - [ ] AVX-FP16
     - [ ] other (VPOPCNTDQ, VPCLMULQDQ)
+    - [ ] moving into beta-macro phase...
 - beta-macro
     - [ ] Support for inline (or not) macros with C-like syntax
     - [ ] Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)

@@ -6,7 +6,6 @@
 #![allow(clippy::collapsible_else_if)]
 #![allow(clippy::manual_map)]
 #![allow(clippy::to_string_trait_impl)]
-#![allow(clippy::if_same_then_else)]
 
 //  global imports go here
 use std::{

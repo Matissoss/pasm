@@ -15,18 +15,20 @@ const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
 pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
-    use api::OpOrd::*;
-    let (modrm_reg, modrm_rm, vex_opr) = match ctx.get_ord()[0..3] {
-        [VEX_VVVV, MODRM_REG, MODRM_RM] => (ins.src(), ins.src2(), ins.dst()),
-        [VEX_VVVV, MODRM_RM, MODRM_REG] => (ins.src2(), ins.src(), ins.dst()),
-        [MODRM_REG, VEX_VVVV, MODRM_RM] => (ins.dst(), ins.src2(), ins.src()),
-        [MODRM_RM, VEX_VVVV, MODRM_REG] => (ins.src2(), ins.dst(), ins.src()),
-        [MODRM_RM, MODRM_REG, VEX_VVVV] => (ins.src(), ins.dst(), ins.src2()),
-        [MODRM_REG, MODRM_RM, VEX_VVVV] => (ins.dst(), ins.src(), ins.src2()),
-        [VEX_VVVV, MODRM_REG, _] => (ins.src(), None, ins.dst()),
-        [VEX_VVVV, MODRM_RM, _] => (None, ins.src(), ins.dst()),
-        _ => (ins.src2(), ins.dst(), ins.src()),
-    };
+    let [mut modrm_reg, mut modrm_rm, mut vex_opr] = ctx.get_ord_oprs(ins);
+
+    // default values
+    // may be an issue in future, but it works for now...
+    if modrm_reg.is_none() {
+        modrm_reg = ins.src2();
+    }
+    if modrm_rm.is_none() {
+        modrm_rm = ins.dst();
+    }
+    if vex_opr.is_none() {
+        vex_opr = ins.src();
+    }
+
     let vvvv = gen_vex4v(vex_opr);
     let pp = ctx.get_pp().unwrap();
     let map_select = ctx.get_map_select().unwrap();
@@ -254,85 +256,29 @@ fn gen_vex4v(op: Option<&Operand>) -> u8 {
 pub fn vex_modrm(ins: &Instruction, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
     let dst = ins.dst();
     let src2 = ins.src2();
-    let mod_ = {
-        if let Some(sibidx) = ins.get_sib_idx() {
-            match ins.oprs.get(sibidx).unwrap() {
-                Operand::Mem(m)
-                | Operand::Segment(Segment {
-                    address: m,
-                    segment: _,
-                }) => {
-                    if m.is_sib() {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    } else {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    }
+    let mod_ = if let Some(memidx) = ins.get_mem_idx() {
+        if let Some(
+            Operand::Mem(m)
+            | Operand::Segment(Segment {
+                address: m,
+                segment: _,
+            }),
+        ) = ins.get_opr(memidx)
+        {
+            if let Some((_, sz)) = m.offset_x86() {
+                if sz == 1 {
+                    0b01
+                } else {
+                    0b10
                 }
-                _ => 0b11,
+            } else {
+                0b00
             }
         } else {
-            match (dst, src2) {
-                (
-                    Some(
-                        Operand::Mem(m)
-                        | Operand::Segment(Segment {
-                            address: m,
-                            segment: _,
-                        }),
-                    ),
-                    _,
-                )
-                | (
-                    _,
-                    Some(
-                        Operand::Mem(m)
-                        | Operand::Segment(Segment {
-                            address: m,
-                            segment: _,
-                        }),
-                    ),
-                ) => {
-                    if m.is_sib() {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    } else {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    }
-                }
-                _ => 0b11,
-            }
+            0b11
         }
+    } else {
+        0b11
     };
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
@@ -383,85 +329,29 @@ pub fn vex_modrm_norm(
     dst: Option<&Operand>,
     src2: Option<&Operand>,
 ) -> u8 {
-    let mod_ = {
-        if let Some(sibidx) = ins.get_sib_idx() {
-            match ins.oprs.get(sibidx).unwrap() {
-                Operand::Mem(m)
-                | Operand::Segment(Segment {
-                    address: m,
-                    segment: _,
-                }) => {
-                    if m.is_sib() {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    } else {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    }
+    let mod_ = if let Some(memidx) = ins.get_mem_idx() {
+        if let Some(
+            Operand::Mem(m)
+            | Operand::Segment(Segment {
+                address: m,
+                segment: _,
+            }),
+        ) = ins.get_opr(memidx)
+        {
+            if let Some((_, sz)) = m.offset_x86() {
+                if sz == 1 {
+                    0b01
+                } else {
+                    0b10
                 }
-                _ => 0b11,
+            } else {
+                0b00
             }
         } else {
-            match (dst, src2) {
-                (
-                    Some(
-                        Operand::Mem(m)
-                        | Operand::Segment(Segment {
-                            address: m,
-                            segment: _,
-                        }),
-                    ),
-                    _,
-                )
-                | (
-                    _,
-                    Some(
-                        Operand::Mem(m)
-                        | Operand::Segment(Segment {
-                            address: m,
-                            segment: _,
-                        }),
-                    ),
-                ) => {
-                    if m.is_sib() {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    } else {
-                        if let Some((_, sz)) = m.offset_x86() {
-                            if sz == 1 {
-                                0b01
-                            } else {
-                                0b10
-                            }
-                        } else {
-                            0b00
-                        }
-                    }
-                }
-                _ => 0b11,
-            }
+            0b11
         }
+    } else {
+        0b11
     };
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
 
