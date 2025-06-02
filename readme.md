@@ -29,22 +29,24 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Parser support for closures `()` other than memory address
         - [x] Support for "modifiers" that is: `base:mod1:mod2`
     - betae (beta extension)
-        - [ ] Support for constant user defined mathematical values (that aren't symbols!)
-        - [ ] Support for comptime mathematical evaluations (`$()` closure) with types
+        - [ ] Support for comptime mathematical evaluations (`$()` closure) with types (like `fXX`, `iXX` and `uXX`)
+        - [ ] Support for constant user defined mathematical values (that aren't symbols!) and integrate with `$()`
         - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
-        - [ ] Support for runtime mathematical evaluations (`&()` closure)
+        - [ ] Support for runtime mathematical evaluations (`&()` closure) - transpiles into series of instructions
         - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
-        - [ ] Support for imports/includes and label attributes (`#()` closure)
-        - [ ] Tests for relocations and other things
+        - [ ] Support for includes 
+        - [ ] Support for label attributes (`#()` closure)
         - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
     - betao (beta obj)
         - [ ] Variables overhaul
         - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
-        - [ ] Better target handling (ELF reworked + support for DWARF)
+        - [ ] Tests for relocations and other things
+        - [ ] Better target handling (ELF reworked + basic support for DWARF)
     - [ ] Create documentation
     - [ ] Overall polish
     - [ ] moving into beta-avx512 phase...
 - beta-avx512
+    - [ ] EVEX
     - [ ] AVX-512F
     - [ ] AVX-512VL, AVX-512DQ, AVX-512BW
     - [ ] AVX-512CD, AVX-512ER, AVX-512PF
@@ -57,7 +59,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
 - beta-macro
     - [ ] Support for inline (or not) macros with C-like syntax
     - [ ] Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
-    - [ ] Support for local (and global) scope aliases
+    - [ ] Support for local (and global) scope aliases (for extended macros)
     - [ ] Support for custom opcodes (using assembler's API) (to support unsupported instructions)
     - [ ] Create documentation for macros
 - beta-fpu
