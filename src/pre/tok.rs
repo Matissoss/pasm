@@ -26,9 +26,10 @@ pub enum Token {
     Unknown(String),
     Comma,
 
-    MemAddr(String),
     //       pfx   content
     Closure(char, String),
+    //       pfx     content   next token (can be another modifier)
+    Modifier(Box<Token>, Option<Box<Token>>),
 }
 
 pub struct Tokenizer;
@@ -40,6 +41,7 @@ impl Tokenizer {
         let mut inside_closure: Option<char> = None;
         let mut closure_pfx: Option<char> = None;
         let mut delimeter_count: usize = 0;
+        let mut tmp_toks: Vec<Token> = Vec::new();
 
         for b in line.as_bytes() {
             let c = *b as char;
@@ -60,6 +62,72 @@ impl Tokenizer {
                 (None, ':') => {
                     tokens.push(Token::Label(String::from_iter(tmp_buf.iter())));
                     tmp_buf = Vec::new();
+                }
+                (Some(PREFIX_REG | PREFIX_KWD | PREFIX_VAL), ':') => {
+                    delimeter_count = 0;
+                    if !tmp_buf.is_empty() {
+                        tmp_toks.push(Token::make_from(
+                            inside_closure,
+                            String::from_iter(tmp_buf.iter()),
+                        ));
+                    }
+                    closure_pfx = None;
+                    inside_closure = Some(':');
+                    tmp_buf = Vec::new();
+                }
+
+                (Some(':'), ':') => {
+                    if delimeter_count == 0 {
+                        if !tmp_buf.is_empty() {
+                            tmp_toks.push(Token::make_from(
+                                closure_pfx,
+                                String::from_iter(tmp_buf.iter()),
+                            ));
+                            tmp_buf = Vec::new();
+                        }
+                        closure_pfx = None;
+                    } else {
+                        tmp_buf.push(':');
+                    }
+                }
+                (Some(':'), PREFIX_KWD | PREFIX_REG | PREFIX_VAL) => {
+                    if delimeter_count == 0 {
+                        closure_pfx = Some(c);
+                    } else {
+                        tmp_buf.push(c);
+                    }
+                }
+                (Some(':'), CLOSURE_START) => {
+                    if delimeter_count != 0 {
+                        tmp_buf.push(CLOSURE_START);
+                    }
+                    delimeter_count += 1;
+                }
+                (Some(':'), CLOSURE_END) => {
+                    if delimeter_count == 1 {
+                        tmp_toks.push(Token::make_closure(
+                            closure_pfx.unwrap_or(' '),
+                            String::from_iter(tmp_buf.iter()),
+                        ));
+                        tmp_buf = Vec::new();
+                        closure_pfx = None;
+                        delimeter_count = 0;
+                    } else {
+                        delimeter_count -= 1;
+                    }
+                }
+                (Some(':'), ' ') => {
+                    if delimeter_count == 0 {
+                        tmp_toks.push(Token::make_from(
+                            closure_pfx,
+                            String::from_iter(tmp_buf.iter()),
+                        ));
+                        tmp_buf = Vec::new();
+                        tokens.push(Token::make_modifier(tmp_toks));
+                        tmp_toks = Vec::new();
+                        inside_closure = None;
+                        closure_pfx = None;
+                    }
                 }
 
                 (Some(CLOSURE_START), ',') => tmp_buf.push(c),
@@ -140,16 +208,44 @@ impl Tokenizer {
             }
         }
         if !tmp_buf.is_empty() {
-            tokens.push(Token::make_from(
-                inside_closure,
-                String::from_iter(tmp_buf.iter()),
-            ));
+            if !tmp_toks.is_empty() {
+                tmp_toks.push(Token::make_from(
+                    closure_pfx,
+                    String::from_iter(tmp_buf.iter()),
+                ));
+                tokens.push(Token::make_modifier(tmp_toks))
+            } else {
+                tokens.push(Token::make_from(
+                    inside_closure,
+                    String::from_iter(tmp_buf.iter()),
+                ));
+            }
+        } else if !tmp_toks.is_empty() {
+            tokens.push(Token::make_modifier(tmp_toks));
         }
         tokens
     }
 }
 
+fn make_modf_rec(current: Token, toks: Vec<Token>, idx: usize) -> Token {
+    if toks.len() > idx {
+        Token::Modifier(
+            Box::new(current),
+            Some(Box::new(make_modf_rec(toks[idx].clone(), toks, idx + 1))),
+        )
+    } else {
+        current
+    }
+}
+
 impl Token {
+    fn make_modifier(toks: Vec<Self>) -> Self {
+        if let Some(tok) = toks.first() {
+            make_modf_rec(tok.clone(), toks, 1)
+        } else {
+            Token::Unknown("".to_string())
+        }
+    }
     fn make_closure(prefix: char, val: String) -> Self {
         Self::Closure(prefix, val)
     }
@@ -189,7 +285,6 @@ impl ToString for Token {
     fn to_string(&self) -> String {
         match self {
             Self::Register(reg) => format!("{}{}", PREFIX_REG, reg.to_string()),
-            Self::MemAddr(mem) => mem.to_string(),
             Self::Immediate(v) => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd) => kwd.to_string(),
             Self::Mnemonic(m) => m.to_string(),
@@ -204,6 +299,15 @@ impl ToString for Token {
             Self::Comma => ','.to_string(),
             Self::UnknownSegment(s, _) => s.to_string(),
             Self::Closure(pfx, content) => format!("{pfx}({content})"),
+            Self::Modifier(content, next) => format!(
+                "{}{}",
+                content.to_string(),
+                if let Some(tok) = next {
+                    format!(":{}", tok.to_string())
+                } else {
+                    "".to_string()
+                }
+            ),
         }
     }
 }
@@ -233,5 +337,49 @@ mod tests {
         let str = "$(@(@(@())))";
         let tokens = Tokenizer::tokenize_line(str);
         assert_eq!(tokens, vec![Token::Closure('$', "@(@(@()))".to_string())]);
+
+        // modifiers!
+        let str = "$10:%eax:%rax";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![Token::Modifier(
+                Box::new(Token::Immediate(Number::UInt8(10))),
+                Some(Box::new(Token::Modifier(
+                    Box::new(Token::Register(Register::EAX)),
+                    Some(Box::new(Token::Register(Register::RAX)))
+                )))
+            )]
+        );
+        let str = "%fs:(%rax)";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![Token::Modifier(
+                Box::new(Token::Register(Register::FS)),
+                Some(Box::new(Token::Closure(' ', "%rax".to_string())))
+            )]
+        );
+        let str = "%fs:$(%rax)";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![Token::Modifier(
+                Box::new(Token::Register(Register::FS)),
+                Some(Box::new(Token::Closure('$', "%rax".to_string())))
+            )]
+        );
+        let str = "%fs:(%rax):$(%rax)";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![Token::Modifier(
+                Box::new(Token::Register(Register::FS)),
+                Some(Box::new(Token::Modifier(
+                    Box::new(Token::Closure(' ', "%rax".to_string())),
+                    Some(Box::new(Token::Closure('$', "%rax".to_string())))
+                )))
+            )]
+        );
     }
 }

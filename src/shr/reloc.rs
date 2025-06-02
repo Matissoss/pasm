@@ -1,18 +1,36 @@
-// rasmx86_64 - src/core/reloc.rs
-// ------------------------------
+// rasmx86_64 - src/shr/reloc.rs
+// -----------------------------
 // made by matissoss
 // licensed under MPL 2.0
 
 use crate::shr::{error::RASMError, symbol::Symbol, var::VarContent};
 use std::borrow::Cow;
 
-#[repr(u32)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum RType {
-    S32 = 11,
-    PCRel32 = 2, // relative 32-bit ; jmp's and call's
-    Abs64 = 1,   // absolute 64-bit ; global vars and pointers
-    None = 0,
+    S32,
+    PCRel32, // relative 32-bit ; jmp's and call's
+    Abs64,   // absolute 64-bit ; global vars and pointers
+    None,
+}
+
+impl RType {
+    pub fn to_elf64_rtype(&self) -> u64 {
+        match self {
+            Self::S32 => 11,
+            Self::PCRel32 => 2,
+            Self::Abs64 => 1,
+            Self::None => 0,
+        }
+    }
+    pub fn to_elf32_rtype(&self) -> u32 {
+        match self {
+            Self::S32 => 1,
+            Self::PCRel32 => 2,
+            Self::Abs64 => 1,
+            Self::None => 0,
+        }
+    }
 }
 
 // idk how to name it

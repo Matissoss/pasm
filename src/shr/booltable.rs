@@ -109,14 +109,12 @@ mod tests {
         assert!(booltable.data == 0b0000_0010);
         booltable.set(0, true);
         assert!(booltable.data == 0b0000_0011);
-        dbg!(booltable.get(0));
         assert!(booltable.get(0) == Some(true));
         let mut booltable = BoolTable8::new();
         booltable.set(1, true);
         assert!(booltable.data == 0b0000_0010);
         booltable.set(0, true);
         assert!(booltable.data == 0b0000_0011);
-        dbg!(booltable.get(0));
         assert!(booltable.get(0) == Some(true));
     }
 }

@@ -509,10 +509,6 @@ mod tests {
     use super::*;
     #[test]
     fn ins_test() {
-        println!(
-            "This version of RASM supports {} x86-64 instructions!",
-            Mnemonic::__LAST as u64 - 1
-        );
         assert!(ins_switch::mnem_fromstr("vphminposuw") == Some(Mnemonic::VPHMINPOSUW));
     }
 }

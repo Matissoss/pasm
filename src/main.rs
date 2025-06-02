@@ -263,7 +263,7 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
 
     match form {
         "bin" => {
-            if let Some(errs) = core::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
+            if let Some(errs) = shr::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
                 for e in &errs {
                     eprintln!("{e}");
                 }

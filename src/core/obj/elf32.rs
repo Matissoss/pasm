@@ -5,12 +5,10 @@
 
 use std::borrow::Cow;
 
-use crate::{
-    core::reloc::Relocation,
-    shr::{
-        symbol::{Symbol, SymbolType as SType, Visibility},
-        var::VarContent,
-    },
+use crate::shr::{
+    reloc::Relocation,
+    symbol::{Symbol, SymbolType as SType, Visibility},
+    var::VarContent,
 };
 use std::path::Path;
 
@@ -245,13 +243,13 @@ pub fn make_elf32(
         for rel in rels {
             rel_text_symb.push(Elf32Rel {
                 offset: rel.offset as u32,
-                info: rel.rtype as u32,
+                info: rel.rtype.to_elf32_rtype(),
             });
         }
         for rela in relas {
             rela_text_symb.push(Elf32Rela {
                 offset: rela.offset as u32,
-                info: rela.rtype as u32,
+                info: rela.rtype.to_elf32_rtype(),
                 addend: rela.addend,
             });
         }

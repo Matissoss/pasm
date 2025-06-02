@@ -23,21 +23,24 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [x] Support for `AVX` and `AVX2` extensions
     - [x] moving into beta phase (release of beta0)...
 - beta
-    - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
-    - [x] Transforming `Mem` enum into struct
-    - [x] Parser support for closures `()` other than memory address
-    - [ ] Support for "modifiers" that is: `base:mod1:mod2` (in future for AVX-512 like: `%xmm0:k3:z` or segments) and integrate with closures
-    - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
-    - [ ] Support for constant user defined mathematical values (that aren't symbols!)
-    - [ ] Support for comptime mathematical evaluations (`$()` closure) with types
-    - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
-    - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
-    - [ ] Support for imports/includes and label attributes (`#()` closure)
-    - [ ] Tests for relocations and other things
-    - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct) and migrating code away from legacy API (`src/core/rex.rs`)
-    - [ ] Variables overhaul
-    - [ ] Better target handling (ELF reworked + support for DWARF)
-    - [ ] Support for runtime mathematical evaluations (`&()` closure; transpiles into sequential instructions like `addss`, `sub`, `imul` depending on type (modifier 0))
+    - betaf (beta foundation)
+        - [x] Support for most of "normal" (to norm-part6) x86-64 instructions
+        - [x] Transforming `Mem` enum into struct
+        - [x] Parser support for closures `()` other than memory address
+        - [x] Support for "modifiers" that is: `base:mod1:mod2`
+    - betae (beta extension)
+        - [ ] Support for constant user defined mathematical values (that aren't symbols!)
+        - [ ] Support for comptime mathematical evaluations (`$()` closure) with types
+        - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
+        - [ ] Support for runtime mathematical evaluations (`&()` closure)
+        - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
+        - [ ] Support for imports/includes and label attributes (`#()` closure)
+        - [ ] Tests for relocations and other things
+        - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
+    - betao (beta obj)
+        - [ ] Variables overhaul
+        - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
+        - [ ] Better target handling (ELF reworked + support for DWARF)
     - [ ] Create documentation
     - [ ] Overall polish
     - [ ] moving into beta-avx512 phase...

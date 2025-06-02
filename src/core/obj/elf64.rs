@@ -6,12 +6,10 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-use crate::{
-    core::reloc::Relocation,
-    shr::{
-        symbol::{Symbol, SymbolType as SType, Visibility},
-        var::VarContent,
-    },
+use crate::shr::{
+    reloc::Relocation,
+    symbol::{Symbol, SymbolType as SType, Visibility},
+    var::VarContent,
 };
 
 type Elf64Addr = u64;
@@ -243,13 +241,13 @@ pub fn make_elf64(
         for rel in rels {
             rel_text_symb.push(Elf64Rel {
                 offset: rel.offset,
-                info: rel.rtype as u64,
+                info: rel.rtype.to_elf64_rtype(),
             });
         }
         for rela in relas {
             rela_text_symb.push(Elf64Rela {
                 offset: rela.offset,
-                info: rela.rtype as u64,
+                info: rela.rtype.to_elf64_rtype(),
                 addend: rela.addend as i64,
             });
         }

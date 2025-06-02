@@ -6,17 +6,13 @@
 use std::borrow::Cow;
 
 use crate::{
-    core::{
-        api::*,
-        avx, disp, mmx, modrm,
-        reloc::{RCategory, RType, Relocation},
-        rex, sib, sse, sse2, sse3, sse4, ssse3, vex,
-    },
+    core::{api::*, avx, disp, mmx, modrm, rex, sib, sse, sse2, sse3, sse4, ssse3, vex},
     shr::{
         ast::{IVariant, Instruction, Operand},
         ins::Mnemonic as Ins,
         num::Number,
         reg::Register,
+        reloc::{RCategory, RType, Relocation},
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
         var::{VarContent, Variable},

@@ -104,7 +104,7 @@ impl TryFrom<&Token> for Operand {
         match tok {
             // experimental
             // idk what if this works (i hope so; will have to check)
-            Token::MemAddr(m) => match Mem::new(m, Size::Any) {
+            Token::Closure(' ', m) => match Mem::new(m, Size::Any) {
                 Ok(m) => Ok(Operand::Mem(m)),
                 Err(e) => {
                     // we have to do error handling here :(

@@ -646,7 +646,6 @@ mod tests {
     use super::*;
     #[test]
     fn general_api_check() {
-        println!("{}", size_of::<GenAPI>());
         assert!(size_of::<GenAPI>() == 16);
     }
     #[test]

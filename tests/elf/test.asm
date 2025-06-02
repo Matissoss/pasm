@@ -17,6 +17,7 @@ _start:
 	mov %rax, $10
 	lea %rax, @Z
 	lea %rax, @_jmplabel
+	jmp @_jmplabel
 	jmp %rax
 _jmplabel:
 	mov %rax, $60

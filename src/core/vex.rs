@@ -429,11 +429,7 @@ mod test {
     use crate::shr::reg::Register;
     #[test]
     fn vex_asserts() {
-        let reg = gen_vex4v(Some(&Operand::Reg(Register::XMM9)));
-        println!("{:08b}", reg);
         assert!(gen_vex4v(Some(&Operand::Reg(Register::XMM9))) == 0b0110);
-        let reg = gen_vex4v(Some(&Operand::Reg(Register::XMM0)));
-        println!("{:08b}", reg);
         assert!(gen_vex4v(Some(&Operand::Reg(Register::XMM0))) == 0b1111);
     }
 }

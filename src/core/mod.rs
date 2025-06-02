@@ -14,7 +14,6 @@ pub mod vex;
 
 // bin/target
 pub mod obj;
-pub mod reloc;
 
 // x86-64 extensions
 pub mod mmx;

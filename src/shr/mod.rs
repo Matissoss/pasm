@@ -8,6 +8,7 @@ pub mod kwd;
 pub mod mem;
 pub mod num;
 pub mod reg;
+pub mod reloc;
 pub mod rpanic;
 pub mod segment;
 pub mod size;
