@@ -28,11 +28,10 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Transforming `Mem` enum into struct
         - [x] Parser support for closures `()` other than memory address
         - [x] Support for "modifiers" that is: `base:mod1:mod2`
-    - betae (beta extension)
         - [ ] Support for comptime mathematical evaluations (`$()` closure) with types (like `fXX`, `iXX` and `uXX`)
-        - [ ] Support for constant user defined mathematical values (that aren't symbols!) and integrate with `$()`
+        - [ ] Support for constant user defined mathematical values (that aren't symbols, but inline immediates)
+        - [ ] Support for boolean algebra (ternary and comparision operators)
         - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
-        - [ ] Support for runtime mathematical evaluations (`&()` closure) - transpiles into series of instructions
         - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
         - [ ] Support for includes 
         - [ ] Support for label attributes (`#()` closure)
@@ -57,9 +56,8 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] other (VPOPCNTDQ, VPCLMULQDQ)
     - [ ] moving into beta-macro phase...
 - beta-macro
-    - [ ] Support for inline (or not) macros with C-like syntax
-    - [ ] Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
-    - [ ] Support for local (and global) scope aliases (for extended macros)
+    - [ ] Support for inline (or not) macros with C-like syntax (from AT&T-like syntax - variables as labels)
+    - [ ] (idea - not certain) Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
     - [ ] Support for custom opcodes (using assembler's API) (to support unsupported instructions)
     - [ ] Create documentation for macros
 - beta-fpu

@@ -5,6 +5,7 @@ pub mod error;
 pub mod ins;
 pub mod ins_switch;
 pub mod kwd;
+pub mod math;
 pub mod mem;
 pub mod num;
 pub mod reg;

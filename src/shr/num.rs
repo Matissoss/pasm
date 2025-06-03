@@ -174,6 +174,21 @@ const MAX_F32: f64 = f32::MAX as f64;
 const MIN_F32: f64 = f32::MIN as f64;
 
 impl Number {
+    pub fn get_type(&self) -> u32 {
+        match self {
+            Self::UInt64(_) => 0,
+            Self::UInt32(_) => 0,
+            Self::UInt16(_) => 0,
+            Self::UInt8(_) => 0,
+            Self::Char(_) => 0,
+            Self::Int64(_) => 1,
+            Self::Int32(_) => 1,
+            Self::Int16(_) => 1,
+            Self::Int8(_) => 1,
+            Self::Float(_) => 2,
+            Self::Double(_) => 2,
+        }
+    }
     pub fn get_as_i32(&self) -> i32 {
         match self {
             Self::Double(f) => *f as i32,
