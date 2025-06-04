@@ -45,8 +45,6 @@ fn post_process(toks: Vec<Token>) -> Vec<Token> {
                     let result = math::MathematicalEvaluation::eval(eval);
                     if let Some(n) = result {
                         toks_1.push(Token::Immediate(Number::uint64(n)));
-                    } else {
-                        toks_1.push(t);
                     }
                 } else {
                     toks_1.push(t);
