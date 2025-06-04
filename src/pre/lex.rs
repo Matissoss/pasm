@@ -47,29 +47,15 @@ impl Lexer {
                 }
                 Some(Token::Keyword(Keyword::Bits)) => {
                     if let Some(Token::Immediate(bits)) = line.get(1) {
-                        let uint8 = match bits.get_uint() {
-                            Some(n) => match Number::squeeze_u64(n) {
-                                Number::UInt8(n) => n,
-                                _ => {
-                                    ast_tree.push(Err(RASMError::no_tip(
-                                        Some(line_count),
-                                        Some(format!("Couldn't fit number {} in 8-bits", n)),
-                                    )));
-                                    continue;
-                                }
-                            },
-                            _ => {
-                                ast_tree.push(Err(RASMError::no_tip(
-                                    Some(line_count),
-                                    Some(format!(
-                                        "Couldn't fit number {} in 8-bit unsigned integer",
-                                        bits.to_string()
-                                    )),
-                                )));
-                                continue;
-                            }
-                        };
-                        node = Some(ASTNode::Bits(uint8));
+                        let uint32 = bits.get_as_u32();
+                        if let Ok(n) = u8::try_from(uint32) {
+                            node = Some(ASTNode::Bits(n));
+                        } else {
+                            ast_tree.push(Err(RASMError::no_tip(
+                                Some(line_count),
+                                Some(format!("Couldn't fit number {} in 8-bits", uint32)),
+                            )));
+                        }
                     } else {
                         error = Some(RASMError::with_tip(
                             Some(line_count),
@@ -298,9 +284,9 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
         }
     };
 
-    let size = match line.get(2) {
+    let size: u32 = match line.get(2) {
         Some(Token::Keyword(k)) => match Size::try_from(*k) {
-            Ok(s) => <Size as Into<u8>>::into(s) as u32,
+            Ok(s) => <Size as Into<u8>>::into(s).into(),
             Err(_) => {
                 return Err(RASMError::no_tip(
                     None,
@@ -314,13 +300,7 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
         Some(t) => {
             if vtype == VType::Uninit {
                 if let Token::Immediate(n) = t {
-                    match n.get_uint(){
-                        Some(n) => n as u32,
-                        None    => return Err(RASMError::no_tip(
-                            None,
-                            Some("Invalid size specifier at index 2; expected 32-bit unsigned integer"),
-                        ))
-                    }
+                    n.get_as_u32()
                 } else {
                     return Err(RASMError::no_tip(
                         None,
@@ -355,11 +335,12 @@ fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
             None,
             Some("Variable type mismatch: declared variable is const/readonly, but content is undefined"),
         )),
-        (VType::Uninit, VarContent::String(_)|VarContent::Number(_)) =>
-        return Err(RASMError::no_tip(
-            None,
-            Some("Variable type mismatch: declared variable is uninitialized, but content is defined"),
-        ))
+        (VType::Uninit, VarContent::String(_)|VarContent::Number(_)) =>{
+            return Err(RASMError::no_tip(
+                None,
+                Some("Variable type mismatch: declared variable is uninitialized, but content is defined"),
+            ))
+        }
     }
     Ok(Variable {
         name: std::borrow::Cow::Owned(vname),

@@ -31,7 +31,7 @@ impl MathematicalEvaluation {
             MathElement::Or(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Or),
             MathElement::Xor(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Xor),
             MathElement::Not(lhs) => {
-                Self::eval_rec(*lhs, MathElement::Number(Number::UInt8(0)), Mode::Not)
+                Self::eval_rec(*lhs, MathElement::Number(Number::uint64(0)), Mode::Not)
             }
             _ => None,
         }
@@ -68,7 +68,7 @@ impl MathematicalEvaluation {
             let rhs_n = Self::eval_rec(
                 *int_lhs?,
                 if int_mode == Mode::Not {
-                    MathElement::Number(Number::UInt8(0))
+                    MathElement::Number(Number::uint64(0))
                 } else {
                     *int_rhs.unwrap()
                 },
@@ -81,7 +81,7 @@ impl MathematicalEvaluation {
             let lhs_n = Self::eval_rec(
                 *int_lhs?,
                 if int_mode == Mode::Not {
-                    MathElement::Number(Number::UInt8(0))
+                    MathElement::Number(Number::uint64(0))
                 } else {
                     *int_rhs.unwrap()
                 },
@@ -93,7 +93,7 @@ impl MathematicalEvaluation {
             let (lhs, rhs) = if mode == Mode::Not {
                 (
                     lhs.unwrap(),
-                    Box::new(MathElement::Number(Number::UInt8(0))),
+                    Box::new(MathElement::Number(Number::uint64(0))),
                 )
             } else {
                 (lhs.unwrap(), rhs.unwrap())
@@ -103,7 +103,7 @@ impl MathematicalEvaluation {
             let (lhs, rhs) = if mode == Mode::Not {
                 (
                     lhs.unwrap(),
-                    Box::new(MathElement::Number(Number::UInt8(0))),
+                    Box::new(MathElement::Number(Number::uint64(0))),
                 )
             } else {
                 (lhs.unwrap(), rhs.unwrap())
@@ -488,18 +488,18 @@ mod math_tests {
         assert_eq!(
             toks,
             vec![
-                Token::Number(Number::UInt8(10)),
+                Token::Number(Number::uint64(10)),
                 Token::Add,
-                Token::Number(Number::UInt8(20))
+                Token::Number(Number::uint64(20))
             ]
         );
         let toks = tok("10 * 20");
         assert_eq!(
             toks,
             vec![
-                Token::Number(Number::UInt8(10)),
+                Token::Number(Number::uint64(10)),
                 Token::Mul,
-                Token::Number(Number::UInt8(20))
+                Token::Number(Number::uint64(20))
             ]
         );
         let toks = tok("<<");
@@ -512,8 +512,8 @@ mod math_tests {
         assert_eq!(
             result,
             Ok(MathElement::Add(
-                Box::new(MathElement::Number(Number::UInt8(10))),
-                Box::new(MathElement::Number(Number::UInt8(20)))
+                Box::new(MathElement::Number(Number::uint64(10))),
+                Box::new(MathElement::Number(Number::uint64(20)))
             ))
         );
 
@@ -521,11 +521,11 @@ mod math_tests {
         assert_eq!(
             toks,
             vec![
-                Token::Number(Number::UInt8(10)),
+                Token::Number(Number::uint64(10)),
                 Token::Add,
-                Token::Number(Number::UInt8(20)),
+                Token::Number(Number::uint64(20)),
                 Token::Mul,
-                Token::Number(Number::UInt8(20))
+                Token::Number(Number::uint64(20))
             ]
         );
         let result = par(toks);
@@ -533,10 +533,10 @@ mod math_tests {
             result,
             Ok(MathElement::Mul(
                 Box::new(MathElement::Add(
-                    Box::new(MathElement::Number(Number::UInt8(10))),
-                    Box::new(MathElement::Number(Number::UInt8(20)))
+                    Box::new(MathElement::Number(Number::uint64(10))),
+                    Box::new(MathElement::Number(Number::uint64(20)))
                 )),
-                Box::new(MathElement::Number(Number::UInt8(20)))
+                Box::new(MathElement::Number(Number::uint64(20)))
             ))
         );
         let res = par(tok("!(10 + 20 * 20)"));
@@ -545,10 +545,10 @@ mod math_tests {
             Ok(MathElement::Not(Box::new(MathElement::Closure(Box::new(
                 MathElement::Mul(
                     Box::new(MathElement::Add(
-                        Box::new(MathElement::Number(Number::UInt8(10))),
-                        Box::new(MathElement::Number(Number::UInt8(20)))
+                        Box::new(MathElement::Number(Number::uint64(10))),
+                        Box::new(MathElement::Number(Number::uint64(20)))
                     )),
-                    Box::new(MathElement::Number(Number::UInt8(20)))
+                    Box::new(MathElement::Number(Number::uint64(20)))
                 )
             )))))
         );
@@ -557,17 +557,17 @@ mod math_tests {
             res_1,
             vec![
                 Token::Start,
-                Token::Number(Number::UInt8(10)),
+                Token::Number(Number::uint64(10)),
                 Token::Add,
-                Token::Number(Number::UInt8(20)),
+                Token::Number(Number::uint64(20)),
                 Token::Mul,
-                Token::Number(Number::UInt8(20)),
+                Token::Number(Number::uint64(20)),
                 Token::End,
                 Token::Add,
                 Token::Start,
-                Token::Number(Number::UInt8(10)),
+                Token::Number(Number::uint64(10)),
                 Token::Add,
-                Token::Number(Number::UInt8(20)),
+                Token::Number(Number::uint64(20)),
                 Token::End,
             ]
         );
@@ -580,20 +580,20 @@ mod math_tests {
                     // 10 + 20
                     Box::new(MathElement::Add(
                         // 10
-                        Box::new(MathElement::Number(Number::UInt8(10))),
+                        Box::new(MathElement::Number(Number::uint64(10))),
                         // 20
-                        Box::new(MathElement::Number(Number::UInt8(20))),
+                        Box::new(MathElement::Number(Number::uint64(20))),
                     )),
                     // * 20
-                    Box::new(MathElement::Number(Number::UInt8(20)))
+                    Box::new(MathElement::Number(Number::uint64(20)))
                 )))),
                 // rhs
                 // (10 + 20)
                 Box::new(MathElement::Closure(Box::new(MathElement::Add(
                     // 10
-                    Box::new(MathElement::Number(Number::UInt8(10))),
+                    Box::new(MathElement::Number(Number::uint64(10))),
                     // 20
-                    Box::new(MathElement::Number(Number::UInt8(20))),
+                    Box::new(MathElement::Number(Number::uint64(20))),
                 ))))
             ))
         );
@@ -606,24 +606,24 @@ mod math_tests {
                     // 10 + 20
                     Box::new(MathElement::Add(
                         // 10
-                        Box::new(MathElement::Number(Number::UInt8(10))),
+                        Box::new(MathElement::Number(Number::uint64(10))),
                         // 20
-                        Box::new(MathElement::Number(Number::UInt8(20))),
+                        Box::new(MathElement::Number(Number::uint64(20))),
                     )),
                     // * 20
-                    Box::new(MathElement::Number(Number::UInt8(20)))
+                    Box::new(MathElement::Number(Number::uint64(20)))
                 )))),
                 // rhs
                 // (10 + (20 + 20))
                 Box::new(MathElement::Closure(Box::new(MathElement::Add(
                     // 10
-                    Box::new(MathElement::Number(Number::UInt8(10))),
+                    Box::new(MathElement::Number(Number::uint64(10))),
                     // (20 + 20)
                     Box::new(MathElement::Closure(Box::new(MathElement::Add(
                         // 20
-                        Box::new(MathElement::Number(Number::UInt8(20))),
+                        Box::new(MathElement::Number(Number::uint64(20))),
                         // 20
-                        Box::new(MathElement::Number(Number::UInt8(20))),
+                        Box::new(MathElement::Number(Number::uint64(20))),
                     ))))
                 ))))
             ))
@@ -632,16 +632,16 @@ mod math_tests {
         assert_eq!(
             res_1,
             Ok(MathElement::Lsh(
-                Box::new(MathElement::Number(Number::UInt8(1))),
-                Box::new(MathElement::Number(Number::UInt8(2))),
+                Box::new(MathElement::Number(Number::uint64(1))),
+                Box::new(MathElement::Number(Number::uint64(2))),
             ))
         );
     }
     #[test]
     fn eval_test() {
         let eval = MathElement::Add(
-            Box::new(MathElement::Number(Number::UInt8(1))),
-            Box::new(MathElement::Number(Number::UInt8(2))),
+            Box::new(MathElement::Number(Number::uint64(1))),
+            Box::new(MathElement::Number(Number::uint64(2))),
         );
         let eval = MathematicalEvaluation::eval(eval);
         assert_eq!(eval, Some(3));

@@ -9,7 +9,6 @@ use crate::shr::{
     atype::*,
     error::RASMError,
     ins::Mnemonic as Mnm,
-    num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
 };
@@ -2727,18 +2726,8 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASME
         );
 
         if let Operand::Imm(imm) = operand {
-            match imm {
-                Number::UInt64(n) => {
-                    if accepted.contains(&Number::squeeze_u64(*n).atype()) {
-                        return None;
-                    }
-                }
-                Number::Int64(n) => {
-                    if accepted.contains(&Number::squeeze_i64(*n).atype()) {
-                        return None;
-                    }
-                }
-                _ => {}
+            if accepted.contains(&AType::Immediate(imm.size())) {
+                return None;
             }
         }
         Some(err)

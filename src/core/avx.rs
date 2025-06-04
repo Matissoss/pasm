@@ -7,7 +7,6 @@ use crate::{
     core::comp::vex_gen_ins,
     shr::ast::{Instruction, Operand},
     shr::ins::Mnemonic as Ins,
-    shr::num::Number,
     shr::size::Size,
 };
 
@@ -120,7 +119,7 @@ pub fn avx_ins_wimm3(
     }
 
     let imm = match ins.oprs.get(3) {
-        Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
+        Some(Operand::Imm(n)) => Some(vec![n.split_into_bytes()[0]]),
         _ => None,
     };
 
@@ -160,7 +159,7 @@ pub fn avx_ins_wimm2(
         }
     };
     let imm = match ins.oprs.get(2) {
-        Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
+        Some(Operand::Imm(n)) => Some(vec![n.split_into_bytes()[0]]),
         _ => None,
     };
 
@@ -189,7 +188,7 @@ pub fn avx_ins_shift(
         _ => (true, opc_noimm),
     };
     let imm = match ins.oprs.get(2) {
-        Some(Operand::Imm(Number::UInt8(n))) => Some(vec![*n]),
+        Some(Operand::Imm(n)) => Some(vec![n.split_into_bytes()[0]]),
         _ => None,
     };
 

@@ -4775,16 +4775,19 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
             Size::Word | Size::Dword | Size::Qword => (opc[4], None),
             _ => panic!("CL failure"),
         },
-        Operand::Imm(Number::UInt8(1) | Number::Int8(1)) => match dst.size() {
-            Size::Byte => (opc[0], None),
-            Size::Word | Size::Dword | Size::Qword => (opc[3], None),
-            _ => panic!("Operand::Imm(i) = 1"),
-        },
-        Operand::Imm(imm) => match dst.size() {
-            Size::Byte => (opc[2], Some(imm.split_into_bytes())),
-            Size::Word | Size::Dword | Size::Qword => (opc[5], Some(imm.split_into_bytes())),
-            _ => panic!("Operand::Imm(i) = {:?}", imm.size()),
-        },
+        Operand::Imm(imm) => {
+            if imm == &Number::uint64(1) {
+                match dst.size() {
+                    Size::Byte => (opc[0], None),
+                    _ => (opc[3], None),
+                }
+            } else {
+                match dst.size() {
+                    Size::Byte => (opc[2], Some(imm.split_into_bytes())),
+                    _ => (opc[5], Some(imm.split_into_bytes())),
+                }
+            }
+        }
         _ => panic!("Other {:?}", src),
     };
     let mut base = if dst.size() == Size::Word {

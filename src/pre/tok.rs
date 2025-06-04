@@ -344,7 +344,7 @@ mod tests {
         assert_eq!(
             tokens,
             vec![Token::Modifier(
-                Box::new(Token::Immediate(Number::UInt8(10))),
+                Box::new(Token::Immediate(Number::uint64(10))),
                 Some(Box::new(Token::Modifier(
                     Box::new(Token::Register(Register::EAX)),
                     Some(Box::new(Token::Register(Register::RAX)))
