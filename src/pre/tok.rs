@@ -5,7 +5,7 @@
 
 use crate::{
     conf::*,
-    shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, num::Number, reg::Register},
+    shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, math, num::Number, reg::Register},
 };
 use std::str::FromStr;
 
@@ -26,6 +26,7 @@ pub enum Token {
     Unknown(String),
     Comma,
 
+    Error(RASMError),
     //       pfx   content
     Closure(char, String),
     //       pfx     content   next token (can be another modifier)
@@ -33,6 +34,32 @@ pub enum Token {
 }
 
 pub struct Tokenizer;
+
+fn post_process(toks: Vec<Token>) -> Vec<Token> {
+    let mut toks_1 = Vec::new();
+    for t in toks {
+        if let Token::Closure(PREFIX_VAL, content) = &t {
+            let math = math::MathematicalEvaluation::from_str(content);
+            if let Ok(eval) = math {
+                if math::MathematicalEvaluation::can_eval(&eval) {
+                    let result = math::MathematicalEvaluation::eval(eval);
+                    if let Some(n) = result {
+                        toks_1.push(Token::Immediate(Number::uint64(n)));
+                    } else {
+                        toks_1.push(t);
+                    }
+                } else {
+                    toks_1.push(t);
+                }
+            } else {
+                toks_1.push(t);
+            }
+        } else {
+            toks_1.push(t);
+        }
+    }
+    toks_1
+}
 
 impl Tokenizer {
     pub fn tokenize_line(line: &str) -> Vec<Token> {
@@ -223,7 +250,7 @@ impl Tokenizer {
         } else if !tmp_toks.is_empty() {
             tokens.push(Token::make_modifier(tmp_toks));
         }
-        tokens
+        post_process(tokens)
     }
 }
 
@@ -293,6 +320,7 @@ impl ToString for Token {
             Self::String(str) => str.to_string(),
             Self::UnknownReg(str) => format!("{}{}", PREFIX_REG, str),
             Self::UnknownVal(str, _) => format!("{}{}", PREFIX_VAL, str),
+            Self::Error(_) => "".to_string(),
             Self::Unknown(val) => val.to_string(),
             Self::UnknownKeyword(kwd) => format!("{}{}", PREFIX_KWD, kwd),
             Self::Segment(s) => s.to_string(),

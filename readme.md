@@ -28,7 +28,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Transforming `Mem` enum into struct
         - [x] Parser support for closures `()` other than memory address
         - [x] Support for "modifiers" that is: `base:mod1:mod2`
-        - [ ] Support for comptime mathematical evaluations (`$()` closure) with types (like `fXX`, `iXX` and `uXX`)
+        - [x] Support for comptime mathematical evaluations (`$()` closure)
         - [ ] Support for constant user defined mathematical values (that aren't symbols, but inline immediates)
         - [ ] Support for boolean algebra (ternary and comparision operators)
         - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)

@@ -12,13 +12,14 @@ use crate::shr::{error::RASMError as Error, num::Number};
 pub struct MathematicalEvaluation;
 
 impl MathematicalEvaluation {
-    fn from_str(str: &str) -> Result<MathElement, Error> {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(str: &str) -> Result<MathElement, Error> {
         par(tok(str))
     }
-    fn can_eval(math: &MathElement) -> bool {
-        false
+    pub fn can_eval(math: &MathElement) -> bool {
+        true
     }
-    fn eval(math: MathElement) -> Option<u64> {
+    pub fn eval(math: MathElement) -> Option<u64> {
         match math {
             MathElement::Lsh(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Lsh),
             MathElement::Rsh(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Rsh),
@@ -150,7 +151,7 @@ fn eval(lu64: u64, ru64: u64, mode: Mode) -> u64 {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-enum MathElement {
+pub enum MathElement {
     // lhs + rhs
     Add(Box<Self>, Box<Self>),
     // lhs - rhs
@@ -222,7 +223,6 @@ enum Token {
 
 type ME = MathElement;
 fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
-    dbg!(&tok);
     let mut tmp_toks = Vec::new();
     let mut iclosure = false;
     let mut delimeter_count = 0;
@@ -413,7 +413,16 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
             _ => {}
         }
     }
-    Ok(elements.pop().unwrap())
+    if let Some(s) = elements.pop() {
+        Ok(s)
+    } else {
+        Err(Error::no_tip(
+            None,
+            Some(
+                "Internal Error (should not happen): Tried to pop elements, while it was empty :(",
+            ),
+        ))
+    }
 }
 
 fn mer2(mode: &Mode, lhs: MathElement, rhs: MathElement) -> MathElement {
