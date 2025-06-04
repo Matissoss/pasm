@@ -1,4 +1,4 @@
-/.build
+/build
 /target
 /tests/.tmp
 /tests/.ignore
