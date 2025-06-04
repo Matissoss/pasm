@@ -7,15 +7,146 @@
 
 use std::str::FromStr;
 
-use crate::shr::{error::RASMError, num::Number};
+use crate::shr::{error::RASMError as Error, num::Number};
 
 pub struct MathematicalEvaluation;
 
 impl MathematicalEvaluation {
-    fn from_str() {}
-    fn try_eval() {}
-    fn can_eval() {}
-    fn eval_unchecked() {}
+    fn from_str(str: &str) -> Result<MathElement, Error> {
+        par(tok(str))
+    }
+    fn can_eval(math: &MathElement) -> bool {
+        false
+    }
+    fn eval(math: MathElement) -> Option<u64> {
+        match math {
+            MathElement::Lsh(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Lsh),
+            MathElement::Rsh(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Rsh),
+            MathElement::Add(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Add),
+            MathElement::Sub(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Sub),
+            MathElement::Mul(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Mul),
+            MathElement::Div(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Div),
+            MathElement::Mod(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Mod),
+            MathElement::And(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::And),
+            MathElement::Or(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Or),
+            MathElement::Xor(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Xor),
+            MathElement::Not(lhs) => {
+                Self::eval_rec(*lhs, MathElement::Number(Number::UInt8(0)), Mode::Not)
+            }
+            _ => None,
+        }
+    }
+    fn eval_rec(lhs: MathElement, rhs: MathElement, mode: Mode) -> Option<u64> {
+        let (mut lhs_n, mut rhs_n): (Option<Number>, Option<Number>) = (None, None);
+        let (mut lhs_t, mut rhs_t): (Option<MathElement>, Option<MathElement>) = (None, None);
+        match (lhs, rhs) {
+            (MathElement::Number(l), MathElement::Number(r)) => {
+                lhs_n = Some(l);
+                rhs_n = Some(r);
+            }
+            (l, MathElement::Number(r)) => {
+                rhs_n = Some(r);
+                lhs_t = Some(l);
+            }
+            (MathElement::Number(l), r) => {
+                lhs_n = Some(l);
+                rhs_t = Some(r);
+            }
+            (l, r) => {
+                lhs_t = Some(l);
+                rhs_t = Some(r);
+            }
+        }
+        if let (Some(lhs_n), Some(rhs_n)) = (lhs_n, rhs_n) {
+            let lu64 = lhs_n.get_as_u32() as u64;
+            let ru64 = rhs_n.get_as_u32() as u64;
+            Some(eval(lu64, ru64, mode))
+        } else if let (Some(lhs_t), Some(rhs_t)) = (&lhs_t, &rhs_t) {
+            Self::eval_rec(lhs_t.clone(), rhs_t.clone(), mode)
+        } else if let (Some(lhs_n), Some(rhs_t)) = (lhs_n, &rhs_t) {
+            let (int_lhs, int_rhs, int_mode) = deserialize(rhs_t.clone());
+            let rhs_n = Self::eval_rec(
+                *int_lhs?,
+                if int_mode == Mode::Not {
+                    MathElement::Number(Number::UInt8(0))
+                } else {
+                    *int_rhs.unwrap()
+                },
+                int_mode,
+            )?;
+
+            Some(eval(lhs_n.get_as_u32() as u64, rhs_n, mode))
+        } else if let (Some(lhs_t), Some(rhs_n)) = (&lhs_t, rhs_n) {
+            let (int_lhs, int_rhs, int_mode) = deserialize(lhs_t.clone());
+            let lhs_n = Self::eval_rec(
+                *int_lhs?,
+                if int_mode == Mode::Not {
+                    MathElement::Number(Number::UInt8(0))
+                } else {
+                    *int_rhs.unwrap()
+                },
+                int_mode,
+            )?;
+            Some(eval(lhs_n, rhs_n.get_as_u32() as u64, mode))
+        } else if let (Some(lhs_t), Some(rhs_t)) = (lhs_t, rhs_t) {
+            let (lhs, rhs, mode) = deserialize(lhs_t);
+            let (lhs, rhs) = if mode == Mode::Not {
+                (
+                    lhs.unwrap(),
+                    Box::new(MathElement::Number(Number::UInt8(0))),
+                )
+            } else {
+                (lhs.unwrap(), rhs.unwrap())
+            };
+            let lhs_n = Self::eval_rec(*lhs, *rhs, mode)?;
+            let (lhs, rhs, mode) = deserialize(rhs_t);
+            let (lhs, rhs) = if mode == Mode::Not {
+                (
+                    lhs.unwrap(),
+                    Box::new(MathElement::Number(Number::UInt8(0))),
+                )
+            } else {
+                (lhs.unwrap(), rhs.unwrap())
+            };
+            let rhs_n = Self::eval_rec(*lhs, *rhs, mode)?;
+            Some(eval(lhs_n, rhs_n, mode))
+        } else {
+            None
+        }
+    }
+}
+fn deserialize(lhs: MathElement) -> (Option<Box<MathElement>>, Option<Box<MathElement>>, Mode) {
+    match lhs {
+        MathElement::Add(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Add),
+        MathElement::Sub(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Sub),
+        MathElement::Mul(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Mul),
+        MathElement::Div(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Div),
+        MathElement::Mod(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Mod),
+        MathElement::Rsh(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Rsh),
+        MathElement::Lsh(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Lsh),
+        MathElement::And(lhs, rhs) => (Some(lhs), Some(rhs), Mode::And),
+        MathElement::Or(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Or),
+        MathElement::Xor(lhs, rhs) => (Some(lhs), Some(rhs), Mode::Xor),
+        MathElement::Not(lhs) => (Some(lhs), None, Mode::Not),
+        MathElement::Closure(c) => deserialize(*c),
+        _ => panic!("Case unsupported - {:?}", lhs),
+    }
+}
+fn eval(lu64: u64, ru64: u64, mode: Mode) -> u64 {
+    match mode {
+        Mode::Add => lu64 + ru64,
+        Mode::Sub => lu64 - ru64,
+        Mode::Mul => lu64 * ru64,
+        Mode::Div => lu64 / ru64,
+        Mode::Mod => lu64 % ru64,
+        Mode::Lsh => lu64 << ru64,
+        Mode::Rsh => lu64 >> ru64,
+        Mode::And => lu64 & ru64,
+        Mode::Or => lu64 | ru64,
+        Mode::Xor => lu64 ^ ru64,
+        Mode::Not => !lu64,
+        _ => panic!("Boolean Algebra is not supported yet!"),
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -49,6 +180,23 @@ enum MathElement {
     Number(Number),
 }
 
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum Mode {
+    Add,
+    Sub,
+    Div,
+    Mul,
+    Mod,
+    And,
+    Or,
+    Xor,
+    Not,
+    Lsh,
+    Rsh,
+    Lt,
+    Gt,
+}
+
 #[derive(PartialEq, Debug, Clone)]
 enum Token {
     Add,
@@ -64,12 +212,15 @@ enum Token {
     Rsh,
     Start, // (
     End,   // )
+
+    Lt, // <
+    Gt, // >
+
     Number(Number),
     Unknown(String),
 }
 
 type ME = MathElement;
-type Error = RASMError;
 fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
     dbg!(&tok);
     let mut tmp_toks = Vec::new();
@@ -78,7 +229,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
     let mut elements: Vec<MathElement> = Vec::new();
     let mut tmp_num = None;
     let mut tmp_mat: Option<MathElement> = None;
-    let mut mode: Option<Token> = None;
+    let mut mode: Option<Mode> = None;
     let mut idx = 0;
     while idx < tok.len() {
         if iclosure {
@@ -100,7 +251,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                         (Some(lhs), Some(mode_1)) => {
                             elements.push(mer2(&mode_1, lhs, tok));
                         }
-                        (None, Some(Token::Not)) => {
+                        (None, Some(Mode::Not)) => {
                             elements.push(MathElement::Not(Box::new(tok)));
                         }
                         (None, None) => elements.push(tok),
@@ -109,7 +260,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                             let lhs = if let Some(num) = tmp_num {
                                 MathElement::Number(num)
                             } else {
-                                panic!("Sign is set, but no number :)");
+                                panic!("Sign was set, but no number was found!")
                             };
                             elements.push(mer2(&mode, lhs, tok));
                         }
@@ -128,52 +279,78 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 idx += 1;
                 delimeter_count = 1
             }
+            Token::Gt => {
+                if mode == Some(Mode::Gt) {
+                    mode = Some(Mode::Rsh);
+                } else if mode == Some(Mode::Rsh) {
+                    return Err(Error::no_tip(
+                        None,
+                        Some("Tried to use unknown operator <<<"),
+                    ));
+                } else {
+                    mode = Some(Mode::Gt);
+                }
+                idx += 1;
+            }
+            Token::Lt => {
+                if mode == Some(Mode::Lt) {
+                    mode = Some(Mode::Lsh);
+                } else if mode == Some(Mode::Lsh) {
+                    return Err(Error::no_tip(
+                        None,
+                        Some("Tried to use unknown operator <<<"),
+                    ));
+                } else {
+                    mode = Some(Mode::Lt);
+                }
+                idx += 1;
+            }
             Token::Add => {
-                mode = Some(Token::Add);
+                mode = Some(Mode::Add);
                 idx += 1
             }
             Token::Sub => {
-                mode = Some(Token::Sub);
+                mode = Some(Mode::Sub);
                 idx += 1
             }
             Token::Mul => {
-                mode = Some(Token::Mul);
+                mode = Some(Mode::Mul);
                 idx += 1
             }
             Token::Div => {
-                mode = Some(Token::Div);
+                mode = Some(Mode::Div);
                 idx += 1
             }
             Token::Mod => {
-                mode = Some(Token::Mod);
+                mode = Some(Mode::Mod);
                 idx += 1
             }
             Token::And => {
-                mode = Some(Token::And);
+                mode = Some(Mode::And);
                 idx += 1
             }
             Token::Or => {
-                mode = Some(Token::Or);
+                mode = Some(Mode::Or);
                 idx += 1
             }
             Token::Xor => {
-                mode = Some(Token::Xor);
+                mode = Some(Mode::Xor);
                 idx += 1
             }
             Token::Lsh => {
-                mode = Some(Token::Lsh);
+                mode = Some(Mode::Lsh);
                 idx += 1
             }
             Token::Rsh => {
-                mode = Some(Token::Rsh);
+                mode = Some(Mode::Rsh);
                 idx += 1
             }
             Token::Not => {
-                mode = Some(Token::Not);
+                mode = Some(Mode::Not);
                 idx += 1
             }
             Token::Number(n) => {
-                if mode == Some(Token::Not) {
+                if mode == Some(Mode::Not) {
                     if let Some(t) = elements.pop() {
                         elements.push(MathElement::Not(Box::new(t)));
                     }
@@ -232,19 +409,25 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
         let tmp_mat = elements.pop().expect("should be some");
         #[allow(clippy::single_match)]
         match mode {
-            Token::Not => elements.push(MathElement::Not(Box::new(tmp_mat))),
+            Mode::Not => elements.push(MathElement::Not(Box::new(tmp_mat))),
             _ => {}
         }
     }
     Ok(elements.pop().unwrap())
 }
 
-fn mer2(mode: &Token, lhs: MathElement, rhs: MathElement) -> MathElement {
+fn mer2(mode: &Mode, lhs: MathElement, rhs: MathElement) -> MathElement {
     match mode {
-        Token::Add => ME::Add(Box::new(lhs), Box::new(rhs)),
-        Token::Sub => ME::Sub(Box::new(lhs), Box::new(rhs)),
-        Token::Mul => ME::Mul(Box::new(lhs), Box::new(rhs)),
-        Token::Div => ME::Div(Box::new(lhs), Box::new(rhs)),
+        Mode::Add => ME::Add(Box::new(lhs), Box::new(rhs)),
+        Mode::Sub => ME::Sub(Box::new(lhs), Box::new(rhs)),
+        Mode::Mul => ME::Mul(Box::new(lhs), Box::new(rhs)),
+        Mode::Div => ME::Div(Box::new(lhs), Box::new(rhs)),
+        Mode::Rsh => ME::Rsh(Box::new(lhs), Box::new(rhs)),
+        Mode::Lsh => ME::Lsh(Box::new(lhs), Box::new(rhs)),
+        Mode::And => ME::And(Box::new(lhs), Box::new(rhs)),
+        Mode::Or => ME::Or(Box::new(lhs), Box::new(rhs)),
+        Mode::Xor => ME::Xor(Box::new(lhs), Box::new(rhs)),
+        Mode::Lt | Mode::Gt => panic!("Boolean operations are currently unsupported!"),
         _ => panic!("Unsupported case"),
     }
 }
@@ -255,12 +438,15 @@ fn tok(str: &str) -> Vec<Token> {
 
     for c in str.chars() {
         match c {
-            '+' | '-' | '*' | '/' | '&' | '|' | '%' | '!' | '^' | '(' | ')' | ' ' | '\t' => {
+            '+' | '-' | '*' | '/' | '&' | '|' | '%' | '!' | '^' | '(' | ')' | ' ' | '<' | '>'
+            | '\t' => {
                 if !tmp_buf.is_empty() {
                     tokens.push(make_tok(tmp_buf));
                     tmp_buf = Vec::new();
                 }
                 match c {
+                    '<' => tokens.push(Token::Lt),
+                    '>' => tokens.push(Token::Gt),
                     '+' => tokens.push(Token::Add),
                     '-' => tokens.push(Token::Sub),
                     '*' => tokens.push(Token::Mul),
@@ -316,6 +502,8 @@ mod math_tests {
                 Token::Number(Number::UInt8(20))
             ]
         );
+        let toks = tok("<<");
+        assert_eq!(toks, vec![Token::Lt, Token::Lt]);
     }
     #[test]
     fn par_test() {
@@ -440,7 +628,26 @@ mod math_tests {
                 ))))
             ))
         );
+        let res_1 = par(tok("1 << 2"));
+        assert_eq!(
+            res_1,
+            Ok(MathElement::Lsh(
+                Box::new(MathElement::Number(Number::UInt8(1))),
+                Box::new(MathElement::Number(Number::UInt8(2))),
+            ))
+        );
     }
     #[test]
-    fn eval_test() {}
+    fn eval_test() {
+        let eval = MathElement::Add(
+            Box::new(MathElement::Number(Number::UInt8(1))),
+            Box::new(MathElement::Number(Number::UInt8(2))),
+        );
+        let eval = MathematicalEvaluation::eval(eval);
+        assert_eq!(eval, Some(3));
+        let eval = MathematicalEvaluation::from_str("(2 * 5) / 5");
+        assert!(eval.is_ok());
+        let eval = eval.unwrap();
+        assert_eq!(MathematicalEvaluation::eval(eval), Some(2));
+    }
 }

@@ -189,6 +189,21 @@ impl Number {
             Self::Double(_) => 2,
         }
     }
+    pub fn get_as_u32(&self) -> u32 {
+        match self {
+            Self::Double(f) => *f as u32,
+            Self::Int64(i) => *i as u32,
+            Self::UInt64(i) => *i as u32,
+            Self::Float(f) => *f as u32,
+            Self::Int32(i) => *i as u32,
+            Self::UInt32(i) => *i,
+            Self::Int16(i) => *i as u32,
+            Self::UInt16(i) => *i as u32,
+            Self::UInt8(i) => *i as u32,
+            Self::Int8(i) => *i as u32,
+            Self::Char(i) => *i as u32,
+        }
+    }
     pub fn get_as_i32(&self) -> i32 {
         match self {
             Self::Double(f) => *f as i32,
