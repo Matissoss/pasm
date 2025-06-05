@@ -31,7 +31,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Support for comptime mathematical evaluations (`$()` closure)
         - [x] Support for constant user defined mathematical values (that aren't symbols, but inline immediates)
         - [x] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
-        - [ ] Support for includes 
+        - [x] Support for includes 
         - [ ] Support for label attributes (`#()` closure)
         - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
     - betao (beta obj)

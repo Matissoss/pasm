@@ -19,6 +19,7 @@ use crate::{
     },
 };
 use std::borrow::Cow;
+use std::path::PathBuf;
 
 pub struct Lexer;
 impl Lexer {
@@ -74,6 +75,13 @@ impl Lexer {
                         ));
                     }
                 }
+                Some(Token::Keyword(Keyword::Include)) => match make_include(line) {
+                    Ok(i) => node = Some(ASTNode::Include(i)),
+                    Err(mut e) => {
+                        e.set_line(line_count);
+                        error = Some(e)
+                    }
+                },
                 Some(Token::Keyword(Keyword::Extern)) => {
                     if let Some(Token::String(etrn) | Token::Unknown(etrn)) = line.get(1) {
                         node = Some(ASTNode::Extern(etrn.to_string()));
@@ -133,6 +141,17 @@ impl Lexer {
             }
         }
         ast_tree
+    }
+}
+
+fn make_include(line: Vec<Token>) -> Result<PathBuf, RASMError> {
+    if let Some(Token::Unknown(s) | Token::String(s)) = line.get(1) {
+        Ok(PathBuf::from(s))
+    } else {
+        Err(RASMError::no_tip(
+            None,
+            Some("Tried to use include, but without file name"),
+        ))
     }
 }
 

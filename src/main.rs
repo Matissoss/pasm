@@ -32,6 +32,7 @@ use pre::lex::Lexer;
 use pre::par::Parser;
 use pre::tok::Tokenizer;
 use shr::ast::AST;
+use shr::error;
 
 // rasmx86_64 helper utilities
 pub mod cli;
@@ -144,23 +145,24 @@ fn parse_file(inpath: &PathBuf) -> AST<'static> {
             let lexed = Lexer::parse_file(tokenized_file);
             match Parser::build_tree(lexed) {
                 Ok(mut ast) => {
+                    ast.file = inpath.to_path_buf();
                     if let Err(why) = pre_core::post_process(&mut ast) {
-                        eprintln!("149 = {why}");
+                        error::print_error(why, &ast.file);
                         process::exit(1);
                     }
-
                     if conf::FAST_MODE {
                         return ast;
                     } else if let Some(errs) = pre::chk::check_ast(&ast) {
                         let mut error_count: usize = 0;
                         for (name, errors) in errs {
                             eprintln!(
-                                "\n--- {} ---\n",
+                                "\n--- {}:{} ---\n",
+                                &ast.file.to_string_lossy(),
                                 ColString::new(name).set_color(Color::PURPLE)
                             );
                             for err in errors {
                                 error_count += 1;
-                                println!("{}", err)
+                                error::print_error(err, &ast.file);
                             }
                         }
                         CLI.exit(
@@ -174,6 +176,22 @@ fn parse_file(inpath: &PathBuf) -> AST<'static> {
                             1,
                         );
                     } else {
+                        if !ast.includes.is_empty() {
+                            let paths = {
+                                let mut v = Vec::new();
+                                for p in &ast.includes {
+                                    v.push(p.clone())
+                                }
+                                v
+                            };
+                            for p in paths {
+                                let sast = parse_file(&p);
+                                if let Err(why) = ast.extend(sast) {
+                                    error::print_error(why, &ast.file);
+                                    process::exit(1);
+                                }
+                            }
+                        }
                         return ast;
                     }
                 }
@@ -245,7 +263,7 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
         symbols.extend(section.1);
     }
     for label in &astrc_ref.labels {
-        let mut res = comp::compile_label(&label.inst, astrc_ref.bits.unwrap_or(64));
+        let mut res = comp::compile_label(label);
         let mut symb = Symbol {
             name: Cow::Borrowed(&label.name),
             offset: to_write.len() as u64,

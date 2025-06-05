@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 use std::borrow::Cow;
+use std::path::PathBuf;
 
 const EMPTY_STRING: &str = "";
 use crate::shr::{
@@ -27,6 +28,8 @@ impl Parser {
             labels: Vec::new(),
             globals: Vec::new(),
             externs: Vec::new(),
+            includes: Vec::new(),
+            file: PathBuf::new(),
         };
 
         let mut inside_label: (bool, String) = (false, String::new());
@@ -38,6 +41,7 @@ impl Parser {
                 Err(error) => errors.push(error),
                 Ok(node) => {
                     match node.0 {
+                        ASTNode::Include(p) => ast.includes.push(p),
                         ASTNode::MathEval(name, value) => ast.math.push((name, value)),
                         ASTNode::Label(lbl) => {
                             if !instructions.is_empty() {
@@ -45,6 +49,7 @@ impl Parser {
                                     name: Cow::Owned(inside_label.1),
                                     inst: instructions,
                                     visibility: Visibility::Local,
+                                    bits: ast.bits.unwrap_or(16),
                                 });
                                 instructions = Vec::new();
                             }
@@ -133,6 +138,7 @@ impl Parser {
                 name: Cow::Owned(inside_label.1),
                 inst: instructions,
                 visibility: Visibility::Local,
+                bits: ast.bits.unwrap_or(16),
             });
         }
         ast.vars = vardecs;

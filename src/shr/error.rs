@@ -51,6 +51,65 @@ pub struct RASMError {
     tip: Option<String>,
 }
 
+pub fn print_error(r: RASMError, file_name: &PathBuf) {
+    let mut fileb = String::new();
+    File::read_to_string(&mut File::open(file_name).unwrap(), &mut fileb).unwrap();
+    let file: Vec<String> = fileb.lines().map(|s| s.to_string()).collect();
+    let line = if let Some(line) = r.line {
+        Some(line - 1)
+    } else {
+        None
+    };
+
+    let ctx = if let Some(line) = line {
+        Some(&file[line])
+    } else {
+        None
+    };
+
+    println!(
+        "{}:\n\tin {}{}{}{}{}",
+        r.etype,
+        ColString::new(file_name.to_string_lossy()).set_color(Color::YELLOW),
+        if let Some(line) = line {
+            format!(
+                " at line {}",
+                ColString::new(line + 1).set_color(Color::YELLOW)
+            )
+        } else {
+            "".to_string()
+        },
+        if let Some(ctx) = ctx {
+            format!(
+                "\n\t{}",
+                ColString::new(ctx.trim())
+                    .set_color(Color::GREEN)
+                    .set_modf(Modifier::Bold)
+            )
+        } else {
+            "".to_string()
+        },
+        if let Some(msg) = &r.msg {
+            format!("\n\t---\n\t{}", msg)
+        } else {
+            "".to_string()
+        },
+        if let Some(tip) = &r.tip {
+            format!(
+                "\n\t{} {}",
+                ColString::new("tip:")
+                    .set_color(Color::BLUE)
+                    .set_modf(Modifier::Bold),
+                ColString::new(tip)
+                    .set_color(Color::BLUE)
+                    .set_modf(Modifier::Bold)
+            )
+        } else {
+            "".to_string()
+        }
+    );
+}
+
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
         let line = if let Some(line) = self.line {

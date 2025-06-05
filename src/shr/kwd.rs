@@ -21,6 +21,7 @@ pub enum Keyword {
     Global,
     Uninit,
     Extern,
+    Include,
 
     Math,
 }
@@ -78,6 +79,7 @@ impl FromStr for Keyword {
                 'e' => kwd_ie(kwd, b"extern", 1, 5, Keyword::Extern),
                 _ => Err(()),
             },
+            7 => kwd_ie(kwd, b"include", 1, 6, Keyword::Include),
             _ => Err(()),
         }
     }
@@ -87,6 +89,7 @@ impl FromStr for Keyword {
 impl ToString for Keyword {
     fn to_string(&self) -> String {
         match self {
+            Self::Include => String::from("include"),
             Self::Math => String::from("math"),
             Self::Qword => String::from("qword"),
             Self::Any => String::from("any"),

@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 use std::borrow::Cow;
+use std::path::PathBuf;
 
 use crate::pre::tok::Token;
 use crate::shr::{
@@ -33,7 +34,7 @@ pub enum Operand {
     Segment(Segment),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
     pub mnem: Mnm,
     pub addt: Option<Vec<Mnm>>,
@@ -49,15 +50,17 @@ pub enum ASTNode<'a> {
     Label(String),
     Extern(String),
     Global(String),
+    Include(PathBuf),
     MathEval(String, String),
     Variable(Variable<'a>),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Label<'a> {
     pub name: Cow<'a, String>,
     pub inst: Vec<Instruction>,
     pub visibility: Visibility,
+    pub bits: u8,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -68,7 +71,9 @@ pub struct AST<'a> {
     pub externs: Vec<String>,
     pub bits: Option<u8>,
     pub entry: Option<String>,
+    pub includes: Vec<PathBuf>,
     pub math: Vec<(String, String)>,
+    pub file: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -415,6 +420,41 @@ impl<'a> AST<'a> {
                 continue;
             }
         }
+    }
+    pub fn extend(&mut self, rhs: Self) -> Result<(), RASMError> {
+        for l in rhs.labels {
+            if self.labels.contains(&l) {
+                return Err(RASMError::no_tip(
+                    None,
+                    Some(format!("Multiple files contains label {}", l.name)),
+                ));
+            }
+            self.labels.push(l);
+        }
+        for l in rhs.includes {
+            if self.includes.contains(&l) {
+                return Err(RASMError::no_tip(
+                    None,
+                    Some(format!(
+                        "Multiple files contains include {}",
+                        l.to_string_lossy()
+                    )),
+                ));
+            }
+            self.includes.push(l);
+        }
+        for l in rhs.externs {
+            if self.externs.contains(&l) {
+                return Err(RASMError::no_tip(
+                    None,
+                    Some(format!("Multiple files contains externs {}", l)),
+                ));
+            }
+            self.externs.push(l);
+        }
+        self.math.extend(rhs.math);
+        self.globals.extend(rhs.globals);
+        Ok(())
     }
     pub fn filter_vars(vars: &'a Vec<Variable<'a>>) -> Vec<(u32, Vec<&'a Variable<'a>>)> {
         let mut ronly = Vec::new();

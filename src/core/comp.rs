@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use crate::{
     core::{api::*, avx, disp, mmx, modrm, rex, sib, sse, sse2, sse3, sse4, ssse3, vex},
     shr::{
-        ast::{IVariant, Instruction, Operand},
+        ast::{IVariant, Instruction, Label, Operand},
         ins::Mnemonic as Ins,
         num::Number,
         reg::Register,
@@ -96,10 +96,11 @@ pub fn compile_section<'a>(
     (buf, symbols)
 }
 
-pub fn compile_label(lbl: &'_ Vec<Instruction>, bits: u8) -> (Vec<u8>, Vec<Relocation<'_>>) {
+pub fn compile_label<'a>(lbl: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>) {
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
-    for ins in lbl {
+    let bits = lbl.bits;
+    for ins in &lbl.inst {
         let res = compile_instruction(ins, bits);
         if let Some(mut rl) = res.1 {
             rl.offset += bytes.len() as u64;
