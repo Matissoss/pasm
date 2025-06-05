@@ -30,8 +30,6 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Support for "modifiers" that is: `base:mod1:mod2`
         - [x] Support for comptime mathematical evaluations (`$()` closure)
         - [x] Support for constant user defined mathematical values (that aren't symbols, but inline immediates)
-        - [ ] Support for boolean algebra (ternary and comparision operators)
-        - [ ] Integrate symbols with comptime mathematical evaluations (atleast for `bin` target)
         - [ ] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
         - [ ] Support for includes 
         - [ ] Support for label attributes (`#()` closure)
