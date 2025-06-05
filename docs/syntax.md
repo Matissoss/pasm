@@ -72,11 +72,11 @@ RASM assembler supports: SIB, SIB with offset, Base, Index-only memory formats.
 (%rcx * 4) !qword
 ```
 
-Memory can also relate to segments like `cs`. It must be prefixed with `#` and split using `:`
+Memory can also relate to segments like `cs`. It must be prefixed with `%` and split using `:`
 
 ```
-#cs:(%rax)
-#fs:(%rax + %rcx * 4 + 20)
+%cs:(%rax)
+%fs:(%rax + %rcx * 4 + 20)
 ```
 
 ### Symbols

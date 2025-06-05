@@ -19,7 +19,6 @@ use crate::{
     },
 };
 use std::borrow::Cow;
-use std::str::FromStr;
 
 pub struct Lexer;
 impl Lexer {
@@ -242,8 +241,8 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
              (Token::Closure(' ', m), Token::Keyword(k))
             |(Token::Keyword(k), Token::Closure(' ', m)) =>
                 return Ok(Operand::Mem(Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),
-             (Token::Closure('#', s), Token::Keyword(k))
-            |(Token::Keyword(k), Token::Closure('#', s)) => {
+             (Token::Modifier(r, m), Token::Keyword(k))
+            |(Token::Keyword(k), Token::Modifier(r, m)) => {
                 let size = match Size::try_from(*k){
                     Ok(s) => s,
                     Err(_) => return Err(RASMError::no_tip(
@@ -251,13 +250,30 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
                         Some(format!("Couldn't parse size specifier `{}`", k.to_string())),
                     ))
                 };
-                let mut segment = Segment::from_str(s)?;
-                segment.address.set_size(size);
-                return Ok(Operand::Segment(segment));
+                let r = if let Token::Register(r) = **r {
+                    if r.purpose() == crate::shr::reg::Purpose::Sgmnt {
+                        r
+                    } else {
+                        return Err(RASMError::no_tip(None, Some("Registers used in segments must be segment-purposed")))
+                    }
+                } else {
+                    return Err(RASMError::no_tip(None, Some(format!("Couldn't make register from \"{}\" (asserted that modifier is segment)",
+                            r.to_string()
+                    ))))
+                };
+                if m.is_none() {
+                    return Err(RASMError::no_tip(None, Some("Expected memory address at second (idx 1) modifier")));
+                }
+                let mem = if let Token::Closure(' ', s) = *m.clone().unwrap() {
+                    Mem::new(&s, size)?
+                } else {
+                    return Err(RASMError::no_tip(None, Some("Expected memory address as second (idx 1) modifier")));
+                };
+                return Ok(Operand::Segment(Segment { segment: r, address: mem}));
             }
             _ => return Err(RASMError::no_tip(
                 None,
-                Some("Tried to make unexpected operand from two tokens; expected memory address along with size specifier".to_string()),
+                Some("Tried to make unexpected operand from two tokens; expected memory address (or segment) along with size specifier".to_string()),
             ))
         }
     }

@@ -143,10 +143,12 @@ impl Tokenizer {
                 }
                 (Some(':'), ' ') => {
                     if delimeter_count == 0 {
-                        tmp_toks.push(Token::make_from(
-                            closure_pfx,
-                            String::from_iter(tmp_buf.iter()),
-                        ));
+                        if !tmp_buf.is_empty() {
+                            tmp_toks.push(Token::make_from(
+                                closure_pfx,
+                                String::from_iter(tmp_buf.iter()),
+                            ));
+                        }
                         tmp_buf = Vec::new();
                         tokens.push(Token::make_modifier(tmp_toks));
                         tmp_toks = Vec::new();
@@ -406,6 +408,24 @@ mod tests {
                     Some(Box::new(Token::Closure('$', "%rax".to_string())))
                 )))
             )]
+        );
+        let str = "mov %edi, %ds:(%rbx + %rcx * $4 - $10) !dword";
+        let tokens = Tokenizer::tokenize_line(str);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Mnemonic(crate::shr::ins::Mnemonic::MOV),
+                Token::Register(Register::EDI),
+                Token::Comma,
+                Token::Modifier(
+                    Box::new(Token::Register(Register::DS)),
+                    Some(Box::new(Token::Closure(
+                        ' ',
+                        "%rbx+%rcx*$4-$10".to_string(),
+                    )))
+                ),
+                Token::Keyword(Keyword::Dword)
+            ]
         );
     }
 }
