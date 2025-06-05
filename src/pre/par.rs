@@ -23,6 +23,7 @@ impl Parser {
             bits: None,
             entry: None,
             vars: Vec::new(),
+            math: Vec::new(),
             labels: Vec::new(),
             globals: Vec::new(),
             externs: Vec::new(),
@@ -37,6 +38,7 @@ impl Parser {
                 Err(error) => errors.push(error),
                 Ok(node) => {
                     match node.0 {
+                        ASTNode::MathEval(name, value) => ast.math.push((name, value)),
                         ASTNode::Label(lbl) => {
                             if !instructions.is_empty() {
                                 ast.labels.push(Label {

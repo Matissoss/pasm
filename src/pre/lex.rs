@@ -97,6 +97,13 @@ impl Lexer {
                         ));
                     }
                 }
+                Some(Token::Keyword(Keyword::Math)) => match make_eval(line) {
+                    Ok(n) => node = Some(ASTNode::MathEval(n.0, n.1)),
+                    Err(mut e) => {
+                        e.set_line(line_count);
+                        error = Some(e)
+                    }
+                },
                 Some(Token::Mnemonic(_)) => match make_ins(&line) {
                     Ok(mut i) => {
                         i.line = line_count;
@@ -114,7 +121,7 @@ impl Lexer {
                 _ => {
                     ast_tree.push(Err(RASMError::with_tip(
                         Some(line_count),
-                        Some("Unexpected start of line!"),
+                        Some("Unexpected start of line"),
                         Some("Consider starting line with instruction, !global, section declaration or label declaration")
                     )));
                 }
@@ -128,6 +135,35 @@ impl Lexer {
         }
         ast_tree
     }
+}
+
+fn make_eval(line: Vec<Token>) -> Result<(String, String), RASMError> {
+    if line.is_empty() {
+        return Err(RASMError::no_tip(
+            None,
+            Some("Tried to make mathematical evaluation from nothing"),
+        ));
+    }
+    // we assert that first (index 0) element is math keyword
+    let name = if let Some(Token::Unknown(n)) = line.get(1) {
+        n.to_string()
+    } else {
+        return Err(RASMError::no_tip(
+            None,
+            Some("Tried to make mathematical constant without name"),
+        ));
+    };
+    let eval = match line.get(2) {
+        Some(Token::Closure('$', m)) => m.to_string(),
+        Some(Token::Immediate(n)) => n.to_string(),
+        _ => {
+            return Err(RASMError::no_tip(
+                None,
+                Some("Tried to make value from nothing"),
+            ))
+        }
+    };
+    Ok((name, eval))
 }
 
 fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
@@ -198,29 +234,14 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
     }
 
     if line.len() == 1 {
-        match Operand::try_from(line[0]) {
-            Ok(o) => return Ok(o),
-            Err(_) => {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some(format!(
-                        "Failed to create operand from {}",
-                        line[0].to_string()
-                    )),
-                ))
-            }
-        }
+        return Operand::try_from(line[0]);
     }
 
     if line.len() == 2 {
         match (&line[0], &line[1]){
              (Token::Closure(' ', m), Token::Keyword(k))
-            |(Token::Keyword(k), Token::Closure(' ', m)) => {
-                match Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown)){
-                    Ok(m) => return Ok(Operand::Mem(m)),
-                    Err(e) => return Err(e),
-                }
-            },
+            |(Token::Keyword(k), Token::Closure(' ', m)) =>
+                return Ok(Operand::Mem(Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),
              (Token::Closure('#', s), Token::Keyword(k))
             |(Token::Keyword(k), Token::Closure('#', s)) => {
                 let size = match Size::try_from(*k){

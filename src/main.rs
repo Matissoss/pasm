@@ -24,6 +24,7 @@ use std::{
 // rasmx86_64 modules
 pub mod core;
 pub mod pre;
+pub mod pre_core;
 pub mod shr;
 
 use core::comp;
@@ -141,9 +142,13 @@ fn parse_file(inpath: &PathBuf) -> AST<'static> {
             }
 
             let lexed = Lexer::parse_file(tokenized_file);
-
             match Parser::build_tree(lexed) {
-                Ok(ast) => {
+                Ok(mut ast) => {
+                    if let Err(why) = pre_core::post_process(&mut ast) {
+                        eprintln!("149 = {why}");
+                        process::exit(1);
+                    }
+
                     if conf::FAST_MODE {
                         return ast;
                     } else if let Some(errs) = pre::chk::check_ast(&ast) {

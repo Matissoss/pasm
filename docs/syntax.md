@@ -109,12 +109,21 @@ Here is list of all keywords (according to `src/shr/kwd.rs`) with their argument
 - `!byte [MEM]`
 - `!word [MEM]`
 - `!xword [MEM]`
+- `!math [NAME] [VAL]`
 - `!ronly [VAR DECLARATION]`
 - `!const [VAR DECLARATION]`
 - `!uninit [VAR DECLARATION]`
 - `!entry [LABEL NAME]`: Specifies entry point for relocatable file. (basically is a swap; see `src/shr/ast.rs:AST::fix_entry`)
 - `!global [SYMBOL NAME]`: Specifies if symbol `[SYMBOL NAME]` is global or not. Must be declared in `ROOT`.
 - `!extern [SYMBOL NAME]`: Specifies that symbol `[SYMBOL NAME]` is in this file or not. Must be declared in `ROOT`.
+
+### Mathematics
+
+Mathematical closures (`$()`) can be used to evaluate complex mathematical evaluations.
+
+To use them you can either:
+- Use as immediate (like `mov %rax, $(...)`)
+- Or defined as constant in `ROOT` (like `!math name $(...)` - must be referenced with `@`)
 
 ### Variables
 

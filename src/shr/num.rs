@@ -35,6 +35,9 @@ impl Number {
     pub fn new(ntype: NType, content: u64) -> Self {
         Self { ntype, content }
     }
+    pub fn get_as_u64(&self) -> u64 {
+        self.get_raw()
+    }
     pub fn get_as_u32(&self) -> u32 {
         self.get_raw() as u32
     }

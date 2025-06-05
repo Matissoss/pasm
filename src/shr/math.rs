@@ -273,7 +273,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
             idx += 1;
             continue;
         }
-        match tok[idx] {
+        match &tok[idx] {
             Token::Start => {
                 iclosure = true;
                 idx += 1;
@@ -360,7 +360,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 }
                 if tmp_num.is_none() && tmp_mat.is_none() {
                     if mode.is_none() {
-                        tmp_num = Some(n);
+                        tmp_num = Some(*n);
                         idx += 1;
                         continue;
                     } else {
@@ -387,16 +387,19 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                         panic!("Unexpected 1")
                     }
                 };
-                elements.push(mer2(&mode.unwrap(), lhs, MathElement::Number(n)));
+                elements.push(mer2(&mode.unwrap(), lhs, MathElement::Number(*n)));
                 mode = None;
                 tmp_num = None;
                 idx += 1;
                 continue;
             }
-            Token::Unknown(_) => {
+            Token::Unknown(s) => {
                 return Err(Error::no_tip(
                     None,
-                    Some("Expected number, found {unknown}"),
+                    Some(format!(
+                        "Expected number, found {{unknown}} string \"{}\"",
+                        &s
+                    )),
                 ))
             }
             _ => idx += 1,
@@ -416,12 +419,16 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
     if let Some(s) = elements.pop() {
         Ok(s)
     } else {
-        Err(Error::no_tip(
-            None,
-            Some(
-                "Internal Error (should not happen): Tried to pop elements, while it was empty :(",
-            ),
-        ))
+        if let Some(tmp_n) = tmp_num {
+            Ok(MathElement::Number(tmp_n))
+        } else {
+            Err(Error::no_tip(
+                None,
+                Some(
+                    "Internal Error (should not happen): Tried to pop elements, while it was empty :(",
+                ),
+            ))
+        }
     }
 }
 
@@ -516,6 +523,15 @@ mod math_tests {
     }
     #[test]
     fn par_test() {
+        let toks = tok("10 * 2");
+        let result = par(toks);
+        assert_eq!(
+            result,
+            Ok(MathElement::Mul(
+                Box::new(MathElement::Number(Number::uint64(10))),
+                Box::new(MathElement::Number(Number::uint64(2)))
+            ))
+        );
         let toks = tok("10 + 20");
         let result = par(toks);
         assert_eq!(

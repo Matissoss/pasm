@@ -8,7 +8,9 @@ use std::borrow::Cow;
 use crate::pre::tok::Token;
 use crate::shr::{
     atype::{AType, ToAType},
+    error::RASMError,
     ins::Mnemonic as Mnm,
+    math::MathematicalEvaluation as MathEval,
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
@@ -26,6 +28,7 @@ pub enum Operand {
     DbgReg(Register),
     Imm(Number),
     Mem(Mem),
+    MathEval(String),
     SymbolRef(String),
     Segment(Segment),
 }
@@ -46,6 +49,7 @@ pub enum ASTNode<'a> {
     Label(String),
     Extern(String),
     Global(String),
+    MathEval(String, String),
     Variable(Variable<'a>),
 }
 
@@ -64,6 +68,7 @@ pub struct AST<'a> {
     pub externs: Vec<String>,
     pub bits: Option<u8>,
     pub entry: Option<String>,
+    pub math: Vec<(String, String)>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -99,20 +104,33 @@ pub enum IVariant {
 // implementations
 
 impl TryFrom<&Token> for Operand {
-    type Error = ();
+    type Error = RASMError;
     fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
         match tok {
             // experimental
             // idk what if this works (i hope so; will have to check)
             Token::Closure(' ', m) => match Mem::new(m, Size::Any) {
                 Ok(m) => Ok(Operand::Mem(m)),
-                Err(e) => {
-                    // we have to do error handling here :(
-                    eprintln!("{e}");
-                    std::process::exit(1);
-                }
+                Err(e) => Err(e),
             },
-
+            Token::Closure('$', m) => match MathEval::from_str(m) {
+                Ok(v) => {
+                    if MathEval::can_eval(&v) {
+                        let e = MathEval::eval(v);
+                        if let Some(e) = e {
+                            Ok(Self::Imm(Number::uint64(e)))
+                        } else {
+                            Err(Self::Error::no_tip(
+                                None,
+                                Some("Failed to evaluate mathematical expression"),
+                            ))
+                        }
+                    } else {
+                        Ok(Self::MathEval(m.to_string()))
+                    }
+                }
+                Err(e) => Err(e),
+            },
             Token::Register(reg) => {
                 if reg.is_ctrl_reg() {
                     Ok(Self::CtrReg(*reg))
@@ -126,7 +144,7 @@ impl TryFrom<&Token> for Operand {
             }
             Token::Immediate(nm) => Ok(Self::Imm(*nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(val.to_string())),
-            _ => Err(()),
+            _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
     }
 }
@@ -142,6 +160,7 @@ impl Operand {
             Self::SymbolRef(_) => Size::Any,
             Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
             Self::SegReg(_) => Size::Word,
+            Self::MathEval(_) => Size::Unknown,
         }
     }
     pub fn ext_atype(&self) -> AType {
@@ -153,6 +172,7 @@ impl Operand {
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
+            Self::MathEval(_) => AType::Immediate(Size::Unknown),
         }
     }
 }
@@ -165,6 +185,7 @@ impl ToAType for Operand {
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
+            Self::MathEval(_) => AType::Immediate(Size::Unknown),
         }
     }
 }

@@ -21,6 +21,8 @@ pub enum Keyword {
     Global,
     Uninit,
     Extern,
+
+    Math,
 }
 
 // keyword is equal
@@ -51,6 +53,7 @@ impl FromStr for Keyword {
             3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
 
             4 => match kwd_raw[0] as char {
+                'm' => kwd_ie(kwd, b"math", 1, 3, Keyword::Math),
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
                     'i' => kwd_ie(kwd, b"bits", 2, 3, Keyword::Bits),
@@ -84,6 +87,7 @@ impl FromStr for Keyword {
 impl ToString for Keyword {
     fn to_string(&self) -> String {
         match self {
+            Self::Math => String::from("math"),
             Self::Qword => String::from("qword"),
             Self::Any => String::from("any"),
             Self::Dword => String::from("dword"),
