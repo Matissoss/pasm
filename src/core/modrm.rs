@@ -16,12 +16,8 @@ type Operand = Op;
 pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     let [mut dst, mut src, _] = ctx.get_ord_oprs(ins);
 
-    // default values
-    // may be an issue in future, but it works for now...
-    if dst.is_none() {
+    if let (None, None) = (dst, src) {
         dst = ins.dst();
-    }
-    if src.is_none() {
         src = ins.src();
     }
 

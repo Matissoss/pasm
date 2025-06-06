@@ -1878,7 +1878,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VINSERTF128 => (
-            avx::avx_ins_wimm3(ins, &[0x18], &[0x18], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x18])
+                .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                .modrm(true, None, None)
+                .imm_atindex(3, 1)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VEXTRACTF128 => (
@@ -1886,15 +1892,29 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VBROADCASTSS => (
-            avx::avx_ins(ins, &[0x18], &[0x18], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x18])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VBROADCASTSD => (
-            avx::avx_ins(ins, &[0x19], &[0x19], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x19])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VBROADCASTF128 => (
-            avx::avx_ins(ins, &[0x1A], &[0x1A], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x1A])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::STMXCSR => (
@@ -1914,26 +1934,52 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VSTMXCSR => (
-            avx::avx_ins(ins, &[0xAE], &[0xAE], Some(3), 0, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xAE])
+                .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
+                .modrm(true, Some(3), None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VLDMXCSR => (
-            avx::avx_ins(ins, &[0xAE], &[0xAE], Some(2), 0, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xAE])
+                .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
+                .modrm(true, Some(2), None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VMOVMSKPS => (
-            avx::avx_ins(ins, &[0x50], &[0x50], None, 0, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x50])
+                .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPERMILPS => {
             if let Some(Operand::Imm(_)) = ins.src2() {
                 (
-                    avx::avx_ins_wimm2(ins, &[0x04], &[0x04], None, 0x66, 0x3A, false),
+                    GenAPI::new()
+                        .modrm(true, None, None)
+                        .opcode(&[0x04])
+                        .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                        .ord(&[MODRM_REG, MODRM_RM])
+                        .imm_atindex(2, 1)
+                        .assemble(ins, bits),
                     None,
                 )
             } else {
                 (
-                    avx::avx_ins(ins, &[0x0C], &[0x0C], None, 0x66, 0x38, false),
+                    GenAPI::new()
+                        .modrm(true, None, None)
+                        .opcode(&[0x0C])
+                        .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                        .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                        .assemble(ins, bits),
                     None,
                 )
             }
@@ -1941,12 +1987,23 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::VPERMILPD => {
             if let Some(Operand::Imm(_)) = ins.src2() {
                 (
-                    avx::avx_ins_wimm2(ins, &[0x05], &[0x05], None, 0x66, 0x3A, false),
+                    GenAPI::new()
+                        .modrm(true, None, None)
+                        .opcode(&[0x05])
+                        .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                        .ord(&[MODRM_REG, MODRM_RM])
+                        .imm_atindex(2, 1)
+                        .assemble(ins, bits),
                     None,
                 )
             } else {
                 (
-                    avx::avx_ins(ins, &[0x0D], &[0x0D], None, 0x66, 0x38, false),
+                    GenAPI::new()
+                        .modrm(true, None, None)
+                        .opcode(&[0x0D])
+                        .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                        .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                        .assemble(ins, bits),
                     None,
                 )
             }
@@ -1963,56 +2020,126 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VPCLMULQDQ => (
-            avx::avx_ins_wimm3(ins, &[0x44], &[0x44], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x44])
+                .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                .imm_atindex(3, 1)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPERM2F128 => (
-            avx::avx_ins_wimm3(ins, &[0x06], &[0x06], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x06])
+                .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                .imm_atindex(3, 1)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPERM2I128 => (
-            avx::avx_ins_wimm3(ins, &[0x46], &[0x46], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x46])
+                .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                .imm_atindex(3, 1)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // part2c
         Ins::VPINSRW => (
-            avx::avx_ins_wimm3(ins, &[0xC4], &[0xC4], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xC4])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .imm_atindex(3, 1)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMAXSW => (
-            avx::avx_ins(ins, &[0xEE], &[0xEE], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xEE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMINSW => (
-            avx::avx_ins(ins, &[0xEA], &[0xEA], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xEA])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSRLDQ => (
-            avx::avx_ins_wimm2(ins, &[0x73], &[0x73], Some(3), 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x73])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .imm_atindex(2, 1)
+                .modrm(true, Some(3), None)
+                .ord(&[VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSIGNB => (
-            avx::avx_ins(ins, &[0x08], &[0x08], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x08])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSIGNW => (
-            avx::avx_ins(ins, &[0x09], &[0x09], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x09])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSIGND => (
-            avx::avx_ins(ins, &[0x0A], &[0x0A], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x0A])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMULUDQ => (
-            avx::avx_ins(ins, &[0xF4], &[0xF4], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xF4])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMULHUW => (
-            avx::avx_ins(ins, &[0xE4], &[0xE4], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE4])
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMULHRSW => (
-            avx::avx_ins(ins, &[0x0B], &[0x0B], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x0B])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // part2c-ext
@@ -2058,7 +2185,12 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VPMAXUD => (
-            avx::avx_ins(ins, &[0x3F], &[0x3F], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x3F])
+                .modrm(true, None, None)
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::PMULHUW => {
@@ -2082,243 +2214,547 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VFMADD213PS => (
-            avx::avx_ins_oopc(ins, &[0xA8], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xA8])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD231PS => (
-            avx::avx_ins_oopc(ins, &[0xB8], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xB8])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD132PD => (
-            avx::avx_ins_oopc(ins, &[0x98], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x98])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD213PD => (
-            avx::avx_ins_oopc(ins, &[0xA8], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xA8])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD231PD => (
-            avx::avx_ins_oopc(ins, &[0xB8], None, 0x66, 0x38, true),
-            None,
-        ),
-        Ins::VFMADD132SS => (
-            avx::avx_ins_oopc(ins, &[0x99], None, 0x66, 0x38, false),
-            None,
-        ),
-        Ins::VFMADD213SS => (
-            avx::avx_ins_oopc(ins, &[0xA9], None, 0x66, 0x38, false),
-            None,
-        ),
-        Ins::VFMADD231SS => (
-            avx::avx_ins_oopc(ins, &[0xB9], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xB8])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD132SD => (
-            avx::avx_ins_oopc(ins, &[0x99], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x99])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD213SD => (
-            avx::avx_ins_oopc(ins, &[0xA9], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xA9])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADD231SD => (
-            avx::avx_ins_oopc(ins, &[0xB9], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xB9])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VFMADD132SS => (
+            GenAPI::new()
+                .opcode(&[0x99])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VFMADD213SS => (
+            GenAPI::new()
+                .opcode(&[0xA9])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VFMADD231SS => (
+            GenAPI::new()
+                .opcode(&[0xB9])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
         Ins::VFMSUB132PS => (
-            avx::avx_ins_oopc(ins, &[0x9A], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x9A])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB213PS => (
-            avx::avx_ins_oopc(ins, &[0xAA], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xAA])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB231PS => (
-            avx::avx_ins_oopc(ins, &[0xBA], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBA])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFMSUB132PD => (
-            avx::avx_ins_oopc(ins, &[0x9A], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9A])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB213PD => (
-            avx::avx_ins_oopc(ins, &[0xAA], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAA])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB231PD => (
-            avx::avx_ins_oopc(ins, &[0xBA], None, 0x66, 0x38, true),
-            None,
-        ),
-        Ins::VFMSUB132SS => (
-            avx::avx_ins_oopc(ins, &[0x9B], None, 0x66, 0x38, false),
-            None,
-        ),
-        Ins::VFMSUB213SS => (
-            avx::avx_ins_oopc(ins, &[0xAB], None, 0x66, 0x38, false),
-            None,
-        ),
-        Ins::VFMSUB231SS => (
-            avx::avx_ins_oopc(ins, &[0xBB], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBA])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB132SD => (
-            avx::avx_ins_oopc(ins, &[0x9B], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9B])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB213SD => (
-            avx::avx_ins_oopc(ins, &[0xAB], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAB])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUB231SD => (
-            avx::avx_ins_oopc(ins, &[0xBB], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xBB])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+        Ins::VFMSUB132SS => (
+            GenAPI::new()
+                .opcode(&[0x9B])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VFMSUB213SS => (
+            GenAPI::new()
+                .opcode(&[0xAB])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::VFMSUB231SS => (
+            GenAPI::new()
+                .opcode(&[0xBB])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+
         // fma-part2
         Ins::VFNMADD132PS => (
-            avx::avx_ins_oopc(ins, &[0x9C], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x9C])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD213PS => (
-            avx::avx_ins_oopc(ins, &[0xAC], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xAC])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD231PS => (
-            avx::avx_ins_oopc(ins, &[0xBC], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBC])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMADD132PD => (
-            avx::avx_ins_oopc(ins, &[0x9C], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9C])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD213PD => (
-            avx::avx_ins_oopc(ins, &[0xAC], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAC])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD231PD => (
-            avx::avx_ins_oopc(ins, &[0xBC], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xBC])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMADD132SS => (
-            avx::avx_ins_oopc(ins, &[0x9D], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x9D])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD213SS => (
-            avx::avx_ins_oopc(ins, &[0xAD], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xAD])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD231SS => (
-            avx::avx_ins_oopc(ins, &[0xBD], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBD])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMADD132SD => (
-            avx::avx_ins_oopc(ins, &[0x9D], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9D])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD213SD => (
-            avx::avx_ins_oopc(ins, &[0xAD], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAD])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMADD231SD => (
-            avx::avx_ins_oopc(ins, &[0xBD], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xBD])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
         Ins::VFNMSUB132PS => (
-            avx::avx_ins_oopc(ins, &[0x9E], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x9E])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB213PS => (
-            avx::avx_ins_oopc(ins, &[0xAE], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xAE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB231PS => (
-            avx::avx_ins_oopc(ins, &[0xBE], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMSUB132PD => (
-            avx::avx_ins_oopc(ins, &[0x9E], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9E])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB213PD => (
-            avx::avx_ins_oopc(ins, &[0xAE], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB231PD => (
-            avx::avx_ins_oopc(ins, &[0xBE], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xBE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMSUB132SS => (
-            avx::avx_ins_oopc(ins, &[0x9F], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x9F])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB213SS => (
-            avx::avx_ins_oopc(ins, &[0xAF], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xAF])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB231SS => (
-            avx::avx_ins_oopc(ins, &[0xBF], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xBF])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFNMSUB132SD => (
-            avx::avx_ins_oopc(ins, &[0x9F], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x9F])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB213SD => (
-            avx::avx_ins_oopc(ins, &[0xAF], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xAF])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFNMSUB231SD => (
-            avx::avx_ins_oopc(ins, &[0xBF], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xBF])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // fma-part3
         Ins::VFMADDSUB132PS => (
-            avx::avx_ins_oopc(ins, &[0x96], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x96])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADDSUB213PS => (
-            avx::avx_ins_oopc(ins, &[0xA6], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xA6])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADDSUB231PS => (
-            avx::avx_ins_oopc(ins, &[0xB6], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xB6])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADDSUB132PD => (
-            avx::avx_ins_oopc(ins, &[0x96], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x96])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADDSUB213PD => (
-            avx::avx_ins_oopc(ins, &[0xA6], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xA6])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMADDSUB231PD => (
-            avx::avx_ins_oopc(ins, &[0xB6], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xB6])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
+
         Ins::VFMSUBADD132PS => (
-            avx::avx_ins_oopc(ins, &[0x97], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x97])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUBADD213PS => (
-            avx::avx_ins_oopc(ins, &[0xA7], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xA7])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUBADD231PS => (
-            avx::avx_ins_oopc(ins, &[0xB7], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xB7])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUBADD132PD => (
-            avx::avx_ins_oopc(ins, &[0x97], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0x97])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUBADD213PD => (
-            avx::avx_ins_oopc(ins, &[0xA7], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xA7])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VFMSUBADD231PD => (
-            avx::avx_ins_oopc(ins, &[0xB7], None, 0x66, 0x38, true),
+            GenAPI::new()
+                .opcode(&[0xB7])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // aes
@@ -2372,28 +2808,60 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
+
         Ins::VAESDEC => (
-            avx::avx_ins_oopc(ins, &[0xDE], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xDE])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESENC => (
-            avx::avx_ins_oopc(ins, &[0xDC], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xDC])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESIMC => (
-            avx::avx_ins_oopc(ins, &[0xDB], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xDB])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESENCLAST => (
-            avx::avx_ins_oopc(ins, &[0xDD], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xDD])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESDECLAST => (
-            avx::avx_ins_oopc(ins, &[0xDF], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0xDF])
+                .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESKEYGENASSIST => (
-            avx::avx_ins_wimm2(ins, &[0xDF], &[0xDF], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0xDF])
+                .imm_atindex(2, 1)
+                .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::AESKEYGENASSIST => (
@@ -2583,127 +3051,177 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
         // cvt-part2
         Ins::VCVTPD2DQ => (
-            avx::avx_ins_oopc(ins, &[0xE6], None, 0xF2, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE6])
+                .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTPD2PS => (
-            avx::avx_ins_oopc(ins, &[0x5A], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x5A])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTPS2DQ => (
-            avx::avx_ins_oopc(ins, &[0x5B], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x5B])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::VCVTPS2PD => (avx::avx_ins_oopc(ins, &[0x5A], None, 0, 0x0F, false), None),
+        Ins::VCVTPS2PD => (
+            GenAPI::new()
+                .opcode(&[0x5A])
+                .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::VCVTSD2SI => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2D],
-                None,
-                0xF2,
-                0x0F,
-                if let Some(o) = ins.dst() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2D])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF2)
+                        .vex_we(ins.dst().unwrap().size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTSD2SS => (
-            avx::avx_ins_oopc(ins, &[0x5A], None, 0xF2, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x5A])
+                .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTSI2SD => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2A],
-                None,
-                0xF2,
-                0x0F,
-                if let Some(o) = ins.src2() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2A])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF2)
+                        .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .modrm(true, None, None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTSI2SS => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2A],
-                None,
-                0xF3,
-                0x0F,
-                if let Some(o) = ins.src2() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2A])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF3)
+                        .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTSS2SD => (
-            avx::avx_ins_oopc(ins, &[0x5A], None, 0xF3, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x5A])
+                .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTSS2SI => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2D],
-                None,
-                0xF3,
-                0x0F,
-                if let Some(o) = ins.dst() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2D])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF3)
+                        .vex_we(ins.dst().unwrap().size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, MODRM_RM])
+                .modrm(true, None, None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTDQ2PD => (
-            avx::avx_ins_oopc(ins, &[0xE6], None, 0xF3, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE6])
+                .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::VCVTDQ2PS => (avx::avx_ins_oopc(ins, &[0x5B], None, 0, 0x0F, false), None),
+        Ins::VCVTDQ2PS => (
+            GenAPI::new()
+                .opcode(&[0x5B])
+                .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::VCVTTPD2DQ => (
-            avx::avx_ins_oopc(ins, &[0xE6], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE6])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTTPS2DQ => (
-            avx::avx_ins_oopc(ins, &[0x5B], None, 0xF3, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x5B])
+                .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTTSD2SI => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2C],
-                None,
-                0xF2,
-                0x0F,
-                if let Some(o) = ins.dst() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2C])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF2)
+                        .vex_we(ins.dst().unwrap().size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VCVTTSS2SI => (
-            avx::avx_ins_oopc(
-                ins,
-                &[0x2C],
-                None,
-                0xF3,
-                0x0F,
-                if let Some(o) = ins.dst() {
-                    o.size() == Size::Qword
-                } else {
-                    false
-                },
-            ),
+            GenAPI::new()
+                .opcode(&[0x2C])
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x0F)
+                        .pp(0xF3)
+                        .vex_we(ins.dst().unwrap().size() == Size::Qword),
+                )
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // norm-part1a

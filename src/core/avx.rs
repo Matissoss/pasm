@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
+    core::api::*,
     core::comp::vex_gen_ins,
     shr::ast::{Instruction, Operand},
     shr::ins::Mnemonic as Ins,
@@ -19,13 +20,14 @@ pub fn avx_ins_movx(
     map_select: u8,
     vex_we: bool,
 ) -> Vec<u8> {
+    use OpOrd::*;
     let (modrm_reg_is_dst, opc) = match (ins.dst(), ins.src()) {
         (_, Some(Operand::Mem(_))) => (true, opc_rx),
         (Some(Operand::Mem(_)), _) => (false, opc_xr),
         (Some(Operand::Reg(r)), _) => {
             if r.size() == Size::Dword || r.size() == Size::Qword {
                 if let Some(Operand::Reg(_)) = ins.src() {
-                    (false, opc_rx)
+                    (true, opc_rx)
                 } else {
                     (true, opc_rx)
                 }
@@ -36,16 +38,18 @@ pub fn avx_ins_movx(
         _ => (false, opc_xr),
     };
 
-    vex_gen_ins(
-        ins,
-        opc,
-        (true, modrm1),
-        None,
-        modrm_reg_is_dst,
-        pp,
-        map_select,
-        vex_we,
-    )
+    let mut api = GenAPI::new().opcode(opc).modrm(true, modrm1, None).vex(
+        VexDetails::new()
+            .pp(pp)
+            .map_select(map_select)
+            .vex_we(vex_we),
+    );
+    if !modrm_reg_is_dst {
+        api = api.ord(&[MODRM_REG, MODRM_RM]);
+    } else {
+        api = api.ord(&[MODRM_RM, MODRM_REG]);
+    }
+    api.assemble(ins, 64)
 }
 
 pub fn avx_ins_oopc(
@@ -56,21 +60,24 @@ pub fn avx_ins_oopc(
     map_select: u8,
     vex_we: bool,
 ) -> Vec<u8> {
+    use OpOrd::*;
     let modrm_reg_is_dst = match (ins.dst(), ins.src()) {
         (_, Some(Operand::Mem(_))) => true,
         (Some(Operand::Mem(_)), _) => false,
         _ => true,
     };
-    vex_gen_ins(
-        ins,
-        opc,
-        (true, modrm1),
-        None,
-        modrm_reg_is_dst,
-        pp,
-        map_select,
-        vex_we,
-    )
+    let mut api = GenAPI::new().opcode(opc).modrm(true, modrm1, None).vex(
+        VexDetails::new()
+            .pp(pp)
+            .map_select(map_select)
+            .vex_we(vex_we),
+    );
+    if !modrm_reg_is_dst {
+        api = api.ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
+    } else {
+        api = api.ord(&[MODRM_RM, VEX_VVVV, MODRM_REG]);
+    }
+    api.assemble(ins, 64)
 }
 pub fn avx_ins(
     ins: &Instruction,
