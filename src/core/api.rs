@@ -15,6 +15,7 @@ pub const TBY_CONST: u8 = 0x8; // two byte const
 pub const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
 pub const SET_MODRM: u8 = 0xA; // MODRM.mod is set to byte specified in addt2
 pub const STRICT_PFX: u8 = 0xB; // makes all prefixes exclusive (e.g. if REX isn't set, then it cannot be generated)
+pub const FIXED_SIZE: u8 = 0xC;
 
 #[allow(unused)]
 pub const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
@@ -96,7 +97,8 @@ pub struct GenAPI {
     // can be used with other context if USE_MODRM flag is NOT set (because why would you need it?)
     ord: OperandOrder,
 
-    // this one is unused
+    // - FIXED_SIZE - reserved for size
+    // - SET_MODRM  - reserved for modrm.mod
     addt2: u8,
 
     // depending on flags:
@@ -147,6 +149,11 @@ impl GenAPI {
     pub fn modrm(mut self, modrm: bool, reg: Option<u8>, rm: Option<u8>) -> Self {
         self.flags.set(USE_MODRM, modrm);
         self.modrm_ovr = ModrmTuple::new(reg, rm);
+        self
+    }
+    pub fn fixed_size(mut self, sz: Size) -> Self {
+        self.flags.set(FIXED_SIZE, true);
+        self.addt2 |= sz as u8;
         self
     }
     pub fn modrm_mod(mut self, mod_: u8) -> Self {
@@ -210,6 +217,13 @@ impl GenAPI {
     pub fn get_addt2(&self) -> u8 {
         self.addt2
     }
+    pub fn get_size(&self) -> Option<Size> {
+        if self.flags.get(FIXED_SIZE).unwrap_or(false) {
+            Some(unsafe { std::mem::transmute::<u8, Size>(self.addt2) })
+        } else {
+            None
+        }
+    }
     #[allow(clippy::nonminimal_bool)]
     pub fn validate(&self) -> Option<RASMError> {
         let imm_flag0 = self.flags.get(OBY_CONST).unwrap();
@@ -240,7 +254,11 @@ impl GenAPI {
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
         let rex_flag_set = self.flags.get(REX_PFX).unwrap();
         let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
-
+        let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
+            (sz, true)
+        } else {
+            (ins.size(), false)
+        };
         let mut base = {
             let mut base = Vec::new();
 
@@ -256,7 +274,7 @@ impl GenAPI {
                 if rex != 0x00 {
                     rex & 0x08 == 0x08
                 } else {
-                    ins.size() == Size::Qword || ins.size() == Size::Any
+                    ins_size == Size::Qword || ins_size == Size::Any
                 }
             } else {
                 false
@@ -273,6 +291,10 @@ impl GenAPI {
                     if (self.prefix != size_ovr)
                         && (size_ovr == 0x66 && self.flags.get(CAN_H66O).unwrap())
                     {
+                        base.push(size_ovr);
+                    }
+                } else if fx_size {
+                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
                         base.push(size_ovr);
                     }
                 }
@@ -409,6 +431,15 @@ fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<u8> {
         }
     }
     None
+}
+
+// this has sense for instructions like lodsw, scasw, etc.
+fn gen_sizeovr_fixed_size(sz: Size, bits: u8) -> Option<u8> {
+    match (sz, bits) {
+        (Size::Word, 32 | 64) => Some(0x66),
+        (Size::Dword, 16) => Some(0x66),
+        _ => None,
+    }
 }
 
 fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option<u8> {

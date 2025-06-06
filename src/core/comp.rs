@@ -3161,8 +3161,20 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         // part c
         Ins::CMPSTRB => (vec![0xA6], None),
-        Ins::CMPSTRW => (vec![0x66, 0xA7], None),
-        Ins::CMPSTRD => (vec![0xA7], None),
+        Ins::CMPSTRW => (
+            GenAPI::new()
+                .opcode(&[0xA7])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CMPSTRD => (
+            GenAPI::new()
+                .opcode(&[0xA7])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::CMPSTRQ => (vec![0b0100_1000, 0xA7], None),
         Ins::ENDBR64 => (vec![0xF3, 0x0F, 0x1E, 0xFA], None),
         Ins::ENDBR32 => (vec![0xF3, 0x0F, 0x1E, 0xFB], None),
@@ -3234,38 +3246,36 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::INPORTW => (
-            gen_ins(
-                ins,
-                &[0x66, 0xE5],
-                (false, None, None),
-                if let Some(Operand::Imm(i)) = ins.dst() {
-                    Some(vec![i.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0xE5])
+                .fixed_size(Size::Word)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::INPORTD => (
-            gen_ins(
-                ins,
-                &[0xE5],
-                (false, None, None),
-                if let Some(Operand::Imm(i)) = ins.dst() {
-                    Some(vec![i.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0xE5])
+                .fixed_size(Size::Dword)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::INDXB => (vec![0xEC], None),
-        Ins::INDXW => (vec![0x66, 0xED], None),
-        Ins::INDXD => (vec![0xED], None),
+        Ins::INDXW => (
+            GenAPI::new()
+                .opcode(&[0xED])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::INDXD => (
+            GenAPI::new()
+                .opcode(&[0xED])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::INSB => (vec![0x6C], None),
         Ins::INSW => (vec![0x66, 0x6D], None),
         Ins::INSD => (vec![0x6D], None),
@@ -3314,8 +3324,20 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::LODSB => (vec![0xAC], None),
-        Ins::LODSW => (vec![0x66, 0xAD], None),
-        Ins::LODSD => (vec![0xAD], None),
+        Ins::LODSW => (
+            GenAPI::new()
+                .fixed_size(Size::Word)
+                .opcode(&[0xAD])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::LODSD => (
+            GenAPI::new()
+                .fixed_size(Size::Dword)
+                .opcode(&[0xAD])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::LODSQ => (vec![0x48, 0xAD], None),
 
         // part 3
@@ -3384,8 +3406,20 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::MOVSTRB => (vec![0xA4], None),
-        Ins::MOVSTRW => (vec![0x66, 0xA5], None),
-        Ins::MOVSTRD => (vec![0xA5], None),
+        Ins::MOVSTRW => (
+            GenAPI::new()
+                .opcode(&[0xA5])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MOVSTRD => (
+            GenAPI::new()
+                .opcode(&[0xA5])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::MOVSTRQ => (vec![0x48, 0xA5], None),
         Ins::MULX => (
             vex_gen_ins(
@@ -3412,35 +3446,52 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ],
             None,
         ),
-        Ins::OUTIW => (
-            vec![
-                0x66,
-                0xE7,
-                if let Operand::Imm(i) = ins.dst().unwrap() {
-                    i.split_into_bytes()[0]
-                } else {
-                    0x00
-                },
-            ],
+        Ins::OUTID => (
+            GenAPI::new()
+                .opcode(&[0xE7])
+                .fixed_size(Size::Dword)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
-        Ins::OUTID => (
-            vec![
-                0xE7,
-                if let Operand::Imm(i) = ins.dst().unwrap() {
-                    i.split_into_bytes()[0]
-                } else {
-                    0x00
-                },
-            ],
+        Ins::OUTIW => (
+            GenAPI::new()
+                .opcode(&[0xE7])
+                .fixed_size(Size::Word)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::OUTRB => (vec![0xEE], None),
-        Ins::OUTRW => (vec![0x66, 0xEF], None),
-        Ins::OUTRD => (vec![0xEF], None),
+        Ins::OUTRW => (
+            GenAPI::new()
+                .opcode(&[0xEF])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::OUTRD => (
+            GenAPI::new()
+                .opcode(&[0xEF])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::OUTSB => (vec![0x6E], None),
-        Ins::OUTSW => (vec![0x66, 0x6F], None),
-        Ins::OUTSD => (vec![0x6F], None),
+        Ins::OUTSW => (
+            GenAPI::new()
+                .opcode(&[0x6F])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::OUTSD => (
+            GenAPI::new()
+                .opcode(&[0x6F])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::PEXT => (
             vex_gen_ins(
                 ins,
@@ -3622,8 +3673,20 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::SCASB => (vec![0xAE], None),
-        Ins::SCASW => (vec![0x66, 0xAF], None),
-        Ins::SCASD => (vec![0xAF], None),
+        Ins::SCASW => (
+            GenAPI::new()
+                .fixed_size(Size::Word)
+                .opcode(&[0xAF])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SCASD => (
+            GenAPI::new()
+                .fixed_size(Size::Dword)
+                .opcode(&[0xAF])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::SCASQ => (vec![0x48, 0xAF], None),
         Ins::SENDUIPI => (
             GenAPI::new()
