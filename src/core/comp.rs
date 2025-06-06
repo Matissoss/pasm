@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    core::{api::*, avx, disp, mmx, modrm, rex, sib, sse, sse2, sse3, sse4, ssse3, vex},
+    core::{api::*, avx, disp, mmx, modrm, rex, sib, sse, sse2, sse3, sse4, vex},
     shr::{
         ast::{IVariant, Instruction, Label, Operand},
         ins::Mnemonic as Ins,
@@ -242,7 +242,11 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::POPF | Ins::POPFD | Ins::POPFQ => (vec![0x9D], None),
 
         Ins::CLFLUSH => (
-            gen_ins(ins, &[0x0F, 0xAE], (true, Some(7), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
 
@@ -349,7 +353,11 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         // SSE2
         Ins::MOVNTI => (
-            gen_ins(ins, &[0x0F, 0xC3], (true, None, None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC3])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
 
@@ -383,25 +391,21 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::MOVDQ2Q => (
-            gen_ins(
-                ins,
-                &[0xF2, 0x0F, 0xD6],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xD6])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVQ2DQ => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0xD6],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xD6])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
 
@@ -492,44 +496,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::PADDUSB => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xDC], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xDC],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xDC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDUSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xDD], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xDD],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xDD])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PADDSB => {
@@ -547,44 +531,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             }
         }
         Ins::PSUBUSB => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xD8], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xD8],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xD8])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBUSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xD9], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xD9],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xD9])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PSUBB => {
@@ -609,24 +573,14 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             }
         }
         Ins::PSUBQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xFB], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xFB],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xFB])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::MASKMOVDQU => (
             gen_ins(
@@ -671,24 +625,14 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::PMULUDQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xF4], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xF4],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xF4])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PMADDWD => {
@@ -914,84 +858,44 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::POR => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xEB], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xEB],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xEB])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PAND => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xDB], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xDB],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xDB])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PANDN => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xDF], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xDF],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xDF])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PXOR => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xEF], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xEF],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xEF])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::EMMS => (vec![0x0F, 0x77], None),
 
@@ -1006,48 +910,44 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::HSUBPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0x7D]), None),
 
         Ins::MOVSLDUP => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x12],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x12])
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVSHDUP => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x16],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x16])
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVDDUP => (
-            gen_ins(
-                ins,
-                &[0xF2, 0x0F, 0x12],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x12])
+                .modrm(true, None, None)
+                .prefix(0xF2)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
         Ins::LDDQU => (
-            gen_ins(
-                ins,
-                &[0xF2, 0x0F, 0xF0],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xF0])
+                .modrm(true, None, None)
+                .prefix(0xF2)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
@@ -1055,271 +955,167 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         // ssse3
         Ins::PABSB => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1C]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x1C],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x1C])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PABSW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1D]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x1D],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x1D])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PABSD => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x1E]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x1E],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x1E])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PSIGNB => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x08]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x08],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x08])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSIGNW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x09]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x09],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x09])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSIGND => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x0A]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x0A],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x0A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PSHUFB => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x00]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x00],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x00])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHADDW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x01]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x01],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x01])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHADDD => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x02]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x02],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x02])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHADDSW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x03]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x03],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x03])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHSUBW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x05]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x05],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x05])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHSUBD => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x06]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x06],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x06])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PHSUBSW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x07]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x07],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x07])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PALIGNR => {
-            if ins.which_variant() == IVariant::XMM {
-                (
-                    ssse3::ins_palignr(ins, bits, &[0x66, 0x0F, 0x3A, 0x0F]),
-                    None,
-                )
-            } else {
-                (ssse3::ins_palignr(ins, bits, &[0x0F, 0x3A, 0x0F]), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0F])
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PMULHRSW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x0B]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x0B],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x0B])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PMADDUBSW => {
-            if ins.which_variant() == IVariant::XMM {
-                (ssse3::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0x04]), None)
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x0F, 0x38, 0x04],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x04])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         // sse4
         Ins::DPPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x40]), None),
@@ -2032,44 +1828,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         // part2a
         Ins::PAVGB => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xE0], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xE0],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE0])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PAVGW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xE3], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xE3],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE3])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::VPAVGB => (
             avx::avx_ins(ins, &[0xE0], &[0xE0], None, 0x66, 0x0F, false),
@@ -2122,11 +1898,19 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::STMXCSR => (
-            gen_ins(ins, &[0x0F, 0xAE], (true, Some(3), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(3), None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LDMXCSR => (
-            gen_ins(ins, &[0x0F, 0xAE], (true, Some(2), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(2), None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::VSTMXCSR => (
@@ -2168,18 +1952,14 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             }
         }
         Ins::PCLMULQDQ => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x3A, 0x44],
-                (true, None, None),
-                if let Some(Operand::Imm(n)) = ins.src2() {
-                    Some(vec![n.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x44])
+                .prefix(0x66)
+                .rex(true)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCLMULQDQ => (
@@ -2237,78 +2017,44 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         // part2c-ext
         Ins::PMAXSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xEE], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xEE],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xEE])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PINSRW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xC4], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xC4],
-                        (true, None, None),
-                        if let Some(Operand::Imm(n)) = ins.src2() {
-                            Some(vec![n.split_into_bytes()[0]])
-                        } else {
-                            None
-                        },
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xC4])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .imm_atindex(2, 1);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PMINSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xEA], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xEA],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xEA])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PMAXUD => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0x3F],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x3F])
+                .prefix(0x66)
+                .rex(true)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMAXUD => (
@@ -2316,24 +2062,14 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::PMULHUW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    gen_ins(ins, &[0x0F, 0xE4], (true, None, None), None, bits, false),
-                    None,
-                )
-            } else {
-                (
-                    gen_ins(
-                        ins,
-                        &[0x66, 0x0F, 0xE4],
-                        (true, None, None),
-                        None,
-                        bits,
-                        false,
-                    ),
-                    None,
-                )
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE4])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66);
             }
+            (api.assemble(ins, bits), None)
         }
         // fma-part1
         Ins::VFMADD132PS => (
@@ -2587,58 +2323,53 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         // aes
         Ins::AESDEC => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0xDE],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x38, 0xDE])
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::AESENC => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0xDC],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x38, 0xDC])
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::AESIMC => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0xDB],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x38, 0xDB])
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::AESDECLAST => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0xDF],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x38, 0xDF])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::AESENCLAST => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0xDD],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x38, 0xDD])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::VAESDEC => (
@@ -2666,132 +2397,125 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::AESKEYGENASSIST => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x3A, 0xDF],
-                (true, None, None),
-                if let Some(Operand::Imm(i)) = ins.src2() {
-                    Some(vec![i.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0xDF])
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .prefix(0x66)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // cvt-part1
         Ins::CVTPD2PI => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2D],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x2D])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTSS2SD => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0x5A],
-                (true, None, None),
-                None,
-                0xF3,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x5A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPD2PS => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x5A],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .prefix(0x66)
+                .opcode(&[0x0F, 0x5A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPS2PD => (
-            gen_ins(ins, &[0x0F, 0x5A], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPI2PD => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2A],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2A])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPD2DQ => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0xE6],
-                (true, None, None),
-                None,
-                0xF2,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xE6])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTSD2SS => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0x5A],
-                (true, None, None),
-                None,
-                0xF2,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5A])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPS2DQ => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x5B],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5B])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTDQ2PS => (
-            gen_ins(ins, &[0x0F, 0x5B], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5B])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTDQ2PD => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0xE6],
-                (true, None, None),
-                None,
-                0xF3,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xE6])
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTSD2SI => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2D]), None),
         Ins::CVTSI2SD => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2A]), None),
         Ins::CVTTPS2DQ => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x5B],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5B])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTTSD2SI => (
@@ -2799,50 +2523,61 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::CVTTPD2PI => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x2C],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2C])
+                .modrm(true, None, None)
+                .prefix(0x66)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTSI2SS => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2A]), None),
         Ins::CVTPS2PI => (
-            gen_ins(ins, &[0x0F, 0x2D], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2D])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTTPS2PI => (
-            gen_ins(ins, &[0x0F, 0x2C], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2C])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTPI2PS => (
-            gen_ins(ins, &[0x0F, 0x2A], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTTPD2DQ => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0xE6],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xE6])
+                .modrm(true, None, None)
+                .prefix(0x66)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTTSS2SI => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0x2C],
-                (true, None, None),
-                None,
-                0xF3,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2C])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .prefix(0xF3)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
@@ -3020,49 +2755,56 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::BSF => (
-            gen_ins(ins, &[0x0F, 0xBC], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xBC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::BSR => (
-            gen_ins(ins, &[0x0F, 0xBD], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xBD])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         // part b
         Ins::ADCX => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0x38, 0xF6],
-                (true, None, None),
-                None,
-                0x66,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xF6])
+                .modrm(true, None, None)
+                .prefix(0x66)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::ADOX => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0x38, 0xF6],
-                (true, None, None),
-                None,
-                0xF3,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xF6])
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::ANDN => (
-            vex_gen_ins(
-                ins,
-                &[0xF2],
-                (true, None),
-                None,
-                true,
-                0,
-                0x38,
-                ins.size() == Size::Qword,
-            ),
+            GenAPI::new()
+                .opcode(&[0xF2])
+                .modrm(true, None, None)
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .pp(0x00)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::CWDE => (vec![0x98], None),
@@ -3071,18 +2813,18 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CLTS => (vec![0x0F, 0x06], None),
         Ins::CLUI => (vec![0xF3, 0x0F, 0x01, 0xEE], None),
         Ins::CLWB => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0xAE],
-                (true, Some(6), None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .prefix(0x66)
+                .modrm(true, Some(6), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::ARPL => (
-            gen_ins(ins, &[0x63], (true, None, None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x63])
+                .modrm(true, None, None)
+                .assemble(ins, bits),
             None,
         ),
 
@@ -3179,70 +2921,61 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::ENDBR64 => (vec![0xF3, 0x0F, 0x1E, 0xFA], None),
         Ins::ENDBR32 => (vec![0xF3, 0x0F, 0x1E, 0xFB], None),
         Ins::CMPXCHG => (
-            gen_ins(
-                ins,
-                &[0x0F, (0xB1 - ((ins.size() == Size::Byte) as u8))],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, (0xB1 - ((ins.size() == Size::Byte) as u8))])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CLDEMOTE => (
-            gen_ins(ins, &[0x0F, 0x1C], (true, Some(0), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x1C])
+                .modrm(true, Some(0), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CLRSSBSY => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0xAE],
-                (true, Some(6), None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .prefix(0xF3)
+                .modrm(true, Some(6), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CMPXCHG8B => (
-            gen_ins(ins, &[0x0F, 0xC7], (true, Some(1), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(1), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CMPXCHG16B => (
-            gen_ins(ins, &[0x0F, 0xC7], (true, Some(1), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .modrm(true, Some(1), None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         // part 3
         Ins::ENTER => (ins_enter(ins, bits), None),
         Ins::HLT => (vec![0xF4], None),
         Ins::HRESET => (
-            gen_ins(
-                ins,
-                &[0xF3, 0x0F, 0x3A, 0xF0, 0xC0],
-                (false, None, None),
-                if let Some(Operand::Imm(i)) = ins.dst() {
-                    Some(vec![i.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0xF3, 0x0F, 0x3A, 0xF0, 0xC0])
+                .modrm(false, None, None)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::INPORTB => (
-            gen_ins(
-                ins,
-                &[0xE4],
-                (false, None, None),
-                if let Some(Operand::Imm(i)) = ins.dst() {
-                    Some(vec![i.split_into_bytes()[0]])
-                } else {
-                    None
-                },
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0xE4])
+                .fixed_size(Size::Byte)
+                .modrm(false, None, None)
+                .imm_atindex(0, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::INPORTW => (
@@ -3297,30 +3030,41 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::INVD => (vec![0x0F, 0x08], None),
         Ins::INVLPG => (vec![0x0F, 0x01, 0b11_111_000], None),
         Ins::INVPCID => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0x38, 0x82],
-                (true, None, None),
-                None,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x82])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::IRET | Ins::IRETD => (vec![0xCF], None),
         Ins::IRETQ => (vec![0b0100_1000, 0xCF], None),
         Ins::LAHF => (vec![0x9F], None),
         Ins::LAR => (
-            gen_ins(ins, &[0x0F, 0x02], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x02])
+                .ord(&[MODRM_REG, MODRM_RM])
+                .modrm(true, None, None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LEAVE => (vec![0xC9], None),
         Ins::LLDT => (
-            gen_ins(ins, &[0x0F, 0x00], (true, Some(2), None), None, bits, true)[1..].to_vec(),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x00])
+                .modrm(true, Some(2), None)
+                .can_h66(false)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LMSW => (
-            gen_ins(ins, &[0x0F, 0x01], (true, Some(6), None), None, bits, true)[1..].to_vec(),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x01])
+                .modrm(true, Some(6), None)
+                .can_h66(false)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LODSB => (vec![0xAC], None),
@@ -3346,63 +3090,63 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
 
         Ins::LSL => (
-            gen_ins(ins, &[0x0F, 0x03], (true, None, None), None, bits, true),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x03])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LTR => (
-            gen_ins(ins, &[0x0F, 0x00], (true, Some(3), None), None, bits, false)[1..].to_vec(),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x00])
+                .modrm(true, Some(3), None)
+                .can_h66(false)
+                .assemble(ins, bits),
             None,
         ),
         Ins::LZCNT => (
-            gen_ins_wpref(
-                ins,
-                &[0x0F, 0xBD],
-                (true, None, None),
-                None,
-                0xF3,
-                bits,
-                true,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xBD])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVBE => (
-            gen_ins(
-                ins,
+            {
+                let mut api = GenAPI::new().modrm(true, None, None).rex(true);
                 if let Some(Operand::Reg(_)) = ins.dst() {
-                    &[0x0F, 0x38, 0xF0]
+                    api = api.opcode(&[0x0F, 0x38, 0xF0]);
+                    api = api.ord(&[MODRM_REG, MODRM_RM]);
                 } else {
-                    &[0x0F, 0x38, 0xF1]
-                },
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+                    api = api.opcode(&[0x0F, 0x38, 0xF1]);
+                }
+                api.assemble(ins, bits)
+            },
             None,
         ),
         Ins::MOVZX => (
-            gen_ins(
-                ins,
-                &[
+            GenAPI::new()
+                .opcode(&[
                     0x0F,
                     (0xB6 + ((ins.src().unwrap().size() == Size::Word) as u8)),
-                ],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+                ])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVDIRI => (
-            gen_ins(
-                ins,
-                &[0x0F, 0x38, 0xF9],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xF9])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::MOVSTRB => (vec![0xA4], None),
@@ -3422,16 +3166,17 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         ),
         Ins::MOVSTRQ => (vec![0x48, 0xA5], None),
         Ins::MULX => (
-            vex_gen_ins(
-                ins,
-                &[0xF6],
-                (true, None),
-                None,
-                true,
-                0xF2,
-                0x38,
-                ins.size() == Size::Qword,
-            ),
+            GenAPI::new()
+                .vex(
+                    VexDetails::new()
+                        .map_select(0x38)
+                        .pp(0xF2)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .opcode(&[0xF6])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
@@ -3493,49 +3238,66 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::PEXT => (
-            vex_gen_ins(
-                ins,
-                &[0xF5],
-                (true, None),
-                None,
-                true,
-                0xF3,
-                0x38,
-                ins.size() == Size::Qword,
-            ),
+            GenAPI::new()
+                .opcode(&[0xF5])
+                .modrm(true, None, None)
+                .vex(
+                    VexDetails::new()
+                        .pp(0xF3)
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::PDEP => (
-            vex_gen_ins(
-                ins,
-                &[0xF5],
-                (true, None),
-                None,
-                true,
-                0xF2,
-                0x38,
-                ins.size() == Size::Qword,
-            ),
+            GenAPI::new()
+                .opcode(&[0xF5])
+                .modrm(true, None, None)
+                .vex(
+                    VexDetails::new()
+                        .pp(0xF2)
+                        .map_select(0x38)
+                        .vex_we(ins.size() == Size::Qword),
+                )
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::PREFETCHW => (
-            gen_ins(ins, &[0x0F, 0x0D], (true, Some(1), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x0D])
+                .modrm(true, Some(1), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::PREFETCH0 => (
-            gen_ins(ins, &[0x0F, 0x18], (true, Some(1), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x18])
+                .modrm(true, Some(1), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::PREFETCH1 => (
-            gen_ins(ins, &[0x0F, 0x18], (true, Some(2), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x18])
+                .modrm(true, Some(2), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::PREFETCH2 => (
-            gen_ins(ins, &[0x0F, 0x18], (true, Some(3), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x18])
+                .modrm(true, Some(3), None)
+                .assemble(ins, bits),
             None,
         ),
         Ins::PREFETCHA => (
-            gen_ins(ins, &[0x0F, 0x18], (true, Some(0), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x18])
+                .modrm(true, Some(0), None)
+                .assemble(ins, bits),
             None,
         ),
 
@@ -4954,7 +4716,11 @@ fn ins_jmplike(
             (opc, Some(rel))
         }
         Operand::Reg(_) | Operand::Mem(_) => (
-            gen_ins(ins, &opc[1], (true, Some(addt), None), None, bits, false),
+            GenAPI::new()
+                .opcode(&opc[1])
+                .modrm(true, Some(addt), None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         _ => invalid(0),
@@ -4966,7 +4732,10 @@ fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8> {
         Size::Byte => [0xF6],
         _ => [0xF7],
     };
-    gen_ins(ins, &opc, (true, Some(ovr), None), None, bits, false)
+    GenAPI::new()
+        .opcode(&opc)
+        .modrm(true, Some(ovr), None)
+        .assemble(ins, bits)
 }
 
 // ==============================

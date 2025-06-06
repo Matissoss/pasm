@@ -281,9 +281,6 @@ impl GenAPI {
             };
 
             if !(vex_flag_set || evex_flag_set) {
-                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
-                    base.push(self.prefix);
-                }
                 if let Some(segm) = gen_segm_pref(ins) {
                     base.push(segm);
                 }
@@ -297,6 +294,9 @@ impl GenAPI {
                     if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
                         base.push(size_ovr);
                     }
+                }
+                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
+                    base.push(self.prefix);
                 }
             }
 

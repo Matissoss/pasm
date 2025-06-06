@@ -55,6 +55,11 @@ for file in ./nasm/*.asm; do
 	NASM_RES=$(sxd -1=$NASM_FILE_RES)
 
 	if [[ "$RASM_RES" != "$NASM_RES" ]]; then
+		printf "\nNASM FILE\n"
+		cat $NASM_FILE
+		echo   "-------------"
+		printf "\nRASM FILE\n"
+		cat $RASM_FILE
 		printf "\nNASM HEX DUMP\n"
 		echo   "-------------"
 		sxd -1=$NASM_FILE_RES $SXD_FLAGS
