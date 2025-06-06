@@ -2,6 +2,9 @@
 
 This is short documentation for RASM assembler syntax.
 
+> [!NOTE]
+> This is only temporary documentation
+
 ## Source File Structure
 
 ```
@@ -11,6 +14,15 @@ ROOT
 label:
     ; [...]
 label2:
+    ; [...]
+```
+## Label attributes
+
+Label attributes are `#()` closure. They currently can have following parameters: `bits=[BYTE]`, `align=[BYTE]`, `visibility=global|local`. They are split using comma (`,`).
+
+```
+#(align=16,bits=64,visibility=global)
+label:
     ; [...]
 ```
 

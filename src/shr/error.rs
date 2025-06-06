@@ -55,11 +55,7 @@ pub fn print_error(r: RASMError, file_name: &PathBuf) {
     let mut fileb = String::new();
     File::read_to_string(&mut File::open(file_name).unwrap(), &mut fileb).unwrap();
     let file: Vec<String> = fileb.lines().map(|s| s.to_string()).collect();
-    let line = if let Some(line) = r.line {
-        Some(line - 1)
-    } else {
-        None
-    };
+    let line = r.line;
 
     let ctx = if let Some(line) = line {
         Some(&file[line])
@@ -112,11 +108,7 @@ pub fn print_error(r: RASMError, file_name: &PathBuf) {
 
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
-        let line = if let Some(line) = self.line {
-            Some(line - 1)
-        } else {
-            None
-        };
+        let line = self.line;
 
         let ctx = if let Some(line) = line {
             Some(&FILE[line])

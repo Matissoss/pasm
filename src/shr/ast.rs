@@ -45,6 +45,7 @@ pub struct Instruction {
 #[derive(Debug, Clone)]
 pub enum ASTNode<'a> {
     Ins(Instruction),
+    Attributes(String),
     Bits(u8),
     Entry(String),
     Label(String),
@@ -59,6 +60,7 @@ pub enum ASTNode<'a> {
 pub struct Label<'a> {
     pub name: Cow<'a, String>,
     pub inst: Vec<Instruction>,
+    pub align: u16,
     pub visibility: Visibility,
     pub bits: u8,
 }

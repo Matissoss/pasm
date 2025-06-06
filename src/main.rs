@@ -263,7 +263,7 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
         symbols.extend(section.1);
     }
     for label in &astrc_ref.labels {
-        let mut res = comp::compile_label(label);
+        let mut res = comp::compile_label(label, to_write.len());
         let mut symb = Symbol {
             name: Cow::Borrowed(&label.name),
             offset: to_write.len() as u64,

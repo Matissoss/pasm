@@ -96,12 +96,26 @@ pub fn compile_section<'a>(
     (buf, symbols)
 }
 
-pub fn compile_label<'a>(lbl: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>) {
+pub fn compile_label<'a>(lbl: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     let bits = lbl.bits;
     for ins in &lbl.inst {
         let res = compile_instruction(ins, bits);
+        // we do not want situation, where label is entry and we place padding before it -
+        // preventing UB
+        if offset != 0 {
+            let align = if lbl.align == 0 {
+                1
+            } else {
+                lbl.align as usize
+            };
+            let mut padding = align - (offset % align);
+            while padding > 0 {
+                bytes.push(0x0);
+                padding -= 1;
+            }
+        }
         if let Some(mut rl) = res.1 {
             rl.offset += bytes.len() as u64;
             reallocs.push(rl);

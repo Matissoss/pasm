@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 use std::borrow::Cow;
-use std::path::PathBuf;
 
 const EMPTY_STRING: &str = "";
 use crate::shr::{
@@ -20,18 +19,8 @@ type LexTree<'a> = Vec<Result<(ASTNode<'a>, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
         let mut errors: Vec<RASMError> = Vec::new();
-        let mut ast = AST {
-            bits: None,
-            entry: None,
-            vars: Vec::new(),
-            math: Vec::new(),
-            labels: Vec::new(),
-            globals: Vec::new(),
-            externs: Vec::new(),
-            includes: Vec::new(),
-            file: PathBuf::new(),
-        };
-
+        let mut ast = AST::default();
+        let mut tmp_attributes: Vec<String> = Vec::new();
         let mut inside_label: (bool, String) = (false, String::new());
         let mut vardecs: Vec<Variable> = Vec::new();
         let mut instructions: Vec<Instruction> = Vec::new();
@@ -41,17 +30,69 @@ impl Parser {
                 Err(error) => errors.push(error),
                 Ok(node) => {
                     match node.0 {
+                        ASTNode::Attributes(s) => {
+                            // we need to assert that attribute means end of label
+                            if !instructions.is_empty() {
+                                let (bits, align, global) =
+                                    match parse_attr(tmp_attributes.join(",")) {
+                                        Ok(t) => (t.bits, t.align, t.global),
+                                        Err(e) => {
+                                            errors.push(e);
+                                            continue;
+                                        }
+                                    };
+                                ast.labels.push(Label {
+                                    name: Cow::Owned(inside_label.1),
+                                    inst: instructions,
+                                    visibility: if global {
+                                        Visibility::Global
+                                    } else {
+                                        Visibility::Local
+                                    },
+                                    bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
+                                        ast.bits.unwrap_or(16)
+                                    } else {
+                                        bits
+                                    },
+                                    align,
+                                });
+                                instructions = Vec::new();
+                                tmp_attributes = Vec::new();
+                                inside_label = (false, EMPTY_STRING.to_string())
+                            }
+                            if !s.is_empty() {
+                                tmp_attributes.push(s)
+                            }
+                        }
                         ASTNode::Include(p) => ast.includes.push(p),
                         ASTNode::MathEval(name, value) => ast.math.push((name, value)),
                         ASTNode::Label(lbl) => {
                             if !instructions.is_empty() {
+                                let (bits, align, global) =
+                                    match parse_attr(tmp_attributes.join(",")) {
+                                        Ok(t) => (t.bits, t.align, t.global),
+                                        Err(e) => {
+                                            errors.push(e);
+                                            continue;
+                                        }
+                                    };
                                 ast.labels.push(Label {
                                     name: Cow::Owned(inside_label.1),
                                     inst: instructions,
-                                    visibility: Visibility::Local,
-                                    bits: ast.bits.unwrap_or(16),
+                                    visibility: if global {
+                                        Visibility::Global
+                                    } else {
+                                        Visibility::Local
+                                    },
+                                    bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
+                                        ast.bits.unwrap_or(16)
+                                    } else {
+                                        bits
+                                    },
+                                    align,
                                 });
                                 instructions = Vec::new();
+                                tmp_attributes = Vec::new();
                             }
                             inside_label = (true, lbl)
                         }
@@ -134,13 +175,30 @@ impl Parser {
         }
 
         if !instructions.is_empty() {
+            let (bits, align, global) = match parse_attr(tmp_attributes.join(",")) {
+                Ok(t) => (t.bits, t.align, t.global),
+                Err(e) => {
+                    errors.push(e);
+                    (0, 0, false)
+                }
+            };
             ast.labels.push(Label {
                 name: Cow::Owned(inside_label.1),
                 inst: instructions,
-                visibility: Visibility::Local,
-                bits: ast.bits.unwrap_or(16),
+                visibility: if global {
+                    Visibility::Global
+                } else {
+                    Visibility::Local
+                },
+                bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
+                    ast.bits.unwrap_or(16)
+                } else {
+                    bits
+                },
+                align,
             });
         }
+
         ast.vars = vardecs;
         if !errors.is_empty() {
             Err(errors)
@@ -148,4 +206,79 @@ impl Parser {
             Ok(ast)
         }
     }
+}
+
+fn split_str_into_vec(str: &str) -> Vec<String> {
+    let mut strs = Vec::new();
+    let mut buf = Vec::new();
+    for b in str.as_bytes() {
+        if b != &b',' {
+            buf.push(*b);
+        } else if b == &b' ' {
+            continue;
+        } else {
+            strs.push(String::from_utf8(buf).expect("Code should be encoded in UTF-8"));
+            buf = Vec::new();
+        }
+    }
+    if !buf.is_empty() {
+        strs.push(String::from_utf8(buf).expect("Code should be encoded in UTF-8"));
+    }
+    strs
+}
+
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
+struct TmpLabelAttr {
+    align: u16,
+    bits: u8,
+    global: bool,
+}
+
+fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
+    if attr.is_empty() {
+        return Ok(TmpLabelAttr::default());
+    }
+    let mut attrs = TmpLabelAttr::default();
+    let args = split_str_into_vec(&attr);
+    for a in args {
+        if let Some((key, val)) = a.split_once('=') {
+            match key {
+                "visibility" => {
+                    if val == "global" {
+                        attrs.global = true;
+                    } else if val == "local" {
+                        attrs.global = false;
+                    } else {
+                        return Err(RASMError::no_tip(None, Some("Tried to assign label visibility attribute; expected either \"global\" or \"local\", found unknown")));
+                    }
+                }
+                "align" => {
+                    if let Ok(n) = val.parse::<u16>() {
+                        attrs.align = n;
+                    } else {
+                        return Err(RASMError::no_tip(None, Some("Tried to assign label align attribute; expected a unsigned 16-bit integer, found unknown")));
+                    }
+                }
+                "bits" => {
+                    if let Ok(n) = val.parse::<u8>() {
+                        attrs.bits = n;
+                    } else {
+                        return Err(RASMError::no_tip(None, Some("Tried to assign label bits attribute; expected a unsigned 8-bit integer, found unknown")));
+                    }
+                }
+                _ => {
+                    return Err(RASMError::no_tip(
+                        None,
+                        Some(format!("Unknown attribute: {key}")),
+                    ))
+                }
+            }
+        } else {
+            return Err(RASMError::no_tip(
+                None,
+                Some(format!("Unknown attribute: {a}")),
+            ));
+        }
+    }
+    Ok(attrs)
 }

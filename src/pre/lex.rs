@@ -36,6 +36,7 @@ impl Lexer {
             let mut error: Option<RASMError> = None;
             match line.first() {
                 Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string())),
+                Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string())),
                 Some(Token::Keyword(Keyword::Const | Keyword::Uninit | Keyword::Ronly)) => {
                     match make_var(Cow::Owned(line)) {
                         Ok(var) => node = Some(ASTNode::Variable(var)),

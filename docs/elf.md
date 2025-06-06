@@ -1,5 +1,8 @@
 # elf.md
 
+> [!NOTE]
+> This is only temporary documentation
+
 ## relocation table
 
 ### x86
