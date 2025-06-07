@@ -15,7 +15,7 @@ const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
 pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
-    let [mut modrm_reg, mut modrm_rm, mut vex_opr] = ctx.get_ord_oprs(ins);
+    let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
     if let (None, None, None) = (modrm_reg, modrm_rm, vex_opr) {
         modrm_reg = ins.src2();

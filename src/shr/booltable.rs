@@ -35,19 +35,19 @@ impl Default for BoolTable16 {
 }
 
 impl BoolTable16 {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { data: 0 }
     }
-    pub fn set(&mut self, idx: u8, bool: bool) {
+    pub const fn set(&mut self, idx: u8, bool: bool) {
         let mask = 0xFFFF ^ (0b1 << idx);
         self.data = (self.data & mask) | ((bool as u16) << idx)
     }
     // this one is for chaining
-    pub fn setc(mut self, idx: u8, bool: bool) -> Self {
+    pub const fn setc(mut self, idx: u8, bool: bool) -> Self {
         self.set(idx, bool);
         self
     }
-    pub fn get(&self, idx: u8) -> Option<bool> {
+    pub const fn get(&self, idx: u8) -> Option<bool> {
         if idx < 16 {
             let tmp = 0x01 << idx;
             Some(self.data & tmp == tmp)

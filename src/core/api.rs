@@ -18,7 +18,7 @@ pub const STRICT_PFX: u8 = 0xB; // makes all prefixes exclusive (e.g. if REX isn
 pub const FIXED_SIZE: u8 = 0xC;
 
 #[allow(unused)]
-pub const EXT_FLGS1: u8 = 0xD; // first byte of addt is BoolTable8
+pub const EXT_FLGS1: u8 = 0xD;
 #[allow(unused)]
 pub const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
 
@@ -135,7 +135,7 @@ impl GenAPI {
             addt2: 0,
         }
     }
-    pub fn prefix(mut self, pfx: u8) -> Self {
+    pub const fn prefix(mut self, pfx: u8) -> Self {
         self.prefix = pfx;
         self
     }
@@ -151,33 +151,33 @@ impl GenAPI {
         self.modrm_ovr = ModrmTuple::new(reg, rm);
         self
     }
-    pub fn fixed_size(mut self, sz: Size) -> Self {
+    pub const fn fixed_size(mut self, sz: Size) -> Self {
         self.flags.set(FIXED_SIZE, true);
         self.addt2 |= sz as u8;
         self
     }
-    pub fn modrm_mod(mut self, mod_: u8) -> Self {
+    pub const fn modrm_mod(mut self, mod_: u8) -> Self {
         self.flags.set(SET_MODRM, true);
         self.addt2 = mod_ & 0b11;
         self
     }
-    pub fn can_h67(mut self, h67: bool) -> Self {
+    pub const fn can_h67(mut self, h67: bool) -> Self {
         self.flags.set(CAN_H67O, h67);
         self
     }
-    pub fn can_h66(mut self, h66: bool) -> Self {
+    pub const fn can_h66(mut self, h66: bool) -> Self {
         self.flags.set(CAN_H66O, h66);
         self
     }
-    pub fn evex(mut self, evex: bool) -> Self {
+    pub const fn evex(mut self, evex: bool) -> Self {
         self.flags.set(EVEX_PFX, evex);
         self
     }
-    pub fn rex(mut self, rex: bool) -> Self {
+    pub const fn rex(mut self, rex: bool) -> Self {
         self.flags.set(REX_PFX, rex);
         self
     }
-    pub fn vex(mut self, vex_details: VexDetails) -> Self {
+    pub const fn vex(mut self, vex_details: VexDetails) -> Self {
         self.flags.set(VEX_PFX, true);
         self.prefix = {
             (vex_details.vex_we as u8) << 7
@@ -188,33 +188,33 @@ impl GenAPI {
         self.addt |= (vex_details.vlength.data as u16) << 0x08;
         self
     }
-    pub fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
+    pub const fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
         self.flags.set(IMM_ATIDX, true);
         self.addt = size << 8 | idx;
         self
     }
-    pub fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
+    pub const fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
         self.flags.set(OBY_CONST, true);
         self.addt = (extend_to as u16) << 8 | imm as u16;
         self
     }
-    pub fn imm_const16(mut self, imm: u16) -> Self {
+    pub const fn imm_const16(mut self, imm: u16) -> Self {
         self.flags.set(TBY_CONST, true);
         self.addt = imm;
         self
     }
-    pub fn ord(mut self, ord: &[OpOrd]) -> Self {
+    pub const fn ord(mut self, ord: &[OpOrd]) -> Self {
         self.ord = OperandOrder::new(ord).expect("Failed to create operand order");
         self
     }
-    pub fn get_flag(&self, idx: u8) -> Option<bool> {
+    pub const fn get_flag(&self, idx: u8) -> Option<bool> {
         self.flags.get(idx)
     }
-    pub fn set_flag(mut self, idx: u8) -> Self {
+    pub const fn set_flag(mut self, idx: u8) -> Self {
         self.flags.set(idx, true);
         self
     }
-    pub fn get_addt2(&self) -> u8 {
+    pub const fn get_addt2(&self) -> u8 {
         self.addt2
     }
     pub fn get_size(&self) -> Option<Size> {
@@ -336,6 +336,13 @@ impl GenAPI {
                 let mut imm = i.split_into_bytes();
                 extend_imm(&mut imm, size as u8);
                 base.extend(imm);
+            }
+            // rvrm
+            else if let Some(Operand::Reg(r)) = ins.oprs.get(idx) {
+                let mut v = Vec::new();
+                v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
+                extend_imm(&mut v, size as u8);
+                base.extend(v);
             } else {
                 RASMError::warn(format!(
                     "Tried to use immediate at index {idx} - didn't find one."
@@ -358,35 +365,36 @@ impl GenAPI {
             Ok(self.assemble(ins, bits))
         }
     }
-    pub fn modrm_reg_is_dst(&self) -> bool {
+    pub const fn modrm_reg_is_dst(&self) -> bool {
         self.ord.modrm_reg_is_dst()
     }
-    pub fn get_modrm(&self) -> ModrmTuple {
+    pub const fn get_modrm(&self) -> ModrmTuple {
         self.modrm_ovr
     }
     pub fn get_ord(&self) -> [OpOrd; 4] {
         self.ord.deserialize()
     }
+    #[rustfmt::skip]
     pub fn get_ord_oprs<'a>(&self, ins: &'a Instruction) -> [Option<&'a Operand>; 3] {
         use OpOrd::*;
         let ord = self.ord.deserialize();
         match &ord[..3] {
-            //  MODRM.r/m   MODRM.reg   (E)VEX.vvvv
-            [MODRM_REG, VEX_VVVV, MODRM_RM] => [ins.src2(), ins.dst(), ins.src()],
-            [MODRM_RM, VEX_VVVV, MODRM_REG] => [ins.dst(), ins.src2(), ins.src()],
-            [VEX_VVVV, MODRM_REG, _] => [None, ins.src(), ins.dst()],
-            [VEX_VVVV, MODRM_RM, _] => [ins.src(), None, ins.dst()],
-            [MODRM_REG, MODRM_RM, _] => [ins.src(), ins.dst(), ins.src2()],
-            [MODRM_RM, MODRM_REG, _] => [ins.dst(), ins.src(), ins.src2()],
-            _ => [None, None, None],
+            //                                    MODRM.r/m   MODRM.reg   (E)VEX.vvvv
+            [MODRM_REG, VEX_VVVV , MODRM_RM ] => [ins.src2(), ins.dst() , ins.src() ],
+            [MODRM_RM , VEX_VVVV , MODRM_REG] => [ins.dst() , ins.src2(), ins.src() ],
+            [VEX_VVVV , MODRM_REG, _        ] => [None      , ins.src() , ins.dst() ],
+            [VEX_VVVV , MODRM_RM , _        ] => [ins.src() , None      , ins.dst() ],
+            [MODRM_REG, MODRM_RM , _        ] => [ins.src() , ins.dst() , ins.src2()],
+            [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.src2()],
+            _                                 => [None      , None      , None      ],
         }
     }
-    pub fn strict_pfx(mut self) -> Self {
+    pub const fn strict_pfx(mut self) -> Self {
         self.flags.set(STRICT_PFX, true);
         self
     }
     // fails if VEX flag is not set
-    pub fn get_pp(&self) -> Option<u8> {
+    pub const fn get_pp(&self) -> Option<u8> {
         if self.flags.get(VEX_PFX).unwrap() {
             Some(self.prefix & 0b11)
         } else {
@@ -394,7 +402,7 @@ impl GenAPI {
         }
     }
     // fails if VEX flag is not set
-    pub fn get_map_select(&self) -> Option<u8> {
+    pub const fn get_map_select(&self) -> Option<u8> {
         if self.flags.get(VEX_PFX).unwrap() {
             Some((self.prefix & 0b0111_1100) >> 2)
         } else {
@@ -402,7 +410,7 @@ impl GenAPI {
         }
     }
     // fails if VEX flag is not set
-    pub fn get_vex_we(&self) -> Option<bool> {
+    pub const fn get_vex_we(&self) -> Option<bool> {
         if self.flags.get(VEX_PFX).unwrap() {
             Some(self.prefix & 0b1000_0000 == 0b1000_0000)
         } else {
@@ -410,7 +418,7 @@ impl GenAPI {
         }
     }
     // fails if VEX flag is not set
-    pub fn get_vex_vlength(&self) -> Option<MegaBool> {
+    pub const fn get_vex_vlength(&self) -> Option<MegaBool> {
         if self.flags.get(VEX_PFX).unwrap() {
             Some(MegaBool::from_byte(((self.addt & 0xFF00) >> 8) as u8))
         } else {
@@ -504,7 +512,7 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8) {
     }
 }
 
-fn gen_segm_pref_op(op: &Operand) -> Option<u8> {
+const fn gen_segm_pref_op(op: &Operand) -> Option<u8> {
     if let Operand::Segment(s) = op {
         match s.segment {
             Register::CS => Some(0x2E),
@@ -527,7 +535,7 @@ impl Default for VexDetails {
 }
 
 impl VexDetails {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pp: 0,
             map_select: 0,
@@ -535,34 +543,34 @@ impl VexDetails {
             vlength: MegaBool::set(None),
         }
     }
-    pub fn vlength(mut self, b: Option<bool>) -> Self {
+    pub const fn vlength(mut self, b: Option<bool>) -> Self {
         self.vlength = MegaBool::set(b);
         self
     }
-    pub fn vex_we(mut self, b: bool) -> Self {
+    pub const fn vex_we(mut self, b: bool) -> Self {
         self.vex_we = b;
         self
     }
-    pub fn map_select(mut self, u: u8) -> Self {
+    pub const fn map_select(mut self, u: u8) -> Self {
         self.map_select = u;
         self
     }
-    pub fn pp(mut self, u: u8) -> Self {
+    pub const fn pp(mut self, u: u8) -> Self {
         self.pp = u;
         self
     }
 }
 
 impl MegaBool {
-    pub fn from_byte(b: u8) -> Self {
+    pub const fn from_byte(b: u8) -> Self {
         Self { data: b }
     }
-    pub fn set(op: Option<bool>) -> Self {
+    pub const fn set(op: Option<bool>) -> Self {
         Self {
-            data: (op.is_some() as u8) << 1 | op.unwrap_or(false) as u8,
+            data: (op.is_some() as u8) << 1 | if let Some(b) = op { b } else { false } as u8,
         }
     }
-    pub fn get(&self) -> Option<bool> {
+    pub const fn get(&self) -> Option<bool> {
         if self.data & 0b0000_0010 == 0b10 {
             Some(self.data & 0b01 == 0b01)
         } else {
@@ -572,7 +580,7 @@ impl MegaBool {
 }
 
 impl OperandOrder {
-    pub fn new(op: &[OpOrd]) -> Option<Self> {
+    pub const fn new(op: &[OpOrd]) -> Option<Self> {
         if op.len() > 4 {
             None
         } else {
@@ -585,7 +593,7 @@ impl OperandOrder {
             Some(Self { ord: val })
         }
     }
-    pub fn get(&self, idx: u8) -> Option<OpOrd> {
+    pub const fn get(&self, idx: u8) -> Option<OpOrd> {
         if idx > 4 {
             None
         } else {
@@ -599,14 +607,13 @@ impl OperandOrder {
             }
         }
     }
-    pub fn modrm_reg_is_dst(&self) -> bool {
+    pub const fn modrm_reg_is_dst(&self) -> bool {
         self.ord & 0b00_00_00_11 == OpOrd::MODRM_REG as u8
     }
-    #[allow(clippy::needless_range_loop)]
     pub fn deserialize(&self) -> [OpOrd; 4] {
         let mut arr = [OpOrd::MODRM_RM; 4];
-        for idx in 0..4 {
-            arr[idx] = self.get(idx as u8).unwrap();
+        for (idx, it) in arr.iter_mut().enumerate() {
+            *it = self.get(idx as u8).unwrap();
         }
         arr
     }
@@ -621,24 +628,24 @@ impl ModrmTuple {
                 | rm.unwrap_or(0)),
         }
     }
-    pub fn rm(&self) -> Option<u8> {
+    pub const fn rm(&self) -> Option<u8> {
         if self.data & 0b01_000000 == 0b01_000000 {
             Some(self.data & 0b000111)
         } else {
             None
         }
     }
-    pub fn reg(&self) -> Option<u8> {
+    pub const fn reg(&self) -> Option<u8> {
         if self.data & 0b10_000000 == 0b10_000000 {
             Some((self.data & 0b00_111000) >> 3)
         } else {
             None
         }
     }
-    pub fn deserialize(&self) -> (Option<u8>, Option<u8>) {
+    pub const fn deserialize(&self) -> (Option<u8>, Option<u8>) {
         (self.reg(), self.rm())
     }
-    pub fn data(&self) -> u8 {
+    pub const fn data(&self) -> u8 {
         self.data
     }
 }
@@ -665,7 +672,7 @@ impl Opcode {
         };
         Self { opcode }
     }
-    fn collect(&self) -> ([u8; 8], usize) {
+    const fn collect(&self) -> ([u8; 8], usize) {
         let size = (self.opcode & 0x0000_0000_0000_00FF) as usize;
         let opc = self.opcode & 0xFFFF_FFFF_FFFF_FF00;
         (opc.to_be_bytes(), size)
