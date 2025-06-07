@@ -93,7 +93,6 @@ pub fn avx_ins(
         (Some(Operand::Mem(_)), _) => (false, opc_mr),
         _ => (true, opc_rm),
     };
-
     vex_gen_ins(
         ins,
         opc,

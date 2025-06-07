@@ -454,16 +454,16 @@ fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Opt
         return None;
     }
     match bits {
-        32 => match (size, is_mem) {
-            (Size::Word, false) => Some(0x66),
-            (Size::Word, true) => Some(0x67),
-            (Size::Dword, _) => None,
-            _ => panic!("{:?}", op),
-        },
         16 => match (size, is_mem) {
             (Size::Word, _) => None,
             (Size::Dword, true) => Some(0x67),
             (Size::Dword, false) => Some(0x66),
+            _ => panic!("{:?}", op),
+        },
+        32 => match (size, is_mem) {
+            (Size::Word, false) => Some(0x66),
+            (Size::Word, true) => Some(0x67),
+            (Size::Dword, _) => None,
             _ => panic!("{:?}", op),
         },
         64 => match (size, is_mem) {
@@ -474,7 +474,7 @@ fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Opt
                     Some(0x66)
                 }
             }
-            (Size::Dword, false) | (Size::Qword, true) => None,
+            (Size::Dword, false) => None,
             (Size::Word, false) => Some(0x66),
             (Size::Word, true) => Some(0x67),
             (Size::Dword, true) => Some(0x67),

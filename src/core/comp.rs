@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    core::{api::*, avx, disp, modrm, rex, sib, sse2, sse4, vex},
+    core::{api::*, avx, disp, modrm, rex, sib, sse2, vex},
     shr::{
         ast::{IVariant, Instruction, Label, Operand},
         ins::Mnemonic as Ins,
@@ -1880,48 +1880,446 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             (api.assemble(ins, bits), None)
         }
         // sse4
-        Ins::DPPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x40]), None),
-        Ins::DPPD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x41]), None),
-        Ins::PTEST => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x17]), None),
-        Ins::PEXTRW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x15]), None),
-        Ins::PEXTRB => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x14]), None),
-        Ins::PEXTRD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x16]), None),
-        Ins::PEXTRQ => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x16]), None),
-        Ins::PINSRB => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x20]), None),
-        Ins::PINSRD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x22]), None),
-        Ins::PINSRQ => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x22]), None),
-        Ins::PMAXSB => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x3C]), None),
-        Ins::PMAXSD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x3D]), None),
-        Ins::PMAXUW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x3E]), None),
-        Ins::PMINSB => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x38]), None),
-        Ins::PMINSD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x39]), None),
-        Ins::PMINUW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x3A]), None),
-        Ins::PMULDQ => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x28]), None),
-        Ins::PMULLD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x40]), None),
-        Ins::BLENDPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x0C]), None),
-        Ins::BLENDPD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x0D]), None),
-        Ins::PBLENDW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x0E]), None),
-        Ins::PCMPEQQ => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x29]), None),
-        Ins::ROUNDPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x08]), None),
-        Ins::ROUNDPD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x09]), None),
-        Ins::ROUNDSS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x0A]), None),
-        Ins::ROUNDSD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x0B]), None),
-        Ins::MPSADBW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x42]), None),
-        Ins::PCMPGTQ => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x37]), None),
-        Ins::BLENDVPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x14]), None),
-        Ins::BLENDVPD => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x15]), None),
-        Ins::PBLENDVB => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x10]), None),
-        Ins::INSERTPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x21]), None),
-        Ins::PACKUSDW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x2B]), None),
-        Ins::MOVNTDQA => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x2A]), None),
-        Ins::PCMPESTRM => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x60]), None),
-        Ins::PCMPESTRI => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x61]), None),
-        Ins::PCMPISTRM => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x62]), None),
-        Ins::PCMPISTRI => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x63]), None),
-        Ins::EXTRACTPS => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x3A, 0x17]), None),
-        Ins::PHMINPOSUW => (sse4::sgen_ins(ins, bits, true, &[0x0F, 0x38, 0x41]), None),
-        Ins::CRC32 => (sse4::sgen_ins(ins, bits, false, &[0x0F, 0x38, 0xF0]), None),
-        Ins::POPCNT => (sse4::sgen_ins_alt(ins, bits, 0xF3, &[0x0F, 0xB8]), None),
+        Ins::DPPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x40])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DPPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x41])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PTEST => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x17])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PEXTRW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x15])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PEXTRB => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x14])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PEXTRD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x16])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PEXTRQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x16])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PINSRB => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x20])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PINSRD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x22])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PINSRQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x22])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMAXSB => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x3C])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMAXSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x3D])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMAXUW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x3E])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMINSB => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x38])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMINSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x39])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMINUW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x3A])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMULDQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x28])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PMULLD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x40])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::BLENDPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0C])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::BLENDPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0D])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PBLENDW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0E])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPEQQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x29])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ROUNDPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x08])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ROUNDPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x09])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ROUNDSS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0A])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ROUNDSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x0B])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MPSADBW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x42])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPGTQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x37])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::BLENDVPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x14])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::BLENDVPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x15])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PBLENDVB => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x10])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::INSERTPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x21])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PACKUSDW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x2B])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MOVNTDQA => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x2A])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPESTRM => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x60])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPESTRI => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x61])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPISTRM => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x62])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PCMPISTRI => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x63])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::EXTRACTPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x3A, 0x17])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PHMINPOSUW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0x41])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CRC32 => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x38, 0xF0])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::POPCNT => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xB8])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
 
         // AVX
         Ins::VMOVDQA => (
@@ -5873,7 +6271,13 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Byte => &[0xF6],
                 _ => &[0xF7],
             };
-            gen_ins(ins, opc, (true, Some(5), None), None, bits, false)
+            GenAPI::new()
+                .opcode(opc)
+                .modrm(true, Some(5), None)
+                .rex(true)
+                // this is just temporary solution
+                .fixed_size(ins.size())
+                .assemble(ins, bits)
         }
         Some(_) => match ins.oprs.get(2) {
             Some(Operand::Imm(imm)) => {
@@ -5905,9 +6309,10 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8> {
 // opc[4] = r/m16/32/64, cl
 // opc[5] = r/m16/32/64, imm8
 fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
+    let mut api = GenAPI::new().modrm(true, Some(ovr), None).rex(true);
     let src = ins.src().unwrap();
     let dst = ins.dst().unwrap();
-    let (opcd, imm) = match src {
+    let (opcd, _) = match src {
         Operand::Reg(Register::CL) => match dst.size() {
             Size::Byte => (opc[1], None),
             Size::Word | Size::Dword | Size::Qword => (opc[4], None),
@@ -5920,6 +6325,7 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
                     _ => (opc[3], None),
                 }
             } else {
+                api = api.imm_atindex(1, 1);
                 match dst.size() {
                     Size::Byte => (opc[2], Some(imm.split_into_bytes())),
                     _ => (opc[5], Some(imm.split_into_bytes())),
@@ -5928,28 +6334,8 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
         }
         _ => panic!("Other {:?}", src),
     };
-    let mut base = if dst.size() == Size::Word {
-        vec![0x66]
-    } else {
-        vec![]
-    };
-    let gen_b = gen_base(ins, &[opcd], bits, false);
-    if gen_b[0] == 0x66 {
-        base = gen_b;
-    } else {
-        base.extend(gen_b);
-    }
-    base.push(modrm::gen_modrm(ins, Some(ovr), None, false));
-    if let Some(sib) = sib::gen_sib(dst) {
-        base.push(sib);
-    }
-    if let Some(dsp) = disp::gen_disp(dst) {
-        base.extend(dsp);
-    }
-    if let Some(imm) = imm {
-        base.extend(imm);
-    }
-    base
+    api = api.opcode(&[opcd]);
+    api.assemble(ins, bits)
 }
 
 fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {

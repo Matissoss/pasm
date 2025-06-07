@@ -17,4 +17,3 @@ pub mod obj;
 
 // x86-64 extensions
 pub mod sse2;
-pub mod sse4;

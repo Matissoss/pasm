@@ -619,9 +619,9 @@ impl ToString for Mem {
         if let Some(reg) = self.index() {
             str.push('%');
             str.push_str(&reg.to_string());
-            str.push_str(" * ");
         }
-        if let Some(scale) = self.scale() {
+        if let (Some(scale), Some(_)) = (self.scale(), self.index()) {
+            str.push_str(" * ");
             str.push('$');
             str.push_str(&(<Size as Into<u8>>::into(scale).to_string()));
         }

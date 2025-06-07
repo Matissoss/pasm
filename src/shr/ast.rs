@@ -157,6 +157,19 @@ impl TryFrom<&Token> for Operand {
 }
 
 impl Operand {
+    pub fn is_mem(&self) -> bool {
+        matches!(self, Operand::Mem(_) | Operand::Segment(_))
+    }
+    pub fn get_mem(&self) -> Option<&Mem> {
+        match self {
+            Operand::Mem(m) => Some(m),
+            Operand::Segment(Segment {
+                segment: _,
+                address: m,
+            }) => Some(m),
+            _ => None,
+        }
+    }
     pub fn size(&self) -> Size {
         match self {
             Self::Imm(n) => n.size(),

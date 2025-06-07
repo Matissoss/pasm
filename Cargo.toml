@@ -7,7 +7,7 @@ edition = "2021"
 
 [profile.testing]
 inherits = "release"
-opt-level = 1
+opt-level = 0
 lto = false
 codegen-units = 256
 incremental = true

@@ -24,10 +24,8 @@ use std::path::PathBuf;
 pub struct Lexer;
 impl Lexer {
     pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>> {
-        let mut line_count: usize = 0;
         let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
-        for line in file {
-            line_count += 1;
+        for (line_count, line) in file.into_iter().enumerate() {
             if line.is_empty() {
                 continue;
             }

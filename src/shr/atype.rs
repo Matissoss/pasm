@@ -55,19 +55,19 @@ impl ToString for AType {
     fn to_string(&self) -> String {
         match self {
             Self::Register(rp, sz) => {
-                format!("{} {} register", rp.to_string(), sz)
+                format!("{} {} reg", rp.to_string(), sz)
             }
             Self::ExtendedRegister(rg) => {
-                format!("{} register", rg.to_string())
+                format!("{} reg", rg.to_string())
             }
             Self::Memory(sz) => {
-                format!("{} memory", sz)
+                format!("{} mem", sz)
             }
             Self::SMemory(sz) => {
-                format!("{} segmented memory", sz)
+                format!("{} segmented mem", sz)
             }
             Self::Immediate(sz) => {
-                format!("{} immediate", sz)
+                format!("{} imm", sz)
             }
             Self::Symbol => String::from("symbol"),
         }
