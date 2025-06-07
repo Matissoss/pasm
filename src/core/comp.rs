@@ -6,12 +6,12 @@
 use std::borrow::Cow;
 
 use crate::{
-    core::{api::*, avx, disp, mmx, modrm, rex, sib, sse, sse2, sse3, sse4, vex},
+    core::{api::*, avx, disp, modrm, rex, sib, sse2, sse4, vex},
     shr::{
         ast::{IVariant, Instruction, Label, Operand},
         ins::Mnemonic as Ins,
         num::Number,
-        reg::Register,
+        reg::{Purpose as RPurpose, Register},
         reloc::{RCategory, RType, Relocation},
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
@@ -285,71 +285,344 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::CMOVPE => (ins_cmovcc(ins, &[0x0F, 0x4A], bits), None),
 
         // SSE
-        Ins::MOVSS => (
-            sse::gen_movxxs(ins, bits, &[0xF3, 0x0F, 0x10], &[0xF3, 0x0F, 0x11]),
+        Ins::MOVSS => {
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true).prefix(0xF3);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVHLPS => {
+            let api = GenAPI::new()
+                .modrm(true, None, None)
+                .rex(true)
+                .opcode(&[0x0F, 0x12])
+                .ord(&[MODRM_REG, MODRM_RM]);
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVLHPS => {
+            let api = GenAPI::new()
+                .modrm(true, None, None)
+                .rex(true)
+                .opcode(&[0x0F, 0x16])
+                .ord(&[MODRM_REG, MODRM_RM]);
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVAPS => {
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x28]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVUPS => {
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVLPS => {
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x12]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVHPS => {
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x16]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+
+        Ins::ADDPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x58])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVHLPS => (sse::gen_movxxs(ins, bits, &[0x0F, 0x12], &[]), None),
-        Ins::MOVLHPS => (sse::gen_movxxs(ins, bits, &[0x0F, 0x16], &[]), None),
-        Ins::MOVAPS => (
-            sse::gen_movxxs(ins, bits, &[0x0F, 0x28], &[0x0F, 0x29]),
+        Ins::ADDSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x58])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVUPS => (
-            sse::gen_movxxs(ins, bits, &[0x0F, 0x10], &[0x0F, 0x11]),
+        Ins::SUBPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x5C])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVLPS => (
-            sse::gen_movxxs(ins, bits, &[0x0F, 0x12], &[0x0F, 0x13]),
+        Ins::SUBSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x5C])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVHPS => (
-            sse::gen_movxxs(ins, bits, &[0x0F, 0x16], &[0x0F, 0x17]),
+        Ins::MULPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x59])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-
-        Ins::ADDPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x58]), None),
-        Ins::ADDSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x58]), None),
-
-        Ins::SUBPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5C]), None),
-        Ins::SUBSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5C]), None),
-
-        Ins::MULPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x59]), None),
-        Ins::MULSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x59]), None),
-
-        Ins::DIVPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5E]), None),
-        Ins::DIVSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5E]), None),
-
-        Ins::MINPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5D]), None),
-        Ins::MINSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5D]), None),
-
-        Ins::MAXPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x5F]), None),
-        Ins::MAXSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x5F]), None),
-
-        Ins::RSQRTPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x52]), None),
-        Ins::RSQRTSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x52]), None),
-
-        Ins::SHUFPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0xC6]), None),
-
-        Ins::SQRTPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x51]), None),
-        Ins::SQRTSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x51]), None),
-
-        Ins::CMPPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0xC2]), None),
-        Ins::CMPSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0xC2]), None),
-
-        Ins::RCPPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x53]), None),
-        Ins::RCPSS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x53]), None),
-
-        Ins::COMISS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x2F]), None),
-        Ins::UCOMISS => (sse::sgen_ins(ins, bits, false, &[0x0F, 0x2E]), None),
-
-        Ins::ORPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x56]), None),
-        Ins::ANDPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x54]), None),
-        Ins::ANDNPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
-        Ins::XORPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
-
-        Ins::UNPCKLPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x14]), None),
-        Ins::UNPCKHPS => (sse::sgen_ins(ins, bits, true, &[0x0F, 0x15]), None),
+        Ins::MULSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x59])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DIVPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x5E])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DIVSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x5E])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MINPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x5D])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MINSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x5D])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MAXPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x5F])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MAXSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x5F])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RSQRTPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x52])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RSQRTSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x52])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SHUFPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0xC6])
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SQRTPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x51])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SQRTSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x51])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CMPPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0xC2])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CMPSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0xC2])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .imm_atindex(2, 1)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RCPPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x53])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::RCPSS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x53])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UCOMISS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x2E])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::COMISS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .prefix(0xF3)
+                .opcode(&[0x0F, 0x2F])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ORPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x56])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ANDPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x54])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ANDNPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x55])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XORPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x57])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UNPCKLPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x14])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UNPCKHPS => (
+            GenAPI::new()
+                .modrm(true, None, None)
+                .opcode(&[0x0F, 0x15])
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
 
         // SSE2
         Ins::MOVNTI => (
@@ -364,32 +637,78 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::MFENCE => (vec![0xF0, 0xAE, 0xF0], None),
         Ins::LFENCE => (vec![0xF0, 0xAE, 0xE8], None),
 
-        Ins::MOVNTPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x2B]), None),
-        Ins::MOVNTDQ => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xE7]), None),
-        Ins::MOVAPD => (
-            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x28], &[0x66, 0x0F, 0x29]),
+        Ins::MOVNTPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2B])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVUPD => (
-            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x10], &[0x66, 0x0F, 0x11]),
+        Ins::MOVNTDQ => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xE7])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
-        Ins::MOVLPD => (
-            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x12], &[0x66, 0x0F, 0x13]),
-            None,
-        ),
-        Ins::MOVHPD => (
-            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x16], &[0x66, 0x0F, 0x17]),
-            None,
-        ),
-        Ins::MOVSD => (
-            sse2::gen_movxxd(ins, bits, &[0xF2, 0x0F, 0x10], &[0xF2, 0x0F, 0x11]),
-            None,
-        ),
-        Ins::MOVDQA => (
-            sse2::gen_movxxd(ins, bits, &[0x66, 0x0F, 0x6F], &[0x66, 0x0F, 0x7F]),
-            None,
-        ),
+        Ins::MOVAPD => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x28]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVUPD => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVLPD => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x12]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVHPD => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x16]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVSD => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0xF2).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::MOVDQA => {
+            let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
+            if let Some(Operand::Mem(_)) = ins.dst() {
+                api = api.opcode(&[0x0F, 0x7F]).ord(&[MODRM_REG, MODRM_RM]);
+            } else {
+                api = api.opcode(&[0x0F, 0x6F]).ord(&[MODRM_REG, MODRM_RM]);
+            }
+            (api.assemble(ins, bits), None)
+        }
         Ins::MOVDQ2Q => (
             GenAPI::new()
                 .opcode(&[0x0F, 0xD6])
@@ -409,90 +728,367 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
 
-        Ins::MOVMSKPD => (sse2::gen_movmskpd(ins, bits, &[0x0F, 0x50]), None),
+        Ins::MOVMSKPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x50])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
 
-        Ins::ADDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x58]), None),
-        Ins::ADDSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x58]), None),
-
-        Ins::SUBPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5C]), None),
-        Ins::SUBSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5C]), None),
-
-        Ins::MULPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x59]), None),
-        Ins::MULSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x59]), None),
-
-        Ins::DIVPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5E]), None),
-        Ins::DIVSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5E]), None),
-
-        Ins::MINPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5D]), None),
-        Ins::MINSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5D]), None),
-
-        Ins::MAXPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x5F]), None),
-        Ins::MAXSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x5F]), None),
-
-        Ins::SQRTPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x51]), None),
-        Ins::SQRTSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x51]), None),
-
-        Ins::CMPPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0xC2]), None),
-        Ins::CMPSD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0xC2]), None),
-
-        Ins::COMISD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2F]), None),
-        Ins::UCOMISD => (sse2::sgen_ins(ins, bits, false, &[0x0F, 0x2E]), None),
-
-        Ins::ORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x56]), None),
-        Ins::ANDPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x54]), None),
-        Ins::ANDNPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x55]), None),
-        Ins::XORPD => (sse2::sgen_ins(ins, bits, true, &[0x0F, 0x57]), None),
-
-        Ins::PSHUFLW => (sse2::ins_shuff(ins, bits, &[0xF2, 0x0F, 0x70]), None),
-        Ins::PSHUFHW => (sse2::ins_shuff(ins, bits, &[0xF3, 0x0F, 0x70]), None),
-        Ins::PSHUFD => (sse2::ins_shuff(ins, bits, &[0x66, 0x0F, 0x70]), None),
+        Ins::ADDPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x58])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ADDSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x58])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SUBPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5C])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SUBSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5C])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MULPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x59])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MULSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x59])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DIVPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5E])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DIVSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5E])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MINPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5D])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MINSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5D])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MAXPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5F])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::MAXSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x5F])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SQRTPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x51])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::SQRTSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x51])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CMPPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC2])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CMPSD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC2])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::COMISD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2F])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::UCOMISD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2E])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ORPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x56])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ANDPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x54])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ANDNPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x55])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::XORPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x57])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PSHUFLW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x70])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PSHUFHW => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x70])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::PSHUFD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x70])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
 
         Ins::PSLLDQ => (
-            sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0x73], &[0x66, 0x0F, 0x73], 7),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x73])
+                .prefix(0x66)
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .imm_atindex(1, 1)
+                .assemble(ins, bits),
             None,
         ),
         Ins::PSRLDQ => (
-            sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0x73], &[0x66, 0x0F, 0x73], 3),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x73])
+                .prefix(0x66)
+                .modrm(true, Some(3), None)
+                .rex(true)
+                .imm_atindex(1, 1)
+                .assemble(ins, bits),
             None,
         ),
-        Ins::PUNPCKHQDQ => (sse2::ins_unpck_h(ins, bits, &[0x66, 0x0F, 0x6D]), None),
-
-        Ins::PUNPCKLQDQ => (sse2::ins_unpck_h(ins, bits, &[0x66, 0x0F, 0x6C]), None),
+        Ins::PUNPCKHQDQ => {
+            let api = GenAPI::new()
+                .opcode(&[0x0F, 0x6D])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .prefix(0x66)
+                .rex(true);
+            (api.assemble(ins, bits), None)
+        }
+        Ins::PUNPCKLQDQ => {
+            let api = GenAPI::new()
+                .opcode(&[0x0F, 0x6C])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .prefix(0x66)
+                .rex(true);
+            (api.assemble(ins, bits), None)
+        }
         // MMX/SSE2
         Ins::MOVD | Ins::MOVQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_movdq(ins, bits), None)
-            } else {
-                (sse2::ins_movdq(ins, bits), None)
+            let mut api = GenAPI::new().modrm(true, None, None).rex(true);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66);
             }
+            if let Some(Operand::Reg(r)) = ins.dst() {
+                if r.size() == Size::Xword || r.purpose() == RPurpose::Mmx {
+                    api = api.opcode(&[0x0F, 0x6E]);
+                } else {
+                    api = api.opcode(&[0x0F, 0x7E]);
+                }
+            } else {
+                api = api.opcode(&[0x0F, 0x6E]);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddx(ins, bits, 1), None)
-            } else {
-                (sse2::ins_paddx(ins, bits, 1), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xFC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddx(ins, bits, 2), None)
-            } else {
-                (sse2::ins_paddx(ins, bits, 2), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xFD])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddx(ins, bits, 3), None)
-            } else {
-                (sse2::ins_paddx(ins, bits, 3), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xFE])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddx(ins, bits, 4), None)
-            } else {
-                (sse2::ins_paddx(ins, bits, 4), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xD4])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PADDUSB => {
@@ -517,18 +1113,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::PADDSB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddsx(ins, bits, true), None)
-            } else {
-                (sse2::ins_paddsx(ins, bits, true), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xEC])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PADDSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_paddsx(ins, bits, false), None)
-            } else {
-                (sse2::ins_paddsx(ins, bits, false), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xED])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBUSB => {
             let mut api = GenAPI::new()
@@ -552,25 +1154,34 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::PSUBB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_psubx(ins, bits, 1), None)
-            } else {
-                (sse2::ins_psubx(ins, bits, 1), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xF8])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_psubx(ins, bits, 2), None)
-            } else {
-                (sse2::ins_psubx(ins, bits, 2), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xF9])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_psubx(ins, bits, 3), None)
-            } else {
-                (sse2::ins_psubx(ins, bits, 3), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xFA])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBQ => {
             let mut api = GenAPI::new()
@@ -583,45 +1194,55 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             (api.assemble(ins, bits), None)
         }
         Ins::MASKMOVDQU => (
-            gen_ins(
-                ins,
-                &[0x66, 0x0F, 0xF7],
-                (true, None, None),
-                None,
-                bits,
-                false,
-            ),
+            GenAPI::new()
+                .opcode(&[0x0F, 0xF7])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
 
         Ins::PSUBSB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_psubsx(ins, bits, true), None)
-            } else {
-                (sse2::ins_psubsx(ins, bits, true), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE8])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSUBSW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_psubsx(ins, bits, false), None)
-            } else {
-                (sse2::ins_psubsx(ins, bits, false), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE9])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PMULLW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pmulx(ins, bits, true), None)
-            } else {
-                (sse2::ins_pmulx(ins, bits, true), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xD5])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PMULHW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pmulx(ins, bits, false), None)
-            } else {
-                (sse2::ins_pmulx(ins, bits, false), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xE5])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PMULUDQ => {
@@ -636,225 +1257,313 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         }
 
         Ins::PMADDWD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pmaddwd(ins, bits), None)
-            } else {
-                (sse2::ins_pmaddwd(ins, bits), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0xF5])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PCMPEQB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 1), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 1), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x74])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PCMPEQW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 2), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 2), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x75])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PCMPEQD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 3), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 3), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x76])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PCMPGTB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 4), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 4), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x64])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PCMPGTW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 5), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 5), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x65])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PCMPGTD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_cmp(ins, bits, 6), None)
-            } else {
-                (sse2::ins_cmp(ins, bits, 6), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x66])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PACKUSWB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pack(ins, bits, 1), None)
-            } else {
-                (sse2::ins_pack(ins, bits, 1), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x67])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PACKSSWB => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pack(ins, bits, 2), None)
-            } else {
-                (sse2::ins_pack(ins, bits, 2), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x63])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PACKSSDW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_pack(ins, bits, 3), None)
-            } else {
-                (sse2::ins_pack(ins, bits, 3), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x6B])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PUNPCKLBW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 1), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 1), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x60])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PUNPCKLWD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 2), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 2), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x61])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PUNPCKLDQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 3), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 3), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x62])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PUNPCKHBW => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 4), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 4), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x68])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PUNPCKHWD => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 5), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 5), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x69])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
         Ins::PUNPCKHDQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (mmx::ins_unpack(ins, bits, 6), None)
-            } else {
-                (sse2::ins_unpack(ins, bits, 6), None)
+            let mut api = GenAPI::new()
+                .opcode(&[0x0F, 0x6A])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM]);
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
             }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::PSLLQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xF3], &[0x0F, 0x73], 6),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x73])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(6), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF3], &[0x66, 0x0F, 0x73], 6),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xF3])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSLLD => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xF2], &[0x0F, 0x72], 6),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x72])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(6), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF2], &[0x66, 0x0F, 0x72], 6),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xF2])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSLLW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xF1], &[0x0F, 0x71], 6),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x71])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(6), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xF1], &[0x66, 0x0F, 0x71], 6),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xF1])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSRLW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xD1], &[0x0F, 0x71], 2),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x71])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(2), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD1], &[0x66, 0x0F, 0x71], 2),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xD1])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSRLD => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xD2], &[0x0F, 0x72], 2),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x72])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(2), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD2], &[0x66, 0x0F, 0x72], 2),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xD2])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSRLQ => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xD3], &[0x0F, 0x73], 2),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x73])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(2), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xD3], &[0x66, 0x0F, 0x73], 2),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xD3])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSRAW => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xE1], &[0x0F, 0x71], 4),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x71])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(4), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xE1], &[0x66, 0x0F, 0x71], 4),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xE1])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
         Ins::PSRAD => {
-            if ins.which_variant() == IVariant::MMX {
-                (
-                    mmx::ins_shift(ins, bits, &[0x0F, 0xE2], &[0x0F, 0x72], 4),
-                    None,
-                )
+            let mut api = GenAPI::new();
+            if let Some(Operand::Imm(_)) = ins.src() {
+                api = api
+                    .opcode(&[0x0F, 0x72])
+                    .imm_atindex(1, 1)
+                    .modrm(true, Some(4), None);
             } else {
-                (
-                    sse2::ins_shift(ins, bits, &[0x66, 0x0F, 0xE2], &[0x66, 0x0F, 0x72], 4),
-                    None,
-                )
+                api = api
+                    .opcode(&[0x0F, 0xE2])
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .modrm(true, None, None);
             }
+            if ins.which_variant() != IVariant::MMX {
+                api = api.prefix(0x66).rex(true);
+            }
+            (api.assemble(ins, bits), None)
         }
 
         Ins::POR => {
@@ -900,14 +1609,67 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::EMMS => (vec![0x0F, 0x77], None),
 
         // sse3
-        Ins::ADDSUBPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0xD0]), None),
-        Ins::ADDSUBPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0xD0]), None),
+        Ins::ADDSUBPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xD0])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::ADDSUBPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xD0])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
 
-        Ins::HADDPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0x7C]), None),
-        Ins::HADDPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0x7C]), None),
-
-        Ins::HSUBPD => (sse3::sgen_ins(ins, bits, true, &[0x0F, 0x7D]), None),
-        Ins::HSUBPS => (sse3::sgen_ins(ins, bits, false, &[0x0F, 0x7D]), None),
+        Ins::HADDPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x7C])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::HADDPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x7C])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::HSUBPD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x7D])
+                .prefix(0x66)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::HSUBPS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x7D])
+                .prefix(0xF2)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
 
         Ins::MOVSLDUP => (
             GenAPI::new()
@@ -3000,7 +3762,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::CVTSI2SS => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2A]), None),
+        Ins::CVTSI2SS => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2A])
+                .prefix(0xF3)
+                .modrm(true, None, None)
+                .rex(true)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::CVTPS2PI => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x2D])
@@ -3048,7 +3819,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::CVTSS2SI => (sse::gen_cvt4x(ins, bits, &[0x0F, 0x2D]), None),
+        Ins::CVTSS2SI => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2D])
+                .prefix(0xF3)
+                .rex(true)
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        ),
         // cvt-part2
         Ins::VCVTPD2DQ => (
             GenAPI::new()
