@@ -31,9 +31,13 @@ impl MathematicalEvaluation {
             MathElement::And(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::And),
             MathElement::Or(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Or),
             MathElement::Xor(lhs, rhs) => Self::eval_rec(*lhs, *rhs, Mode::Xor),
+            MathElement::Neg(lhs) => {
+                Self::eval_rec(*lhs, MathElement::Number(Number::uint64(0)), Mode::Neg)
+            }
             MathElement::Not(lhs) => {
                 Self::eval_rec(*lhs, MathElement::Number(Number::uint64(0)), Mode::Not)
             }
+            MathElement::Number(n) => Some(n.get_as_u64()),
             _ => None,
         }
     }
@@ -68,7 +72,7 @@ impl MathematicalEvaluation {
             let (int_lhs, int_rhs, int_mode) = deserialize(rhs_t.clone());
             let rhs_n = Self::eval_rec(
                 *int_lhs?,
-                if int_mode == Mode::Not {
+                if int_mode == Mode::Not || int_mode == Mode::Neg {
                     MathElement::Number(Number::uint64(0))
                 } else {
                     *int_rhs.unwrap()
@@ -81,7 +85,7 @@ impl MathematicalEvaluation {
             let (int_lhs, int_rhs, int_mode) = deserialize(lhs_t.clone());
             let lhs_n = Self::eval_rec(
                 *int_lhs?,
-                if int_mode == Mode::Not {
+                if int_mode == Mode::Not || int_mode == Mode::Neg {
                     MathElement::Number(Number::uint64(0))
                 } else {
                     *int_rhs.unwrap()
@@ -91,7 +95,7 @@ impl MathematicalEvaluation {
             Some(eval(lhs_n, rhs_n.get_as_u32() as u64, mode))
         } else if let (Some(lhs_t), Some(rhs_t)) = (lhs_t, rhs_t) {
             let (lhs, rhs, mode) = deserialize(lhs_t);
-            let (lhs, rhs) = if mode == Mode::Not {
+            let (lhs, rhs) = if mode == Mode::Not || mode == Mode::Neg {
                 (
                     lhs.unwrap(),
                     Box::new(MathElement::Number(Number::uint64(0))),
@@ -101,7 +105,7 @@ impl MathematicalEvaluation {
             };
             let lhs_n = Self::eval_rec(*lhs, *rhs, mode)?;
             let (lhs, rhs, mode) = deserialize(rhs_t);
-            let (lhs, rhs) = if mode == Mode::Not {
+            let (lhs, rhs) = if mode == Mode::Not || mode == Mode::Neg {
                 (
                     lhs.unwrap(),
                     Box::new(MathElement::Number(Number::uint64(0))),
@@ -146,7 +150,8 @@ fn eval(lu64: u64, ru64: u64, mode: Mode) -> u64 {
         Mode::Or => lu64 | ru64,
         Mode::Xor => lu64 ^ ru64,
         Mode::Not => !lu64,
-        _ => panic!("Boolean Algebra is not supported yet!"),
+        Mode::Neg => -(lu64 as i64) as u64,
+        _ => panic!("Unsupported mode"),
     }
 }
 
@@ -175,6 +180,8 @@ pub enum MathElement {
     // !Xhs
     Not(Box<Self>),
 
+    // ~Xhs ; (sets sign)
+    Neg(Box<Self>),
     // (Xhs)
     Closure(Box<Self>),
 
@@ -194,6 +201,7 @@ enum Mode {
     Not,
     Lsh,
     Rsh,
+    Neg,
     Lt,
     Gt,
 }
@@ -209,6 +217,7 @@ enum Token {
     Or,
     Xor,
     Not,
+    Neg,
     Lsh,
     Rsh,
     Start, // (
@@ -250,6 +259,9 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                     match (elements.pop(), mode.take()) {
                         (Some(lhs), Some(mode_1)) => {
                             elements.push(mer2(&mode_1, lhs, tok));
+                        }
+                        (None, Some(Mode::Neg)) => {
+                            elements.push(MathElement::Neg(Box::new(tok)));
                         }
                         (None, Some(Mode::Not)) => {
                             elements.push(MathElement::Not(Box::new(tok)));
@@ -305,6 +317,10 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 }
                 idx += 1;
             }
+            Token::Neg => {
+                mode = Some(Mode::Neg);
+                idx += 1;
+            }
             Token::Add => {
                 mode = Some(Mode::Add);
                 idx += 1
@@ -350,12 +366,14 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 idx += 1
             }
             Token::Number(n) => {
-                if mode == Some(Mode::Not) {
-                    if let Some(t) = elements.pop() {
-                        elements.push(MathElement::Not(Box::new(t)));
+                if mode == Some(Mode::Not) || mode == Some(Mode::Neg) {
+                    if mode == Some(Mode::Not) {
+                        elements.push(MathElement::Not(Box::new(MathElement::Number(*n))));
+                    } else {
+                        elements.push(MathElement::Neg(Box::new(MathElement::Number(*n))));
                     }
-                    idx += 1;
                     mode = None;
+                    idx += 1;
                     continue;
                 }
                 if tmp_num.is_none() && tmp_mat.is_none() {
@@ -410,9 +428,9 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
     }
     if let Some(mode) = mode {
         let tmp_mat = elements.pop().expect("should be some");
-        #[allow(clippy::single_match)]
         match mode {
             Mode::Not => elements.push(MathElement::Not(Box::new(tmp_mat))),
+            Mode::Neg => elements.push(MathElement::Neg(Box::new(tmp_mat))),
             _ => {}
         }
     }
@@ -424,9 +442,10 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
         } else {
             Err(Error::no_tip(
                 None,
-                Some(
-                    "Internal Error (should not happen): Tried to pop elements, while it was empty :(",
-                ),
+                Some(format!(
+                    "Internal Error (should not happen): Tried to pop elements, while it was empty :(\nINFO: {:?} ; {:?} ; {:?}",
+                    mode, elements, tmp_num
+                )),
             ))
         }
     }
@@ -443,7 +462,6 @@ fn mer2(mode: &Mode, lhs: MathElement, rhs: MathElement) -> MathElement {
         Mode::And => ME::And(Box::new(lhs), Box::new(rhs)),
         Mode::Or => ME::Or(Box::new(lhs), Box::new(rhs)),
         Mode::Xor => ME::Xor(Box::new(lhs), Box::new(rhs)),
-        Mode::Lt | Mode::Gt => panic!("Boolean operations are currently unsupported!"),
         _ => panic!("Unsupported case"),
     }
 }
@@ -455,7 +473,7 @@ fn tok(str: &str) -> Vec<Token> {
     for c in str.chars() {
         match c {
             '+' | '-' | '*' | '/' | '&' | '|' | '%' | '!' | '^' | '(' | ')' | ' ' | '<' | '>'
-            | '\t' => {
+            | '~' | '\t' => {
                 if !tmp_buf.is_empty() {
                     tokens.push(make_tok(tmp_buf));
                     tmp_buf = Vec::new();
@@ -474,6 +492,7 @@ fn tok(str: &str) -> Vec<Token> {
                     '!' => tokens.push(Token::Not),
                     '(' => tokens.push(Token::Start),
                     ')' => tokens.push(Token::End),
+                    '~' => tokens.push(Token::Neg),
                     _ => {}
                 }
             }
@@ -520,9 +539,27 @@ mod math_tests {
         );
         let toks = tok("<<");
         assert_eq!(toks, vec![Token::Lt, Token::Lt]);
+        let toks = tok("!10");
+        assert_eq!(toks, vec![Token::Not, Token::Number(Number::uint64(10))]);
     }
     #[test]
     fn par_test() {
+        let toks = tok("!10");
+        let result = par(toks);
+        assert_eq!(
+            result,
+            Ok(MathElement::Not(Box::new(MathElement::Number(
+                Number::uint64(10)
+            )),))
+        );
+        let toks = tok("~10");
+        let result = par(toks);
+        assert_eq!(
+            result,
+            Ok(MathElement::Neg(Box::new(MathElement::Number(
+                Number::uint64(10)
+            )),))
+        );
         let toks = tok("10 * 2");
         let result = par(toks);
         assert_eq!(
@@ -674,5 +711,7 @@ mod math_tests {
         assert!(eval.is_ok());
         let eval = eval.unwrap();
         assert_eq!(MathematicalEvaluation::eval(eval), Some(2));
+        let ev = MathematicalEvaluation::eval(par(tok("~10")).unwrap());
+        assert_eq!(ev, Some((-10i64) as u64));
     }
 }
