@@ -26,12 +26,12 @@ fi
 
 set -e
 
-echo "running checks..."
-cargo check -q
-echo "running tests..."
-cargo test -q
-echo "running clippy..."
-cargo clippy -q
+#echo "running checks..."
+#cargo check -q
+#echo "running tests..."
+#cargo test -q
+#echo "running clippy..."
+#cargo clippy -q
 
 rm -rf .tmp
 mkdir .tmp

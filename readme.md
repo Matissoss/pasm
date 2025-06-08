@@ -33,15 +33,15 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
         - [x] Support for includes 
         - [x] Support for label attributes (`#()` closure)
-        - [ ] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
+        - [x] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
         - [ ] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
+        - [ ] Optimize `Instruction` struct
     - betao (beta obj)
         - [ ] Variables overhaul
         - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
         - [ ] Tests for relocations and other things
         - [ ] Better target handling (ELF reworked)
         - [ ] Basic support for DWARF
-    - [ ] Removing `*gen_ins` in 100% (replacing `jmp`'s, `lea`'s, etc.)
     - [ ] Create documentation
     - [ ] Overall polish
     - [ ] moving into beta-avx512 phase...
@@ -57,7 +57,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
     - [ ] other (VPOPCNTDQ, VPCLMULQDQ)
     - [ ] moving into beta-macro phase...
 - beta-macro
-    - [ ] Support for inline (or not) macros with C-like syntax (from AT&T-like syntax - variables as labels)
+    - [ ] Support for inline (or not) macros with C-like syntax
     - [ ] (idea - not certain) Support for pseudo functions (ability to use `.if`/`.loop`, etc.) (extended macros)
     - [ ] Support for custom opcodes (using assembler's API) (to support unsupported instructions)
     - [ ] Create documentation for macros

@@ -5,14 +5,10 @@
 
 use crate::core::api;
 use crate::shr::{
-    ast::{Instruction as Ins, Operand as Op},
-    ins::Mnemonic,
-    reg::Purpose as RPurpose,
+    ast::{Instruction, Operand},
     segment::Segment,
 };
 
-type Instruction = Ins;
-type Operand = Op;
 pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     let [mut dst, mut src, _] = ctx.get_ord_oprs(ins);
 
@@ -69,93 +65,14 @@ const fn bmodrm(mod_: u8, reg: u8, rm: u8) -> u8 {
     (mod_ << 6) + (reg << 3) + rm
 }
 
-pub fn gen_modrm(ins: &Ins, reg: Option<u8>, rm: Option<u8>, modrm_reg_is_dst: bool) -> u8 {
-    let mod_ = if let Some(memidx) = ins.get_mem_idx() {
-        if let Some(
-            Operand::Mem(m)
-            | Operand::Segment(Segment {
-                address: m,
-                segment: _,
-            }),
-        ) = ins.get_opr(memidx)
-        {
-            if let Some((_, sz)) = m.offset_x86() {
-                if sz == 1 {
-                    0b01
-                } else {
-                    0b10
-                }
-            } else {
-                0b00
-            }
-        } else {
-            0b11
-        }
-    } else {
-        0b11
-    };
-
-    let mut modrm_reg_is_dst = modrm_reg_is_dst;
-
-    let reg = if let Some(reg) = reg {
-        reg
-    } else {
-        if matches!(
-            ins.mnem,
-            Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ | Mnemonic::VINSERTF128
-        ) {
-            gen_rmreg(&ins.src())
-        } else if modrm_reg_is_dst {
-            gen_rmreg(&ins.dst())
-        } else {
-            if let Some(Op::Mem(_) | Op::Segment(_)) = ins.src() {
-                modrm_reg_is_dst = true;
-                gen_rmreg(&ins.dst())
-            } else if let Some(Op::Reg(r)) = ins.src() {
-                let rp = r.purpose();
-                if (rp == RPurpose::Mmx || rp == RPurpose::F128) && !ins.mnem.is_avx() {
-                    modrm_reg_is_dst = true;
-                    gen_rmreg(&ins.dst())
-                } else {
-                    gen_rmreg(&ins.src())
-                }
-            } else {
-                gen_rmreg(&ins.src())
-            }
-        }
-    };
-    let rm = {
-        if ins.uses_sib() {
-            0b100
-        } else {
-            if let Some(rm) = rm {
-                rm
-            } else {
-                if matches!(
-                    ins.mnem,
-                    Mnemonic::PEXTRB | Mnemonic::PEXTRD | Mnemonic::PEXTRQ | Mnemonic::VINSERTF128
-                ) {
-                    gen_rmreg(&ins.dst())
-                } else if modrm_reg_is_dst {
-                    gen_rmreg(&ins.src())
-                } else {
-                    gen_rmreg(&ins.dst())
-                }
-            }
-        }
-    };
-
-    (mod_ << 6) + (reg << 3) + rm
-}
-
-fn gen_rmreg(op: &Option<&Op>) -> u8 {
+fn gen_rmreg(op: &Option<&Operand>) -> u8 {
     if op.is_none() {
         return 0;
     };
     match op.unwrap() {
-        Op::DbgReg(r) | Op::CtrReg(r) | Op::Reg(r) => r.to_byte(),
-        Op::Mem(m)
-        | Op::Segment(Segment {
+        Operand::DbgReg(r) | Operand::CtrReg(r) | Operand::Reg(r) => r.to_byte(),
+        Operand::Mem(m)
+        | Operand::Segment(Segment {
             address: m,
             segment: _,
         }) => {
@@ -167,7 +84,7 @@ fn gen_rmreg(op: &Option<&Op>) -> u8 {
                 0
             }
         }
-        Op::SegReg(r) => r.to_byte(),
+        Operand::SegReg(r) => r.to_byte(),
         _ => 0,
     }
 }

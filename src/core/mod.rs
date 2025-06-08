@@ -9,11 +9,7 @@ pub mod sib;
 pub mod api;
 
 // core for AVX
-pub mod avx;
 pub mod vex;
 
 // bin/target
 pub mod obj;
-
-// x86-64 extensions
-pub mod sse2;

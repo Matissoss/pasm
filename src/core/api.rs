@@ -50,6 +50,7 @@ pub struct VexDetails {
     vlength: MegaBool,
 }
 
+#[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub struct MegaBool {
     data: u8,
@@ -184,13 +185,12 @@ impl GenAPI {
                 | map_select(vex_details.map_select) << 2
                 | pp(vex_details.pp)
         };
-        self.addt &= 0x00FF;
-        self.addt |= (vex_details.vlength.data as u16) << 0x08;
+        self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
     pub const fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
         self.flags.set(IMM_ATIDX, true);
-        self.addt = size << 8 | idx;
+        self.addt = ((size << 4) | idx & 0b1111) | self.addt & 0xFF00;
         self
     }
     pub const fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
@@ -329,9 +329,8 @@ impl GenAPI {
         }
 
         if self.flags.get(IMM_ATIDX).unwrap() {
-            let size = (self.addt & 0xFF00) >> 8;
-            let idx = (self.addt & 0x00FF) as usize;
-
+            let size = (self.addt & 0x00_F0) >> 4;
+            let idx  = (self.addt & 0x00_0F) as usize;
             if let Some(Operand::Imm(i)) = ins.oprs.get(idx) {
                 let mut imm = i.split_into_bytes();
                 extend_imm(&mut imm, size as u8);
@@ -466,13 +465,13 @@ fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Opt
             (Size::Word, _) => None,
             (Size::Dword, true) => Some(0x67),
             (Size::Dword, false) => Some(0x66),
-            _ => panic!("{:?}", op),
+            _ => None,
         },
         32 => match (size, is_mem) {
             (Size::Word, false) => Some(0x66),
             (Size::Word, true) => Some(0x67),
             (Size::Dword, _) => None,
-            _ => panic!("{:?}", op),
+            _ => None,
         },
         64 => match (size, is_mem) {
             (Size::Qword, false) => {
@@ -486,7 +485,7 @@ fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Opt
             (Size::Word, false) => Some(0x66),
             (Size::Word, true) => Some(0x67),
             (Size::Dword, true) => Some(0x67),
-            _ => panic!("{:?}", op),
+            _ => None,
         },
         _ => None,
     }
@@ -685,6 +684,27 @@ mod tests {
     #[test]
     fn general_api_check() {
         assert!(size_of::<GenAPI>() == 16);
+    }
+    #[test]
+    fn mbool() {
+        use OpOrd::*;
+        let mb = MegaBool::from_byte(3);
+        assert_eq!(mb.get(), Some(true));
+        let mb = MegaBool::set(Some(true));
+        assert_eq!(mb.get(), Some(true));
+        let api = GenAPI::new().vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(true).vlength(Some(true)));
+        assert_eq!(api.get_vex_vlength(), Some(MegaBool::set(Some(true))));
+        assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
+        let api = GenAPI::new()
+                .opcode(&[0x19])
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false).vlength(Some(true)))
+                .ord(&[MODRM_RM, MODRM_REG]);
+        assert_eq!(api.addt,
+            0b0000_0011_0001_0010
+        );
+        assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
     }
     #[test]
     fn ord_check() {

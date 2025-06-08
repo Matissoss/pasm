@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    core::{api::*, avx, disp, modrm, rex, sib, sse2, vex},
+    core::api::*,
     shr::{
         ast::{IVariant, Instruction, Label, Operand},
         ins::Mnemonic as Ins,
@@ -16,6 +16,7 @@ use crate::{
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
         var::{VarContent, Variable},
+        segment::Segment,
     },
 };
 use OpOrd::*;
@@ -3439,196 +3440,483 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
 
         // MMX derived part 1
         Ins::VPOR => (
-            avx::avx_ins(ins, &[0xEB], &[0xEB], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xEB])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::VMOVD => (
-            avx::avx_ins_movx(ins, &[0x7E], &[0x6E], None, 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VMOVQ => (
-            avx::avx_ins_movx(ins, &[0x7E], &[0x6E], None, 0x66, 0x0F, true),
-            None,
-        ),
+        Ins::VMOVD | Ins::VMOVQ => {
+            let mut api = GenAPI::new()
+                .modrm(true, None, None)
+                .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(ins.mnem == Ins::VMOVQ));
+            if let Some(Operand::Reg(r)) = ins.dst() {
+                if r.size() != Size::Xword {
+                    api = api.opcode(&[0x7E]).ord(&[MODRM_RM, MODRM_REG]);
+                } else {
+                    api = api.opcode(&[0x6E]);
+                }
+            } else if ins.dst().unwrap().is_mem() {
+                api = api.opcode(&[0x7E]).ord(&[MODRM_RM, MODRM_REG]);
+            } else {
+                api = api.opcode(&[0x6E]);
+            }
+            (api.assemble(ins, bits), None)
+        },
         Ins::VPAND => (
-            avx::avx_ins(ins, &[0xDB], &[0xDB], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xDB])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPXOR => (
-            avx::avx_ins(ins, &[0xEF], &[0xEF], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xEF])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDB => (
-            avx::avx_ins(ins, &[0xFC], &[0xFC], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xFC])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDW => (
-            avx::avx_ins(ins, &[0xFD], &[0xFD], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xFD])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDD => (
-            avx::avx_ins(ins, &[0xFE], &[0xFE], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xFE])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDQ => (
-            avx::avx_ins(ins, &[0xD4], &[0xD4], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xD4])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBB => (
-            avx::avx_ins(ins, &[0xF8], &[0xF8], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xF8])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBW => (
-            avx::avx_ins(ins, &[0xF9], &[0xF9], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xF9])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBD => (
-            avx::avx_ins(ins, &[0xFA], &[0xFA], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xFA])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBQ => (
-            avx::avx_ins(ins, &[0xFB], &[0xFB], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xFB])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPANDN => (
-            avx::avx_ins(ins, &[0xDF], &[0xDF], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xDF])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
-        Ins::VPSLLW => (
-            avx::avx_ins_shift(ins, &[0xF1], &[0x71], Some(6), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSLLD => (
-            avx::avx_ins_shift(ins, &[0xF2], &[0x72], Some(6), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSLLQ => (
-            avx::avx_ins_shift(ins, &[0xF3], &[0x73], Some(6), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSRLW => (
-            avx::avx_ins_shift(ins, &[0xD1], &[0x71], Some(2), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSRLD => (
-            avx::avx_ins_shift(ins, &[0xD2], &[0x72], Some(2), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSRLQ => (
-            avx::avx_ins_shift(ins, &[0xD3], &[0x73], Some(2), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSRAW => (
-            avx::avx_ins_shift(ins, &[0xE1], &[0x71], Some(4), 0x66, 0x0F, false),
-            None,
-        ),
-        Ins::VPSRAD => (
-            avx::avx_ins_shift(ins, &[0xE2], &[0x72], Some(4), 0x66, 0x0F, false),
-            None,
-        ),
+        Ins::VPSLLW => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x71])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(6), None);
+            } else {
+                api = api
+                    .opcode(&[0xF1])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSLLD => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x72])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(6), None);
+            } else {
+                api = api
+                    .opcode(&[0xF2])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSLLQ => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x73])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(6), None);
+            } else {
+                api = api
+                    .opcode(&[0xF3])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSRLW => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x71])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(2), None);
+            } else {
+                api = api
+                    .opcode(&[0xD1])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSRLD => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x72])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(2), None);
+            } else {
+                api = api
+                    .opcode(&[0xD2])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSRLQ => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x73])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(2), None);
+            } else {
+                api = api
+                    .opcode(&[0xD3])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSRAW => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x71])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(4), None);
+            } else {
+                api = api
+                    .opcode(&[0xE1])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
+        Ins::VPSRAD => {
+            let mut api = GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
+            if let Some(Operand::Imm(_)) = ins.src2() {
+                api = api
+                    .opcode(&[0x72])
+                    .imm_atindex(2, 1).ord(&[VEX_VVVV, MODRM_RM])
+                    .modrm(true, Some(4), None);
+            } else {
+                api = api
+                    .opcode(&[0xE2])
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .modrm(true, None, None);
+            }
+            (api.assemble(ins, bits), None)
+        }
         Ins::VPSUBSB => (
-            avx::avx_ins(ins, &[0xE8], &[0xE8], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE8])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBSW => (
-            avx::avx_ins(ins, &[0xE9], &[0xE9], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE9])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDSB => (
-            avx::avx_ins(ins, &[0xEC], &[0xEC], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xEC])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDSW => (
-            avx::avx_ins(ins, &[0xED], &[0xED], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xED])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMULHW => (
-            avx::avx_ins(ins, &[0xE5], &[0xE5], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE5])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMULLW => (
-            avx::avx_ins(ins, &[0xD5], &[0xD5], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xD5])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         // part 2
         Ins::VPADDUSB => (
-            avx::avx_ins(ins, &[0xDC], &[0xDC], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xDC])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPADDUSW => (
-            avx::avx_ins(ins, &[0xDD], &[0xDD], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xDD])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBUSB => (
-            avx::avx_ins(ins, &[0xD8], &[0xD8], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xD8])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPSUBUSW => (
-            avx::avx_ins(ins, &[0xD9], &[0xD9], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xD9])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPMADDWD => (
-            avx::avx_ins(ins, &[0xF5], &[0xF5], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xF5])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPEQB => (
-            avx::avx_ins(ins, &[0x74], &[0x74], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x74])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPEQW => (
-            avx::avx_ins(ins, &[0x75], &[0x75], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x75])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPEQD => (
-            avx::avx_ins(ins, &[0x76], &[0x76], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x76])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPGTB => (
-            avx::avx_ins(ins, &[0x64], &[0x64], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x64])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPGTW => (
-            avx::avx_ins(ins, &[0x65], &[0x65], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x65])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPCMPGTD => (
-            avx::avx_ins(ins, &[0x66], &[0x66], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x66])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPACKUSWB => (
-            avx::avx_ins(ins, &[0x67], &[0x67], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x67])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPACKSSWB => (
-            avx::avx_ins(ins, &[0x63], &[0x63], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x63])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPACKSSDW => (
-            avx::avx_ins(ins, &[0x6B], &[0x6B], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x6B])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKLBW => (
-            avx::avx_ins(ins, &[0x60], &[0x60], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x60])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKLWD => (
-            avx::avx_ins(ins, &[0x61], &[0x61], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x61])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKLDQ => (
-            avx::avx_ins(ins, &[0x62], &[0x62], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x62])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKHBW => (
-            avx::avx_ins(ins, &[0x68], &[0x68], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x68])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKHWD => (
-            avx::avx_ins(ins, &[0x69], &[0x69], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x69])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPUNPCKHDQ => (
-            avx::avx_ins(ins, &[0x6A], &[0x6A], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0x6A])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
 
@@ -3654,33 +3942,69 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             (api.assemble(ins, bits), None)
         }
         Ins::VPAVGB => (
-            avx::avx_ins(ins, &[0xE0], &[0xE0], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE0])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPAVGW => (
-            avx::avx_ins(ins, &[0xE3], &[0xE3], None, 0x66, 0x0F, false),
+            GenAPI::new()
+                .opcode(&[0xE3])
+                .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPHADDW => (
-            avx::avx_ins(ins, &[0x01], &[0x01], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x01])
+                .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPHADDD => (
-            avx::avx_ins(ins, &[0x02], &[0x02], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x02])
+                .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPHSUBW => (
-            avx::avx_ins(ins, &[0x05], &[0x05], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x05])
+                .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VPHSUBD => (
-            avx::avx_ins(ins, &[0x06], &[0x06], None, 0x66, 0x38, false),
+            GenAPI::new()
+                .opcode(&[0x06])
+                .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VZEROUPPER => (vec![0xC5, 0xF8, 0x77], None),
         Ins::VZEROALL => (vec![0xC5, 0xFC, 0x77], None),
         Ins::VPALIGNR => (
-            avx::avx_ins_wimm3(ins, &[0x0F], &[0x0F], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x0F])
+                .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
+                .modrm(true, None, None)
+                .imm_atindex(3, 1)
+                .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VINSERTF128 => (
@@ -3694,7 +4018,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::VEXTRACTF128 => (
-            avx::avx_ins_wimm2(ins, &[0x19], &[0x19], None, 0x66, 0x3A, false),
+            GenAPI::new()
+                .opcode(&[0x19])
+                .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false).vlength(Some(true)))
+                .modrm(true, None, None)
+                .imm_atindex(2, 1)
+                .ord(&[MODRM_RM, MODRM_REG])
+                .assemble(ins, bits),
             None,
         ),
         Ins::VBROADCASTSS => (
@@ -4780,8 +5110,27 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::CVTSD2SI => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2D]), None),
-        Ins::CVTSI2SD => (sse2::sgen_ins_wrev(ins, bits, false, &[0x0F, 0x2A]), None),
+        Ins::CVTSD2SI => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2D])
+                .modrm(true, None, None)
+                .prefix(0xF2)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::CVTSI2SD => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2A])
+                .modrm(true, None, None)
+                .prefix(0xF2)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
+            None,
+        ),
+
         Ins::CVTTPS2DQ => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x5B])
@@ -4793,7 +5142,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         Ins::CVTTSD2SI => (
-            sse2::sgen_ins_wrev(ins, bits, false, &[0x66, 0x0F, 0x2C]),
+            GenAPI::new()
+                .opcode(&[0x0F, 0x2C])
+                .modrm(true, None, None)
+                .prefix(0x66)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .rex(true)
+                .assemble(ins, bits),
             None,
         ),
         Ins::CVTTPD2PI => (
@@ -6317,9 +6672,11 @@ fn ins_shrtjmp(ins: &Instruction, mut opc: Vec<u8>) -> (Vec<u8>, Option<Relocati
 }
 
 fn ins_enter(ins: &Instruction, bits: u8) -> Vec<u8> {
-    let mut immw = if let Some(Operand::Imm(w)) = ins.dst() {
+    let immw = if let Some(Operand::Imm(w)) = ins.dst() {
         let mut vec = w.split_into_bytes();
-        extend_imm(&mut vec, 2);
+        if vec.len() == 1 {
+            vec.push(0);
+        }
         vec![vec[0], vec[1]]
     } else {
         vec![0x00, 0x00]
@@ -6336,33 +6693,34 @@ fn ins_enter(ins: &Instruction, bits: u8) -> Vec<u8> {
     } else {
         vec![0x00]
     };
-    immw.extend(immb);
-    gen_ins(ins, &[0xC8], (false, None, None), Some(immw), bits, false)
+    GenAPI::new()
+        .opcode(&[0xC8, immw[0], immw[1], immb[0]])
+        .assemble(ins, bits)
 }
 
 fn ins_bt(ins: &Instruction, opc_noimm: &[u8], opc_imm: &[u8], bits: u8, modrm: u8) -> Vec<u8> {
-    let imm = if let Some(Operand::Imm(n)) = ins.src() {
-        Some(vec![n.split_into_bytes()[0]])
+    let mut api = GenAPI::new().rex(true);
+    if let Some(Operand::Imm(_)) = ins.src() {
+        api = api.opcode(opc_imm).modrm(true, Some(modrm), None).imm_atindex(1, 1);
     } else {
-        None
+        api = api.opcode(opc_noimm).modrm(true, None, None)
     };
-
-    let (opc, modrm) = if imm.is_some() {
-        (opc_imm, Some(modrm))
-    } else {
-        (opc_noimm, None)
-    };
-
-    gen_ins(ins, opc, (true, modrm, None), imm, bits, false)
+    api.assemble(ins, bits)
 }
 
 fn ins_cmovcc(ins: &Instruction, opc: &[u8], bits: u8) -> Vec<u8> {
-    gen_ins(ins, opc, (true, None, None), None, bits, true)
+    GenAPI::new()
+        .opcode(opc)
+        .modrm(true, None, None)
+        .rex(true)
+        .ord(&[MODRM_REG, MODRM_RM])
+        .assemble(ins, bits)
 }
 
 fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {
     match ins.dst().unwrap() {
-        Operand::Reg(r) => gen_base(ins, &[0x58 + r.to_byte()], bits, false),
+        Operand::Reg(r) => GenAPI::new()
+            .opcode(&[0x58 + r.to_byte()]).rex(true).assemble(ins, bits),
         Operand::SegReg(r) => match r {
             Register::DS => vec![0x1F],
             Register::ES => vec![0x07],
@@ -6373,7 +6731,11 @@ fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {
             _ => invalid(34),
         },
         Operand::Mem(_) | Operand::Segment(_) => {
-            vec![0x8F, modrm::gen_modrm(ins, None, Some(0), false)]
+            GenAPI::new()
+                .opcode(&[0x8F])
+                .rex(true)
+                .modrm(true, None, Some(0))
+                .assemble(ins, bits)
         }
         _ => invalid(33),
     }
@@ -6381,7 +6743,8 @@ fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {
 
 fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8> {
     match ins.dst().unwrap() {
-        Operand::Reg(r) => gen_base(ins, &[0x50 + r.to_byte()], bits, false),
+        Operand::Reg(r) => GenAPI::new()
+            .opcode(&[0x50 + r.to_byte()]).rex(true).assemble(ins, bits),
         Operand::SegReg(r) => match r {
             Register::CS => vec![0x0E],
             Register::SS => vec![0x16],
@@ -6393,21 +6756,25 @@ fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8> {
         },
         Operand::Imm(nb) => match nb.size() {
             Size::Byte => {
-                let mut opc = vec![0x6A];
-                opc.extend(nb.split_into_bytes());
-                opc
+                GenAPI::new()
+                    .opcode(&[0x6A])
+                    .imm_atindex(0, 1)
+                    .assemble(ins, bits)
             }
             Size::Word | Size::Dword => {
-                let mut b = vec![0x68];
-                let mut x = nb.split_into_bytes();
-                extend_imm(&mut x, 4);
-                b.extend(x);
-                b
+                GenAPI::new()
+                    .opcode(&[0x68])
+                    .imm_atindex(0, 4)
+                    .assemble(ins, bits)
             }
             _ => invalid(31),
         },
         Operand::Mem(_) | Operand::Segment(_) => {
-            gen_ins(ins, &[0xFF], (true, Some(6), None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[0xFF])
+                .modrm(true, Some(6), None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         _ => invalid(30),
     }
@@ -6418,31 +6785,45 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
     let dst = ins.dst().unwrap();
     if let Operand::Reg(r) = dst {
         match src {
-            Operand::SegReg(_) => gen_ins(ins, &[0x8C], (true, None, None), None, bits, false),
+            Operand::SegReg(_) => {
+                GenAPI::new()
+                    .opcode(&[0x8C])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits)
+            },
             Operand::CtrReg(_) => {
-                gen_ins(ins, &[0x0F, 0x20], (true, None, None), None, bits, false)
+                GenAPI::new()
+                    .opcode(&[0x0F, 0x20])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
             Operand::DbgReg(_) => {
-                gen_ins(ins, &[0x0F, 0x21], (true, None, None), None, bits, false)
+                GenAPI::new()
+                    .opcode(&[0x0F, 0x21])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
-            Operand::Imm(n) => {
+            Operand::Imm(_) => {
                 let size = dst.size();
                 let opc = match size {
                     Size::Byte => 0xB0 + r.to_byte(),
                     Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
                     _ => invalid(29),
                 };
-                let mut imm = n.split_into_bytes();
-                if size == Size::Qword {
-                    extend_imm(&mut imm, 4);
+                let size = if size == Size::Qword {
+                    4
                 } else {
-                    extend_imm(&mut imm, size.into());
-                }
-                let mut base = gen_base(ins, &[opc], bits, false);
-                base.extend(imm);
-                base
+                    size.into()
+                };
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .imm_atindex(1, size as u16)
+                    .assemble(ins, bits)
             }
-            Operand::Reg(_) | Operand::Mem(_) | Operand::Segment(_) => {
+            Operand::Reg(_) => {
                 let opc = if let Operand::Reg(_) = src {
                     match dst.size() {
                         Size::Byte => 0x88,
@@ -6456,7 +6837,32 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
                         _ => invalid(27),
                     }
                 };
-                gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits)
+            } 
+            Operand::Mem(_) | Operand::Segment(_) => {
+                let opc = if let Operand::Reg(_) = src {
+                    match dst.size() {
+                        Size::Byte => 0x88,
+                        Size::Word | Size::Dword | Size::Qword => 0x89,
+                        _ => invalid(28),
+                    }
+                } else {
+                    match dst.size() {
+                        Size::Byte => 0x8A,
+                        Size::Word | Size::Dword | Size::Qword => 0x8B,
+                        _ => invalid(27),
+                    }
+                };
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, None, None)
+                    .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
+                    .rex(true)
+                    .assemble(ins, bits)
             }
             _ => invalid(26),
         }
@@ -6533,25 +6939,34 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
 
     match (dst, src) {
         (Operand::Reg(dstr), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
+            let imm = srci.split_into_bytes();
             if let Size::Dword | Size::Word = srci.size() {
                 if let Register::RAX | Register::EAX = dstr {
-                    extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[opc[1]])
+                        .imm_atindex(1, 4)
+                        .rex(true)
+                        .assemble(ins, bits)
                 } else if let Register::AX = dstr {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[opc[1]])
+                        .imm_atindex(1, 2)
+                        .rex(true)
+                        .assemble(ins, bits)
                 }
             }
             if let Register::AL = dstr {
-                if let Size::Byte = srci.size() {
-                    return bs_imm(ins, &[opc[0]], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[opc[0]])
+                    .imm_atindex(1, 1)
+                    .rex(true)
+                    .assemble(ins, bits)
             } else if let Register::AX = dstr {
-                if let Size::Byte = srci.size() {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[opc[1]], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[opc[1]])
+                    .imm_atindex(1, 1)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
 
             let opc = match dstr.size() {
@@ -6565,56 +6980,15 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 }
                 _ => invalid(20),
             };
-            let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(modrm::gen_modrm(ins, Some(ovrreg), None, false));
-            extend_imm(&mut imm, 1);
-            base.extend(imm);
-            base
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(ovrreg), None)
+                .rex(true)
+                .imm_atindex(1, 1)
+                .assemble(ins, bits)
         }
-        (Operand::Segment(dstm), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
-            let opc = match dstm.address.size().unwrap_or_default() {
-                Size::Byte => opc[2],
-                Size::Word => opc[3],
-                Size::Dword => opc[3],
-                Size::Qword => {
-                    if imm.len() == 1 {
-                        opc[4]
-                    } else {
-                        opc[3]
-                    }
-                }
-                _ => invalid(19),
-            };
-            if let (Size::Word | Size::Byte, Size::Word) =
-                (srci.size(), dstm.address.size().unwrap_or_default())
-            {
-                extend_imm(&mut imm, 2);
-            } else if let (Size::Byte, Size::Dword) =
-                (srci.size(), dstm.address.size().unwrap_or_default())
-            {
-                extend_imm(&mut imm, 4);
-            } else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) = (
-                ins.mnem,
-                srci.size(),
-                dstm.address.size().unwrap_or_default(),
-            ) {
-                extend_imm(&mut imm, 4);
-            } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
-
-            gen_ins(
-                ins,
-                &[opc],
-                (true, Some(ovrreg), None),
-                Some(imm),
-                bits,
-                false,
-            )
-        }
-        (Operand::Mem(dstm), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
+        (Operand::Mem(dstm)|Operand::Segment(Segment {segment:_,address:dstm}), Operand::Imm(srci)) => {
+            let imm = srci.split_into_bytes();
             let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => opc[2],
                 Size::Word => opc[3],
@@ -6628,29 +7002,24 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 }
                 _ => invalid(18),
             };
-            if let (Size::Word | Size::Byte, Size::Word) =
+            let size = if let (Size::Word | Size::Byte, Size::Word) =
                 (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 2);
+                2
             } else if let (Size::Byte, Size::Dword) = (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 4);
-            } else if let (crate::shr::ins::Mnemonic::CMP, Size::Byte, Size::Qword) =
-                (ins.mnem, srci.size(), dstm.size().unwrap_or_default())
-            {
-                extend_imm(&mut imm, 4);
+                4
             } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
+                4
+            } else {1};
 
-            gen_ins(
-                ins,
-                &[opc],
-                (true, Some(ovrreg), None),
-                Some(imm),
-                bits,
-                false,
-            )
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(ovrreg), None)
+                .rex(true)
+                .imm_atindex(1, size)
+                .fixed_size(dstm.size().unwrap_or(Size::Unknown))
+                .assemble(ins, bits)
         }
         (Operand::Reg(r), Operand::Segment(_) | Operand::Mem(_) | Operand::Reg(_)) => {
             let opc = match r.size() {
@@ -6658,7 +7027,11 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(17),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         (Operand::Segment(m), Operand::Reg(_)) => {
             let opc = match m.address.size().unwrap_or_default() {
@@ -6666,7 +7039,11 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(16),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         (Operand::Mem(m), Operand::Reg(_)) => {
             let opc = match m.size().unwrap_or_default() {
@@ -6674,7 +7051,11 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(15),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         _ => invalid(14),
     }
@@ -6686,25 +7067,34 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
 
     match (dst, src) {
         (Operand::Reg(dstr), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
+            let imm = srci.split_into_bytes();
             if let Size::Dword | Size::Word = srci.size() {
                 if let Register::RAX | Register::EAX = dstr {
-                    extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[0x3D], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[0x3D])
+                        .imm_atindex(1, 4)
+                        .rex(true)
+                        .assemble(ins, bits)
                 } else if let Register::AX = dstr {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0x3D], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[0x3D])
+                        .imm_atindex(1, 2)
+                        .rex(true)
+                        .assemble(ins, bits)
                 }
             }
             if let Register::AL = dstr {
-                if let Size::Byte = srci.size() {
-                    return bs_imm(ins, &[0x3C], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[0x3C])
+                    .imm_atindex(1, 1)
+                    .rex(true)
+                    .assemble(ins, bits)
             } else if let Register::AX = dstr {
-                if let Size::Byte = srci.size() {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0x3D], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[0x3D])
+                    .imm_atindex(1, 2)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
 
             let opc = match dstr.size() {
@@ -6722,14 +7112,15 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 }
                 _ => invalid(13),
             };
-            let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(modrm::gen_modrm(ins, Some(7), None, false));
-            extend_imm(&mut imm, 1);
-            base.extend(imm);
-            base
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .imm_atindex(1, 1)
+                .assemble(ins, bits)
         }
         (Operand::Segment(dstm), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
+            let imm = srci.split_into_bytes();
             let opc = match dstm.address.size().unwrap_or_default() {
                 Size::Byte => 0x80,
                 Size::Qword | Size::Word | Size::Dword => {
@@ -6745,22 +7136,27 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 }
                 _ => invalid(12),
             };
-            if let (Size::Word | Size::Byte, Size::Word) =
+            let size = if let (Size::Word | Size::Byte, Size::Word) =
                 (srci.size(), dstm.address.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 2);
+                2
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
                 (srci.size(), dstm.address.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 4);
+                4
             } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
-
-            gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits, false)
+                4
+            } else {1};
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .fixed_size(dstm.address.size().unwrap_or(Size::Unknown))
+                .imm_atindex(1, size)
+                .assemble(ins, bits)
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
+            let imm = srci.split_into_bytes();
             let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => 0x80,
                 Size::Qword | Size::Word | Size::Dword => {
@@ -6776,19 +7172,24 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 }
                 _ => invalid(11),
             };
-            if let (Size::Word | Size::Byte, Size::Word) =
+            let size = if let (Size::Word | Size::Byte, Size::Word) =
                 (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 2);
+                2
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
                 (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 4);
+                4
             } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
-
-            gen_ins(ins, &[opc], (true, Some(7), None), Some(imm), bits, false)
+                4
+            } else {1};
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(7), None)
+                .rex(true)
+                .fixed_size(dstm.size().unwrap_or(Size::Unknown))
+                .imm_atindex(1, size)
+                .assemble(ins, bits)
         }
         (Operand::Reg(r), Operand::Segment(_) | Operand::Mem(_) | Operand::Reg(_)) => {
             let opc = match r.size() {
@@ -6796,7 +7197,11 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Word | Size::Dword | Size::Qword => 0x3B,
                 _ => invalid(10),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         (Operand::Mem(m), Operand::Reg(_)) => {
             let opc = match m.size().unwrap_or_default() {
@@ -6804,7 +7209,11 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(9),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         (Operand::Segment(m), Operand::Reg(_)) => {
             let opc = match m.address.size().unwrap_or_default() {
@@ -6812,7 +7221,11 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(8),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         _ => invalid(7),
     }
@@ -6824,25 +7237,33 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
 
     match (dst, src) {
         (Operand::Reg(dstr), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
             if let Size::Dword | Size::Word = srci.size() {
                 if let Register::RAX | Register::EAX = dstr {
-                    extend_imm(&mut imm, 4);
-                    return bs_imm(ins, &[0xA9], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[0xA9])
+                        .imm_atindex(1, 4)
+                        .rex(true)
+                        .assemble(ins, bits)
                 } else if let Register::AX = dstr {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0xA9], &imm, bits, false);
+                    return GenAPI::new()
+                        .opcode(&[0xA9])
+                        .imm_atindex(1, 2)
+                        .rex(true)
+                        .assemble(ins, bits)
                 }
             }
             if let Register::AL = dstr {
-                if let Size::Byte = srci.size() {
-                    return bs_imm(ins, &[0xA8], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[0xA8])
+                    .imm_atindex(1, 1)
+                    .rex(true)
+                    .assemble(ins, bits)
             } else if let Register::AX = dstr {
-                if let Size::Byte = srci.size() {
-                    extend_imm(&mut imm, 2);
-                    return bs_imm(ins, &[0xA9], &imm, bits, false);
-                }
+                return GenAPI::new()
+                    .opcode(&[0xA9])
+                    .imm_atindex(1, 2)
+                    .rex(true)
+                    .assemble(ins, bits)
             }
 
             let opc = match dstr.size() {
@@ -6850,53 +7271,64 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Dword | Size::Qword | Size::Word => 0xF7,
                 _ => invalid(6),
             };
-            let mut base = gen_base(ins, &[opc], bits, false);
-            base.push(modrm::gen_modrm(ins, Some(0), None, false));
-            extend_imm(&mut imm, 1);
-            base.extend(imm);
-            base
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(0), None)
+                .imm_atindex(1, 1)
+                .rex(true)
+                .assemble(ins, bits)
         }
         (Operand::Segment(dsts), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
             let opc = match dsts.address.size().unwrap_or_default() {
                 Size::Byte => 0xF6,
                 Size::Qword | Size::Word | Size::Dword => 0xF7,
                 _ => invalid(5),
             };
-            if let (Size::Word | Size::Byte, Size::Word) =
+            let size = if let (Size::Word | Size::Byte, Size::Word) =
                 (srci.size(), dsts.address.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 2);
+                2
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
                 (srci.size(), dsts.address.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 4);
+                4
             } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
-
-            gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false)
+                4
+            } else {1};
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(0), None)
+                .rex(true)
+                .fixed_size(dsts.address.size().unwrap_or(Size::Unknown))
+                .imm_atindex(1, size)
+                .assemble(ins, bits)
         }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
-            let mut imm = srci.split_into_bytes();
             let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => 0xF6,
                 Size::Qword | Size::Word | Size::Dword => 0xF7,
                 _ => invalid(4),
             };
-            if let (Size::Word | Size::Byte, Size::Word) =
+            let size = if let (Size::Word | Size::Byte, Size::Word) =
                 (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 2);
+                2
             } else if let (Size::Byte, Size::Dword | Size::Qword) =
                 (srci.size(), dstm.size().unwrap_or_default())
             {
-                extend_imm(&mut imm, 4);
+                4
             } else if srci.size() != Size::Byte {
-                extend_imm(&mut imm, 4);
-            }
-
-            gen_ins(ins, &[opc], (true, Some(0), None), Some(imm), bits, false)
+                4
+            } else {
+                1
+            };
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, Some(0), None)
+                .rex(true)
+                .fixed_size(dstm.size().unwrap_or(Size::Unknown))
+                .imm_atindex(1, size)
+                .assemble(ins, bits)
         }
         (Operand::Reg(_) | Operand::Mem(_) | Operand::Segment(_), Operand::Reg(_)) => {
             let opc = match dst.size() {
@@ -6904,7 +7336,11 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Word | Size::Dword | Size::Qword => 0x85,
                 _ => invalid(3),
             };
-            gen_ins(ins, &[opc], (true, None, None), None, bits, false)
+            GenAPI::new()
+                .opcode(&[opc])
+                .modrm(true, None, None)
+                .rex(true)
+                .assemble(ins, bits)
         }
         _ => invalid(2),
     }
@@ -6932,18 +7368,19 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8> {
                     Size::Word => (0x69, 2),
                     _ => (0x69, 4),
                 };
-                let mut imm_b = imm.split_into_bytes();
-                extend_imm(&mut imm_b, size);
-                let (dst, src) = if let (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) =
-                    (ins.dst(), ins.src())
-                {
-                    (Some(r.to_byte()), Some(r1.to_byte()))
-                } else {
-                    (None, None)
-                };
-                gen_ins(ins, &[opc], (true, dst, src), Some(imm_b), bits, false)
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, None, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .rex(true)
+                    .imm_atindex(2, size)
+                    .assemble(ins, bits)
             }
-            _ => gen_ins(ins, &[0x0F, 0xAF], (true, None, None), None, bits, false),
+            _ => GenAPI::new()
+                    .opcode(&[0x0F, 0xAF])
+                    .modrm(true, None, None)
+                    .rex(true)
+                    .assemble(ins, bits),
         },
     }
 }
@@ -6985,21 +7422,24 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, bits: u8) -> Vec<u8> {
 }
 
 fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {
-    let opc = match ins.dst().unwrap().size() {
+    let opcd = match ins.dst().unwrap().size() {
         Size::Byte => opc[0],
         _ => opc[1],
     };
-    gen_ins(ins, &[opc], (true, Some(ovr), None), None, bits, false)
+    GenAPI::new()
+        .opcode(&[opcd])
+        .modrm(true, Some(ovr), None)
+        .rex(true)
+        .can_h66(true)
+        .fixed_size(ins.dst().unwrap().size())
+        .assemble(ins, bits)
 }
 
 fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
-    let mut base = gen_base(ins, &[0x8D], bits, false);
-    let modrm = if let Operand::Reg(r) = ins.dst().unwrap() {
-        0b100 + (r.to_byte() << 3)
-    } else {
-        0
-    };
-    base.push(modrm);
+    let mut base = GenAPI::new()
+        .modrm(true, Some(if let Operand::Reg(r) = ins.dst().unwrap() {r.to_byte()} else {0}), Some(0b100))
+        .modrm_mod(0b00)
+        .assemble(ins, bits);
     base.push(0x25);
     let symbol = match ins.src().unwrap() {
         Operand::SymbolRef(s) => s,
@@ -7070,371 +7510,6 @@ fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8> {
 
 // ==============================
 // Utils
-
-pub fn bs_imm(ins: &Instruction, opc: &[u8], imm: &[u8], bits: u8, rev: bool) -> Vec<u8> {
-    let mut b = gen_base(ins, opc, bits, rev);
-    b.extend(imm);
-    b
-}
-
-pub fn extend_imm(imm: &mut Vec<u8>, size: u8) {
-    let size = size as usize;
-    while imm.len() < size {
-        imm.push(0)
-    }
-}
-
-pub fn gen_ins_wpref(
-    ins: &Instruction,
-    opc: &[u8],
-    modrm: (bool, Option<u8>, Option<u8>),
-    imm: Option<Vec<u8>>,
-    pref: u8,
-    bits: u8,
-    rev: bool,
-) -> Vec<u8> {
-    let mut base = vec![pref];
-    let gbase = gen_base(ins, opc, bits, rev);
-    if gbase[0] == 0x66 {
-        base = vec![0x66, pref];
-        base.extend(&gbase[1..]);
-    } else {
-        base.extend(gbase);
-    }
-    if modrm.0 {
-        base.push(modrm::gen_modrm(ins, modrm.1, modrm.2, rev));
-
-        if let Some(dst) = ins.dst() {
-            if let Some(sib) = sib::gen_sib(dst) {
-                base.push(sib);
-            }
-        }
-        if let Some(src) = ins.src() {
-            if let Some(sib) = sib::gen_sib(src) {
-                base.push(sib);
-            }
-        }
-    }
-
-    if let Some(dst) = ins.dst() {
-        if let Some(disp) = disp::gen_disp(dst) {
-            base.extend(disp);
-        }
-    }
-    if let Some(src) = ins.src() {
-        if let Some(disp) = disp::gen_disp(src) {
-            base.extend(disp);
-        }
-    }
-    if let Some(imm) = imm {
-        base.extend(imm);
-    }
-    base
-}
-#[allow(clippy::too_many_arguments)]
-pub fn vex_gen_ins_norm(
-    ins: &Instruction,
-    opc: &[u8],
-    modrm: (bool, Option<u8>),
-    imm: Option<Vec<u8>>,
-    modrm_reg_is_dst: bool,
-    pp: u8,
-    map_select: u8,
-    vex_we: bool,
-    dst: Option<&Operand>,
-    src: Option<&Operand>,
-    ssrc: Option<&Operand>,
-) -> Vec<u8> {
-    let mut base = vex::gen_vex_norm(
-        ins,
-        pp,
-        map_select,
-        modrm_reg_is_dst,
-        vex_we,
-        dst,
-        src,
-        ssrc,
-    )
-    .unwrap_or_default();
-    base.extend(opc);
-    if modrm.0 {
-        base.push(vex::vex_modrm_norm(
-            ins,
-            modrm.1,
-            None,
-            modrm_reg_is_dst,
-            dst,
-            ssrc,
-        ));
-        if let Some(dst) = ins.dst() {
-            if let Some(sib) = sib::gen_sib(dst) {
-                base.push(sib);
-            }
-        }
-        if let Some(src) = ins.src() {
-            if let Some(sib) = sib::gen_sib(src) {
-                base.push(sib);
-            }
-        }
-        if let Some(ssrc) = ins.src2() {
-            if let Some(sib) = sib::gen_sib(ssrc) {
-                base.push(sib);
-            }
-        }
-    }
-    if let Some(dst) = ins.dst() {
-        if let Some(disp) = disp::gen_disp(dst) {
-            base.extend(disp);
-        }
-    }
-    if let Some(src) = ins.src() {
-        if let Some(disp) = disp::gen_disp(src) {
-            base.extend(disp);
-        }
-    }
-    if let Some(ssrc) = ins.src2() {
-        if let Some(disp) = disp::gen_disp(ssrc) {
-            base.extend(disp);
-        }
-    }
-    if let Some(imm) = imm {
-        base.extend(imm);
-    }
-
-    base
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn vex_gen_ins(
-    ins: &Instruction,
-    opc: &[u8],
-    modrm: (bool, Option<u8>),
-    imm: Option<Vec<u8>>,
-    modrm_reg_is_dst: bool,
-    pp: u8,
-    map_select: u8,
-    vex_we: bool,
-) -> Vec<u8> {
-    let mut base = vex::gen_vex(ins, pp, map_select, modrm_reg_is_dst, vex_we).unwrap_or_default();
-    base.extend(opc);
-    if modrm.0 {
-        base.push(if ins.src2().is_some() {
-            if let Operand::Imm(_) = ins.src2().unwrap() {
-                modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst)
-            } else {
-                vex::vex_modrm(ins, modrm.1, None, modrm_reg_is_dst)
-            }
-        } else {
-            modrm::gen_modrm(ins, modrm.1, None, modrm_reg_is_dst)
-        });
-        if let Some(dst) = ins.dst() {
-            if let Some(sib) = sib::gen_sib(dst) {
-                base.push(sib);
-            }
-        }
-        if let Some(src) = ins.src() {
-            if let Some(sib) = sib::gen_sib(src) {
-                base.push(sib);
-            }
-        }
-        if let Some(ssrc) = ins.src2() {
-            if let Some(sib) = sib::gen_sib(ssrc) {
-                base.push(sib);
-            }
-        }
-    }
-    if let Some(dst) = ins.dst() {
-        if let Some(disp) = disp::gen_disp(dst) {
-            base.extend(disp);
-        }
-    }
-    if let Some(src) = ins.src() {
-        if let Some(disp) = disp::gen_disp(src) {
-            base.extend(disp);
-        }
-    }
-    if let Some(ssrc) = ins.src2() {
-        if let Some(disp) = disp::gen_disp(ssrc) {
-            base.extend(disp);
-        }
-    }
-    if let Some(imm) = imm {
-        base.extend(imm);
-    }
-
-    base
-}
-
-pub fn gen_ins(
-    ins: &Instruction,
-    opc: &[u8],
-    modrm: (bool, Option<u8>, Option<u8>),
-    imm: Option<Vec<u8>>,
-    bits: u8,
-    rev: bool,
-) -> Vec<u8> {
-    let mut base = gen_base(ins, opc, bits, rev);
-    if modrm.0 {
-        base.push(modrm::gen_modrm(ins, modrm.1, modrm.2, rev));
-
-        if let Some(dst) = ins.dst() {
-            if let Some(sib) = sib::gen_sib(dst) {
-                base.push(sib);
-            }
-        }
-        if let Some(src) = ins.src() {
-            if let Some(sib) = sib::gen_sib(src) {
-                base.push(sib);
-            }
-        }
-    }
-
-    if let Some(dst) = ins.dst() {
-        if let Some(disp) = disp::gen_disp(dst) {
-            base.extend(disp);
-        }
-    }
-    if let Some(src) = ins.src() {
-        if let Some(disp) = disp::gen_disp(src) {
-            base.extend(disp);
-        }
-    }
-    if let Some(imm) = imm {
-        base.extend(imm);
-    }
-    base
-}
-
-pub fn gen_base(ins: &Instruction, opc: &[u8], bits: u8, rev: bool) -> Vec<u8> {
-    // how does this even work? (probably doesn't)
-    let (rex_bool, rex) = if bits == 64 {
-        if let Some(rex) = rex::gen_rex(ins, rev) {
-            (rex & 0x08 == 8, Some(rex))
-        } else {
-            (ins.size() == Size::Qword || ins.size() == Size::Any, None)
-        }
-    } else {
-        (false, None)
-    };
-
-    // for instructions that have opcode starting with 0x66 (SSE)
-    let mut opcode_start = 0;
-
-    let mut used_66 = ins.which_variant() == IVariant::MMX;
-
-    let mut size_ovr = if let Some(dst) = ins.dst() {
-        if opc[0] == 0x66 {
-            opcode_start = 1;
-            vec![0x66]
-        } else if let Some(s) = gen_size_ovr(ins, dst, bits, rex_bool) {
-            if !used_66 {
-                used_66 = s == 0x66;
-                vec![s]
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        }
-    } else {
-        Vec::new()
-    };
-
-    if let Some(src) = ins.src() {
-        if let Some(s) = gen_size_ovr(ins, src, bits, rex_bool) {
-            if !used_66 && !s == 0x66 {
-                size_ovr.push(s);
-            }
-        }
-    }
-    let mut base = size_ovr;
-
-    if let Some(s) = gen_segm_pref(ins) {
-        base.push(s);
-    }
-
-    if let Some(rex) = rex {
-        base.push(rex);
-    }
-
-    base.extend(&opc[opcode_start..]);
-    base
-}
-
-fn gen_size_ovr(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option<u8> {
-    let (size, is_mem) = match op {
-        Operand::Reg(r) => (r.size(), false),
-        Operand::CtrReg(r) => (r.size(), false),
-        Operand::Mem(m) => (m.size().unwrap_or_default(), false),
-        Operand::Segment(s) => (s.address.size().unwrap_or_default(), true),
-        _ => return None,
-    };
-    if size == Size::Byte || size == Size::Xword {
-        return None;
-    }
-    match bits {
-        32 => match (size, is_mem) {
-            (Size::Word, false) => Some(0x66),
-            (Size::Word, true) => Some(0x67),
-            (Size::Dword, _) => None,
-            _ => inv_osop(&format!("{:?}", op)),
-        },
-        16 => match (size, is_mem) {
-            (Size::Word, _) => None,
-            (Size::Dword, true) => Some(0x67),
-            (Size::Dword, false) => Some(0x66),
-            _ => inv_osop(&format!("{:?}", op)),
-        },
-        64 => match (size, is_mem) {
-            (Size::Qword, false) => {
-                if ins.mnem.defaults_to_64bit() || rexw || ins.uses_cr() || ins.uses_dr() {
-                    None
-                } else {
-                    Some(0x66)
-                }
-            }
-            (Size::Dword, false) | (Size::Qword, true) => None,
-            (Size::Word, false) => Some(0x66),
-            (Size::Word, true) => Some(0x67),
-            (Size::Dword, true) => Some(0x67),
-            _ => inv_osop(&format!("{:?}", op)),
-        },
-        _ => None,
-    }
-}
-fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
-    if let Some(d) = ins.dst() {
-        if let Some(s) = gen_segm_pref_op(d) {
-            return Some(s);
-        }
-    }
-    if let Some(d) = ins.src() {
-        if let Some(s) = gen_segm_pref_op(d) {
-            return Some(s);
-        }
-    }
-    None
-}
-
-fn gen_segm_pref_op(op: &Operand) -> Option<u8> {
-    if let Operand::Segment(s) = op {
-        match s.segment {
-            Register::CS => Some(0x2E),
-            Register::SS => Some(0x36),
-            Register::DS => Some(0x3E),
-            Register::ES => Some(0x26),
-            Register::FS => Some(0x64),
-            Register::GS => Some(0x65),
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-fn inv_osop(s: &str) -> ! {
-    panic!("comp.rs:gen_size_ovr+1 {}", s)
-}
 
 fn invalid(ctx: i32) -> ! {
     panic!("Unexpected thing that should not happen - code {ctx}")
