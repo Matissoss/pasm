@@ -8,12 +8,13 @@ set -e
 # constants
 _RUST_TARGETS=("x86_64-unknown-linux-gnu" "x86_64-unknown-linux-musl")
 _EXPT_TARGETS=("-linux-glibc" "-linux-musl")
+_RASM_BIN="rasm"
 
 # $1 = type (--local or --dev; def = --dev)
 build(){
 	TYPE=$1
 	if [[ "$TYPE" == "--dev" ]]; then
-		add_instr
+		#add_instr
 		build_dev
 	else
 		echo "Do you want to install (1) or to build binary (2, default)?"
@@ -41,8 +42,9 @@ build_dev(){
 	for target in "${!_RUST_TARGETS[@]}"; do
 		rtt=${_RUST_TARGETS[$target]}
 		echo "compiling for ${rtt}..."
-		path="${_RASM_BIN}${_EXPT_TARGETS[$target]}"
-		cargo build --release --target ${rtt}
+		path="${_RASM_BIN}-${_EXPT_TARGETS[$target]}"
+		cargo build -q --release --target ${rtt}
+		mv "target/${rtt}/release/${_RASM_BIN}" "build/${_RASM_BIN}"
 		cd build
 		tar -czf "${path}.tar.gz" $_RASM_BIN
 		rm $_RASM_BIN

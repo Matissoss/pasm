@@ -49,10 +49,10 @@ impl Parser {
                                     } else {
                                         Visibility::Local
                                     },
-                                    bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
-                                        ast.bits.unwrap_or(16)
-                                    } else {
+                                    bits: if matches!(bits, 16 | 32 | 64) {
                                         bits
+                                    } else {
+                                        ast.bits.unwrap_or(16)
                                     },
                                     align,
                                 });
@@ -84,10 +84,10 @@ impl Parser {
                                     } else {
                                         Visibility::Local
                                     },
-                                    bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
-                                        ast.bits.unwrap_or(16)
-                                    } else {
+                                    bits: if matches!(bits, 16 | 32 | 64) {
                                         bits
+                                    } else {
+                                        ast.bits.unwrap_or(16)
                                     },
                                     align,
                                 });
@@ -190,10 +190,10 @@ impl Parser {
                 } else {
                     Visibility::Local
                 },
-                bits: if bits == 0 || (bits % 16 != 0 && bits > 64) {
-                    ast.bits.unwrap_or(16)
-                } else {
+                bits: if matches!(bits, 16 | 32 | 64) {
                     bits
+                } else {
+                    ast.bits.unwrap_or(16)
                 },
                 align,
             });

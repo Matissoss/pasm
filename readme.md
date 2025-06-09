@@ -34,7 +34,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Support for includes 
         - [x] Support for label attributes (`#()` closure)
         - [x] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
-        - [ ] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
+        - [x] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
         - [ ] Optimize `Instruction` struct
     - betao (beta obj)
         - [ ] Variables overhaul

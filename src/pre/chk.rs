@@ -18,12 +18,11 @@ use AType::*;
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     let mut errors: Vec<(String, Vec<RASMError>)> = Vec::new();
 
-    let chk_ins: fn(&Instruction) -> Option<RASMError> = match file.bits {
-        Some(64) => check_ins64bit,
-        _ => check_ins32bit,
-    };
-
     for label in &file.labels {
+        let chk_ins: fn(&Instruction) -> Option<RASMError> = match label.bits {
+            64 => check_ins64bit,
+            _ => check_ins32bit,
+        };
         let mut errs = Vec::new();
         for inst in &label.inst {
             if let Some(mut err) = chk_ins(inst) {
@@ -2700,6 +2699,14 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
 }
 
 fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASMError> {
+    if let Some(m) = operand.get_mem() {
+        if m.addrsize() == Some(Size::Word) {
+            return Some(RASMError::no_tip(
+                None,
+                Some("You cannot address with 16-bit registers; consider using 32-bit/64-bit (depending on bits).")
+            ));
+        }
+    }
     if find(accepted, operand.atype()) || find_ext(accepted, operand.ext_atype()) {
         None
     } else {

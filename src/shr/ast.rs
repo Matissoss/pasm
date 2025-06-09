@@ -374,6 +374,25 @@ impl Instruction {
         None
     }
     #[inline]
+    pub fn get_mem(&self) -> Option<&Mem> {
+        if let Some(idx) = self.get_mem_idx() {
+            if let Some(
+                Operand::Mem(m)
+                | Operand::Segment(Segment {
+                    segment: _,
+                    address: m,
+                }),
+            ) = self.oprs.get(idx)
+            {
+                Some(m)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    #[inline]
     pub fn get_sib_idx(&self) -> Option<usize> {
         if let Some(Operand::Mem(m)) = self.dst() {
             if m.is_sib() {

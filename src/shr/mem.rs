@@ -719,5 +719,9 @@ mod new_test {
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RIP));
         assert_eq!(mem.offset(), Some(-0xFF));
+        let mem = Mem::new("%eax + %ebx", Size::Qword).unwrap();
+        assert_eq!(mem.base(), Some(Register::EAX));
+        assert_eq!(mem.index(), Some(Register::EBX));
+        assert_eq!(mem.scale(), Some(Size::Byte));
     }
 }

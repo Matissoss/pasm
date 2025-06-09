@@ -285,10 +285,13 @@ impl GenAPI {
                     base.push(segm);
                 }
                 if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
-                    if (self.prefix != size_ovr)
-                        && (size_ovr == 0x66 && self.flags.get(CAN_H66O).unwrap())
-                    {
-                        base.push(size_ovr);
+                    let h66 = size_ovr[0];
+                    let h67 = size_ovr[1];
+                    if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
+                        base.push(0x66);
+                    }
+                    if h67.is_some() && self.prefix != 0x67 && self.get_flag(CAN_H67O).unwrap() {
+                        base.push(0x67);
                     }
                 } else if fx_size {
                     if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
@@ -316,7 +319,6 @@ impl GenAPI {
 
         let (opc, sz) = self.opcode.collect();
         base.extend(&opc[..sz]);
-
         if self.flags.get(USE_MODRM).unwrap() {
             base.push(modrm::modrm(ins, self));
 
@@ -327,10 +329,9 @@ impl GenAPI {
                 base.extend(disp);
             }
         }
-
         if self.flags.get(IMM_ATIDX).unwrap() {
             let size = (self.addt & 0x00_F0) >> 4;
-            let idx  = (self.addt & 0x00_0F) as usize;
+            let idx = (self.addt & 0x00_0F) as usize;
             if let Some(Operand::Imm(i)) = ins.oprs.get(idx) {
                 let mut imm = i.split_into_bytes();
                 extend_imm(&mut imm, size as u8);
@@ -426,18 +427,48 @@ impl GenAPI {
     }
 }
 
-fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<u8> {
-    if let Some(dst) = ins.dst() {
-        if let Some(sizeovr) = gen_size_ovr_op(ins, dst, bits, rexw) {
-            return Some(sizeovr);
+fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<[Option<u8>; 2]> {
+    let mut arr = [None; 2];
+    if ins.dst().is_some() && ins.src().is_none() {
+        let dst = ins.dst().unwrap();
+        if let Operand::Imm(_) = dst {
+            return None;
         }
     }
-    if let Some(src) = ins.src() {
-        if let Some(sizeovr) = gen_size_ovr_op(ins, src, bits, rexw) {
-            return Some(sizeovr);
+    match bits {
+        16 => {
+            if let Size::Dword = ins.size() {
+                arr[0] = Some(0x66);
+            }
+        }
+        32 => {
+            if let Size::Word = ins.size() {
+                arr[0] = Some(0x66);
+            }
+        }
+        64 => match ins.size() {
+            Size::Word => arr[0] = Some(0x66),
+            Size::Qword => {
+                if !(rexw || ins.mnem.defaults_to_64bit() || ins.uses_cr() || ins.uses_dr()) {
+                    arr[0] = Some(0x66);
+                }
+            }
+            _ => {}
+        },
+        _ => {}
+    };
+    if let Some(m) = ins.get_mem() {
+        match (m.addrsize().unwrap_or(Size::Unknown), bits) {
+            (Size::Dword, 16) => arr[1] = Some(0x67),
+            (Size::Dword, 64) => arr[1] = Some(0x67),
+            _ => {}
         }
     }
-    None
+    if arr[0].is_some() || arr[1].is_some() {
+        Some(arr)
+    } else {
+        None
+    }
 }
 
 // this has sense for instructions like lodsw, scasw, etc.
@@ -449,47 +480,6 @@ fn gen_sizeovr_fixed_size(sz: Size, bits: u8) -> Option<u8> {
     }
 }
 
-fn gen_size_ovr_op(ins: &Instruction, op: &Operand, bits: u8, rexw: bool) -> Option<u8> {
-    let (size, is_mem) = match op {
-        Operand::Reg(r) => (r.size(), false),
-        Operand::CtrReg(r) => (r.size(), false),
-        Operand::Mem(m) => (m.addrsize().unwrap_or(Size::Unknown), false),
-        Operand::Segment(s) => (s.address.addrsize().unwrap_or(Size::Unknown), true),
-        _ => return None,
-    };
-    if size == Size::Byte || size == Size::Xword {
-        return None;
-    }
-    match bits {
-        16 => match (size, is_mem) {
-            (Size::Word, _) => None,
-            (Size::Dword, true) => Some(0x67),
-            (Size::Dword, false) => Some(0x66),
-            _ => None,
-        },
-        32 => match (size, is_mem) {
-            (Size::Word, false) => Some(0x66),
-            (Size::Word, true) => Some(0x67),
-            (Size::Dword, _) => None,
-            _ => None,
-        },
-        64 => match (size, is_mem) {
-            (Size::Qword, false) => {
-                if ins.mnem.defaults_to_64bit() || rexw || ins.uses_cr() || ins.uses_dr() {
-                    None
-                } else {
-                    Some(0x66)
-                }
-            }
-            (Size::Dword, false) => None,
-            (Size::Word, false) => Some(0x66),
-            (Size::Word, true) => Some(0x67),
-            (Size::Dword, true) => Some(0x67),
-            _ => None,
-        },
-        _ => None,
-    }
-}
 fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
     if let Some(d) = ins.dst() {
         if let Some(s) = gen_segm_pref_op(d) {
@@ -692,19 +682,40 @@ mod tests {
         assert_eq!(mb.get(), Some(true));
         let mb = MegaBool::set(Some(true));
         assert_eq!(mb.get(), Some(true));
-        let api = GenAPI::new().vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(true).vlength(Some(true)));
+        let api = GenAPI::new().vex(
+            VexDetails::new()
+                .map_select(0x0F)
+                .pp(0x66)
+                .vex_we(true)
+                .vlength(Some(true)),
+        );
         assert_eq!(api.get_vex_vlength(), Some(MegaBool::set(Some(true))));
         assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
         let api = GenAPI::new()
-                .opcode(&[0x19])
-                .modrm(true, None, None)
-                .imm_atindex(2, 1)
-                .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false).vlength(Some(true)))
-                .ord(&[MODRM_RM, MODRM_REG]);
-        assert_eq!(api.addt,
-            0b0000_0011_0001_0010
-        );
+            .opcode(&[0x19])
+            .modrm(true, None, None)
+            .imm_atindex(2, 1)
+            .vex(
+                VexDetails::new()
+                    .map_select(0x3A)
+                    .pp(0x66)
+                    .vex_we(false)
+                    .vlength(Some(true)),
+            )
+            .ord(&[MODRM_RM, MODRM_REG]);
+        assert_eq!(api.addt, 0b0000_0011_0001_0010);
         assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
+        let ins = Instruction {
+            mnem: crate::Mnemonic::CMP,
+            addt: None,
+            oprs: vec![
+                Operand::Reg(Register::AX),
+                Operand::Imm(crate::shr::num::Number::uint64(256)),
+            ],
+            line: 0,
+        };
+        assert_eq!(ins.size(), Size::Word);
+        assert_eq!(gen_size_ovr(&ins, 64, false), Some([Some(0x66), None]));
     }
     #[test]
     fn ord_check() {

@@ -18,26 +18,15 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     }
 
     let (mut reg, mut rm) = ctx.get_modrm().deserialize();
-    let mut mod_ = if let Some(memidx) = ins.get_mem_idx() {
-        if let Some(
-            Operand::Mem(m)
-            | Operand::Segment(Segment {
-                address: m,
-                segment: _,
-            }),
-        ) = ins.get_opr(memidx)
-        {
-            if let Some((_, sz)) = m.offset_x86() {
-                if sz == 1 {
-                    0b01
-                } else {
-                    0b10
-                }
+    let mut mod_ = if let Some(m) = ins.get_mem() {
+        if let Some((_, sz)) = m.offset_x86() {
+            if sz == 1 {
+                0b01
             } else {
-                0b00
+                0b10
             }
         } else {
-            0b11
+            0b00
         }
     } else {
         0b11
