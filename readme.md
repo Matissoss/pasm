@@ -35,10 +35,10 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Support for label attributes (`#()` closure)
         - [x] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
         - [x] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
-        - [ ] Optimize `Instruction` struct
+        - [x] Optimize `Instruction` struct
     - betao (beta obj)
-        - [ ] Variables overhaul
-        - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types); relocation overhaul
+        - [ ] Variables overhaul (labels as variables)
+        - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types; support for `section=name` attribute); relocation overhaul
         - [ ] Tests for relocations and other things
         - [ ] Better target handling (ELF reworked)
         - [ ] Basic support for DWARF

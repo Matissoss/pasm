@@ -38,7 +38,7 @@ pub fn replace_mathevals(
 ) -> Result<(), RASMError> {
     for i in &mut label.inst {
         for o in &mut i.oprs {
-            if let Operand::SymbolRef(s) = o {
+            if let Some(Operand::SymbolRef(s)) = o {
                 if mth.contains_key(&*s) {
                     let eval = {
                         let e = mth.get(&*s).unwrap();
@@ -56,7 +56,7 @@ pub fn replace_mathevals(
                             n.unwrap()
                         }
                     };
-                    *o = Operand::Imm(Number::uint64(eval));
+                    *o = Some(Operand::Imm(Number::uint64(eval)));
                 }
             }
         }

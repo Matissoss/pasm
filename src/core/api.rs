@@ -332,13 +332,13 @@ impl GenAPI {
         if self.flags.get(IMM_ATIDX).unwrap() {
             let size = (self.addt & 0x00_F0) >> 4;
             let idx = (self.addt & 0x00_0F) as usize;
-            if let Some(Operand::Imm(i)) = ins.oprs.get(idx) {
+            if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
                 let mut imm = i.split_into_bytes();
                 extend_imm(&mut imm, size as u8);
                 base.extend(imm);
             }
             // rvrm
-            else if let Some(Operand::Reg(r)) = ins.oprs.get(idx) {
+            else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
                 let mut v = Vec::new();
                 v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
                 extend_imm(&mut v, size as u8);
@@ -708,9 +708,12 @@ mod tests {
         let ins = Instruction {
             mnem: crate::Mnemonic::CMP,
             addt: None,
-            oprs: vec![
-                Operand::Reg(Register::AX),
-                Operand::Imm(crate::shr::num::Number::uint64(256)),
+            oprs: [
+                Some(Operand::Reg(Register::AX)),
+                Some(Operand::Imm(crate::shr::num::Number::uint64(256))),
+                None,
+                None,
+                None,
             ],
             line: 0,
         };

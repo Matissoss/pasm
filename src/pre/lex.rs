@@ -110,7 +110,7 @@ impl Lexer {
                         error = Some(e)
                     }
                 },
-                Some(Token::Mnemonic(_)) => match make_ins(&line) {
+                Some(Token::Mnemonic(_)) => match make_ins(line) {
                     Ok(mut i) => {
                         i.line = line_count;
                         node = Some(ASTNode::Ins(i));
@@ -154,25 +154,29 @@ fn make_include(line: Vec<Token>) -> Result<PathBuf, RASMError> {
     }
 }
 
-fn make_eval(line: Vec<Token>) -> Result<(String, String), RASMError> {
+fn make_eval(mut line: Vec<Token>) -> Result<(String, String), RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
             None,
             Some("Tried to make mathematical evaluation from nothing"),
         ));
     }
-    // we assert that first (index 0) element is math keyword
-    let name = if let Some(Token::Unknown(n)) = line.get(1) {
-        n.to_string()
-    } else {
+    if line.len() > 3 {
         return Err(RASMError::no_tip(
             None,
-            Some("Tried to make mathematical constant without name"),
+            Some("Tried to make mathematical evaluation from too many tokens"),
         ));
-    };
-    let eval = match line.get(2) {
-        Some(Token::Closure('$', m)) => m.to_string(),
-        Some(Token::Immediate(n)) => n.to_string(),
+    }
+    // we assert that first (index 0) element is math keyword
+    if line.get(1).is_none() || line.get(2).is_none() {
+        return Err(RASMError::no_tip(
+            None,
+            Some("Tried to make mathematical const without name/content"),
+        ));
+    }
+    let eval = match line.pop().unwrap() {
+        Token::Closure('$', m) => m,
+        Token::Immediate(n) => n.to_string(),
         _ => {
             return Err(RASMError::no_tip(
                 None,
@@ -180,10 +184,18 @@ fn make_eval(line: Vec<Token>) -> Result<(String, String), RASMError> {
             ))
         }
     };
+    let name = if let Token::Unknown(name) = line.pop().unwrap() {
+        name
+    } else {
+        return Err(RASMError::no_tip(
+            None,
+            Some("Tried to make mathematical const's name with incompatible token"),
+        ));
+    };
     Ok((name, eval))
 }
 
-fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
+fn make_ins(line: Vec<Token>) -> Result<Instruction, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
             None,
@@ -191,26 +203,32 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
         ));
     }
     let mut mnems: Vec<Mnm> = Vec::new();
-    let mut tmp_buf: Vec<&Token> = Vec::new();
-    let mut idx = 0;
-    for t in &line[0..] {
+    let mut tmp_buf: Vec<Token> = Vec::new();
+    let mut iter = line.into_iter();
+    while let Some(t) = iter.next() {
         if let Token::Mnemonic(m) = t {
-            mnems.push(*m);
-            idx += 1;
+            mnems.push(m);
         } else {
-            if t != &Token::Comma {
+            if t != Token::Comma {
                 tmp_buf.push(t);
             }
-            idx += 1;
             break;
         }
     }
 
-    let mut ops = Vec::new();
-    for t in &line[idx..] {
-        if t == &Token::Comma {
+    let mut ops = [None, None, None, None, None];
+    let mut opi = 0;
+    while let Some(t) = iter.next() {
+        if t == Token::Comma {
             if !tmp_buf.is_empty() {
-                ops.push(make_op(&tmp_buf)?);
+                ops[opi] = Some(make_op(tmp_buf)?);
+                if opi > 5 {
+                    return Err(RASMError::no_tip(
+                        None,
+                        Some("More than max operands in instruction (5) were used!"),
+                    ));
+                }
+                opi += 1;
                 tmp_buf = Vec::new();
             }
         } else {
@@ -218,7 +236,7 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
         }
     }
     if !tmp_buf.is_empty() {
-        ops.push(make_op(&tmp_buf)?);
+        ops[opi] = Some(make_op(tmp_buf)?);
     }
     if mnems.is_empty() {
         return Err(RASMError::no_tip(
@@ -230,7 +248,7 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
     let addt = {
         match mnems.len() {
             1 => None,
-            _ => Some(mnems[1..].to_vec()),
+            _ => Some(mnems[1]),
         }
     };
 
@@ -242,7 +260,7 @@ fn make_ins(line: &[Token]) -> Result<Instruction, RASMError> {
     })
 }
 
-fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
+fn make_op(mut line: Vec<Token>) -> Result<Operand, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
             None,
@@ -251,7 +269,7 @@ fn make_op(line: &[&Token]) -> Result<Operand, RASMError> {
     }
 
     if line.len() == 1 {
-        return Operand::try_from(line[0]);
+        return Operand::try_from(line.pop().unwrap());
     }
 
     if line.len() == 2 {

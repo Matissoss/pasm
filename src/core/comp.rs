@@ -7379,7 +7379,7 @@ fn ins_imul(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .rex(true)
                 .assemble(ins, bits)
         }
-        Some(_) => match ins.oprs.get(2) {
+        Some(_) => match ins.get_opr(2) {
             Some(Operand::Imm(imm)) => {
                 let (opc, size) = match imm.size() {
                     Size::Byte => (0x6B, 1),

@@ -10,7 +10,7 @@ use crate::pre::tok::Token;
 use crate::shr::{
     atype::{AType, ToAType},
     error::RASMError,
-    ins::Mnemonic as Mnm,
+    ins::Mnemonic,
     math::MathematicalEvaluation as MathEval,
     mem::Mem,
     num::Number,
@@ -29,16 +29,15 @@ pub enum Operand {
     DbgReg(Register),
     Imm(Number),
     Mem(Mem),
-    MathEval(String),
     SymbolRef(String),
     Segment(Segment),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
-    pub mnem: Mnm,
-    pub addt: Option<Vec<Mnm>>,
-    pub oprs: Vec<Operand>,
+    pub mnem: Mnemonic,
+    pub addt: Option<Mnemonic>,
+    pub oprs: [Option<Operand>; 5],
     pub line: usize,
 }
 
@@ -110,17 +109,17 @@ pub enum IVariant {
 
 // implementations
 
-impl TryFrom<&Token> for Operand {
+impl TryFrom<Token> for Operand {
     type Error = RASMError;
-    fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
+    fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
         match tok {
             // experimental
             // idk what if this works (i hope so; will have to check)
-            Token::Closure(' ', m) => match Mem::new(m, Size::Any) {
+            Token::Closure(' ', m) => match Mem::new(&m, Size::Any) {
                 Ok(m) => Ok(Operand::Mem(m)),
                 Err(e) => Err(e),
             },
-            Token::Closure('$', m) => match MathEval::from_str(m) {
+            Token::Closure('$', m) => match MathEval::from_str(&m) {
                 Ok(v) => {
                     if MathEval::can_eval(&v) {
                         let e = MathEval::eval(v);
@@ -133,24 +132,27 @@ impl TryFrom<&Token> for Operand {
                             ))
                         }
                     } else {
-                        Ok(Self::MathEval(m.to_string()))
+                        Err(Self::Error::no_tip(
+                                None,
+                                Some("Couldn't evaluate mathematical expression")
+                        ))
                     }
                 }
                 Err(e) => Err(e),
             },
             Token::Register(reg) => {
                 if reg.is_ctrl_reg() {
-                    Ok(Self::CtrReg(*reg))
+                    Ok(Self::CtrReg(reg))
                 } else if reg.is_dbg_reg() {
-                    Ok(Self::DbgReg(*reg))
+                    Ok(Self::DbgReg(reg))
                 } else if reg.purpose() == RPurpose::Sgmnt {
-                    Ok(Self::SegReg(*reg))
+                    Ok(Self::SegReg(reg))
                 } else {
-                    Ok(Self::Reg(*reg))
+                    Ok(Self::Reg(reg))
                 }
             }
-            Token::Immediate(nm) => Ok(Self::Imm(*nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(val.to_string())),
+            Token::Immediate(nm) => Ok(Self::Imm(nm)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
     }
@@ -180,7 +182,6 @@ impl Operand {
             Self::SymbolRef(_) => Size::Any,
             Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
             Self::SegReg(_) => Size::Word,
-            Self::MathEval(_) => Size::Unknown,
         }
     }
     pub fn ext_atype(&self) -> AType {
@@ -192,7 +193,6 @@ impl Operand {
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
-            Self::MathEval(_) => AType::Immediate(Size::Unknown),
         }
     }
 }
@@ -205,7 +205,6 @@ impl ToAType for Operand {
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
-            Self::MathEval(_) => AType::Immediate(Size::Unknown),
         }
     }
 }
@@ -328,11 +327,15 @@ impl Instruction {
     }
     #[inline]
     pub fn dst(&self) -> Option<&Operand> {
-        self.oprs.first()
+        if let Some(Some(o)) = self.oprs.first() {
+            Some(o)
+        } else {
+            None
+        }
     }
     #[inline]
     pub fn reg_byte(&self, idx: usize) -> Option<u8> {
-        if let Some(Operand::Reg(r)) = self.oprs.get(idx) {
+        if let Some(Some(Operand::Reg(r))) = self.oprs.get(idx) {
             Some(r.to_byte())
         } else {
             None
@@ -340,11 +343,19 @@ impl Instruction {
     }
     #[inline]
     pub fn src(&self) -> Option<&Operand> {
-        self.oprs.get(1)
+        if let Some(Some(o)) = self.oprs.get(1) {
+            Some(o)
+        } else {
+            None
+        }
     }
     #[inline]
     pub fn src2(&self) -> Option<&Operand> {
-        self.oprs.get(2)
+        if let Some(Some(o)) = self.oprs.get(2) {
+            Some(o)
+        } else {
+            None
+        }
     }
     #[inline]
     // operand existence
@@ -358,7 +369,11 @@ impl Instruction {
     }
     #[inline]
     pub fn get_opr(&self, idx: usize) -> Option<&Operand> {
-        self.oprs.get(idx)
+        if let Some(Some(o)) = self.oprs.get(idx) {
+            Some(o)
+        } else {
+            None
+        }
     }
     #[inline]
     pub fn get_mem_idx(&self) -> Option<usize> {
@@ -382,7 +397,7 @@ impl Instruction {
                     segment: _,
                     address: m,
                 }),
-            ) = self.oprs.get(idx)
+            ) = self.get_opr(idx)
             {
                 Some(m)
             } else {

@@ -2532,7 +2532,7 @@ fn avx_ot_chk_wthout(
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.oprs.get(idx) {
+        if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Some(err);
             }
@@ -2573,7 +2573,7 @@ fn avx_ot_chk(
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.oprs.get(idx) {
+        if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Some(err);
             }
@@ -2639,14 +2639,14 @@ fn ot_chk(
     if let Some(err) = addt_chk(ins, addt) {
         return Some(err);
     }
-    if ops.is_empty() && !ins.oprs.is_empty() {
+    if ops.is_empty() && !(ins.oprs == [None, None, None, None, None]) {
         return Some(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
         ));
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.oprs.get(idx) {
+        if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Some(err);
             }
@@ -2888,16 +2888,14 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
 
 fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
     if let Some(addt) = &ins.addt {
-        for a in addt {
-            if !find_bool(accpt_addt, a) {
-                return Some(RASMError::no_tip(
-                    Some(ins.line),
-                    Some(format!(
-                        "Use of forbidden additional mnemonic: {}",
-                        a.to_string()
-                    )),
-                ));
-            }
+        if !find_bool(accpt_addt, addt) {
+            return Some(RASMError::no_tip(
+                Some(ins.line),
+                Some(format!(
+                    "Use of forbidden additional mnemonic: {}",
+                    addt.to_string()
+                )),
+            ));
         }
     }
     None
