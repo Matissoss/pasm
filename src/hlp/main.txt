@@ -1,4 +1,4 @@
-rasmx86_64 	    25.05-beta0
+rasmx86_64 	    25.06-betaf
 -------------------------------
 DISCLAIMER:
 This assembler is in beta.
