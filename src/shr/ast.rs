@@ -133,8 +133,8 @@ impl TryFrom<Token> for Operand {
                         }
                     } else {
                         Err(Self::Error::no_tip(
-                                None,
-                                Some("Couldn't evaluate mathematical expression")
+                            None,
+                            Some("Couldn't evaluate mathematical expression"),
                         ))
                     }
                 }

@@ -455,13 +455,6 @@ impl FromStr for Mnemonic {
     }
 }
 
-#[allow(clippy::to_string_trait_impl)]
-impl ToString for Mnemonic {
-    fn to_string(&self) -> String {
-        format!("{:?}", self).to_lowercase()
-    }
-}
-
 impl Mnemonic {
     pub fn allows_diff_size(&self, left: Option<Size>, right: Option<Size>) -> bool {
         if matches!(&self, Self::LAR) {
@@ -504,6 +497,13 @@ impl Mnemonic {
         )
     }
 }
+
+impl ToString for Mnemonic {
+    fn to_string(&self) -> String {
+        format!("{:?}", self).to_lowercase()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

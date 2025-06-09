@@ -330,9 +330,9 @@ fn print_supported_instructions() {
     println!("RASM supports {} x86-64 instructions!", ins_count - 1);
     println!("Here's a list of all of them:");
     for idx in (2..ins_count).step_by(3) {
-        let ins2 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx - 2)) };
-        let ins1 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx - 1)) };
-        let ins0 = unsafe { format!("{:?}", std::mem::transmute::<u16, Mnemonic>(idx)) };
+        let ins2 = unsafe { std::mem::transmute::<u16, Mnemonic>(idx - 2).to_string() };
+        let ins1 = unsafe { std::mem::transmute::<u16, Mnemonic>(idx - 1).to_string() };
+        let ins0 = unsafe { std::mem::transmute::<u16, Mnemonic>(idx).to_string() };
         println!(
             "{ins2}{}{ins1}{}{ins0}",
             " ".repeat(conf::LINE_WIDTH - ins2.len()),
@@ -341,12 +341,7 @@ fn print_supported_instructions() {
     }
     let mut mod_ = ins_count % 3;
     while mod_ != 0 {
-        let ins0 = unsafe {
-            format!(
-                "{:?}",
-                std::mem::transmute::<u16, Mnemonic>(ins_count - mod_)
-            )
-        };
+        let ins0 = unsafe { std::mem::transmute::<u16, Mnemonic>(ins_count - mod_).to_string() };
         if mod_ - 1 == 0 {
             print!("{ins0}")
         } else {
@@ -358,9 +353,17 @@ fn print_supported_instructions() {
 fn print_supported_instructions_raw() {
     for idx in 0..Mnemonic::__LAST as u16 {
         if idx + 1 == Mnemonic::__LAST as u16 {
-            print!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) });
+            print!(
+                "{}",
+                format!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) })
+                    .to_lowercase()
+            );
         } else {
-            println!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) });
+            println!(
+                "{}",
+                format!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) })
+                    .to_lowercase()
+            );
         }
     }
 }
