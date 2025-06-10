@@ -750,6 +750,15 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     match ins.mnem {
+        // instruction as "variable"
+        BYTE | BYTELE | BYTEBE => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        WORD | WORDLE | WORDBE => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
+        DWORD | DWORDLE | DWORDBE => ot_chk(ins, &[(&[I8, I16, I32], Optional::Needed)], &[], &[]),
+        QWORD | QWORDLE | QWORDBE => {
+            ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
+        }
+        EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
+
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
             ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[])

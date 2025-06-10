@@ -89,13 +89,13 @@ impl Number {
         }
     }
     pub fn split_into_bytes(self) -> Vec<u8> {
-        self.get_raw_le()
+        self.get_raw_le()[..self.get_real_size()].to_vec()
     }
-    pub fn get_raw_le(&self) -> Vec<u8> {
-        self.get_raw().to_le_bytes()[..self.get_real_size()].to_vec()
+    pub fn get_raw_le(&self) -> [u8; 8] {
+        self.get_raw().to_le_bytes()
     }
-    pub fn get_raw_be(&self) -> Vec<u8> {
-        self.get_raw().to_be_bytes()[..self.get_real_size()].to_vec()
+    pub fn get_raw_be(&self) -> [u8; 8] {
+        self.get_raw().to_be_bytes()
     }
     pub fn get_raw(&self) -> u64 {
         if self.is_signed() {

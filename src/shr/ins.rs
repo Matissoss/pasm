@@ -440,6 +440,16 @@ pub enum Mnemonic {
     SHA256MSG1, SHA256MSG2,
     SHA256RNDS2,
 
+    // not real x86-64 instructions
+    
+    // aliases to big endian variant
+    BYTE, WORD, DWORD, QWORD,
+
+    BYTEBE, WORDBE, DWORDBE, QWORDBE,
+    BYTELE, WORDLE, DWORDLE, QWORDLE,
+    
+    EMPTY,
+
     // this has no real purpose, but why not?
     __LAST
 }

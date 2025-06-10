@@ -134,7 +134,7 @@ impl Lexer {
             }
 
             if let Some(node_t) = node {
-                ast_tree.push(Ok((node_t, line_count - 1)));
+                ast_tree.push(Ok((node_t, line_count)));
             } else if let Some(error_t) = error {
                 ast_tree.push(Err(error_t));
             }

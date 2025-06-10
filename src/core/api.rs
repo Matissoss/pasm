@@ -7,7 +7,7 @@ pub const REX_PFX: u8 = 0x0;
 pub const VEX_PFX: u8 = 0x1;
 pub const EVEX_PFX: u8 = 0x2;
 pub const CAN_H66O: u8 = 0x3; // can use 0x66 override
-pub const CAN_H67O: u8 = 0x4; // can use 0x67 override
+pub const IMM_LEBE: u8 = 0x4; // immediate must be formatted as little endian or big endian; 0 = le, 1 = be
 pub const CAN_SEGM: u8 = 0x5; // can use segment override
 pub const USE_MODRM: u8 = 0x6; // can use modrm
 pub const OBY_CONST: u8 = 0x7; // one byte const - 1st addt B goes as metadata, 2nd as immediate
@@ -120,10 +120,7 @@ impl GenAPI {
         Self {
             opcode: Opcode { opcode: 0 },
             prefix: 0,
-            flags: BoolTable16::new()
-                .setc(CAN_H66O, true)
-                .setc(CAN_H67O, true)
-                .setc(CAN_SEGM, true),
+            flags: BoolTable16::new().setc(CAN_H66O, true).setc(CAN_SEGM, true),
             ord: OperandOrder::new(&[
                 OpOrd::MODRM_RM,
                 OpOrd::MODRM_REG,
@@ -162,10 +159,6 @@ impl GenAPI {
         self.addt2 = mod_ & 0b11;
         self
     }
-    pub const fn can_h67(mut self, h67: bool) -> Self {
-        self.flags.set(CAN_H67O, h67);
-        self
-    }
     pub const fn can_h66(mut self, h66: bool) -> Self {
         self.flags.set(CAN_H66O, h66);
         self
@@ -191,6 +184,10 @@ impl GenAPI {
     pub const fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
         self.flags.set(IMM_ATIDX, true);
         self.addt = ((size << 4) | idx & 0b1111) | self.addt & 0xFF00;
+        self
+    }
+    pub const fn imm_is_be(mut self, bool: bool) -> Self {
+        self.flags.set(IMM_LEBE, bool);
         self
     }
     pub const fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
@@ -290,7 +287,7 @@ impl GenAPI {
                     if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
                         base.push(0x66);
                     }
-                    if h67.is_some() && self.prefix != 0x67 && self.get_flag(CAN_H67O).unwrap() {
+                    if h67.is_some() && self.prefix != 0x67 {
                         base.push(0x67);
                     }
                 } else if fx_size {
@@ -330,12 +327,35 @@ impl GenAPI {
             }
         }
         if self.flags.get(IMM_ATIDX).unwrap() {
-            let size = (self.addt & 0x00_F0) >> 4;
+            let size = ((self.addt & 0x00_F0) >> 4) as usize;
             let idx = (self.addt & 0x00_0F) as usize;
             if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
-                let mut imm = i.split_into_bytes();
-                extend_imm(&mut imm, size as u8);
-                base.extend(imm);
+                let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
+                    (&i.get_raw_be()[8 - i.get_real_size()..], true)
+                } else {
+                    (&i.get_raw_le()[..i.get_real_size()], false)
+                };
+                let mut idx = 0;
+                if be {
+                    while idx < size.abs_diff(imm.len()) {
+                        base.push(0x00);
+                        idx += 1;
+                    }
+                }
+                for b in imm {
+                    if idx < size {
+                        base.push(*b);
+                        idx += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if !be {
+                    while idx < size {
+                        base.push(0x00);
+                        idx += 1;
+                    }
+                }
             }
             // rvrm
             else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
@@ -648,7 +668,7 @@ impl Default for GenAPI {
 impl Opcode {
     fn from_bytes(bytes: &[u8]) -> Self {
         let size = bytes.len();
-        assert!(size <= 0b110 && size != 0);
+        assert!(size <= 0b110);
         let opcode: u64 = {
             (*bytes.first().unwrap_or(&0) as u64) << 56
                 | (*bytes.get(1).unwrap_or(&0) as u64) << 48
@@ -677,6 +697,7 @@ mod tests {
     }
     #[test]
     fn mbool() {
+        use crate::shr::num::Number;
         use OpOrd::*;
         let mb = MegaBool::from_byte(3);
         assert_eq!(mb.get(), Some(true));
@@ -710,7 +731,7 @@ mod tests {
             addt: None,
             oprs: [
                 Some(Operand::Reg(Register::AX)),
-                Some(Operand::Imm(crate::shr::num::Number::uint64(256))),
+                Some(Operand::Imm(Number::uint64(256))),
                 None,
                 None,
                 None,
@@ -719,6 +740,13 @@ mod tests {
         };
         assert_eq!(ins.size(), Size::Word);
         assert_eq!(gen_size_ovr(&ins, 64, false), Some([Some(0x66), None]));
+        let x = GenAPI::new().imm_is_be(true);
+        assert_eq!(x.get_flag(IMM_LEBE), Some(true));
+        let x = GenAPI::new().imm_is_be(false);
+        assert_eq!(x.get_flag(IMM_LEBE), Some(false));
+        let imm = Number::uint64(20);
+        assert_eq!(imm.get_raw_be(), [0, 0, 0, 0, 0, 0, 0, 20]);
+        assert_eq!(&imm.get_raw_be()[8 - imm.get_real_size()..], &[20u8]);
     }
     #[test]
     fn ord_check() {

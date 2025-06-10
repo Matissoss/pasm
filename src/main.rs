@@ -327,7 +327,7 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
 use crate::shr::ins::Mnemonic;
 fn print_supported_instructions() {
     let ins_count = Mnemonic::__LAST as u16;
-    println!("RASM supports {} x86-64 instructions!", ins_count - 1);
+    println!("This version of RASM supports {} mnemonics!", ins_count - 1);
     println!("Here's a list of all of them:");
     for idx in (2..ins_count).step_by(3) {
         let ins2 = unsafe { std::mem::transmute::<u16, Mnemonic>(idx - 2).to_string() };

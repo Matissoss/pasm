@@ -100,19 +100,21 @@ pub fn compile_section<'a>(
 pub fn compile_label<'a>(lbl: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
-    let bits = lbl.bits;
+    let lbl_bits = lbl.bits;
+    let lbl_align = lbl.align;
     for ins in &lbl.inst {
-        let res = compile_instruction(ins, bits);
+        let res = compile_instruction(ins, lbl_bits);
         // we do not want situation, where label is entry and we place padding before it -
         // preventing UB
-        if offset != 0 && lbl.align != 0 {
-            let align = lbl.align as usize;
+        if offset != 0 && lbl_align != 0 {
+            let align = lbl_align as usize;
             let mut padding = align - (offset % align);
             while padding > 0 {
                 bytes.push(0x0);
                 padding -= 1;
             }
         }
+
         if let Some(mut rl) = res.1 {
             rl.offset += bytes.len() as u64;
             reallocs.push(rl);
@@ -124,6 +126,43 @@ pub fn compile_label<'a>(lbl: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocat
 
 pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<Relocation<'_>>) {
     match ins.mnem {
+        Ins::BYTE | Ins::BYTELE | Ins::BYTEBE => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 1)
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::WORD | Ins::WORDLE | Ins::WORDBE => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 2)
+                .fixed_size(Size::Byte)
+                .imm_is_be(ins.mnem != Ins::WORDLE)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DWORD | Ins::DWORDLE | Ins::DWORDBE => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 4)
+                .fixed_size(Size::Byte)
+                .imm_is_be(ins.mnem != Ins::DWORDLE)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::QWORD | Ins::QWORDBE | Ins::QWORDLE => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 8)
+                .fixed_size(Size::Byte)
+                .imm_is_be(ins.mnem != Ins::QWORDLE)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::EMPTY => (ins_empty(ins), None),
+
         Ins::__LAST => (vec![], None),
         Ins::CPUID => (vec![0x0F, 0xA2], None),
         Ins::RET => (vec![0xC3], None),
@@ -7291,10 +7330,16 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Dword | Size::Qword | Size::Word => 0xF7,
                 _ => invalid(6),
             };
+            let size = match ins.size() {
+                Size::Byte => 1,
+                Size::Word => 2,
+                Size::Dword | Size::Qword => 4,
+                _ => 1,
+            };
             GenAPI::new()
                 .opcode(&[opc])
                 .modrm(true, Some(0), None)
-                .imm_atindex(1, 1)
+                .imm_atindex(1, size)
                 .rex(true)
                 .assemble(ins, bits)
         }
@@ -7530,6 +7575,14 @@ fn ins_divmul(ins: &Instruction, ovr: u8, bits: u8) -> Vec<u8> {
         .opcode(&opc)
         .modrm(true, Some(ovr), None)
         .assemble(ins, bits)
+}
+
+fn ins_empty(ins: &Instruction) -> Vec<u8> {
+    if let Some(Operand::Imm(n)) = ins.get_opr(0) {
+        vec![0x00; n.get_as_u32() as usize]
+    } else {
+        vec![]
+    }
 }
 
 // ==============================
