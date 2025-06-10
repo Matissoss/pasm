@@ -37,7 +37,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
         - [x] Optimize `Instruction` struct
     - betao (beta obj)
-        - [ ] Variables overhaul (labels as variables)
+        - [x] Variables overhaul (labels as variables)
         - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types; support for `section=name` attribute); relocation overhaul
         - [ ] Tests for relocations and other things
         - [ ] Better target handling (ELF reworked)
