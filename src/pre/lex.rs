@@ -11,19 +11,15 @@ use crate::{
         ins::Mnemonic as Mnm,
         kwd::Keyword,
         mem::Mem,
-        num::Number,
         segment::Segment,
         size::Size,
-        symbol::Visibility,
-        var::{VType, VarContent, Variable},
     },
 };
-use std::borrow::Cow;
 use std::path::PathBuf;
 
 pub struct Lexer;
 impl Lexer {
-    pub fn parse_file<'a>(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode<'a>, usize), RASMError>> {
+    pub fn parse_file(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode, usize), RASMError>> {
         let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
         for (line_count, line) in file.into_iter().enumerate() {
             if line.is_empty() {
@@ -35,15 +31,6 @@ impl Lexer {
             match line.first() {
                 Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string())),
                 Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string())),
-                Some(Token::Keyword(Keyword::Const | Keyword::Uninit | Keyword::Ronly)) => {
-                    match make_var(Cow::Owned(line)) {
-                        Ok(var) => node = Some(ASTNode::Variable(var)),
-                        Err(mut tmp_error) => {
-                            tmp_error.set_line(line_count);
-                            error = Some(tmp_error)
-                        }
-                    }
-                }
                 Some(Token::Keyword(Keyword::Bits)) => {
                     if let Some(Token::Immediate(bits)) = line.get(1) {
                         let uint32 = bits.get_as_u32();
@@ -321,116 +308,4 @@ fn make_op(mut line: Vec<Token>) -> Result<Operand, RASMError> {
             line.len()
         )),
     ))
-}
-
-fn make_var(line: Cow<'_, Vec<Token>>) -> Result<Variable<'_>, RASMError> {
-    let vtype = match line.first() {
-        Some(Token::Keyword(k)) => {
-            match k {
-                Keyword::Uninit => VType::Uninit,
-                Keyword::Const  => VType::Const,
-                Keyword::Ronly  => VType::Readonly,
-                _               => return Err(RASMError::no_tip(
-                    None,
-                    Some("Unexpected keyword found at index 0; expected variable type"),
-                ))
-            }
-        },
-        Some(_) => return Err(RASMError::no_tip(
-            None,
-            Some("Unexpected token at index 0; expected variable type"),
-        )),
-        None => return Err(RASMError::with_tip(
-            None,
-            Some("Expected variable type at index 0, found nothing"),
-            Some("Consider adding variable type on index like `!ronly` (.rodata), `!const` (.data) or `!uninit` (.bss)")
-        ))
-    };
-
-    let vname = match line.get(1) {
-        Some(t) => t.to_string(),
-        None => {
-            return Err(RASMError::no_tip(
-                None,
-                Some("Expected variable name at index 1; found nothing"),
-            ))
-        }
-    };
-
-    let size: u32 = match line.get(2) {
-        Some(Token::Keyword(k)) => match Size::try_from(*k) {
-            Ok(s) => <Size as Into<u8>>::into(s).into(),
-            Err(_) => {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some(format!(
-                        "Couldn't parse keyword `{}` into size specifier",
-                        k.to_string()
-                    )),
-                ))
-            }
-        },
-        Some(t) => {
-            if vtype == VType::Uninit {
-                if let Token::Immediate(n) = t {
-                    n.get_as_u32()
-                } else {
-                    return Err(RASMError::no_tip(
-                        None,
-                        Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword) or 32-bit unsigned integer"),
-                    ));
-                }
-            } else {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some("Unexpected token found at index 2; expected keyword (!byte, !word, !dword or !qword)"),
-                ));
-            }
-        }
-        None => {
-            return Err(RASMError::no_tip(
-                None,
-                Some("Expected variable name at index 2; found nothing"),
-            ))
-        }
-    };
-
-    let mut content = String::new();
-    for i in &line[3..] {
-        content.push_str(&i.to_string());
-    }
-    let content = par_str(content);
-    match (&vtype, &content){
-        (VType::Const|VType::Readonly, VarContent::String(_)|VarContent::Number(_))|
-        (VType::Uninit, VarContent::Uninit) => {},
-        (VType::Const|VType::Readonly, VarContent::Uninit) =>
-        return Err(RASMError::no_tip(
-            None,
-            Some("Variable type mismatch: declared variable is const/readonly, but content is undefined"),
-        )),
-        (VType::Uninit, VarContent::String(_)|VarContent::Number(_)) =>{
-            return Err(RASMError::no_tip(
-                None,
-                Some("Variable type mismatch: declared variable is uninitialized, but content is defined"),
-            ))
-        }
-    }
-    Ok(Variable {
-        name: std::borrow::Cow::Owned(vname),
-        vtype,
-        size: size as u32,
-        content,
-        visibility: Visibility::Local,
-    })
-}
-
-#[inline]
-fn par_str<'a>(cont: String) -> VarContent<'a> {
-    if let Ok(n) = Number::from_str(&cont) {
-        VarContent::Number(n)
-    } else if cont.is_empty() {
-        VarContent::Uninit
-    } else {
-        VarContent::String(Cow::Owned(cont.as_bytes().to_vec()))
-    }
 }

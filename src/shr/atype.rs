@@ -12,6 +12,7 @@ pub const CR: AType = AType::Register(RegisterPurpose::Ctrl, Size::Any);
 pub const DR: AType = AType::Register(RegisterPurpose::Dbg, Size::Any);
 pub const SR: AType = AType::Register(RegisterPurpose::Sgmnt, Size::Any);
 
+pub const ASTR: AType = AType::Immediate(Size::Unknown);
 pub const IA: AType = AType::Immediate(Size::Any);
 pub const I64: AType = AType::Immediate(Size::Qword);
 pub const I32: AType = AType::Immediate(Size::Dword);

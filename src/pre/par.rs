@@ -3,26 +3,22 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::borrow::Cow;
-
 const EMPTY_STRING: &str = "";
 use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
     error::RASMError,
     symbol::Visibility,
-    var::Variable,
 };
 
 pub struct Parser;
 
-type LexTree<'a> = Vec<Result<(ASTNode<'a>, usize), RASMError>>;
+type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
         let mut errors: Vec<RASMError> = Vec::new();
         let mut ast = AST::default();
         let mut tmp_attributes: Vec<String> = Vec::new();
         let mut inside_label: (bool, String) = (false, String::new());
-        let mut vardecs: Vec<Variable> = Vec::new();
         let mut instructions: Vec<Instruction> = Vec::new();
 
         for node in list {
@@ -42,7 +38,7 @@ impl Parser {
                                         }
                                     };
                                 ast.labels.push(Label {
-                                    name: Cow::Owned(inside_label.1),
+                                    name: inside_label.1,
                                     inst: instructions,
                                     visibility: if global {
                                         Visibility::Global
@@ -77,7 +73,7 @@ impl Parser {
                                         }
                                     };
                                 ast.labels.push(Label {
-                                    name: Cow::Owned(inside_label.1),
+                                    name: inside_label.1,
                                     inst: instructions,
                                     visibility: if global {
                                         Visibility::Global
@@ -96,7 +92,6 @@ impl Parser {
                             }
                             inside_label = (true, lbl)
                         }
-                        ASTNode::Variable(var) => vardecs.push(var),
                         ASTNode::Ins(ins) => {
                             if !inside_label.0 {
                                 errors.push(RASMError::with_tip(
@@ -183,7 +178,7 @@ impl Parser {
                 }
             };
             ast.labels.push(Label {
-                name: Cow::Owned(inside_label.1),
+                name: inside_label.1,
                 inst: instructions,
                 visibility: if global {
                     Visibility::Global
@@ -199,7 +194,6 @@ impl Parser {
             });
         }
 
-        ast.vars = vardecs;
         if !errors.is_empty() {
             Err(errors)
         } else {

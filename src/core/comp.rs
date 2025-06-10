@@ -16,7 +16,6 @@ use crate::{
         segment::Segment,
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
-        var::{VarContent, Variable},
     },
 };
 use OpOrd::*;
@@ -51,53 +50,7 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
     symbols
 }
 
-pub fn compile_section<'a>(
-    vars: &'a Vec<&'a Variable<'a>>,
-    sindex: u16,
-    addt: u8,
-) -> (Vec<u8>, Vec<Symbol<'a>>) {
-    let mut buf: Vec<u8> = Vec::new();
-    let mut symbols: Vec<Symbol> = Vec::new();
-
-    let mut offset: u64 = 0;
-
-    for v in vars {
-        match v.content {
-            VarContent::Uninit => {
-                symbols.push(Symbol {
-                    name: Cow::Borrowed(&v.name),
-                    size: Some(v.size),
-                    sindex,
-                    stype: SymbolType::Object,
-                    offset,
-                    content: None,
-                    visibility: v.visibility,
-                    addend: 0,
-                    addt,
-                });
-                offset += v.size as u64;
-            }
-            _ => {
-                buf.extend(v.content.bytes());
-                symbols.push(Symbol {
-                    name: Cow::Borrowed(&v.name),
-                    size: Some(v.size),
-                    sindex,
-                    stype: SymbolType::Object,
-                    offset,
-                    content: Some(Cow::Borrowed(&v.content)),
-                    visibility: v.visibility,
-                    addend: 0,
-                    addt,
-                });
-                offset += v.size as u64;
-            }
-        }
-    }
-    (buf, symbols)
-}
-
-pub fn compile_label<'a>(lbl: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
+pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     let lbl_bits = lbl.bits;
@@ -161,6 +114,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
+        Ins::STRZ | Ins::ASCIIZ => (ins_str(ins), None),
         Ins::EMPTY => (ins_empty(ins), None),
 
         Ins::__LAST => (vec![], None),
@@ -7583,6 +7537,18 @@ fn ins_empty(ins: &Instruction) -> Vec<u8> {
     } else {
         vec![]
     }
+}
+
+fn ins_str(ins: &Instruction) -> Vec<u8> {
+    let mut vector = if let Some(Operand::String(s)) = ins.dst() {
+        // we need to clone here :(
+        s.clone().into_bytes()
+    } else {
+        vec![]
+    };
+    vector.push(0x00);
+
+    vector
 }
 
 // ==============================

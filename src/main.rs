@@ -135,7 +135,7 @@ fn main() {
     }
 }
 
-fn parse_file(inpath: &PathBuf) -> AST<'static> {
+fn parse_file(inpath: &PathBuf) -> AST {
     if let Ok(true) = fs::exists(inpath) {
         if let Ok(buf) = fs::read_to_string(inpath) {
             let mut tokenized_file = Vec::new();
@@ -216,7 +216,7 @@ fn parse_file(inpath: &PathBuf) -> AST<'static> {
     }
 }
 
-fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
+fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
     match fs::exists(outpath) {
         Ok(false) => match File::create(outpath) {
             Ok(_) => {}
@@ -258,11 +258,6 @@ fn assemble_file(mut ast: AST<'static>, outpath: &PathBuf, form: &str) {
     let astrc = Rc::new(ast);
     let astrc_ref = Rc::clone(&astrc);
 
-    let filtered_vars = &AST::filter_vars(&astrc_ref.vars);
-    for v in filtered_vars {
-        let section = comp::compile_section(&v.1, 0, v.0 as u8);
-        symbols.extend(section.1);
-    }
     for label in &astrc_ref.labels {
         let mut res = comp::compile_label(label, to_write.len());
         let mut symb = Symbol {

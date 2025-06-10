@@ -139,30 +139,15 @@ To use them you can either:
 
 ### Variables
 
-> [!NOTE]
-> Variables must be declared in `ROOT`.
+Labels are also "variables". They can use "instructions" like:
 
-#### Constant (.data) & Readonly (.rodata)
-
-Constant/Readonly variable must have following things: name, size specifier (keyword size specifier) 
-and content (either string or number).
-
-```
-!const name !byte "Hello, World!", $13, $0
-!ronly eman !word $10
-```
-
-> [!WARNING]
-> Constant/Readonly value in `bin` format cannot be strings as it is "inline" - use manual `push`'es
-
-#### Uninitialized (.bss)
-
-Uninitialized variable must have a name and size specifer (can be a number).
-
-```
-!uninit name $13
-!uninit eman !word
-```
-
-> [!WARNING]
-> Uninitialized values cannot be used in `bin` format - use manual `push`'es
+- `byte`/`bytebe`: 8-bit big-endian
+- `bytele`: 8-bit little-endian
+- `word`/`wordbe`: 16-bit big-endian
+- `wordle`: 16-bit little-endian
+- `dword`/`dwordbe`: 32-bit big-endian
+- `dwordle`: 32-bit little-endian
+- `qword`/`qwordbe`: 64-bit big-endian
+- `qwordle`: 64-bit little-endian
+- `empty <LENGTH>`: `<LENGTH>` sized buffer of `0x00`
+- `strz`/`asciiz`: makes a null terminated string

@@ -3,7 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::borrow::Cow;
 use std::path::PathBuf;
 
 use crate::pre::tok::Token;
@@ -18,7 +17,6 @@ use crate::shr::{
     segment::Segment,
     size::Size,
     symbol::Visibility,
-    var::{VType, Variable},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -30,6 +28,7 @@ pub enum Operand {
     Imm(Number),
     Mem(Mem),
     SymbolRef(String),
+    String(String),
     Segment(Segment),
 }
 
@@ -42,7 +41,7 @@ pub struct Instruction {
 }
 
 #[derive(Debug, Clone)]
-pub enum ASTNode<'a> {
+pub enum ASTNode {
     Ins(Instruction),
     Attributes(String),
     Bits(u8),
@@ -52,12 +51,11 @@ pub enum ASTNode<'a> {
     Global(String),
     Include(PathBuf),
     MathEval(String, String),
-    Variable(Variable<'a>),
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct Label<'a> {
-    pub name: Cow<'a, String>,
+pub struct Label {
+    pub name: String,
     pub inst: Vec<Instruction>,
     pub align: u16,
     pub visibility: Visibility,
@@ -65,9 +63,8 @@ pub struct Label<'a> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AST<'a> {
-    pub labels: Vec<Label<'a>>,
-    pub vars: Vec<Variable<'a>>,
+pub struct AST {
+    pub labels: Vec<Label>,
     pub globals: Vec<String>,
     pub externs: Vec<String>,
     pub bits: Option<u8>,
@@ -151,6 +148,7 @@ impl TryFrom<Token> for Operand {
                     Ok(Self::Reg(reg))
                 }
             }
+            Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
@@ -182,6 +180,7 @@ impl Operand {
             Self::SymbolRef(_) => Size::Any,
             Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
             Self::SegReg(_) => Size::Word,
+            Self::String(_) => Size::Unknown,
         }
     }
     pub fn ext_atype(&self) -> AType {
@@ -193,6 +192,7 @@ impl Operand {
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
+            Self::String(_) => AType::Immediate(Size::Unknown),
         }
     }
 }
@@ -204,6 +204,7 @@ impl ToAType for Operand {
             Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(_) => AType::Symbol,
+            Self::String(_) => AType::Immediate(Size::Unknown),
             Self::Segment(s) => s.address.atype(),
         }
     }
@@ -432,11 +433,11 @@ impl Instruction {
     }
 }
 
-impl<'a> AST<'a> {
+impl AST {
     pub fn fix_entry(&mut self) {
         if let Some(entry) = &self.entry {
             for index in 0..self.labels.len() {
-                if self.labels[index].name == Cow::Borrowed(entry) {
+                if &self.labels[index].name == entry {
                     if index == 0 {
                         return;
                     }
@@ -450,23 +451,11 @@ impl<'a> AST<'a> {
     }
     pub fn make_globals(&mut self) {
         for g in &self.globals {
-            let mut finished = false;
             for l in &mut self.labels {
-                if l.name == Cow::Borrowed(g) {
-                    finished = true;
+                if &l.name == g {
                     l.visibility = Visibility::Global;
                     break;
                 }
-            }
-            if !finished {
-                for s in &mut self.vars {
-                    if s.name == Cow::Borrowed(g) {
-                        s.visibility = Visibility::Global;
-                        break;
-                    }
-                }
-            } else {
-                continue;
             }
         }
     }
@@ -504,28 +493,5 @@ impl<'a> AST<'a> {
         self.math.extend(rhs.math);
         self.globals.extend(rhs.globals);
         Ok(())
-    }
-    pub fn filter_vars(vars: &'a Vec<Variable<'a>>) -> Vec<(u32, Vec<&'a Variable<'a>>)> {
-        let mut ronly = Vec::new();
-        let mut consts = Vec::new();
-        let mut uninits = Vec::new();
-        for v in vars {
-            match v.vtype {
-                VType::Readonly => ronly.push(v),
-                VType::Uninit => uninits.push(v),
-                VType::Const => consts.push(v),
-            }
-        }
-        let mut toret = Vec::new();
-        if !consts.is_empty() {
-            toret.push((0x1, consts));
-        }
-        if !ronly.is_empty() {
-            toret.push((0x2, ronly));
-        }
-        if !uninits.is_empty() {
-            toret.push((0x3, uninits));
-        }
-        toret
     }
 }

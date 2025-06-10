@@ -758,6 +758,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
         }
         EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
+        STRZ | ASCIIZ => ot_chk(ins, &[(&[ASTR], Optional::Needed)], &[], &[]),
 
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {

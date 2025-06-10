@@ -14,4 +14,3 @@ pub mod rpanic;
 pub mod segment;
 pub mod size;
 pub mod symbol;
-pub mod var;

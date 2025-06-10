@@ -3,7 +3,10 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RASMError, symbol::Symbol, var::VarContent};
+use crate::shr::{
+    error::RASMError,
+    symbol::{Symbol, VarContent},
+};
 use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Clone, Copy)]

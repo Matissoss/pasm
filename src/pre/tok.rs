@@ -427,5 +427,10 @@ mod tests {
                 Token::Keyword(Keyword::Dword)
             ]
         );
+        let str = "\"Hello, World!\"";
+        assert_eq!(
+            Tokenizer::tokenize_line(str),
+            vec![Token::String("Hello, World!".to_string())]
+        );
     }
 }

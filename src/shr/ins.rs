@@ -450,6 +450,8 @@ pub enum Mnemonic {
     
     EMPTY,
 
+    STRZ, ASCIIZ,
+
     // this has no real purpose, but why not?
     __LAST
 }

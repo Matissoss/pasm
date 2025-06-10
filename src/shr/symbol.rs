@@ -3,9 +3,15 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::shr::num::Number;
 use std::borrow::Cow;
 
-use crate::shr::var::VarContent;
+#[derive(Debug, Clone, PartialEq)]
+pub enum VarContent<'a> {
+    Number(Number),
+    String(Cow<'a, Vec<u8>>),
+    Uninit,
+}
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
