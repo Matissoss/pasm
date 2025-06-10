@@ -38,11 +38,12 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Optimize `Instruction` struct
     - betao (beta obj)
         - [x] Variables overhaul (labels as variables)
-        - [ ] Extended Relocations/Symbols (`@()` closure + multiple relocation types; support for `section=name` attribute); relocation overhaul
+        - [ ] Relocation/Symbol overhaul (use of `@()` closure)
         - [ ] Tests for relocations and other things
-        - [ ] Better target handling (ELF reworked)
+        - [ ] Better target handling (ELF rewritten from zero)
+        - [ ] Support for custom section declarations and label attribute `section=name`
         - [ ] Basic support for DWARF
-    - [ ] Create documentation
+    - [ ] Create documentation (including better readme ;))
     - [ ] Overall polish
     - [ ] moving into beta-avx512 phase...
 - beta-avx512
