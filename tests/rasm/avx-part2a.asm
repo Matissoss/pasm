@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	pavgb %xmm0, %xmm1
 	pavgb %mm0, %mm1
@@ -18,12 +18,12 @@ _start:
 
 	vinsertf128 %ymm0, %ymm1, %xmm0, $10
 	vinsertf128 %ymm0, %ymm1, %xmm1, $10
-	vextractf128 !xword (%rax), %ymm1, $10
+	vextractf128 .xword (%rax), %ymm1, $10
 	
-	vbroadcastss %xmm0, !dword (%rax)
+	vbroadcastss %xmm0, .dword (%rax)
 	vbroadcastss %ymm0, %xmm0
 	
-	vbroadcastsd %ymm0, !qword (%rax)
+	vbroadcastsd %ymm0, .qword (%rax)
 	vbroadcastsd %ymm0, %xmm0
 	
-	vbroadcastf128 %ymm0, !xword (%rax)
+	vbroadcastf128 %ymm0, .xword (%rax)

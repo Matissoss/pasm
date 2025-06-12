@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	addsubpd %xmm0, %xmm1
 	addsubps %xmm0, %xmm1
@@ -12,7 +12,7 @@ _start:
 	movshdup %xmm0, %xmm1
 	movddup %xmm0, %xmm1
 
-	lddqu %xmm0, !xword (%rax)
+	lddqu %xmm0, .xword (%rax)
 	
 	monitor
 	mwait

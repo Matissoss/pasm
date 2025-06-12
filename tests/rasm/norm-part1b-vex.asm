@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	andn %eax, %ebx, %ecx
 	andn %rax, %rbx, %rcx

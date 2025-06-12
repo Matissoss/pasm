@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	aesdec %xmm0, %xmm1
 	aesenc %xmm0, %xmm1

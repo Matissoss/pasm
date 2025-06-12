@@ -54,12 +54,12 @@ pub const PREFIX_REG: char = '%';
 //  default = '$'
 pub const PREFIX_VAL: char = '$';
 
-//  PREFIX_REF defines prefix for constant values (.bss and .data references)
+//  PREFIX_REF defines prefix for referencing symbol
 //  ---------------------------------------
 //  default = '@'
 pub const PREFIX_REF: char = '@';
 
-//  PREFIX_KWD defines prefix for keywords like `!global`
+//  PREFIX_KWD defines prefix for keywords like `.global`
 //  ---------------------------------------
-//  default = '!'
-pub const PREFIX_KWD: char = '!';
+//  default = '.'
+pub const PREFIX_KWD: char = '.';

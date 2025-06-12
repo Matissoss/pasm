@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	vpor %xmm0, %xmm1, %xmm2
 	vmovd %xmm0, %eax

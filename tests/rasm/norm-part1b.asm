@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	adcx %eax, %ebx
 	adcx %rax, %rbx
@@ -11,7 +11,7 @@ _start:
 	clac
 	clts
 	clui
-	clwb !byte (%rax)
+	clwb .byte (%rax)
 
 	blsr %eax, %ebx
 	blsr %rax, %rbx

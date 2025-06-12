@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	scasq
 	senduipi %rax
@@ -29,4 +29,4 @@ _start:
 	scasd
 	serialize
 	setssby
-	rstorssp !qword (%rax)
+	rstorssp .qword (%rax)

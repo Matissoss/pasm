@@ -3,10 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-#![allow(unused)]
-
-use std::str::FromStr;
-
 use crate::shr::{error::RASMError as Error, num::Number};
 
 pub struct MathematicalEvaluation;
@@ -15,9 +11,6 @@ impl MathematicalEvaluation {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(str: &str) -> Result<MathElement, Error> {
         par(tok(str))
-    }
-    pub fn can_eval(math: &MathElement) -> bool {
-        true
     }
     pub fn eval(math: MathElement) -> Option<u64> {
         match math {
@@ -218,8 +211,6 @@ enum Token {
     Xor,
     Not,
     Neg,
-    Lsh,
-    Rsh,
     Start, // (
     End,   // )
 
@@ -276,7 +267,6 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                             };
                             elements.push(mer2(&mode, lhs, tok));
                         }
-                        _ => panic!("Unexpected - {:?} - {:?}", elements, mode),
                     }
                     tmp_toks = Vec::new();
                 }
@@ -351,14 +341,6 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
             }
             Token::Xor => {
                 mode = Some(Mode::Xor);
-                idx += 1
-            }
-            Token::Lsh => {
-                mode = Some(Mode::Lsh);
-                idx += 1
-            }
-            Token::Rsh => {
-                mode = Some(Mode::Rsh);
                 idx += 1
             }
             Token::Not => {

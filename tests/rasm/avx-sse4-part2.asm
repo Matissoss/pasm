@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	vblendps %xmm0, %xmm1, %xmm0, $10
 	vblendps %ymm0, %ymm1, %ymm0, $10
@@ -19,9 +19,9 @@ _start:
 	vroundpd %ymm0, %ymm1, $10
 	
 	vroundss %xmm2, %xmm0, %xmm1, $10
-	vroundss %xmm2, %xmm0, !dword (%rax), $10
+	vroundss %xmm2, %xmm0, .dword (%rax), $10
 	vroundsd %xmm2, %xmm0, %xmm1, $10
-	vroundsd %xmm2, %xmm0, !qword (%rax), $10
+	vroundsd %xmm2, %xmm0, .qword (%rax), $10
 
 	vmpsadbw %xmm0, %xmm1, %xmm2, $10
 	vmpsadbw %ymm0, %ymm1, %ymm2, $10
@@ -44,8 +44,8 @@ _start:
 	vpackusdw %xmm0, %xmm1, %xmm2
 	vpackusdw %ymm0, %ymm1, %ymm2
 
-	vmovntdqa %xmm0, !xword (%rax)
-	vmovntdqa %ymm0, !yword (%rax)
+	vmovntdqa %xmm0, .xword (%rax)
+	vmovntdqa %ymm0, .yword (%rax)
 
 	vpcmpestri %xmm0, %xmm1, $10
 	vpcmpestrm %xmm0, %xmm1, $10

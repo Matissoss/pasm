@@ -1,7 +1,7 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
-	invpcid %rax, !xword (%rax)
+	invpcid %rax, .xword (%rax)
 	iret
 	iretd
 	iretq

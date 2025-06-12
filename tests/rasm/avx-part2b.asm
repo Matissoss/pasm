@@ -1,10 +1,10 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
-	stmxcsr !dword (%rax)
-	vstmxcsr !dword (%rax)
-	ldmxcsr !dword (%rax)
-	vldmxcsr !dword (%rax)
+	stmxcsr .dword (%rax)
+	vstmxcsr .dword (%rax)
+	ldmxcsr .dword (%rax)
+	vldmxcsr .dword (%rax)
 
 	vmovmskps %eax, %xmm0
 	vmovmskps %rax, %xmm0

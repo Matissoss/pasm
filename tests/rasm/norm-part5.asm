@@ -1,5 +1,5 @@
-!bits $64
-!global _start
+.bits $64
+.global _start
 _start:
 	shld %rax, %rbx, %cl
 	shld %rax, %rbx, $10

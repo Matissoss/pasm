@@ -41,13 +41,9 @@ fn post_process(toks: Vec<Token>) -> Vec<Token> {
         if let Token::Closure(PREFIX_VAL, content) = &t {
             let math = math::MathematicalEvaluation::from_str(content);
             if let Ok(eval) = math {
-                if math::MathematicalEvaluation::can_eval(&eval) {
-                    let result = math::MathematicalEvaluation::eval(eval);
-                    if let Some(n) = result {
-                        toks_1.push(Token::Immediate(Number::uint64(n)));
-                    }
-                } else {
-                    toks_1.push(t);
+                let result = math::MathematicalEvaluation::eval(eval);
+                if let Some(n) = result {
+                    toks_1.push(Token::Immediate(Number::uint64(n)));
                 }
             } else {
                 toks_1.push(t);
@@ -409,7 +405,7 @@ mod tests {
                 )))
             )]
         );
-        let str = "mov %edi, %ds:(%rbx + %rcx * $4 - $10) !dword";
+        let str = "mov %edi, %ds:(%rbx + %rcx * $4 - $10) .dword";
         let tokens = Tokenizer::tokenize_line(str);
         assert_eq!(
             tokens,

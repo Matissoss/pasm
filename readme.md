@@ -38,7 +38,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Optimize `Instruction` struct
     - betao (beta obj)
         - [x] Variables overhaul (labels as variables)
-        - [ ] Switch `!` prefix for keywords for `.`
+        - [x] Switch `!` prefix for keywords for `.`
         - [ ] Relocation/Symbol overhaul (use of `@()` closure)
         - [ ] Tests for relocations and other things
         - [ ] Better target handling (ELF rewritten from zero)

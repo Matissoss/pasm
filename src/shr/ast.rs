@@ -118,20 +118,13 @@ impl TryFrom<Token> for Operand {
             },
             Token::Closure('$', m) => match MathEval::from_str(&m) {
                 Ok(v) => {
-                    if MathEval::can_eval(&v) {
-                        let e = MathEval::eval(v);
-                        if let Some(e) = e {
-                            Ok(Self::Imm(Number::uint64(e)))
-                        } else {
-                            Err(Self::Error::no_tip(
-                                None,
-                                Some("Failed to evaluate mathematical expression"),
-                            ))
-                        }
+                    let e = MathEval::eval(v);
+                    if let Some(e) = e {
+                        Ok(Self::Imm(Number::uint64(e)))
                     } else {
                         Err(Self::Error::no_tip(
                             None,
-                            Some("Couldn't evaluate mathematical expression"),
+                            Some("Failed to evaluate mathematical expression"),
                         ))
                     }
                 }
