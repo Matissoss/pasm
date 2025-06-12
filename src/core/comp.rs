@@ -3,8 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::borrow::Cow;
-
 use crate::{
     core::api::*,
     shr::{
@@ -12,19 +10,21 @@ use crate::{
         ins::Mnemonic as Ins,
         num::Number,
         reg::{Purpose as RPurpose, Register},
-        reloc::{RCategory, RType, Relocation},
+        reloc::Relocation,
         segment::Segment,
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
+        reloc::RelType,
     },
 };
+
 use OpOrd::*;
 
 #[inline]
 pub fn make_globals(symbols: &mut [Symbol], globals: &[String]) {
     for s in symbols {
         for g in globals {
-            if s.name == Cow::Borrowed(g) {
+            if s.name == g {
                 s.visibility = Visibility::Global;
                 break;
             }
@@ -36,15 +36,12 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
     let mut symbols = Vec::new();
     for extern_ in externs {
         symbols.push(Symbol {
-            name: Cow::Borrowed(extern_),
+            name: extern_,
             offset: 0,
-            size: None,
+            size: 0,
             sindex: 0,
             stype: SymbolType::NoType,
             visibility: Visibility::Global,
-            content: None,
-            addend: 0,
-            addt: 0,
         });
     }
     symbols
@@ -69,7 +66,7 @@ pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
         }
 
         if let Some(mut rl) = res.1 {
-            rl.offset += bytes.len() as u64;
+            rl.offset += bytes.len() as u32;
             reallocs.push(rl);
         }
         bytes.extend(res.0);
@@ -5796,9 +5793,9 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::LODSQ => (vec![0x48, 0xAD], None),
 
         // part 3
-        Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
-        Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
-        Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
+        //Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
+        //Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
+        //Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
 
         Ins::LSL => (
             GenAPI::new()
@@ -6638,8 +6635,10 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
 }
 
 fn ins_xbegin(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
-    let symb_name = if let Some(Operand::SymbolRef(str)) = ins.dst() {
-        str
+    let (symbol, reltype, addend) = if let Some(Operand::SymbolRef(str)) = ins.dst() {
+        (str, RelType::REL32, 0)
+    } else if let Some(Operand::SymbolRefExt(s)) = ins.dst() {
+        (&s.symbol, s.reltype, s.addend)
     } else {
         invalid(3923)
     };
@@ -6647,12 +6646,10 @@ fn ins_xbegin(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
     (
         vec![0xC7, 0xF8],
         Some(Relocation {
-            symbol: Cow::Owned(symb_name),
-            rtype: RType::PCRel32,
-            addend: -4,
-            catg: RCategory::Jump,
+            reltype,
+            symbol,
+            addend,
             offset: 2,
-            size: 4,
         }),
     )
 }
@@ -6665,24 +6662,6 @@ fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
         api = api.opcode(opc_rm);
     }
     api
-}
-
-fn ins_shrtjmp(ins: &Instruction, mut opc: Vec<u8>) -> (Vec<u8>, Option<Relocation>) {
-    match ins.dst().unwrap() {
-        Operand::SymbolRef(s) => {
-            let rel = Relocation {
-                symbol: Cow::Owned(s),
-                rtype: RType::PCRel32,
-                offset: 1,
-                addend: -1,
-                catg: RCategory::Jump,
-                size: 1,
-            };
-            opc.push(0x00);
-            (opc, Some(rel))
-        }
-        _ => panic!("unexpected at shrtjmp"),
-    }
 }
 
 fn ins_enter(ins: &Instruction, bits: u8) -> Vec<u8> {
@@ -7464,8 +7443,9 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
         .modrm_mod(0b00)
         .assemble(ins, bits);
     base.push(0x25);
-    let symbol = match ins.src().unwrap() {
-        Operand::SymbolRef(s) => s,
+    let (symbol, reltype, addend) = match ins.src().unwrap() {
+        Operand::SymbolRef(s) => (s, RelType::REL32, 0),
+        Operand::SymbolRefExt(s) => (&s.symbol, s.reltype, s.addend),
         _ => invalid(1),
     };
     let blen = base.len();
@@ -7473,12 +7453,10 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
     (
         base,
         Some(Relocation {
-            rtype: RType::S32,
-            symbol: Cow::Owned(symbol),
-            offset: blen as u64,
-            addend: 0,
-            size: 4,
-            catg: RCategory::Lea,
+            reltype,
+            symbol,
+            offset: blen as u32,
+            addend,
         }),
     )
 }
@@ -7495,14 +7473,23 @@ fn ins_jmplike(
     bits: u8,
 ) -> (Vec<u8>, Option<Relocation>) {
     match ins.dst().unwrap() {
+        Operand::SymbolRefExt(s) => {
+            let rel = Relocation {
+                reltype: s.reltype,
+                symbol: &s.symbol,
+                offset: opc[0].len() as u32,
+                addend: s.addend,
+            };
+            let mut opc = opc[0].clone();
+            opc.extend([0; 4]);
+            (opc, Some(rel))
+        }
         Operand::SymbolRef(s) => {
             let rel = Relocation {
-                rtype: RType::PCRel32,
-                symbol: Cow::Owned(s),
+                reltype: RelType::REL32,
+                symbol: s,
                 addend: -4,
-                offset: opc[0].len() as u64,
-                size: 4,
-                catg: RCategory::Jump,
+                offset: opc[0].len() as u32,
             };
             let mut opc = opc[0].clone();
             opc.extend([0; 4]);

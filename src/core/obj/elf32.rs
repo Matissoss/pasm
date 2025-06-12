@@ -157,10 +157,10 @@ pub fn make_elf32(
         #[allow(clippy::needless_range_loop)]
         for index in 0..relocs.len() {
             if relocs[index].addend == 0 {
-                rel_text_symbref.push(Cow::Owned::<&String>(&relocs[index].symbol));
+                rel_text_symbref.push(relocs[index].symbol);
                 rels.push(Cow::Borrowed(&relocs[index]));
             } else {
-                rela_text_symbref.push(Cow::Borrowed(&relocs[index].symbol));
+                rela_text_symbref.push(relocs[index].symbol);
                 relas.push(Cow::Borrowed(&relocs[index]));
             }
         }
@@ -198,14 +198,14 @@ pub fn make_elf32(
         }
         for rel in rels {
             rel_text_symb.push(Elf32Rel {
-                offset: rel.offset as u32,
-                info: rel.rtype.to_elf32_rtype(),
+                offset: rel.offset,
+                info: rel.reltype.to_elf32_rtype(),
             });
         }
         for rela in relas {
             rela_text_symb.push(Elf32Rela {
-                offset: rela.offset as u32,
-                info: rela.rtype.to_elf32_rtype(),
+                offset: rela.offset,
+                info: rela.reltype.to_elf32_rtype(),
                 addend: rela.addend,
             });
         }
@@ -334,8 +334,8 @@ pub fn make_elf32(
             } else {
                 elf_symbs.push(Elf32Sym {
                     name: strtab.len() as u32,
-                    value: symbol.offset as u32,
-                    size: symbol.size.unwrap_or(0),
+                    value: symbol.offset,
+                    size: symbol.size,
                     info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                     other: 0,
                     shndx: symbol.sindex,
@@ -349,8 +349,8 @@ pub fn make_elf32(
         for symbol in global_symbols.iter() {
             elf_symbs.push(Elf32Sym {
                 name: strtab.len() as u32,
-                value: symbol.offset as u32,
-                size: symbol.size.unwrap_or(0),
+                value: symbol.offset,
+                size: symbol.size,
                 info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                 other: 0,
                 shndx: symbol.sindex,
@@ -423,8 +423,7 @@ pub fn make_elf32(
         for (index, rel) in rel_text_symb.iter_mut().enumerate() {
             for (symb_index, s) in symbols.iter().enumerate() {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                // what is that?
-                if ***rel_text_symbref[index] == *Cow::Borrowed(&s_name) {
+                if rel_text_symbref[index] == &s_name {
                     rel.info += (symb_index << 8) as u32;
                     break;
                 }
@@ -436,7 +435,7 @@ pub fn make_elf32(
         for (index, rela) in rela_text_symb.iter_mut().enumerate() {
             for (symb_index, s) in symbols.iter().enumerate() {
                 let s_name = collect_asciiz(&strtab, s.name as usize).unwrap();
-                if ***rel_text_symbref[index] == *Cow::Borrowed(&s_name) {
+                if rel_text_symbref[index] == &s_name {
                     rela.info += (symb_index << 8) as u32;
                     break;
                 }

@@ -10,7 +10,6 @@
 
 //  global imports go here
 use std::{
-    borrow::Cow,
     fs,
     fs::{File, OpenOptions},
     io::Write,
@@ -261,22 +260,19 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
     for label in &astrc_ref.labels {
         let mut res = comp::compile_label(label, to_write.len());
         let mut symb = Symbol {
-            name: Cow::Borrowed(&label.name),
-            offset: to_write.len() as u64,
-            size: None,
+            name: &label.name,
+            offset: to_write.len() as u32,
+            size: 0,
             sindex: 1,
             visibility: label.visibility,
             stype: SymbolType::Func,
-            content: None,
-            addend: -4,
-            addt: 0,
         };
         for r in &mut res.1 {
-            r.offset += to_write.len() as u64;
+            r.offset += to_write.len() as u32;
         }
         relocs.extend(res.1);
         to_write.extend(res.0);
-        symb.size = Some((to_write.len() as u64 - symb.offset) as u32);
+        symb.size = to_write.len() as u32 - symb.offset;
         symbols.push(symb);
     }
 

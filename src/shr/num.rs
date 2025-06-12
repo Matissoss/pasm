@@ -145,7 +145,8 @@ impl Number {
 
 fn num_from_str(str: &str) -> Result<Number, RASMError> {
     let sign = str.starts_with("-");
-    let sign_str = if sign { "-" } else { "" };
+    let plus_sign = str.starts_with("+");
+    let sign_str = if sign { "-" } else if plus_sign { "+" } else { "" };
     let hex_init = "0x";
     let bin_init = "0b";
     let oct_init = "0o";
@@ -162,6 +163,10 @@ fn num_from_str(str: &str) -> Result<Number, RASMError> {
             Ok(Number::uint64(u32 as u64))
         } else if let Ok(u64) = u64::from_str(str) {
             Ok(Number::uint64(u64))
+        } else if let Ok(i32) = i32::from_str(str) {
+            Ok(Number::int64(i32 as i64))
+        } else if let Ok(i64) = i64::from_str(str) {
+            Ok(Number::int64(i64))
         } else if let Ok(float) = f32::from_str(str) {
             Ok(Number::float(float))
         } else if let Ok(double) = f64::from_str(str) {

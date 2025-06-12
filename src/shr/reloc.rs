@@ -5,108 +5,43 @@
 
 use crate::shr::{
     error::RASMError,
-    symbol::{Symbol, VarContent},
+    symbol::Symbol,
 };
-use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum RType {
-    S32,
-    PCRel32, // relative 32-bit ; jmp's and call's
-    Abs64,   // absolute 64-bit ; global vars and pointers
-    None,
-}
-
-impl RType {
+impl RelType {
     pub fn to_elf64_rtype(&self) -> u64 {
         match self {
-            Self::S32 => 11,
-            Self::PCRel32 => 2,
-            Self::Abs64 => 1,
-            Self::None => 0,
+            Self::ABS32 => 11,
+            Self::REL32 => 2,
         }
     }
     pub fn to_elf32_rtype(&self) -> u32 {
         match self {
-            Self::S32 => 1,
-            Self::PCRel32 => 2,
-            Self::Abs64 => 1,
-            Self::None => 0,
+            Self::ABS32 => 1,
+            Self::REL32 => 2,
         }
     }
 }
 
-// idk how to name it
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum RCategory {
-    Jump,
-    Lea,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct Relocation<'a> {
-    pub symbol: Cow<'a, &'a String>,
-    pub rtype: RType,
-    pub offset: u64,
-    pub addend: i32,
-    pub catg: RCategory,
-    pub size: u8,
-}
-
 pub fn relocate_addresses<'a>(
     buf: &mut [u8],
-    relocs: Vec<Relocation<'a>>,
+    relocs: Vec<Relocation>,
     symbols: &'a [Symbol<'a>],
 ) -> Option<Vec<RASMError>> {
     let mut errors = Vec::new();
     for reloc in relocs {
-        if reloc.rtype == RType::PCRel32 {
-            if let Some(symbol) = find(symbols, &reloc.symbol) {
+        if reloc.reltype == RelType::REL32 {
+            if let Some(symbol) = symbols.iter().find(|&e| e.name == reloc.symbol) {
                 //  rel32       = S + A - P
-                let rel32 = (symbol.offset as i32) + (symbol.addend as i32)
-                    - ((reloc.offset + reloc.size as u64) as i32);
+                let rel32 = (symbol.offset as i32)
+                    - ((reloc.offset + reloc.reltype.size() as u32) as i32);
                 let rel32_bytes = rel32.to_le_bytes();
                 let mut tmp: usize = 0;
                 let offs = reloc.offset;
 
-                #[allow(clippy::collapsible_else_if)]
-                if reloc.catg == RCategory::Jump {
-                    while tmp < rel32_bytes.len() {
-                        buf[offs as usize + tmp] = rel32_bytes[tmp];
-                        tmp += 1;
-                    }
-                } else {
-                    if let Some(con) = &symbol.content {
-                        let immbytes = match **con {
-                            VarContent::Number(n) => n.split_into_bytes(),
-                            VarContent::String(_) => {
-                                errors.push(RASMError::no_tip(
-                                    None,
-                                    Some("Tried to use string - forbidden in `bin`"),
-                                ));
-                                break;
-                            }
-                            VarContent::Uninit => {
-                                errors.push(RASMError::no_tip(
-                                    None,
-                                    Some(
-                                        "Tried to use uninitialized variable - forbidden in `bin`",
-                                    ),
-                                ));
-                                break;
-                            }
-                        };
-                        while tmp < immbytes.len() {
-                            buf[offs as usize + tmp] = immbytes[tmp];
-                            tmp += 1;
-                        }
-                    } else {
-                        errors.push(RASMError::with_tip(
-                            None,
-                            Some("Tried to use unitialized variable (`!bss` one)"),
-                            Some("Unitialized variables currently cannot be used in `baremetal` target")
-                        ));
-                    }
+                while tmp < rel32_bytes.len() {
+                    buf[offs as usize + tmp] = rel32_bytes[tmp];
+                    tmp += 1;
                 }
             } else {
                 errors.push(RASMError::with_tip(
@@ -115,40 +50,15 @@ pub fn relocate_addresses<'a>(
                     Some("consider creating symbol like e.g: label or variable in .bss/.data/.rodata section")
                 ))
             }
-        } else if let RType::S32 = reloc.rtype {
-            if let Some(symbol) = find(symbols, &reloc.symbol) {
-                let _s32 = symbol.offset;
-                if let Some(con) = &symbol.content {
-                    let immbytes = match **con {
-                        VarContent::Number(n) => n.split_into_bytes(),
-                        VarContent::String(_) => {
-                            errors.push(RASMError::no_tip(
-                                None,
-                                Some("Tried to use string - forbidden in `bin`"),
-                            ));
-                            break;
-                        }
-                        VarContent::Uninit => {
-                            errors.push(RASMError::no_tip(
-                                None,
-                                Some("Tried to use uninitialized variable - forbidden in `bin`"),
-                            ));
-                            break;
-                        }
-                    };
-                    let mut tmp = 0;
-                    while tmp < immbytes.len() {
-                        buf[reloc.offset as usize + tmp] = immbytes[tmp];
-                        tmp += 1;
-                    }
-                } else {
-                    errors.push(RASMError::with_tip(
-                        None,
-                        Some("Tried to use unitialized variable (`!bss` one)"),
-                        Some(
-                            "Unitialized variables currently cannot be used in `baremetal` target",
-                        ),
-                    ));
+        } else if let RelType::ABS32 = reloc.reltype {
+            if let Some(symbol) = symbols.iter().find(|&e| e.name == reloc.symbol) {
+                let s32 = symbol.offset.to_le_bytes();
+                let offs = reloc.offset;
+                let mut tmp = 0;
+
+                while tmp < s32.len() {
+                    buf[offs as usize + tmp] = s32[tmp];
+                    tmp += 1;
                 }
             } else {
                 errors.push(RASMError::with_tip(
@@ -162,7 +72,7 @@ pub fn relocate_addresses<'a>(
                 None,
                 Some(format!(
                     "Tried to use currently unsupported relocation type: {:?}",
-                    reloc.rtype
+                    reloc.reltype
                 )),
             ))
         }
@@ -174,13 +84,26 @@ pub fn relocate_addresses<'a>(
     }
 }
 
-#[allow(clippy::manual_find)]
-#[inline]
-fn find<'a>(table: &'a [Symbol<'a>], object: &'a str) -> Option<&'a Symbol<'a>> {
-    for e in table {
-        if e.name == Cow::Borrowed(object) {
-            return Some(e);
+// new relocation types
+#[derive(PartialEq, Clone, Debug, Copy)]
+pub enum RelType {
+    ABS32,
+    REL32,
+}
+
+impl RelType {
+    pub const fn size(&self) -> usize {
+        match self {
+            Self::ABS32 => 4,
+            Self::REL32 => 4,
         }
     }
-    None
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Relocation<'a> {
+    pub symbol: &'a String,
+    pub offset: u32,
+    pub addend: i32,
+    pub reltype: RelType, 
 }

@@ -16,7 +16,7 @@ use crate::shr::{
     reg::{Purpose as RPurpose, Register},
     segment::Segment,
     size::Size,
-    symbol::Visibility,
+    symbol::{Visibility, SymbolRef}
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +28,7 @@ pub enum Operand {
     Imm(Number),
     Mem(Mem),
     SymbolRef(String),
+    SymbolRefExt(SymbolRef),
     String(String),
     Segment(Segment),
 }
@@ -144,6 +145,7 @@ impl TryFrom<Token> for Operand {
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
+            Token::SymbolRefExt(val) => Ok(Self::SymbolRefExt(val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
     }
@@ -170,7 +172,7 @@ impl Operand {
             Self::CtrReg(r) => r.size(),
             Self::DbgReg(r) => r.size(),
             Self::Mem(m) => m.size().unwrap_or(Size::Unknown),
-            Self::SymbolRef(_) => Size::Any,
+            Self::SymbolRef(_) | Self::SymbolRefExt(_) => Size::Any,
             Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
             Self::SegReg(_) => Size::Word,
             Self::String(_) => Size::Unknown,
@@ -183,7 +185,7 @@ impl Operand {
                 AType::ExtendedRegister(*r)
             }
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(_) => AType::Symbol,
+            Self::SymbolRef(_) | Self::SymbolRefExt(_) => AType::Symbol,
             Self::Segment(s) => s.address.atype(),
             Self::String(_) => AType::Immediate(Size::Unknown),
         }
@@ -196,7 +198,7 @@ impl ToAType for Operand {
             Self::Mem(m) => m.atype(),
             Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(_) => AType::Symbol,
+            Self::SymbolRef(_) | Self::SymbolRefExt(_) => AType::Symbol,
             Self::String(_) => AType::Immediate(Size::Unknown),
             Self::Segment(s) => s.address.atype(),
         }

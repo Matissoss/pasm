@@ -5,7 +5,7 @@
 
 use crate::{
     conf::*,
-    shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, math, num::Number, reg::Register},
+    shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, math, num::Number, reg::Register, symbol::SymbolRef},
 };
 use std::str::FromStr;
 
@@ -17,6 +17,7 @@ pub enum Token {
     Mnemonic(Mnm),
     Label(String),
     SymbolRef(String),
+    SymbolRefExt(SymbolRef),
     String(String),
     Segment(String),
     UnknownSegment(String, RASMError),
@@ -38,7 +39,13 @@ pub struct Tokenizer;
 fn post_process(toks: Vec<Token>) -> Vec<Token> {
     let mut toks_1 = Vec::new();
     for t in toks {
-        if let Token::Closure(PREFIX_VAL, content) = &t {
+        if let Token::Closure(PREFIX_REF, content) = &t {
+            let s = SymbolRef::try_new(content);
+            match s {
+                Ok(t) => toks_1.push(Token::SymbolRefExt(t)),
+                Err(e) => toks_1.push(Token::Error(e)),
+            }
+        } else if let Token::Closure(PREFIX_VAL, content) = &t {
             let math = math::MathematicalEvaluation::from_str(content);
             if let Ok(eval) = math {
                 let result = math::MathematicalEvaluation::eval(eval);
@@ -332,6 +339,7 @@ impl ToString for Token {
                     "".to_string()
                 }
             ),
+            Self::SymbolRefExt(r) => r.to_string(),
         }
     }
 }

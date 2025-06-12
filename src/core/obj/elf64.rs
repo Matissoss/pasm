@@ -155,10 +155,10 @@ pub fn make_elf64(
         let mut rels = Vec::new();
         for reloc in relocs {
             if reloc.addend == 0 {
-                rel_text_symbref.push(Cow::Owned::<&String>(&reloc.symbol));
+                rel_text_symbref.push(Cow::Owned::<String>(reloc.symbol.clone()));
                 rels.push(reloc);
             } else {
-                rela_text_symbref.push(Cow::Owned::<&String>(&reloc.symbol));
+                rela_text_symbref.push(Cow::Owned::<String>(reloc.symbol.clone()));
                 relas.push(reloc);
             }
         }
@@ -196,14 +196,14 @@ pub fn make_elf64(
         }
         for rel in rels {
             rel_text_symb.push(Elf64Rel {
-                offset: rel.offset,
-                info: rel.rtype.to_elf64_rtype(),
+                offset: rel.offset as u64,
+                info: rel.reltype.to_elf64_rtype(),
             });
         }
         for rela in relas {
             rela_text_symb.push(Elf64Rela {
-                offset: rela.offset,
-                info: rela.rtype.to_elf64_rtype(),
+                offset: rela.offset as u64,
+                info: rela.reltype.to_elf64_rtype(),
                 addend: rela.addend as i64,
             });
         }
@@ -332,12 +332,8 @@ pub fn make_elf64(
             } else {
                 elf_symbs.push(Elf64Sym {
                     name: strtab.len() as Elf64Word,
-                    value: symbol.offset,
-                    size: if let Some(s) = symbol.size {
-                        s as u64
-                    } else {
-                        0
-                    },
+                    value: symbol.offset as u64,
+                    size: symbol.size as u64,
                     info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                     other: 0,
                     shndx: symbol.sindex,
@@ -351,12 +347,8 @@ pub fn make_elf64(
         for symbol in global_symbols.iter() {
             elf_symbs.push(Elf64Sym {
                 name: strtab.len() as Elf64Word,
-                value: symbol.offset,
-                size: if let Some(s) = symbol.size {
-                    s as u64
-                } else {
-                    0
-                },
+                value: symbol.offset as u64,
+                size: symbol.size as u64,
                 info: ((symbol.visibility as u8) << 4) + symbol.stype as u8,
                 other: 0,
                 shndx: symbol.sindex,

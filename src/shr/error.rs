@@ -178,6 +178,14 @@ impl Display for ExceptionType {
 }
 
 impl RASMError {
+    pub fn msg(msg: impl ToString) -> Self {
+        Self {
+            line: None,
+            msg: Some(msg.to_string()),
+            tip: None,
+            etype: ExceptionType::Error
+        }
+    }
     pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self {
         Self {
             line,
