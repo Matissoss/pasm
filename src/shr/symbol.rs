@@ -18,8 +18,9 @@ pub enum Visibility {
 }
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum SymbolType {
+    #[default]
     NoType = 0,
     Object = 1,
     Func = 2,

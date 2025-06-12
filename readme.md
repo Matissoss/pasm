@@ -40,7 +40,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Variables overhaul (labels as variables)
         - [x] Switch `!` prefix for keywords for `.`
         - [x] Relocation/Symbol overhaul (use of `@()` closure)
-        - [ ] Tests for relocations and other things
+        - [x] Tests for relocations and other things
         - [ ] Better target handling (ELF rewritten from zero)
         - [ ] Support for custom section declarations and label attribute `section=name`
         - [ ] Basic support for DWARF

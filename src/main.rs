@@ -278,14 +278,12 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
 
     match form {
         "bin" => {
-            if let Some(errs) = shr::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
-                for e in &errs {
-                    eprintln!("{e}");
-                }
+            if let Err(err) = shr::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
+                eprintln!("{err}");
                 CLI.exit(
                     "main.rs",
                     "assemble_file",
-                    &format!("Assembling ended with {} errors!", errs.len()),
+                    "Assembling ended with 1 error!",
                     1,
                 );
             }
