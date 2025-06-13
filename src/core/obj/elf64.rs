@@ -42,14 +42,14 @@ struct Elf64Ehdr {
 // section header
 #[derive(Debug, Clone, Copy)]
 struct Elf64Shdr {
-    name: Elf64Word,
-    etype: Elf64Word,
+    name: u32,
+    etype: u32,
     flags: u64,
-    addr: Elf64Addr,
-    offset: Elf64Off,
+    addr: u64,
+    offset: u64,
     size: u64,
-    link: Elf64Word,
-    info: Elf64Word,
+    link: u32,
+    info: u32,
     addralign: u64,
     entsize: u64,
 }

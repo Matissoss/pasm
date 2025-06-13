@@ -25,6 +25,7 @@ use std::{
 pub mod core;
 pub mod pre;
 pub mod pre_core;
+pub mod obj;
 pub mod shr;
 
 use core::comp;
