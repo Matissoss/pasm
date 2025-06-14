@@ -416,11 +416,10 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
     let mut offset: Option<i32> = None;
     let mut scale: Option<Size> = None;
 
-    let iter = toks.into_iter();
     // if number was prefixed with *
     let mut mul_modf = false;
     let mut num_ismin = false;
-    for tok in iter {
+    for tok in toks {
         match tok {
             Token::Error(e) => return Err(e),
             Token::Register(r) => {
@@ -530,29 +529,29 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
 }
 
 fn mem_tok_new(str: &str) -> Vec<Token> {
-    let mut tokens = Vec::new();
+    let mut tokens = Vec::with_capacity(8);
     let bytes: &[u8] = str.as_bytes();
-    let mut tmp_buf: Vec<u8> = Vec::new();
+    let mut tmp_buf: Vec<u8> = Vec::with_capacity(16);
     for b in bytes {
         match b {
             b'*' => {
                 if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
                     tokens.push(tok);
-                    tmp_buf = Vec::new();
+                    tmp_buf.clear();
                 }
                 tokens.push(Token::Mul);
             }
             b'-' => {
                 if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
                     tokens.push(tok);
-                    tmp_buf = Vec::new();
+                    tmp_buf.clear();
                 }
                 tokens.push(Token::Sub);
             }
             b'+' => {
                 if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
                     tokens.push(tok);
-                    tmp_buf = Vec::new();
+                    tmp_buf.clear();
                 }
                 tokens.push(Token::Add);
             }

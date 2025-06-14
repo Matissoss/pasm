@@ -178,8 +178,8 @@ fn make_ins(line: Vec<Token>) -> Result<Instruction, RASMError> {
             Some("Tried to make instruction from nothing"),
         ));
     }
-    let mut mnems: Vec<Mnm> = Vec::new();
-    let mut tmp_buf: Vec<Token> = Vec::new();
+    let mut mnems: Vec<Mnm> = Vec::with_capacity(2);
+    let mut tmp_buf: Vec<Token> = Vec::with_capacity(6);
     let mut iter = line.into_iter();
     while let Some(t) = iter.next() {
         if let Token::Mnemonic(m) = t {
@@ -197,7 +197,7 @@ fn make_ins(line: Vec<Token>) -> Result<Instruction, RASMError> {
     while let Some(t) = iter.next() {
         if t == Token::Comma {
             if !tmp_buf.is_empty() {
-                ops[opi] = Some(make_op(tmp_buf)?);
+                ops[opi] = Some(make_op(&mut tmp_buf)?);
                 if opi > 5 {
                     return Err(RASMError::no_tip(
                         None,
@@ -205,14 +205,14 @@ fn make_ins(line: Vec<Token>) -> Result<Instruction, RASMError> {
                     ));
                 }
                 opi += 1;
-                tmp_buf = Vec::new();
+                tmp_buf.clear();
             }
         } else {
             tmp_buf.push(t);
         }
     }
     if !tmp_buf.is_empty() {
-        ops[opi] = Some(make_op(tmp_buf)?);
+        ops[opi] = Some(make_op(&mut tmp_buf)?);
     }
     if mnems.is_empty() {
         return Err(RASMError::no_tip(
@@ -221,22 +221,22 @@ fn make_ins(line: Vec<Token>) -> Result<Instruction, RASMError> {
         ));
     }
 
-    let addt = {
+    let (mnem, addt) = {
         match mnems.len() {
-            1 => None,
-            _ => Some(mnems[1]),
+            1 => (mnems[0], None),
+            _ => (mnems[1], Some(mnems[0])),
         }
     };
 
     Ok(Instruction {
-        mnem: mnems[0],
+        mnem,
         addt,
         oprs: ops,
         line: 0,
     })
 }
 
-fn make_op(mut line: Vec<Token>) -> Result<Operand, RASMError> {
+fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
             None,
@@ -273,11 +273,8 @@ fn make_op(mut line: Vec<Token>) -> Result<Operand, RASMError> {
                             r.to_string()
                     ))))
                 };
-                if m.is_none() {
-                    return Err(RASMError::no_tip(None, Some("Expected memory address at second (idx 1) modifier")));
-                }
-                let mem = if let Token::Closure(' ', s) = *m.clone().unwrap() {
-                    Mem::new(&s, size)?
+                let mem = if let Token::Closure(' ', s) = &**m {
+                    Mem::new(s, size)?
                 } else {
                     return Err(RASMError::no_tip(None, Some("Expected memory address as second (idx 1) modifier")));
                 };

@@ -13,14 +13,16 @@ use crate::shr::{
 
 pub struct Parser;
 
+const PAR_INST_CAP: usize = 16;
+
 type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
         let mut errors: Vec<RASMError> = Vec::new();
         let mut ast = AST::default();
-        let mut tmp_attributes: Vec<String> = Vec::new();
+        let mut tmp_attributes: Vec<String> = Vec::with_capacity(4);
         let mut inside_label: (bool, String) = (false, String::new());
-        let mut instructions: Vec<Instruction> = Vec::new();
+        let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
         let section_idx: usize = 0;
         ast.sections.push(Section {
             name: String::from(".text"),
@@ -57,8 +59,8 @@ impl Parser {
                                     },
                                     align,
                                 });
-                                instructions = Vec::new();
-                                tmp_attributes = Vec::new();
+                                instructions = Vec::with_capacity(PAR_INST_CAP);
+                                tmp_attributes.clear();
                                 inside_label = (false, EMPTY_STRING.to_string())
                             }
                             if !s.is_empty() {
@@ -92,8 +94,8 @@ impl Parser {
                                     },
                                     align,
                                 });
-                                instructions = Vec::new();
-                                tmp_attributes = Vec::new();
+                                instructions = Vec::with_capacity(PAR_INST_CAP);
+                                tmp_attributes.clear();
                             }
                             inside_label = (true, lbl)
                         }
@@ -198,8 +200,8 @@ impl Parser {
 }
 
 fn split_str_into_vec(str: &str) -> Vec<String> {
-    let mut strs = Vec::new();
-    let mut buf = Vec::new();
+    let mut strs = Vec::with_capacity(8);
+    let mut buf = Vec::with_capacity(24);
     for b in str.as_bytes() {
         if b != &b',' {
             buf.push(*b);
