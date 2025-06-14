@@ -262,7 +262,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
                 size: code.0.len() as u32,
                 sindex: 1,
                 visibility: label.visibility,
-                stype: SymbolType::NoType,
+                stype: SymbolType::Func,
                 is_extern: false,
             };
             for reloc in &mut code.1 {
@@ -294,6 +294,16 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
         "elf64" => {
             symbols.extend(comp::extern_trf(&ast.externs));
             to_write = make_elf64(&to_write, relocs, &symbols, outpath);
+        }
+        "elf32-experimental" => {
+            symbols.extend(comp::extern_trf(&ast.externs));
+            let elf = obj::elf::make_elf(&sections, &to_write, &relocs, &symbols, false);
+            if let Err(why) = elf {
+                error::print_error(why, &ast.file);
+                process::exit(1);
+            }
+            let elf = elf.unwrap();
+            to_write = elf.compile(false);
         }
         "elf64-experimental" => {
             symbols.extend(comp::extern_trf(&ast.externs));

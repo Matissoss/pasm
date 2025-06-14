@@ -7,7 +7,7 @@ const EMPTY_STRING: &str = "";
 use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
     error::RASMError,
-    section::Section,
+    section::{Section, SectionAttributes},
     symbol::Visibility,
 };
 
@@ -26,6 +26,12 @@ impl Parser {
         let section_idx: usize = 0;
         ast.sections.push(Section {
             name: String::from(".text"),
+            attributes: {
+                let mut a = SectionAttributes::new();
+                a.set_exec(true);
+                a.set_alloc(true);
+                a
+            },
             ..Default::default()
         });
         for node in list {

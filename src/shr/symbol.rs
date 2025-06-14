@@ -37,6 +37,12 @@ pub struct Symbol<'a> {
     // [...]
 }
 
+impl Symbol<'_> {
+    pub fn is_global(&self) -> bool {
+        self.visibility == Visibility::Global
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct SymbolRef {
     pub symbol: String,

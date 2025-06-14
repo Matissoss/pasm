@@ -2,16 +2,16 @@
 // ---------------------------
 // made by matissoss
 // licensed under MPL 2.0
-#![allow(unused)]
 
 use crate::shr::{
     error::RASMError as Error,
     reloc::{RelType, Relocation},
     section::Section,
-    symbol::Symbol,
+    symbol::{Symbol, SymbolType},
 };
 
 // section constants
+#[allow(unused)]
 const SHT_NULL: u32 = 0;
 // .text section
 const SHT_PROGBITS: u32 = 1;
@@ -22,6 +22,7 @@ const SHT_RELA: u32 = 4;
 const SHT_REL: u32 = 9;
 
 // .bss
+#[allow(unused)]
 const SHT_NOBITS: u32 = 8;
 
 const REL_SIZE_64: u32 = 16;
@@ -68,9 +69,9 @@ pub struct ElfSymbol {
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ElfRelocation {
-    offset: u32,
-    info: u32,
-    addend: i32,
+    offset: u64,
+    addend: i64,
+    info: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -106,7 +107,7 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
         b'L',
         b'F',
         is_64bit as u8 + 1,
-        is_le as u8 + 1,
+        !is_le as u8 + 1,
         1,
         0,
         0,
@@ -126,15 +127,28 @@ impl Elf<'_> {
     }
     fn push_reloc(&mut self, reloc: &TmpRelocation, is_64bit: bool) {
         self.relocations.push(ElfRelocation {
-            offset: reloc.offset,
-            info: reloc.symbol.wrapping_shr(8)
-                + if is_64bit {
-                    reloc.reltype.to_elf64_rtype() as u32
+            offset: reloc.offset.into(),
+            info: (reloc.symbol as u64) << 32
+                | if is_64bit {
+                    (reloc.reltype.to_elf64_rtype() & 0xFF) as u32
                 } else {
-                    reloc.reltype.to_elf32_rtype()
-                },
-            addend: reloc.addend,
+                    reloc.reltype.to_elf32_rtype() & 0xFF
+                } as u64,
+            addend: reloc.addend.into(),
         });
+    }
+    pub fn push_symbols(&mut self, symbols: &[Symbol]) {
+        let mut delayed = Vec::with_capacity(symbols.len());
+        for symbol in symbols {
+            if symbol.is_global() {
+                delayed.push(symbol);
+            } else {
+                self.push_symbol(symbol);
+            }
+        }
+        for symbol in delayed {
+            self.push_symbol(symbol);
+        }
     }
     pub fn push_symbol(&mut self, symbol: &Symbol) {
         let name = self.push_strtab(symbol.name);
@@ -142,8 +156,8 @@ impl Elf<'_> {
             name,
             value: symbol.offset,
             size: symbol.size,
-            section_index: symbol.sindex as u32,
-            info: (symbol.visibility as u8).wrapping_shr(4) | (symbol.stype as u8 & 0x0F),
+            section_index: symbol.sindex as u32 + 3,
+            info: (symbol.visibility as u8) << 4 | (symbol.stype as u8 & 0x0F),
         });
     }
     pub fn push_strtab(&mut self, str: &str) -> usize {
@@ -157,22 +171,6 @@ impl Elf<'_> {
         self.shstrtab.extend(str.as_bytes());
         self.shstrtab.push(0);
         len
-    }
-    pub fn add_section(&mut self, section: Section) {
-        self.sections.push(ElfSection {
-            name: self.shstrtab.len(),
-            size: 0,
-            flags: 0,
-            offset: 0,
-            stype: 0,
-            addralign: 0,
-            entry_count: 0,
-            info: 0,
-            link: 0,
-            entry_size: 16,
-        });
-        self.shstrtab.extend(section.name.as_bytes());
-        self.shstrtab.push(0);
     }
     pub fn push_section(&mut self, section: ElfSection) {
         self.sections.push(section);
@@ -194,8 +192,20 @@ pub fn make_elf<'a>(
     is_64bit: bool,
 ) -> Result<Elf<'a>, Error> {
     let mut elf = Elf::default();
+    elf.shstrtab.push(0);
+    elf.strtab.push(0);
+    elf.symbols.push(ElfSymbol::default());
+
     let header_size = if is_64bit { EHDR_SIZE_64 } else { EHDR_SIZE_32 };
-    for section in sections {
+    for (idx, section) in sections.iter().enumerate() {
+        let symb_name = elf.push_strtab(&section.name);
+        elf.symbols.push(ElfSymbol {
+            name: symb_name,
+            section_index: idx as u32 + 4,
+            value: 0,
+            size: 0,
+            info: SymbolType::Section as u8,
+        });
         let idx = elf.push_shstrtab(&section.name);
         elf.push_section(ElfSection {
             name: idx,
@@ -253,9 +263,7 @@ pub fn make_elf<'a>(
             )));
         }
     }
-    for symbol in symbols {
-        elf.push_symbol(symbol);
-    }
+    elf.push_symbols(symbols);
     Ok(elf)
 }
 
@@ -306,6 +314,7 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
         b.extend((e.shstrtab_index as u16).to_le_bytes());
     } else {
         b.extend(1u16.to_le_bytes());
+        b.extend((e.machine as u16).to_le_bytes());
         b.extend(1u32.to_le_bytes());
         b.extend(&[0; 4]);
         b.extend(&[0; 4]);
@@ -324,17 +333,18 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
 fn reloc_collect(rel: ElfRelocation, is_64bit: bool) -> Vec<u8> {
     let mut b = Vec::with_capacity(REL_SIZE_32 as usize);
     if is_64bit {
-        b.extend((rel.offset as u64).to_le_bytes());
-        b.extend((rel.info as u64).to_le_bytes());
-        if rel.addend != 0 {
-            let addend: i64 = rel.addend.into();
-            b.extend(addend.to_le_bytes());
-        }
-    } else {
         b.extend(rel.offset.to_le_bytes());
         b.extend(rel.info.to_le_bytes());
         if rel.addend != 0 {
             b.extend(rel.addend.to_le_bytes());
+        }
+    } else {
+        b.extend((rel.offset as u32).to_le_bytes());
+        let rel_info_high = rel.info & 0xFFFF_FFFF_0000_0000;
+        let rel_info_new = (rel_info_high >> 24) as u32 | rel.info as u32;
+        b.extend(rel_info_new.to_le_bytes());
+        if rel.addend != 0 {
+            b.extend((rel.addend.try_into().unwrap_or(0i32)).to_le_bytes());
         }
     }
     b
@@ -369,7 +379,7 @@ fn find_index<'a>(reloc: &'a Relocation<'a>, symbols: &'a [Symbol<'a>]) -> Optio
     None
 }
 
-// planned rasm's ELF layout:
+// rasm's ELF layout:
 // - Elf Header (obviously)
 // - Section headers (in order):
 //      - .shstrtab
@@ -384,10 +394,8 @@ fn find_index<'a>(reloc: &'a Relocation<'a>, symbols: &'a [Symbol<'a>]) -> Optio
 //      - .strtab
 //      - .symtab
 //      - code
-//      - other sections:
-//          - x
-//          - .rel.x
-//          - .rela.x
+//      - .rel.*
+//      - .rela.*
 //
 const NULL_SHDR: ElfSection = ElfSection {
     name: 0,
@@ -402,9 +410,11 @@ const NULL_SHDR: ElfSection = ElfSection {
     entry_size: 0,
 };
 fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
-    let mut uses_rela = false;
-    let mut uses_rel = false;
+    let mut rel = Vec::new();
+    let mut rela = Vec::new();
 
+    let rela_size = if is_64bit { RELA_SIZE_64 } else { RELA_SIZE_32 };
+    let rel_size = if is_64bit { REL_SIZE_64 } else { REL_SIZE_32 };
     let sym_size = if is_64bit { SYM_SIZE_64 } else { SYM_SIZE_32 };
     let shdr_size = if is_64bit { SHDR_SIZE_64 } else { SHDR_SIZE_32 };
     let ehdr_size = if is_64bit { EHDR_SIZE_64 } else { EHDR_SIZE_32 };
@@ -425,25 +435,23 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         elf.header.section_count += 1;
         for reloc in &elf.relocations {
             if reloc.addend != 0 {
-                elf.header.section_count += 1;
-                uses_rela = true;
-                break;
+                rela.push(*reloc);
             } else {
-                uses_rel = true;
+                rel.push(*reloc);
             }
         }
     }
+    let uses_rel = !rel.is_empty();
+    let uses_rela = !rela.is_empty();
+
     bytes.extend(ehdr_collect(elf.header, is_64bit));
     // reserved:
     let shstrtab_name = elf.push_shstrtab(".shstrtab");
     let strtab_name = elf.push_shstrtab(".strtab");
     let symtab_name = elf.push_shstrtab(".symtab");
 
-    // currently we assert that there is only 1 code section: .text
-    let text_name = elf.push_shstrtab(".text");
-
     let (rel_name, rela_name) = {
-        if elf.relocations.is_empty() {
+        if rel.is_empty() && rela.is_empty() {
             (0, 0)
         } else {
             match (uses_rel, uses_rela) {
@@ -461,9 +469,9 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let content_offset = ehdr_size + (elf.header.section_count as u32 * shdr_size);
     let strtab_offset = content_offset + elf.shstrtab.len() as u32;
     let symtab_offset = strtab_offset + elf.strtab.len() as u32;
-    let code_offset = strtab_offset + elf.strtab.len() as u32;
-    // relocations we leave for very close future
-    // [...]
+    let code_offset = symtab_offset + (sym_size * elf.symbols.len() as u32);
+    let rel_offset = code_offset + elf.code.len() as u32;
+    let rela_offset = rel_offset + (rel_size * rel.len() as u32);
     // Section headers:
     bytes.extend(shdr_collect(NULL_SHDR, is_64bit));
     // .shstrtab
@@ -505,18 +513,66 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
             stype: SHT_SYMTAB,
             flags: 0,
             offset: symtab_offset,
-            info: 0,
-            link: 2, // link to .strtab(?)
             entry_count: 0,
+            link: 2, // ref to .strtab(?)
+            info: elf.symbols.len() as u32,
             entry_size: sym_size,
             addralign: 0,
             size: elf.symbols.len() as u32 * sym_size,
         },
         is_64bit,
     ));
-    // [...]
-    // Content:
-    // [...]
+    // other sections
+    for section in elf.sections {
+        bytes.extend(shdr_collect(section, is_64bit));
+    }
+    if uses_rel {
+        bytes.extend(shdr_collect(
+            ElfSection {
+                name: rel_name,
+                stype: SHT_REL,
+                info: 4,
+                link: 3,
+                size: rel.len() as u32 * rel_size,
+                entry_size: rel_size,
+                addralign: 0,
+                offset: rel_offset,
+                entry_count: rel.len() as u32,
+                flags: 0,
+            },
+            is_64bit,
+        ));
+    }
+    if uses_rela {
+        bytes.extend(shdr_collect(
+            ElfSection {
+                name: rela_name,
+                stype: SHT_RELA,
+                info: 4,
+                link: 3,
+                size: rela.len() as u32 * rela_size,
+                entry_size: rela_size,
+                addralign: 0,
+                offset: rela_offset,
+                entry_count: rela.len() as u32,
+                flags: 0,
+            },
+            is_64bit,
+        ));
+    }
 
+    // Content:
+    bytes.extend(elf.shstrtab);
+    bytes.extend(elf.strtab);
+    for symbol in elf.symbols {
+        bytes.extend(sym_collect(symbol, is_64bit));
+    }
+    bytes.extend(elf.code);
+    for rel in rel {
+        bytes.extend(reloc_collect(rel, is_64bit));
+    }
+    for rel in rela {
+        bytes.extend(reloc_collect(rel, is_64bit));
+    }
     bytes
 }
