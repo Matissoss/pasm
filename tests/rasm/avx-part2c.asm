@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vpmaxsw %xmm0, %xmm1, .xword (%rax)
 	vpminsw %xmm0, %xmm1, .xword (%rax)

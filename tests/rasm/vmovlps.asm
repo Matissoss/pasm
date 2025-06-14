@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vmovlps .qword (%rax), %xmm1
 	vmovlps %xmm0, %xmm1, .qword (%rax)

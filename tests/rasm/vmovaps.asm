@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vmovaps %xmm0, %xmm1
 	vmovaps .xword (%rax), %xmm1

@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	adcx %eax, %ebx
 	adcx %rax, %rbx

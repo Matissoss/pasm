@@ -5,7 +5,10 @@
 
 use crate::{
     conf::*,
-    shr::{error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, math, num::Number, reg::Register, symbol::SymbolRef},
+    shr::{
+        error::RASMError, ins::Mnemonic as Mnm, kwd::Keyword, math, num::Number, reg::Register,
+        symbol::SymbolRef,
+    },
 };
 use std::str::FromStr;
 

@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vsubpd %xmm0, %xmm1, %xmm2
 	vsubpd %xmm8, %xmm9, .xword (%rax)

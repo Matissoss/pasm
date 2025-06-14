@@ -79,17 +79,6 @@ impl Lexer {
                         ));
                     }
                 }
-                Some(Token::Keyword(Keyword::Global)) => {
-                    if let Some(Token::String(glob) | Token::Unknown(glob)) = line.get(1) {
-                        node = Some(ASTNode::Global(glob.to_string()));
-                    } else {
-                        error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after global keyword, expected string, found nothing"),
-                            Some("Consider adding something after global keyword")
-                        ));
-                    }
-                }
                 Some(Token::Keyword(Keyword::Math)) => match make_eval(line) {
                     Ok(n) => node = Some(ASTNode::MathEval(n.0, n.1)),
                     Err(mut e) => {

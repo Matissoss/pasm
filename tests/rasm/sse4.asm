@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	pinsrq %xmm0, %rax, $1
 	pinsrd %xmm1, %r8d, $1

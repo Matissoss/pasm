@@ -183,7 +183,7 @@ impl RASMError {
             line: None,
             msg: Some(msg.to_string()),
             tip: None,
-            etype: ExceptionType::Error
+            etype: ExceptionType::Error,
         }
     }
     pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self {

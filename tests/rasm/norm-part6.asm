@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	xadd %al, %bl
 	xadd %ax, %bx

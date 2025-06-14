@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vfnmadd132ps %xmm0, %xmm1, %xmm2
 	vfnmadd213ps %xmm0, %xmm1, %xmm2

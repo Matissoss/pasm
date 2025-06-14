@@ -3,10 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{
-    error::RASMError,
-    symbol::Symbol,
-};
+use crate::shr::{error::RASMError, symbol::Symbol};
 
 impl RelType {
     pub fn to_elf64_rtype(&self) -> u64 {
@@ -43,7 +40,7 @@ pub struct Relocation<'a> {
     pub symbol: &'a String,
     pub offset: u32,
     pub addend: i32,
-    pub reltype: RelType, 
+    pub reltype: RelType,
 }
 
 impl Relocation<'_> {
@@ -59,18 +56,28 @@ impl Relocation<'_> {
     }
 }
 
-pub fn relocate_addresses<'a>(buf: &mut [u8], rels: Vec<Relocation<'a>>, symbols: &'a [Symbol<'a>]) -> Result<(), RASMError> {
+pub fn relocate_addresses<'a>(
+    buf: &mut [u8],
+    rels: Vec<Relocation<'a>>,
+    symbols: &'a [Symbol<'a>],
+) -> Result<(), RASMError> {
     for rel in rels {
         relocate(buf, rel, symbols)?;
     }
     Ok(())
 }
 
-pub fn relocate<'a>(buf: &mut [u8], rel: Relocation<'a>, symbols: &'a [Symbol<'a>]) -> Result<(), RASMError> {
+pub fn relocate<'a>(
+    buf: &mut [u8],
+    rel: Relocation<'a>,
+    symbols: &'a [Symbol<'a>],
+) -> Result<(), RASMError> {
     let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == rel.symbol) {
         symbol
     } else {
-        return Err(RASMError::msg("Tried to do relocation with non-existent symbol"));
+        return Err(RASMError::msg(
+            "Tried to do relocation with non-existent symbol",
+        ));
     };
     let addr = rel.lea(symbol.offset).to_le_bytes();
     let buf_offset = rel.offset as usize;
@@ -87,14 +94,13 @@ pub fn relocate<'a>(buf: &mut [u8], rel: Relocation<'a>, symbols: &'a [Symbol<'a
     Ok(())
 }
 
-
 // i hope this works :)
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn rel_test() {
-        use crate::shr::symbol::{Visibility, SymbolType};
+        use crate::shr::symbol::{SymbolType, Visibility};
         // we assert here that Symbol is defined as second (idx 1)
         // byte.
         //                0     1     2     3     4     5     6     7
@@ -106,12 +112,13 @@ mod tests {
             size: 0,
             sindex: 0,
             visibility: Visibility::Local,
+            is_extern: false,
         };
         let relocation = Relocation {
             symbol: &"Symbol".to_string(),
             offset: 0x02,
             addend: 0,
-            reltype: RelType::REL32
+            reltype: RelType::REL32,
         };
         assert_eq!(relocation.lea(0x01), 1);
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
@@ -120,7 +127,7 @@ mod tests {
             symbol: &"Symbol".to_string(),
             offset: 0x03,
             addend: -1,
-            reltype: RelType::REL32
+            reltype: RelType::REL32,
         };
         assert_eq!(relocate(&mut bytes, relocation, &[symbol]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0x01, 0x01, 0x00, 0x00, 0x00, 0x91]);

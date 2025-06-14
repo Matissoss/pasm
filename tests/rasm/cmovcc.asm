@@ -1,4 +1,3 @@
-.global _start
 .bits $64
 _start:
 	cmova %ax, .word (%rsp + 2)

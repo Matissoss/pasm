@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	mulx %eax, %ebx, %ecx
 	mulx %rax, %rbx, %rcx

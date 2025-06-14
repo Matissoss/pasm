@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	sha1msg1 %xmm8, %xmm9
 	sha1msg2 %xmm8, %xmm9

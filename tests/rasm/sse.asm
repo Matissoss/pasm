@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	cvtpi2ps %xmm0, %mm0
 	cvtpi2ps %xmm0, .qword (%rax)

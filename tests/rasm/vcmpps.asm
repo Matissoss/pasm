@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vcmpps %xmm0, %xmm1, %xmm2, $1
 	vcmpps %xmm8, %xmm9, %xmm10, $1

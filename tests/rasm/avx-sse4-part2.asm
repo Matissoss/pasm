@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vblendps %xmm0, %xmm1, %xmm0, $10
 	vblendps %ymm0, %ymm1, %ymm0, $10

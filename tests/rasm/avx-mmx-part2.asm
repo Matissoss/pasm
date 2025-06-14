@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vpsubusb %xmm0, %xmm1, %xmm2
 	vpsubusw %xmm0, %xmm1, %xmm2

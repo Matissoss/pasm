@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vdivpd %xmm0, %xmm1, %xmm2
 	vdivpd %xmm8, %xmm9, .xword (%rax)

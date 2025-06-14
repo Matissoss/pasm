@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	stmxcsr .dword (%rax)
 	vstmxcsr .dword (%rax)

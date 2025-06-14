@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vorpd %xmm0, %xmm1, %xmm2
 	vorpd %xmm8, %xmm9, %xmm10

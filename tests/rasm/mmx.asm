@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	paddb %mm0, .qword (%rax)
 	paddw %mm1, %mm2

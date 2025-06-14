@@ -10,11 +10,11 @@ use crate::{
         ins::Mnemonic as Ins,
         num::Number,
         reg::{Purpose as RPurpose, Register},
+        reloc::RelType,
         reloc::Relocation,
         segment::Segment,
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
-        reloc::RelType,
     },
 };
 
@@ -42,6 +42,7 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
             sindex: 0,
             stype: SymbolType::NoType,
             visibility: Visibility::Global,
+            is_extern: true,
         });
     }
     symbols
@@ -5796,7 +5797,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         //Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
         //Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
         //Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
-
         Ins::LSL => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x03])

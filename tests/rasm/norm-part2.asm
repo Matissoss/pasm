@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	invpcid %rax, .xword (%rax)
 	iret

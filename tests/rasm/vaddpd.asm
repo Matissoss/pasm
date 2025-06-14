@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vaddpd %xmm0, %xmm1, %xmm2
 	vaddpd %xmm8, %xmm9, %xmm10

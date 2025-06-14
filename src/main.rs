@@ -14,18 +14,16 @@ use std::{
     fs::{File, OpenOptions},
     io::Write,
     path::PathBuf,
-    process,
-    rc::Rc,
-    time,
+    process, time,
 };
 
 // local imports go here
 
 // rasmx86_64 modules
 pub mod core;
+pub mod obj;
 pub mod pre;
 pub mod pre_core;
-pub mod obj;
 pub mod shr;
 
 use core::comp;
@@ -252,31 +250,31 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
     let mut relocs = Vec::new();
     let mut to_write: Vec<u8> = Vec::new();
 
-    ast.make_globals();
     ast.fix_entry();
-
-    let astrc = Rc::new(ast);
-    let astrc_ref = Rc::clone(&astrc);
-
-    for label in &astrc_ref.labels {
-        let mut res = comp::compile_label(label, to_write.len());
-        let mut symb = Symbol {
-            name: &label.name,
-            offset: to_write.len() as u32,
-            size: 0,
-            sindex: 1,
-            visibility: label.visibility,
-            stype: SymbolType::Func,
-        };
-        for r in &mut res.1 {
-            r.offset += to_write.len() as u32;
+    let mut sections: Vec<&crate::shr::section::Section> = Vec::new();
+    for section in &mut ast.sections {
+        let prev_len = to_write.len();
+        for label in &section.content {
+            let mut code = comp::compile_label(label, to_write.len());
+            let label_symbol = Symbol {
+                name: &label.name,
+                offset: to_write.len() as u32,
+                size: code.0.len() as u32,
+                sindex: 1,
+                visibility: label.visibility,
+                stype: SymbolType::NoType,
+                is_extern: false,
+            };
+            for reloc in &mut code.1 {
+                reloc.offset += to_write.len() as u32;
+            }
+            relocs.extend(code.1);
+            to_write.extend(code.0);
+            symbols.push(label_symbol);
         }
-        relocs.extend(res.1);
-        to_write.extend(res.0);
-        symb.size = to_write.len() as u32 - symb.offset;
-        symbols.push(symb);
+        section.size = (to_write.len() - prev_len) as u32;
+        sections.push(section);
     }
-
     match form {
         "bin" => {
             if let Err(err) = shr::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
@@ -290,16 +288,22 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
             }
         }
         "elf32" => {
-            let astref = Rc::clone(&astrc);
-            symbols.extend(comp::extern_trf(&astref.externs));
+            symbols.extend(comp::extern_trf(&ast.externs));
             to_write = make_elf32(&to_write, relocs, &symbols, outpath);
-            drop(astref);
         }
         "elf64" => {
-            let astref = Rc::clone(&astrc);
-            symbols.extend(comp::extern_trf(&astref.externs));
+            symbols.extend(comp::extern_trf(&ast.externs));
             to_write = make_elf64(&to_write, relocs, &symbols, outpath);
-            drop(astref);
+        }
+        "elf64-experimental" => {
+            symbols.extend(comp::extern_trf(&ast.externs));
+            let elf = obj::elf::make_elf(&sections, &to_write, &relocs, &symbols, true);
+            if let Err(why) = elf {
+                error::print_error(why, &ast.file);
+                process::exit(1);
+            }
+            let elf = elf.unwrap();
+            to_write = elf.compile(true);
         }
         _ => CLI.exit(
             "main.rs",

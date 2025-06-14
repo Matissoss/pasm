@@ -7,6 +7,7 @@ const EMPTY_STRING: &str = "";
 use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
     error::RASMError,
+    section::Section,
     symbol::Visibility,
 };
 
@@ -20,7 +21,11 @@ impl Parser {
         let mut tmp_attributes: Vec<String> = Vec::new();
         let mut inside_label: (bool, String) = (false, String::new());
         let mut instructions: Vec<Instruction> = Vec::new();
-
+        let section_idx: usize = 0;
+        ast.sections.push(Section {
+            name: String::from(".text"),
+            ..Default::default()
+        });
         for node in list {
             match node {
                 Err(error) => errors.push(error),
@@ -37,7 +42,7 @@ impl Parser {
                                             continue;
                                         }
                                     };
-                                ast.labels.push(Label {
+                                ast.sections[section_idx].content.push(Label {
                                     name: inside_label.1,
                                     inst: instructions,
                                     visibility: if global {
@@ -72,7 +77,7 @@ impl Parser {
                                             continue;
                                         }
                                     };
-                                ast.labels.push(Label {
+                                ast.sections[section_idx].content.push(Label {
                                     name: inside_label.1,
                                     inst: instructions,
                                     visibility: if global {
@@ -101,16 +106,6 @@ impl Parser {
                                 ));
                             } else {
                                 instructions.push(ins);
-                            }
-                        }
-                        ASTNode::Global(glob) => {
-                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
-                                ast.globals.push(glob);
-                            } else {
-                                errors.push(RASMError::no_tip(
-                                    Some(node.1),
-                                    Some("Globals can be only declared outside of labels, not inside of"),
-                                ));
                             }
                         }
                         ASTNode::Extern(extrn) => {
@@ -177,7 +172,7 @@ impl Parser {
                     (0, 0, false)
                 }
             };
-            ast.labels.push(Label {
+            ast.sections[section_idx].content.push(Label {
                 name: inside_label.1,
                 inst: instructions,
                 visibility: if global {

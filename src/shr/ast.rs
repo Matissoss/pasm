@@ -14,9 +14,10 @@ use crate::shr::{
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
+    section::Section,
     segment::Segment,
     size::Size,
-    symbol::{Visibility, SymbolRef}
+    symbol::{SymbolRef, Visibility},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,7 +50,6 @@ pub enum ASTNode {
     Entry(String),
     Label(String),
     Extern(String),
-    Global(String),
     Include(PathBuf),
     MathEval(String, String),
 }
@@ -65,35 +65,15 @@ pub struct Label {
 
 #[derive(Debug, Clone, Default)]
 pub struct AST {
-    pub labels: Vec<Label>,
-    pub globals: Vec<String>,
+    pub sections: Vec<Section>,
+    //pub labels: Vec<Label>,
+    //pub globals: Vec<String>,
     pub externs: Vec<String>,
     pub bits: Option<u8>,
     pub entry: Option<String>,
     pub includes: Vec<PathBuf>,
     pub math: Vec<(String, String)>,
     pub file: PathBuf,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct SymbolDeclaration {
-    name: String,
-    size: Option<u32>,
-    cont: Option<SymbolValue>,
-    stype: Section,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum SymbolValue {
-    Number(Number),
-    String(String),
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Section {
-    Data,
-    Bss,
-    Readonly,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -431,19 +411,19 @@ impl Instruction {
 impl AST {
     pub fn fix_entry(&mut self) {
         if let Some(entry) = &self.entry {
-            for index in 0..self.labels.len() {
-                if &self.labels[index].name == entry {
-                    if index == 0 {
+            for index in 0..self.sections.len() {
+                for label in &mut self.sections[index].content {
+                    if &label.name == entry {
+                        let (flabel, llabel) = self.sections[index].content.split_at_mut(index);
+                        llabel[0].visibility = Visibility::Global;
+                        std::mem::swap(&mut flabel[0], &mut llabel[0]);
                         return;
                     }
-                    let (flabel, llabel) = self.labels.split_at_mut(index);
-                    llabel[0].visibility = Visibility::Global;
-                    std::mem::swap(&mut flabel[0], &mut llabel[0]);
-                    return;
                 }
             }
         }
     }
+    /*
     pub fn make_globals(&mut self) {
         for g in &self.globals {
             for l in &mut self.labels {
@@ -454,15 +434,16 @@ impl AST {
             }
         }
     }
+    */
     pub fn extend(&mut self, rhs: Self) -> Result<(), RASMError> {
-        for l in rhs.labels {
-            if self.labels.contains(&l) {
+        for l in rhs.sections {
+            if self.sections.contains(&l) {
                 return Err(RASMError::no_tip(
                     None,
                     Some(format!("Multiple files contains label {}", l.name)),
                 ));
             }
-            self.labels.push(l);
+            self.sections.push(l);
         }
         for l in rhs.includes {
             if self.includes.contains(&l) {
@@ -476,6 +457,7 @@ impl AST {
             }
             self.includes.push(l);
         }
+        /*
         for l in rhs.externs {
             if self.externs.contains(&l) {
                 return Err(RASMError::no_tip(
@@ -485,8 +467,9 @@ impl AST {
             }
             self.externs.push(l);
         }
+        */
         self.math.extend(rhs.math);
-        self.globals.extend(rhs.globals);
+        //self.globals.extend(rhs.globals);
         Ok(())
     }
 }

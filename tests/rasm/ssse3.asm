@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	pabsb %xmm0, %xmm1
 	pabsb %mm0, %mm1

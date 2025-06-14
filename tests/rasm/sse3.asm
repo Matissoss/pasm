@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	addsubpd %xmm0, %xmm1
 	addsubps %xmm0, %xmm1

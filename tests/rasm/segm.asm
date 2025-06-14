@@ -1,6 +1,4 @@
-.global _start
 .bits $64
-
 _start:
 	mov %eax, %fs:(%rax) .dword
 	mov %ebx, %cs:(%rbx) .dword

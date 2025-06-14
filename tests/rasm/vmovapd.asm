@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vmovapd %xmm0, %xmm1
 	vmovapd .xword (%rax), %xmm1

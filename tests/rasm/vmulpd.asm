@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vmulpd %xmm0, %xmm1, %xmm2
 	vmulpd %xmm8, %xmm9, .xword (%rax)

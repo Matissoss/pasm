@@ -11,6 +11,7 @@ pub mod num;
 pub mod reg;
 pub mod reloc;
 pub mod rpanic;
+pub mod section;
 pub mod segment;
 pub mod size;
 pub mod symbol;

@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	pavgb %xmm0, %xmm1
 	pavgb %mm0, %mm1

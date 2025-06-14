@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	adc %rax, $10
 	adc %rax, $256

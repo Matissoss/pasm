@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vcvtsi2sd %xmm0, %xmm1, %eax
 	vcvtsi2sd %xmm0, %xmm1, %rax

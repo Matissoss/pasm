@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	xchg %rbx, %rax
 	xchg %r8, %r9

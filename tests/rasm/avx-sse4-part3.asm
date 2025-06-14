@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vextractps %eax, %xmm1, $10
 	vpmaxub %xmm1, %xmm2, %xmm3

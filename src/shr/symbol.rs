@@ -3,11 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{
-    num::Number,
-    error::RASMError,
-    reloc::RelType,
-};
+use crate::shr::{error::RASMError, num::Number, reloc::RelType};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -32,10 +28,11 @@ pub enum SymbolType {
 pub struct Symbol<'a> {
     pub name: &'a String,
     pub offset: u32,
-    pub size  : u32,
+    pub size: u32,
     pub sindex: u16,
     pub visibility: Visibility,
     pub stype: SymbolType,
+    pub is_extern: bool,
     // TODO: add flags and stuff
     // [...]
 }
@@ -86,16 +83,16 @@ impl SymbolRef {
                         match new_tok(string) {
                             Token::Number(n) => addend = n.get_as_i32(),
                             Token::String(s) => name = s,
-                            Token::RelType(r)=> rtype = r,
+                            Token::RelType(r) => rtype = r,
                         }
                         tmp_buf = Vec::new();
                     }
                     if *b == b'+' || *b == b'-' {
                         tmp_buf.push(*b);
                     }
-                    continue
+                    continue;
                 }
-                b' '|b'\t' => continue,
+                b' ' | b'\t' => continue,
                 _ => tmp_buf.push(*b),
             }
         }
@@ -104,19 +101,20 @@ impl SymbolRef {
             match new_tok(string) {
                 Token::Number(n) => addend = n.get_as_i32(),
                 Token::String(s) => name = s,
-                Token::RelType(r)=> rtype = r,
+                Token::RelType(r) => rtype = r,
             }
         }
 
         if name.is_empty() {
-            return Err(Error::msg("Tried to use reference a symbol, but you didn't provided name"));
+            return Err(Error::msg(
+                "Tried to use reference a symbol, but you didn't provided name",
+            ));
         }
-
 
         Ok(Self {
             symbol: name,
             reltype: rtype,
-            addend
+            addend,
         })
     }
 }
@@ -125,7 +123,11 @@ impl ToString for SymbolRef {
     fn to_string(&self) -> String {
         let mut string = self.symbol.clone();
         string.push(':');
-        string.push_str(if self.reltype == RelType::REL32 {"rel"} else {"abs"});
+        string.push_str(if self.reltype == RelType::REL32 {
+            "rel"
+        } else {
+            "abs"
+        });
         if self.addend != 0 {
             string.push(':');
             string.push_str(&self.addend.to_string());
@@ -138,30 +140,42 @@ impl ToString for SymbolRef {
 mod tests {
     use super::*;
     #[test]
-    fn rel_fromstr(){
+    fn rel_fromstr() {
         let str0 = "symbol:abs:+10";
         let str1 = "symbol:-10";
         let str2 = "symbol:abs";
         let str3 = "symbol";
-        assert_eq!(SymbolRef::try_new(str0), Ok(SymbolRef {
-            symbol: String::from("symbol"),
-            reltype: RelType::ABS32,
-            addend: 10
-        }));
-        assert_eq!(SymbolRef::try_new(str1), Ok(SymbolRef {
-            symbol: String::from("symbol"),
-            addend: -10,
-            reltype: RelType::REL32
-        }));
-        assert_eq!(SymbolRef::try_new(str2), Ok(SymbolRef {
-            symbol: String::from("symbol"),
-            reltype: RelType::ABS32,
-            addend: 0
-        }));
-        assert_eq!(SymbolRef::try_new(str3), Ok(SymbolRef {
-            symbol: String::from("symbol"),
-            addend: 0,
-            reltype: RelType::REL32
-        }));
+        assert_eq!(
+            SymbolRef::try_new(str0),
+            Ok(SymbolRef {
+                symbol: String::from("symbol"),
+                reltype: RelType::ABS32,
+                addend: 10
+            })
+        );
+        assert_eq!(
+            SymbolRef::try_new(str1),
+            Ok(SymbolRef {
+                symbol: String::from("symbol"),
+                addend: -10,
+                reltype: RelType::REL32
+            })
+        );
+        assert_eq!(
+            SymbolRef::try_new(str2),
+            Ok(SymbolRef {
+                symbol: String::from("symbol"),
+                reltype: RelType::ABS32,
+                addend: 0
+            })
+        );
+        assert_eq!(
+            SymbolRef::try_new(str3),
+            Ok(SymbolRef {
+                symbol: String::from("symbol"),
+                addend: 0,
+                reltype: RelType::REL32
+            })
+        );
     }
 }

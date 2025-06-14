@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vcomisd %xmm1, %xmm2
 	vcomisd %xmm9, %xmm10

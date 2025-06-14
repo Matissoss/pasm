@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	cvtpd2pi %mm0, %xmm9
 	cvtss2si %eax, %xmm9

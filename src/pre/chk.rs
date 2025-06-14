@@ -18,7 +18,7 @@ use AType::*;
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     let mut errors: Vec<(String, Vec<RASMError>)> = Vec::new();
 
-    for label in &file.labels {
+    for label in &file.sections[0].content {
         let chk_ins: fn(&Instruction) -> Option<RASMError> = match label.bits {
             64 => check_ins64bit,
             _ => check_ins32bit,

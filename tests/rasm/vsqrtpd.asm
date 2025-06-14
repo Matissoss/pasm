@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vsqrtpd %xmm0, %xmm1
 	vsqrtpd %xmm0, .xword (%rax)

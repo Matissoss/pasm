@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vdpps %xmm0, %xmm1, %xmm2, $10
 	vdpps %ymm0, %ymm1, %ymm2, $10

@@ -1,5 +1,4 @@
 .bits $64
-.global _start
 _start:
 	vrcpps %xmm0, %xmm1
 	vrcpps %xmm0, .xword (%rax)

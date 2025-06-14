@@ -146,7 +146,13 @@ impl Number {
 fn num_from_str(str: &str) -> Result<Number, RASMError> {
     let sign = str.starts_with("-");
     let plus_sign = str.starts_with("+");
-    let sign_str = if sign { "-" } else if plus_sign { "+" } else { "" };
+    let sign_str = if sign {
+        "-"
+    } else if plus_sign {
+        "+"
+    } else {
+        ""
+    };
     let hex_init = "0x";
     let bin_init = "0b";
     let oct_init = "0o";
