@@ -20,8 +20,18 @@ const SHT_SYMTAB: u32 = 2;
 const SHT_STRTAB: u32 = 3;
 const SHT_RELA: u32 = 4;
 const SHT_REL: u32 = 9;
+
 // .bss
 const SHT_NOBITS: u32 = 8;
+
+const REL_SIZE_64: u32 = 16;
+const REL_SIZE_32: u32 = 8;
+
+const RELA_SIZE_64: u32 = 24;
+const RELA_SIZE_32: u32 = 12;
+
+const SYM_SIZE_64: u32 = 24;
+const SYM_SIZE_32: u32 = 16;
 
 const EHDR_SIZE_64: u32 = 64;
 const EHDR_SIZE_32: u32 = 52;
@@ -250,7 +260,7 @@ pub fn make_elf<'a>(
 }
 
 fn shdr_collect(e: ElfSection, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::new();
+    let mut b = Vec::with_capacity(SHDR_SIZE_32 as usize);
     if is_64bit {
         b.extend((e.name as u32).to_le_bytes());
         b.extend(e.stype.to_le_bytes());
@@ -278,7 +288,7 @@ fn shdr_collect(e: ElfSection, is_64bit: bool) -> Vec<u8> {
 }
 
 fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::new();
+    let mut b = Vec::with_capacity(EHDR_SIZE_32 as usize);
     if is_64bit {
         b.extend(1u16.to_le_bytes());
         b.extend((e.machine as u16).to_le_bytes());
@@ -307,6 +317,45 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
         b.extend((SHDR_SIZE_32 as u16).to_le_bytes());
         b.extend((e.section_count as u16).to_le_bytes());
         b.extend((e.shstrtab_index as u16).to_le_bytes());
+    }
+    b
+}
+
+fn reloc_collect(rel: ElfRelocation, is_64bit: bool) -> Vec<u8> {
+    let mut b = Vec::with_capacity(REL_SIZE_32 as usize);
+    if is_64bit {
+        b.extend((rel.offset as u64).to_le_bytes());
+        b.extend((rel.info as u64).to_le_bytes());
+        if rel.addend != 0 {
+            let addend: i64 = rel.addend.into();
+            b.extend(addend.to_le_bytes());
+        }
+    } else {
+        b.extend(rel.offset.to_le_bytes());
+        b.extend(rel.info.to_le_bytes());
+        if rel.addend != 0 {
+            b.extend(rel.addend.to_le_bytes());
+        }
+    }
+    b
+}
+
+fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
+    let mut b = Vec::with_capacity(SYM_SIZE_32 as usize);
+    if is_64bit {
+        b.extend((symb.name as u32).to_le_bytes());
+        b.extend(symb.info.to_le_bytes());
+        b.extend([0; 1]);
+        b.extend((symb.section_index as u16).to_le_bytes());
+        b.extend((symb.value as u64).to_le_bytes());
+        b.extend((symb.size as u64).to_le_bytes());
+    } else {
+        b.extend((symb.name as u32).to_le_bytes());
+        b.extend(symb.value.to_le_bytes());
+        b.extend(symb.size.to_le_bytes());
+        b.extend(symb.info.to_le_bytes());
+        b.extend([0; 1]);
+        b.extend((symb.section_index as u16).to_le_bytes());
     }
     b
 }
@@ -340,12 +389,134 @@ fn find_index<'a>(reloc: &'a Relocation<'a>, symbols: &'a [Symbol<'a>]) -> Optio
 //          - .rel.x
 //          - .rela.x
 //
+const NULL_SHDR: ElfSection = ElfSection {
+    name: 0,
+    entry_count: 0,
+    info: 0,
+    addralign: 0,
+    link: 0,
+    stype: 0,
+    flags: 0,
+    offset: 0,
+    size: 0,
+    entry_size: 0,
+};
 fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
+    let mut uses_rela = false;
+    let mut uses_rel = false;
+
+    let sym_size = if is_64bit { SYM_SIZE_64 } else { SYM_SIZE_32 };
+    let shdr_size = if is_64bit { SHDR_SIZE_64 } else { SHDR_SIZE_32 };
+    let ehdr_size = if is_64bit { EHDR_SIZE_64 } else { EHDR_SIZE_32 };
+
+    let mut bytes = Vec::with_capacity(16);
     // ELF header:
+    bytes.extend(mk_ident(is_64bit, true));
+
+    // we add .shstrtab, .strtab, .symtab and NULL section
+    elf.header.section_count += elf.sections.len() + 4;
+    elf.header.shstrtab_index = 1;
+    elf.header.machine = if is_64bit { EM_X86_64 } else { EM_I386 };
+    elf.header.section_offset = ehdr_size;
+
+    // for now we assert that there is only
+    // one section for relocs (wout addend): .rel.text
+    if !elf.relocations.is_empty() {
+        elf.header.section_count += 1;
+        for reloc in &elf.relocations {
+            if reloc.addend != 0 {
+                elf.header.section_count += 1;
+                uses_rela = true;
+                break;
+            } else {
+                uses_rel = true;
+            }
+        }
+    }
+    bytes.extend(ehdr_collect(elf.header, is_64bit));
+    // reserved:
+    let shstrtab_name = elf.push_shstrtab(".shstrtab");
+    let strtab_name = elf.push_shstrtab(".strtab");
+    let symtab_name = elf.push_shstrtab(".symtab");
+
+    // currently we assert that there is only 1 code section: .text
+    let text_name = elf.push_shstrtab(".text");
+
+    let (rel_name, rela_name) = {
+        if elf.relocations.is_empty() {
+            (0, 0)
+        } else {
+            match (uses_rel, uses_rela) {
+                (true, true) => (
+                    elf.push_shstrtab(".rel.text"),
+                    elf.push_shstrtab(".rela.text"),
+                ),
+                (true, false) => (elf.push_shstrtab(".rel.text"), 0),
+                (false, true) => (0, elf.push_shstrtab(".rela.text")),
+                (false, false) => (0, 0),
+            }
+        }
+    };
+
+    let content_offset = ehdr_size + (elf.header.section_count as u32 * shdr_size);
+    let strtab_offset = content_offset + elf.shstrtab.len() as u32;
+    let symtab_offset = strtab_offset + elf.strtab.len() as u32;
+    let code_offset = strtab_offset + elf.strtab.len() as u32;
+    // relocations we leave for very close future
     // [...]
     // Section headers:
+    bytes.extend(shdr_collect(NULL_SHDR, is_64bit));
+    // .shstrtab
+    bytes.extend(shdr_collect(
+        ElfSection {
+            name: shstrtab_name,
+            stype: SHT_STRTAB,
+            addralign: 1,
+            info: 0,
+            link: 0,
+            size: elf.shstrtab.len() as u32,
+            entry_count: 0,
+            entry_size: 0,
+            flags: 0,
+            offset: content_offset,
+        },
+        is_64bit,
+    ));
+    // .strtab
+    bytes.extend(shdr_collect(
+        ElfSection {
+            name: strtab_name,
+            offset: strtab_offset,
+            size: elf.strtab.len() as u32,
+            stype: SHT_STRTAB,
+            entry_count: 0,
+            entry_size: 1,
+            info: 0,
+            addralign: 1,
+            link: 0,
+            flags: 0,
+        },
+        is_64bit,
+    ));
+    // .symtab
+    bytes.extend(shdr_collect(
+        ElfSection {
+            name: symtab_name,
+            stype: SHT_SYMTAB,
+            flags: 0,
+            offset: symtab_offset,
+            info: 0,
+            link: 2, // link to .strtab(?)
+            entry_count: 0,
+            entry_size: sym_size,
+            addralign: 0,
+            size: elf.symbols.len() as u32 * sym_size,
+        },
+        is_64bit,
+    ));
     // [...]
     // Content:
     // [...]
-    Vec::new()
+
+    bytes
 }
