@@ -219,6 +219,11 @@ impl Parser {
         if inside_section != Section::default() {
             inside_section.content = labels;
             ast.sections.push(inside_section);
+        } else if !labels.is_empty() {
+            inside_section.bits = 16;
+            inside_section.name = String::from(".rasm.default");
+            inside_section.content = labels;
+            ast.sections.push(inside_section);
         }
 
         if !errors.is_empty() {
