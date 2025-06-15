@@ -250,8 +250,9 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
 
     ast.fix_entry();
     let mut sections: Vec<&crate::shr::section::Section> = Vec::new();
-    for section in &mut ast.sections {
+    for (idx, section) in ast.sections.iter_mut().enumerate() {
         let prev_len = to_write.len();
+        section.offset = to_write.len() as u32;
         for label in &section.content {
             let mut code = comp::compile_label(label, to_write.len());
             let label_symbol = Symbol {
@@ -264,6 +265,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
                 is_extern: false,
             };
             for reloc in &mut code.1 {
+                reloc.shidx = idx as u16;
                 reloc.offset += to_write.len() as u32;
             }
             relocs.extend(code.1);

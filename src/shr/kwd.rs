@@ -23,7 +23,7 @@ pub enum Keyword {
     // sections
     Section,
     Align,
-    Read,
+    Exec,
     Write,
     Alloc,
 
@@ -58,7 +58,7 @@ impl FromStr for Keyword {
             3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
 
             4 => match kwd_raw[0] as char {
-                'r' => kwd_ie(kwd, b"read", 1, 3, Keyword::Read),
+                'e' => kwd_ie(kwd, b"exec", 1, 3, Keyword::Exec),
                 'm' => kwd_ie(kwd, b"math", 1, 3, Keyword::Math),
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
@@ -73,9 +73,9 @@ impl FromStr for Keyword {
                     'l' => match kwd_raw[2] as char {
                         'i' => kwd_ie(kwd, b"align", 3, 4, Keyword::Align),
                         'l' => kwd_ie(kwd, b"alloc", 3, 4, Keyword::Alloc),
-                        _   => Err(()),
+                        _ => Err(()),
                     },
-                    _ => Err(())
+                    _ => Err(()),
                 },
                 'w' => kwd_ie(kwd, b"write", 1, 4, Keyword::Write),
                 'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
@@ -106,7 +106,7 @@ impl ToString for Keyword {
         match self {
             Self::Include => String::from("include"),
             Self::Align => String::from("align"),
-            Self::Read => String::from("read"),
+            Self::Exec => String::from("exec"),
             Self::Write => String::from("write"),
             Self::Alloc => String::from("alloc"),
             Self::Section => String::from("section"),

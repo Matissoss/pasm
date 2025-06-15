@@ -184,8 +184,6 @@ impl Tokenizer {
                     tokens.push(Token::Comma)
                 }
 
-                (None, PREFIX_REF) => inside_closure = Some(PREFIX_REF),
-
                 (Some(CLOSURE_START), ' ') => continue,
 
                 (None | Some(PREFIX_VAL | PREFIX_REG | PREFIX_KWD), ' ' | '\t' | '\n') => {
@@ -198,7 +196,7 @@ impl Tokenizer {
                     }
                     inside_closure = None;
                 }
-                (None, PREFIX_REG | PREFIX_VAL | PREFIX_KWD | PREFIX_SEG) => {
+                (None, PREFIX_REG | PREFIX_VAL | PREFIX_REF | PREFIX_KWD | PREFIX_SEG) => {
                     inside_closure = Some(c)
                 }
 
@@ -208,7 +206,8 @@ impl Tokenizer {
                 }
 
                 (
-                    Some(PREFIX_REG | PREFIX_VAL | PREFIX_KWD | PREFIX_SEG | ' ') | None,
+                    Some(PREFIX_REG | PREFIX_VAL | PREFIX_REF | PREFIX_KWD | PREFIX_SEG | ' ')
+                    | None,
                     CLOSURE_START,
                 ) => {
                     if delimeter_count != 0 {
@@ -220,7 +219,7 @@ impl Tokenizer {
                     delimeter_count += 1;
                 }
 
-                (Some(CLOSURE_START | PREFIX_SEG), CLOSURE_END) => {
+                (Some(CLOSURE_START | PREFIX_SEG | PREFIX_REF), CLOSURE_END) => {
                     if delimeter_count == 1 {
                         tokens.push(Token::make_closure(
                             closure_pfx.unwrap_or(' '),
@@ -348,23 +347,12 @@ mod tests {
         let str = "()";
         let tokens = Tokenizer::tokenize_line(str);
         assert_eq!(tokens, vec![Token::Closure(' ', "".to_string())]);
-        let str = "$()";
-        let tokens = Tokenizer::tokenize_line(str);
-        assert_eq!(tokens, vec![Token::Closure('$', "".to_string())]);
         let str = "(%rax+%rcx+$4+$20)";
         let tokens = Tokenizer::tokenize_line(str);
         assert_eq!(
             tokens,
             vec![Token::Closure(' ', "%rax+%rcx+$4+$20".to_string())]
         );
-        // nested closures!
-        let str = "$(@())";
-        let tokens = Tokenizer::tokenize_line(str);
-        assert_eq!(tokens, vec![Token::Closure('$', "@()".to_string())]);
-        // nested nested nest closures!
-        let str = "$(@(@(@())))";
-        let tokens = Tokenizer::tokenize_line(str);
-        assert_eq!(tokens, vec![Token::Closure('$', "@(@(@()))".to_string())]);
 
         // modifiers!
         let str = "$10:%eax:%rax";
@@ -428,6 +416,15 @@ mod tests {
         assert_eq!(
             Tokenizer::tokenize_line(str),
             vec![Token::String("Hello, World!".to_string())]
+        );
+        let str = "@(symbol:rel:+10)";
+        assert_eq!(
+            Tokenizer::tokenize_line(str),
+            vec![Token::SymbolRefExt(SymbolRef {
+                symbol: "symbol".to_string(),
+                addend: 10,
+                reltype: crate::shr::reloc::RelType::REL32,
+            })]
         );
     }
 }

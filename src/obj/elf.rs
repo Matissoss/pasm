@@ -68,9 +68,12 @@ pub struct ElfSymbol {
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ElfRelocation {
+    // elf info
     offset: u64,
     addend: i64,
     info: u64,
+    // rasm's added
+    sindex: u16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -144,6 +147,7 @@ impl<'a> Elf<'a> {
                     reloc.reltype.to_elf32_rtype() & 0xFF
                 } as u64,
             addend: reloc.addend.into(),
+            sindex: reloc.sindex,
         });
     }
     // returns count of global symbols
@@ -202,6 +206,7 @@ struct TmpRelocation {
     symbol: u32,
     offset: u32,
     addend: i32,
+    sindex: u16,
     reltype: RelType,
 }
 
@@ -266,10 +271,7 @@ fn make_elf<'a>(
             },
             entry_count: 0,
 
-            // we assert that every section currently is code
-            // (will be later specified with addralign parameter)
-            addralign: 16,
-
+            addralign: section.align as u32,
             entry_size: 0,
             // idk
             link: 0,
@@ -286,6 +288,7 @@ fn make_elf<'a>(
                     offset: reloc.offset,
                     addend: reloc.addend,
                     reltype: reloc.reltype,
+                    sindex: reloc.shidx,
                 },
                 is_64bit,
             );
@@ -463,12 +466,23 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     elf.header.section_offset = ehdr_size;
 
     // for now we assert that there is only
-    // one section for relocs (wout addend): .rel.text
+    // one section for relocs (w-out addend): .rel.text
+    let (mut rel_shidx, mut rela_shidx) = (0, 0);
+    let mut counter = 0;
     if !elf.relocations.is_empty() {
+        counter = 1;
         for reloc in &elf.relocations {
             if reloc.addend != 0 {
+                if reloc.sindex != rela_shidx {
+                    rela_shidx += 1;
+                    counter += 1;
+                }
                 rela.push(*reloc);
             } else {
+                if reloc.sindex != rel_shidx {
+                    rel_shidx += 1;
+                    counter += 1;
+                }
                 rel.push(*reloc);
             }
         }
@@ -476,7 +490,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let uses_rel = !rel.is_empty();
     let uses_rela = !rela.is_empty();
 
-    elf.header.section_count += uses_rel as usize + uses_rela as usize;
+    elf.header.section_count += counter;
 
     bytes.extend(ehdr_collect(elf.header, is_64bit));
     // reserved:
@@ -610,4 +624,18 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         bytes.extend(reloc_collect(rel, is_64bit));
     }
     bytes
+}
+
+#[allow(unused)]
+fn cstring(vec: &[u8], mut idx: usize) -> String {
+    let mut string = String::new();
+    while idx < vec.len() {
+        if vec[idx] == 0 {
+            break;
+        } else {
+            string.push(vec[idx] as char);
+            idx += 1;
+        }
+    }
+    string
 }

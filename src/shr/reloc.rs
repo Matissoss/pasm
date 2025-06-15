@@ -40,6 +40,7 @@ pub struct Relocation<'a> {
     pub symbol: &'a String,
     pub offset: u32,
     pub addend: i32,
+    pub shidx: u16,
     pub reltype: RelType,
 }
 

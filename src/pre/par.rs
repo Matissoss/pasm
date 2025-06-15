@@ -15,6 +15,7 @@ pub struct Parser;
 
 const PAR_INST_CAP: usize = 16;
 
+type Error = RASMError;
 type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
@@ -23,7 +24,7 @@ impl Parser {
         let mut tmp_attributes: Vec<String> = Vec::with_capacity(4);
         let mut inside_label: (bool, String) = (false, String::new());
         let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
-        let section_idx: usize = 0;
+        let mut section_idx: usize = 0;
         ast.sections.push(Section {
             name: String::from(".text"),
             attributes: {
@@ -34,37 +35,113 @@ impl Parser {
             },
             ..Default::default()
         });
+        let mut inside_section: Option<Section> = ast.sections.pop();
         for node in list {
             match node {
                 Err(error) => errors.push(error),
                 Ok(node) => {
                     match node.0 {
+                        ASTNode::Write => {
+                            if inside_section.is_none() || inside_label.0 {
+                                errors.push(Error::no_tip(
+                                    Some(node.1),
+                                    Some("Align keyword can only be used inside sections."),
+                                ));
+                            } else {
+                                let mut section = inside_section.unwrap();
+                                section.attributes.set_write(true);
+                                inside_section = Some(section);
+                            }
+                        }
+                        ASTNode::Exec => {
+                            if inside_section.is_none() || inside_label.0 {
+                                errors.push(Error::no_tip(
+                                    Some(node.1),
+                                    Some("Align keyword can only be used inside sections."),
+                                ));
+                            } else {
+                                let mut section = inside_section.unwrap();
+                                section.attributes.set_exec(true);
+                                inside_section = Some(section);
+                            }
+                        }
+                        ASTNode::Alloc => {
+                            if inside_section.is_none() || inside_label.0 {
+                                errors.push(Error::no_tip(
+                                    Some(node.1),
+                                    Some("Align keyword can only be used inside sections."),
+                                ));
+                            } else {
+                                let mut section = inside_section.unwrap();
+                                section.attributes.set_alloc(true);
+                                inside_section = Some(section);
+                            }
+                        }
+                        ASTNode::Align(a) => {
+                            if inside_section.is_none() || inside_label.0 {
+                                errors.push(Error::no_tip(
+                                    Some(node.1),
+                                    Some("Align keyword can only be used inside sections."),
+                                ));
+                            } else {
+                                let mut section = inside_section.unwrap();
+                                section.align = a;
+                                inside_section = Some(section);
+                            }
+                        }
+                        ASTNode::Section(s) => {
+                            let mut tmp = false;
+                            if inside_section.is_some() && ast.sections.is_empty() {
+                                inside_section = None;
+                                tmp = true;
+                            }
+                            if inside_section.is_none() {
+                                inside_section = Some(Section {
+                                    name: s,
+                                    ..Default::default()
+                                });
+                                if !instructions.is_empty() {
+                                    if let Err(err) = collect_label(
+                                        &mut ast.sections[section_idx].content,
+                                        tmp_attributes.join(","),
+                                        instructions,
+                                        inside_label.1,
+                                        ast.bits.unwrap_or(16),
+                                        section_idx,
+                                    ) {
+                                        errors.push(err);
+                                    }
+                                }
+                                if !tmp {
+                                    section_idx += 1;
+                                }
+                                tmp_attributes.clear();
+                                instructions = Vec::with_capacity(PAR_INST_CAP);
+                                inside_label = (false, EMPTY_STRING.to_string());
+                            } else {
+                                ast.sections.push(inside_section.take().unwrap());
+                                inside_section = Some(Section {
+                                    name: s,
+                                    ..Default::default()
+                                });
+                            }
+                        }
                         ASTNode::Attributes(s) => {
                             // we need to assert that attribute means end of label
+                            if let Some(sec) = inside_section.take() {
+                                ast.sections.push(sec);
+                            }
                             if !instructions.is_empty() {
-                                let (bits, align, global) =
-                                    match parse_attr(tmp_attributes.join(",")) {
-                                        Ok(t) => (t.bits, t.align, t.global),
-                                        Err(e) => {
-                                            errors.push(e);
-                                            continue;
-                                        }
-                                    };
-                                ast.sections[section_idx].content.push(Label {
-                                    name: inside_label.1,
-                                    inst: instructions,
-                                    visibility: if global {
-                                        Visibility::Global
-                                    } else {
-                                        Visibility::Local
-                                    },
-                                    bits: if matches!(bits, 16 | 32 | 64) {
-                                        bits
-                                    } else {
-                                        ast.bits.unwrap_or(16)
-                                    },
-                                    align,
-                                });
+                                if let Err(err) = collect_label(
+                                    &mut ast.sections[section_idx].content,
+                                    tmp_attributes.join(","),
+                                    instructions,
+                                    inside_label.1,
+                                    ast.bits.unwrap_or(16),
+                                    section_idx,
+                                ) {
+                                    errors.push(err);
+                                }
                                 instructions = Vec::with_capacity(PAR_INST_CAP);
                                 tmp_attributes.clear();
                                 inside_label = (false, EMPTY_STRING.to_string())
@@ -76,30 +153,20 @@ impl Parser {
                         ASTNode::Include(p) => ast.includes.push(p),
                         ASTNode::MathEval(name, value) => ast.math.push((name, value)),
                         ASTNode::Label(lbl) => {
+                            if let Some(sec) = inside_section.take() {
+                                ast.sections.push(sec);
+                            }
                             if !instructions.is_empty() {
-                                let (bits, align, global) =
-                                    match parse_attr(tmp_attributes.join(",")) {
-                                        Ok(t) => (t.bits, t.align, t.global),
-                                        Err(e) => {
-                                            errors.push(e);
-                                            continue;
-                                        }
-                                    };
-                                ast.sections[section_idx].content.push(Label {
-                                    name: inside_label.1,
-                                    inst: instructions,
-                                    visibility: if global {
-                                        Visibility::Global
-                                    } else {
-                                        Visibility::Local
-                                    },
-                                    bits: if matches!(bits, 16 | 32 | 64) {
-                                        bits
-                                    } else {
-                                        ast.bits.unwrap_or(16)
-                                    },
-                                    align,
-                                });
+                                if let Err(err) = collect_label(
+                                    &mut ast.sections[section_idx].content,
+                                    tmp_attributes.join(","),
+                                    instructions,
+                                    inside_label.1,
+                                    ast.bits.unwrap_or(16),
+                                    section_idx,
+                                ) {
+                                    errors.push(err);
+                                }
                                 instructions = Vec::with_capacity(PAR_INST_CAP);
                                 tmp_attributes.clear();
                             }
@@ -171,30 +238,21 @@ impl Parser {
                 }
             }
         }
+        if let Some(inside_section) = inside_section.take() {
+            ast.sections.push(inside_section);
+        }
 
         if !instructions.is_empty() {
-            let (bits, align, global) = match parse_attr(tmp_attributes.join(",")) {
-                Ok(t) => (t.bits, t.align, t.global),
-                Err(e) => {
-                    errors.push(e);
-                    (0, 0, false)
-                }
-            };
-            ast.sections[section_idx].content.push(Label {
-                name: inside_label.1,
-                inst: instructions,
-                visibility: if global {
-                    Visibility::Global
-                } else {
-                    Visibility::Local
-                },
-                bits: if matches!(bits, 16 | 32 | 64) {
-                    bits
-                } else {
-                    ast.bits.unwrap_or(16)
-                },
-                align,
-            });
+            if let Err(err) = collect_label(
+                &mut ast.sections[section_idx].content,
+                tmp_attributes.join(","),
+                instructions,
+                inside_label.1,
+                ast.bits.unwrap_or(16),
+                section_idx,
+            ) {
+                errors.push(err);
+            }
         }
 
         if !errors.is_empty() {
@@ -229,6 +287,37 @@ struct TmpLabelAttr {
     align: u16,
     bits: u8,
     global: bool,
+}
+
+fn collect_label(
+    vec: &mut Vec<Label>,
+    attrs: String,
+    inst: Vec<Instruction>,
+    name: String,
+    defbits: u8,
+    secidx: usize,
+) -> Result<(), Error> {
+    let (bits, align, global) = match parse_attr(attrs) {
+        Ok(t) => (t.bits, t.align, t.global),
+        Err(e) => return Err(e),
+    };
+    vec.push(Label {
+        name,
+        inst,
+        visibility: if global {
+            Visibility::Global
+        } else {
+            Visibility::Local
+        },
+        bits: if matches!(bits, 16 | 32 | 64) {
+            bits
+        } else {
+            defbits
+        },
+        shidx: secidx,
+        align,
+    });
+    Ok(())
 }
 
 fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {

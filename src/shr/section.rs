@@ -16,6 +16,7 @@ pub struct Section {
     pub content: Vec<ast::Label>,
     pub size: u32,
     pub offset: u32,
+    pub align: u16,
     pub attributes: SectionAttributes,
 }
 

@@ -31,6 +31,25 @@ impl Lexer {
             match line.first() {
                 Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string())),
                 Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string())),
+                Some(Token::Keyword(Keyword::Align)) => {
+                    if let Some(Token::Immediate(bits)) = line.get(1) {
+                        let uint32 = bits.get_as_u32();
+                        if let Ok(n) = u16::try_from(uint32) {
+                            node = Some(ASTNode::Align(n));
+                        } else {
+                            ast_tree.push(Err(RASMError::no_tip(
+                                Some(line_count),
+                                Some(format!("Couldn't fit number {} in 86-bits", uint32)),
+                            )));
+                        }
+                    } else {
+                        error = Some(RASMError::with_tip(
+                            Some(line_count),
+                            Some("Unexpected end of line after align keyword, expected string, found nothing"),
+                            Some("Consider adding something after align keyword")
+                        ));
+                    }
+                }
                 Some(Token::Keyword(Keyword::Bits)) => {
                     if let Some(Token::Immediate(bits)) = line.get(1) {
                         let uint32 = bits.get_as_u32();
@@ -45,10 +64,30 @@ impl Lexer {
                     } else {
                         error = Some(RASMError::with_tip(
                             Some(line_count),
-                            Some("Unexpected end of line after entry keyword, expected string, found nothing"),
-                            Some("Consider adding something after entry keyword")
+                            Some("Unexpected end of line after bits keyword, expected string, found nothing"),
+                            Some("Consider adding something after bits keyword")
                         ));
                     }
+                }
+                Some(Token::Keyword(Keyword::Section)) => {
+                    if let Some(Token::String(str) | Token::Unknown(str)) = line.get(1) {
+                        node = Some(ASTNode::Section(str.to_string()));
+                    } else {
+                        error = Some(RASMError::with_tip(
+                            Some(line_count),
+                            Some("Unexpected end of line after section keyword, expected string, found nothing"),
+                            Some("Consider adding something after section keyword")
+                        ));
+                    }
+                }
+                Some(Token::Keyword(Keyword::Write)) => {
+                    node = Some(ASTNode::Write);
+                }
+                Some(Token::Keyword(Keyword::Alloc)) => {
+                    node = Some(ASTNode::Alloc);
+                }
+                Some(Token::Keyword(Keyword::Exec)) => {
+                    node = Some(ASTNode::Exec);
                 }
                 Some(Token::Keyword(Keyword::Entry)) => {
                     if let Some(Token::String(entr) | Token::Unknown(entr)) = line.get(1) {

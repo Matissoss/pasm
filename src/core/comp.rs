@@ -6650,6 +6650,7 @@ fn ins_xbegin(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
             symbol,
             addend,
             offset: 2,
+            shidx: 0,
         }),
     )
 }
@@ -7459,6 +7460,7 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
             symbol,
             offset: blen as u32,
             addend,
+            shidx: 0,
         }),
     )
 }
@@ -7483,6 +7485,7 @@ fn ins_jmplike(
                 // we need to use addend for it to even work?
                 // why even is that, ELF?
                 addend: s.addend - 4,
+                shidx: 0,
             };
             let mut opc = opc[0].clone();
             opc.extend([0; 4]);
@@ -7494,6 +7497,7 @@ fn ins_jmplike(
                 symbol: s,
                 addend: -4,
                 offset: opc[0].len() as u32,
+                shidx: 0,
             };
             let mut opc = opc[0].clone();
             opc.extend([0; 4]);

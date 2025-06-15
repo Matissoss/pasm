@@ -52,12 +52,19 @@ pub enum ASTNode {
     Extern(String),
     Include(PathBuf),
     MathEval(String, String),
+
+    Section(String),
+    Align(u16),
+    Exec,
+    Write,
+    Alloc,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Label {
     pub name: String,
     pub inst: Vec<Instruction>,
+    pub shidx: usize,
     pub align: u16,
     pub visibility: Visibility,
     pub bits: u8,
@@ -423,18 +430,6 @@ impl AST {
             }
         }
     }
-    /*
-    pub fn make_globals(&mut self) {
-        for g in &self.globals {
-            for l in &mut self.labels {
-                if &l.name == g {
-                    l.visibility = Visibility::Global;
-                    break;
-                }
-            }
-        }
-    }
-    */
     pub fn extend(&mut self, rhs: Self) -> Result<(), RASMError> {
         for l in rhs.sections {
             if self.sections.contains(&l) {
@@ -457,19 +452,7 @@ impl AST {
             }
             self.includes.push(l);
         }
-        /*
-        for l in rhs.externs {
-            if self.externs.contains(&l) {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some(format!("Multiple files contains externs {}", l)),
-                ));
-            }
-            self.externs.push(l);
-        }
-        */
         self.math.extend(rhs.math);
-        //self.globals.extend(rhs.globals);
         Ok(())
     }
 }
