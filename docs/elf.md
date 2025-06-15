@@ -3,6 +3,11 @@
 > [!NOTE]
 > This is only temporary documentation
 
+## notes
+
+### `.symtab` `sh_info`
+in `.symtab`, `sh_info` field must be set to `symbol count - global symbol count` (or just `local symbol count`), otherwise linker will throw a warning (:
+
 ## relocation table
 
 ### x86

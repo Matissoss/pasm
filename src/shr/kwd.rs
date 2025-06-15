@@ -20,6 +20,13 @@ pub enum Keyword {
     Extern,
     Include,
 
+    // sections
+    Section,
+    Align,
+    Read,
+    Write,
+    Alloc,
+
     Math,
 }
 
@@ -61,6 +68,15 @@ impl FromStr for Keyword {
                 _ => Err(()),
             },
             5 => match kwd_raw[0] as char {
+                'a' => match kwd_raw[1] as char {
+                    'l' => match kwd_raw[2] as char {
+                        'i' => kwd_ie(kwd, b"align", 3, 4, Keyword::Align),
+                        'l' => kwd_ie(kwd, b"alloc", 3, 4, Keyword::Alloc),
+                        _   => Err(()),
+                    },
+                    _ => Err(())
+                },
+                'w' => kwd_ie(kwd, b"write", 1, 4, Keyword::Write),
                 'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
                 'y' => kwd_ie(kwd, b"yword", 1, 4, Keyword::Yword),
                 'q' => kwd_ie(kwd, b"qword", 1, 4, Keyword::Qword),
@@ -73,7 +89,11 @@ impl FromStr for Keyword {
                 'e' => kwd_ie(kwd, b"extern", 1, 5, Keyword::Extern),
                 _ => Err(()),
             },
-            7 => kwd_ie(kwd, b"include", 1, 6, Keyword::Include),
+            7 => match kwd_raw[0] as char {
+                'i' => kwd_ie(kwd, b"include", 1, 6, Keyword::Include),
+                's' => kwd_ie(kwd, b"section", 1, 6, Keyword::Section),
+                _ => Err(()),
+            },
             _ => Err(()),
         }
     }
@@ -84,6 +104,7 @@ impl ToString for Keyword {
     fn to_string(&self) -> String {
         match self {
             Self::Include => String::from("include"),
+            Self::Section => String::from("section"),
             Self::Math => String::from("math"),
             Self::Qword => String::from("qword"),
             Self::Any => String::from("any"),
