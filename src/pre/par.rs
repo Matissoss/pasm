@@ -341,6 +341,7 @@ mod tests {
     #[test]
     fn section_par_test() {
         use crate::shr::*;
+        use section::SectionAttributes;
         let nodes = vec![
             Ok((ASTNode::Section(".text".to_string()), 0)),
             Ok((ASTNode::Align(16), 0)),

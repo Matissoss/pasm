@@ -7,6 +7,7 @@
 #![allow(clippy::manual_map)]
 #![allow(clippy::to_string_trait_impl)]
 #![allow(clippy::while_let_on_iterator)]
+#![allow(clippy::needless_range_loop)]
 
 //  global imports go here
 use std::{

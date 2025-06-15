@@ -26,8 +26,10 @@ pub fn post_process(ast: &mut AST) -> Result<(), RASMError> {
             math_symbols.insert(&m.0, &m.1);
         }
     }
-    for l in &mut ast.sections[0].content {
-        replace_mathevals(l, &math_symbols)?;
+    for sec in &mut ast.sections {
+        for l in &mut sec.content {
+            replace_mathevals(l, &math_symbols)?;
+        }
     }
     Ok(())
 }
