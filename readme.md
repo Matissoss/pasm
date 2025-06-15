@@ -42,7 +42,7 @@ rasmx86-64 (or just rasm) is assembler for x86-64 architecture.
         - [x] Relocation/Symbol overhaul (use of `@()` closure)
         - [x] Tests for relocations and other things
         - [x] Better target handling (ELF rewritten from zero)
-        - [ ] Support for custom sections (with `.section` keyword)
+        - [x] Support for custom sections (with `.section` keyword)
     - [ ] Create documentation (including better readme ;))
     - [ ] Overall polish
     - [ ] moving into beta-avx512 phase...

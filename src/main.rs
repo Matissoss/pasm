@@ -253,13 +253,16 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
     for (idx, section) in ast.sections.iter_mut().enumerate() {
         let prev_len = to_write.len();
         section.offset = to_write.len() as u32;
+        for label in &mut section.content {
+            label.shidx = idx;
+        }
         for label in &section.content {
             let mut code = comp::compile_label(label, to_write.len());
             let label_symbol = Symbol {
                 name: &label.name,
-                offset: to_write.len() as u32,
+                offset: to_write.len() as u32 - section.offset,
                 size: code.0.len() as u32,
-                sindex: 1,
+                sindex: idx as u16 + 1,
                 visibility: label.visibility,
                 stype: SymbolType::Func,
                 is_extern: false,

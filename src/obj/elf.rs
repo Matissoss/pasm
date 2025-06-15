@@ -279,7 +279,7 @@ fn make_elf<'a>(
         });
     }
     elf.code = code;
-    let reloc_symbol_off = sections.len() as u32 + 1;
+    let reloc_symbol_off = sections.len() as u32 + 2;
     for reloc in relocs {
         if let Some(symbol) = find_index(reloc, symbols) {
             elf.push_reloc(
@@ -465,32 +465,56 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     elf.header.machine = if is_64bit { EM_X86_64 } else { EM_I386 };
     elf.header.section_offset = ehdr_size;
 
-    // for now we assert that there is only
-    // one section for relocs (w-out addend): .rel.text
+    let (mut rel_info, mut rela_info): (Vec<RelInfo>, Vec<RelInfo>) = (Vec::new(), Vec::new());
     let (mut rel_shidx, mut rela_shidx) = (0, 0);
-    let mut counter = 0;
+    let mut rel_count = 0;
+    let mut rela_count = 0;
     if !elf.relocations.is_empty() {
-        counter = 1;
         for reloc in &elf.relocations {
             if reloc.addend != 0 {
-                if reloc.sindex != rela_shidx {
+                if reloc.sindex == rela_shidx {
+                    rela_count += 1;
+                } else {
+                    rela_info.push(RelInfo {
+                        name: 0,
+                        relcount: rela_count,
+                    });
+                    rela_count = 1;
                     rela_shidx += 1;
-                    counter += 1;
                 }
                 rela.push(*reloc);
             } else {
-                if reloc.sindex != rel_shidx {
+                if reloc.sindex == rel_shidx {
+                    rel_count += 1;
+                } else {
+                    rel_info.push(RelInfo {
+                        name: 0,
+                        relcount: rel_count,
+                    });
+                    rel_count = 1;
                     rel_shidx += 1;
-                    counter += 1;
                 }
                 rel.push(*reloc);
             }
         }
     }
+    if rel_count != 0 {
+        rel_info.push(RelInfo {
+            name: 0,
+            relcount: rel_count,
+        });
+    }
+    if rela_count != 0 {
+        rela_info.push(RelInfo {
+            name: 0,
+            relcount: rela_count,
+        });
+    }
+
     let uses_rel = !rel.is_empty();
     let uses_rela = !rela.is_empty();
 
-    elf.header.section_count += counter;
+    elf.header.section_count += rel_info.len() + rela_info.len();
 
     bytes.extend(ehdr_collect(elf.header, is_64bit));
     // reserved:
@@ -498,21 +522,13 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let strtab_name = elf.push_shstrtab(".strtab");
     let symtab_name = elf.push_shstrtab(".symtab");
 
-    let (rel_name, rela_name) = {
-        if rel.is_empty() && rela.is_empty() {
-            (0, 0)
-        } else {
-            match (uses_rel, uses_rela) {
-                (true, true) => (
-                    elf.push_shstrtab(".rel.text"),
-                    elf.push_shstrtab(".rela.text"),
-                ),
-                (true, false) => (elf.push_shstrtab(".rel.text"), 0),
-                (false, true) => (0, elf.push_shstrtab(".rela.text")),
-                (false, false) => (0, 0),
-            }
-        }
-    };
+    for idx in 0..rel_info.len() {
+        let cstr = format!(
+            ".rel{}",
+            cstring(&elf.shstrtab, elf.sections[idx as usize].name)
+        );
+        rel_info[idx].name = elf.push_shstrtab(&cstr);
+    }
 
     let content_offset = ehdr_size + (elf.header.section_count as u32 * shdr_size);
     let strtab_offset = content_offset + elf.shstrtab.len() as u32;
@@ -576,38 +592,46 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         bytes.extend(shdr_collect(section, is_64bit));
     }
     if uses_rel {
-        bytes.extend(shdr_collect(
-            ElfSection {
-                name: rel_name,
-                stype: SHT_REL,
-                info: 4,
-                link: 3,
-                size: rel.len() as u32 * rel_size,
-                entry_size: rel_size,
-                addralign: 0,
-                offset: rel_offset,
-                entry_count: rel.len() as u32,
-                flags: 0,
-            },
-            is_64bit,
-        ));
+        let mut offs = 0;
+        for (idx, relc) in rel_info.iter().enumerate() {
+            bytes.extend(shdr_collect(
+                ElfSection {
+                    name: relc.name,
+                    stype: SHT_REL,
+                    info: 4 + idx as u32,
+                    link: 3,
+                    size: relc.relcount as u32/*rel.len() as u32*/ * rel_size,
+                    entry_size: rel_size,
+                    addralign: 0,
+                    offset: rel_offset + offs,
+                    entry_count: relc.relcount as u32,
+                    flags: 0,
+                },
+                is_64bit,
+            ));
+            offs += relc.relcount as u32 * rel_size;
+        }
     }
     if uses_rela {
-        bytes.extend(shdr_collect(
-            ElfSection {
-                name: rela_name,
-                stype: SHT_RELA,
-                info: 4,
-                link: 3,
-                size: rela.len() as u32 * rela_size,
-                entry_size: rela_size,
-                addralign: 0,
-                offset: rela_offset,
-                entry_count: rela.len() as u32,
-                flags: 0,
-            },
-            is_64bit,
-        ));
+        let mut offs = 0;
+        for (idx, relc) in rela_info.iter().enumerate() {
+            bytes.extend(shdr_collect(
+                ElfSection {
+                    name: relc.name,
+                    stype: SHT_RELA,
+                    info: 4 + idx as u32,
+                    link: 3,
+                    size: relc.relcount as u32/*rel.len() as u32*/ * rela_size,
+                    entry_size: rela_size,
+                    addralign: 0,
+                    offset: rela_offset + offs,
+                    entry_count: relc.relcount as u32,
+                    flags: 0,
+                },
+                is_64bit,
+            ));
+            offs += relc.relcount as u32 * rel_size;
+        }
     }
 
     // Content:
@@ -626,7 +650,12 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     bytes
 }
 
-#[allow(unused)]
+#[derive(Clone, Copy)]
+struct RelInfo {
+    name: usize,
+    relcount: usize,
+}
+
 fn cstring(vec: &[u8], mut idx: usize) -> String {
     let mut string = String::new();
     while idx < vec.len() {

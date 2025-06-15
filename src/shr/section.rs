@@ -18,18 +18,19 @@ pub struct Section {
     pub offset: u32,
     pub align: u16,
     pub attributes: SectionAttributes,
+    pub bits: u8,
 }
 
 #[derive(Clone, Copy, PartialEq, Default, Debug)]
 #[repr(transparent)]
 pub struct SectionAttributes {
-    flags: booltable::BoolTable16,
+    flags: booltable::BoolTable8,
 }
 
 impl SectionAttributes {
     pub const fn new() -> Self {
         Self {
-            flags: booltable::BoolTable16::new(),
+            flags: booltable::BoolTable8::new(),
         }
     }
     pub const fn set_global(&mut self, b: bool) {
@@ -53,7 +54,7 @@ impl SectionAttributes {
     pub fn alloc(&self) -> bool {
         self.flags.get(ALLOC_FLAG).unwrap_or(false)
     }
-    pub const fn visibility(&self) -> symbol::Visibility {
+    pub fn visibility(&self) -> symbol::Visibility {
         if let Some(true) = self.flags.get(GLOBAL) {
             symbol::Visibility::Global
         } else {

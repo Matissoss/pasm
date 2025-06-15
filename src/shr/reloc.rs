@@ -120,6 +120,7 @@ mod tests {
             offset: 0x02,
             addend: 0,
             reltype: RelType::REL32,
+            shidx: 0,
         };
         assert_eq!(relocation.lea(0x01), 1);
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
@@ -129,6 +130,7 @@ mod tests {
             offset: 0x03,
             addend: -1,
             reltype: RelType::REL32,
+            shidx: 0,
         };
         assert_eq!(relocate(&mut bytes, relocation, &[symbol]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0x01, 0x01, 0x00, 0x00, 0x00, 0x91]);

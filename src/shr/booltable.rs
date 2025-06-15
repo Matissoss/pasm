@@ -77,15 +77,15 @@ impl Default for BoolTable8 {
 }
 
 impl BoolTable8 {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { data: 0 }
     }
-    pub fn set(&mut self, idx: u8, bool: bool) {
+    pub const fn set(&mut self, idx: u8, bool: bool) {
         let mask = 0xFF ^ (0b1 << idx);
         self.data = (self.data & mask) | ((bool as u8) << idx)
     }
     // this one is for chaining
-    pub fn setc(mut self, idx: u8, bool: bool) -> Self {
+    pub const fn setc(mut self, idx: u8, bool: bool) -> Self {
         self.set(idx, bool);
         self
     }

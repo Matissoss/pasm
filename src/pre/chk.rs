@@ -18,20 +18,22 @@ use AType::*;
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     let mut errors: Vec<(String, Vec<RASMError>)> = Vec::new();
 
-    for label in &file.sections[0].content {
-        let chk_ins: fn(&Instruction) -> Option<RASMError> = match label.bits {
-            64 => check_ins64bit,
-            _ => check_ins32bit,
-        };
-        let mut errs = Vec::new();
-        for inst in &label.inst {
-            if let Some(mut err) = chk_ins(inst) {
-                err.set_line(inst.line);
-                errs.push(err);
+    for section in &file.sections {
+        for label in &section.content {
+            let chk_ins: fn(&Instruction) -> Option<RASMError> = match label.bits {
+                64 => check_ins64bit,
+                _ => check_ins32bit,
+            };
+            let mut errs = Vec::new();
+            for inst in &label.inst {
+                if let Some(mut err) = chk_ins(inst) {
+                    err.set_line(inst.line);
+                    errs.push(err);
+                }
             }
-        }
-        if !errs.is_empty() {
-            errors.push((label.name.to_string(), errs));
+            if !errs.is_empty() {
+                errors.push((label.name.to_string(), errs));
+            }
         }
     }
 
