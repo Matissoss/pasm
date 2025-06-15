@@ -58,6 +58,7 @@ impl FromStr for Keyword {
             3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
 
             4 => match kwd_raw[0] as char {
+                'r' => kwd_ie(kwd, b"read", 1, 3, Keyword::Read),
                 'm' => kwd_ie(kwd, b"math", 1, 3, Keyword::Math),
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
@@ -104,6 +105,10 @@ impl ToString for Keyword {
     fn to_string(&self) -> String {
         match self {
             Self::Include => String::from("include"),
+            Self::Align => String::from("align"),
+            Self::Read => String::from("read"),
+            Self::Write => String::from("write"),
+            Self::Alloc => String::from("alloc"),
             Self::Section => String::from("section"),
             Self::Math => String::from("math"),
             Self::Qword => String::from("qword"),
