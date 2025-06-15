@@ -7431,6 +7431,7 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {
 
 fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
     let mut base = GenAPI::new()
+        .opcode(&[0x8D])
         .modrm(
             true,
             Some(if let Operand::Reg(r) = ins.dst().unwrap() {
@@ -7441,10 +7442,11 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
             Some(0b100),
         )
         .modrm_mod(0b00)
+        .rex(true)
         .assemble(ins, bits);
     base.push(0x25);
     let (symbol, reltype, addend) = match ins.src().unwrap() {
-        Operand::SymbolRef(s) => (s, RelType::REL32, 0),
+        Operand::SymbolRef(s) => (s, RelType::ABS32, 0),
         Operand::SymbolRefExt(s) => (&s.symbol, s.reltype, s.addend),
         _ => invalid(1),
     };
@@ -7478,7 +7480,9 @@ fn ins_jmplike(
                 reltype: s.reltype,
                 symbol: &s.symbol,
                 offset: opc[0].len() as u32,
-                addend: s.addend,
+                // we need to use addend for it to even work?
+                // why even is that, ELF?
+                addend: s.addend - 4,
             };
             let mut opc = opc[0].clone();
             opc.extend([0; 4]);

@@ -4,3 +4,4 @@
 // licensed under MPL 2.0
 
 pub mod elf;
+pub use elf::*;

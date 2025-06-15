@@ -10,6 +10,3 @@ pub mod api;
 
 // core for AVX
 pub mod vex;
-
-// bin/target
-pub mod obj;

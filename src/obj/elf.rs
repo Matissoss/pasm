@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::path::Path;
+
 use crate::shr::{
     error::RASMError as Error,
     reloc::{RelType, Relocation},
@@ -11,9 +13,6 @@ use crate::shr::{
 };
 
 // section constants
-#[allow(unused)]
-const SHT_NULL: u32 = 0;
-// .text section
 const SHT_PROGBITS: u32 = 1;
 
 const SHT_SYMTAB: u32 = 2;
@@ -121,7 +120,17 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
     ]
 }
 
-impl Elf<'_> {
+impl<'a> Elf<'a> {
+    pub fn new(
+        sections: &'a [&'a Section],
+        path: &'a Path,
+        code: &'a [u8],
+        relocs: &'a [Relocation<'a>],
+        symbols: &'a [Symbol<'a>],
+        is_64bit: bool,
+    ) -> Result<Self, Error> {
+        make_elf(sections, path, code, relocs, symbols, is_64bit)
+    }
     pub fn compile(self, is_64bit: bool) -> Vec<u8> {
         compile(self, is_64bit)
     }
@@ -137,7 +146,8 @@ impl Elf<'_> {
             addend: reloc.addend.into(),
         });
     }
-    pub fn push_symbols(&mut self, symbols: &[Symbol]) {
+    // returns count of global symbols
+    fn push_symbols(&mut self, symbols: &[Symbol]) {
         let mut delayed = Vec::with_capacity(symbols.len());
         for symbol in symbols {
             if symbol.is_global() {
@@ -150,7 +160,7 @@ impl Elf<'_> {
             self.push_symbol(symbol);
         }
     }
-    pub fn push_symbol(&mut self, symbol: &Symbol) {
+    fn push_symbol(&mut self, symbol: &Symbol) {
         let name = self.push_strtab(symbol.name);
         self.symbols.push(ElfSymbol {
             name,
@@ -160,32 +170,44 @@ impl Elf<'_> {
             info: (symbol.visibility as u8) << 4 | (symbol.stype as u8 & 0x0F),
         });
     }
-    pub fn push_strtab(&mut self, str: &str) -> usize {
+    fn push_strtab(&mut self, str: &str) -> usize {
         let len = self.strtab.len();
         self.strtab.extend(str.as_bytes());
         self.strtab.push(0);
         len
     }
-    pub fn push_shstrtab(&mut self, str: &str) -> usize {
+    fn push_shstrtab(&mut self, str: &str) -> usize {
         let len = self.shstrtab.len();
         self.shstrtab.extend(str.as_bytes());
         self.shstrtab.push(0);
         len
     }
-    pub fn push_section(&mut self, section: ElfSection) {
+    fn get_global_count(&self) -> usize {
+        let mut idx = 0;
+        for symb in &self.symbols {
+            // check if symbol is global
+            if (symb.info & 0b1111000) == const { 1 << 4 } {
+                break;
+            }
+            idx += 1;
+        }
+        self.symbols.len() - idx
+    }
+    fn push_section(&mut self, section: ElfSection) {
         self.sections.push(section);
     }
 }
 
 struct TmpRelocation {
-    pub symbol: u32,
-    pub offset: u32,
-    pub addend: i32,
-    pub reltype: RelType,
+    symbol: u32,
+    offset: u32,
+    addend: i32,
+    reltype: RelType,
 }
 
-pub fn make_elf<'a>(
+fn make_elf<'a>(
     sections: &'a [&'a Section],
+    outpath: &'a Path,
     code: &'a [u8],
     relocs: &'a [Relocation<'a>],
     symbols: &'a [Symbol<'a>],
@@ -196,9 +218,19 @@ pub fn make_elf<'a>(
     elf.strtab.push(0);
     elf.symbols.push(ElfSymbol::default());
 
-    let header_size = if is_64bit { EHDR_SIZE_64 } else { EHDR_SIZE_32 };
+    // push file symbol
+    let file_name = elf.push_strtab(&outpath.to_string_lossy());
+    elf.symbols.push(ElfSymbol {
+        name: file_name,
+        value: 0,
+        info: SymbolType::File as u8,
+        section_index: 0xFFF1,
+        size: 0,
+    });
+    //let header_size = if is_64bit { EHDR_SIZE_64 } else { EHDR_SIZE_32 };
     for (idx, section) in sections.iter().enumerate() {
         let symb_name = elf.push_strtab(&section.name);
+        // push section symbol
         elf.symbols.push(ElfSymbol {
             name: symb_name,
             section_index: idx as u32 + 4,
@@ -210,7 +242,7 @@ pub fn make_elf<'a>(
         elf.push_section(ElfSection {
             name: idx,
             size: section.size,
-            offset: section.offset + header_size,
+            offset: section.offset,
             // might want to change
             stype: SHT_PROGBITS,
 
@@ -245,11 +277,12 @@ pub fn make_elf<'a>(
         });
     }
     elf.code = code;
+    let reloc_symbol_off = sections.len() as u32 + 1;
     for reloc in relocs {
         if let Some(symbol) = find_index(reloc, symbols) {
             elf.push_reloc(
                 &TmpRelocation {
-                    symbol: symbol as u32,
+                    symbol: symbol as u32 + reloc_symbol_off,
                     offset: reloc.offset,
                     addend: reloc.addend,
                     reltype: reloc.reltype,
@@ -432,7 +465,6 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     // for now we assert that there is only
     // one section for relocs (wout addend): .rel.text
     if !elf.relocations.is_empty() {
-        elf.header.section_count += 1;
         for reloc in &elf.relocations {
             if reloc.addend != 0 {
                 rela.push(*reloc);
@@ -443,6 +475,8 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     }
     let uses_rel = !rel.is_empty();
     let uses_rela = !rela.is_empty();
+
+    elf.header.section_count += uses_rel as usize + uses_rela as usize;
 
     bytes.extend(ehdr_collect(elf.header, is_64bit));
     // reserved:
@@ -515,7 +549,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
             offset: symtab_offset,
             entry_count: 0,
             link: 2, // ref to .strtab(?)
-            info: elf.symbols.len() as u32,
+            info: elf.symbols.len() as u32 - elf.get_global_count() as u32,
             entry_size: sym_size,
             addralign: 0,
             size: elf.symbols.len() as u32 * sym_size,
@@ -523,7 +557,8 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         is_64bit,
     ));
     // other sections
-    for section in elf.sections {
+    for mut section in elf.sections {
+        section.offset += code_offset;
         bytes.extend(shdr_collect(section, is_64bit));
     }
     if uses_rel {

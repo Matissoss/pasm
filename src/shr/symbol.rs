@@ -83,6 +83,7 @@ impl SymbolRef {
         let mut tmp_buf = Vec::new();
         for b in bytes {
             match *b {
+                b'(' | b')' => continue,
                 b':' => {
                     if !tmp_buf.is_empty() {
                         let string = String::from_utf8(tmp_buf).unwrap_or_default();

@@ -41,8 +41,6 @@ pub mod help;
 
 pub use shr::rpanic::switch_panichandler;
 
-use core::obj::{elf32::make_elf32, elf64::make_elf64};
-
 use shr::symbol::{Symbol, SymbolType};
 
 use cli::CLI;
@@ -289,15 +287,7 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
         }
         "elf32" => {
             symbols.extend(comp::extern_trf(&ast.externs));
-            to_write = make_elf32(&to_write, relocs, &symbols, outpath);
-        }
-        "elf64" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            to_write = make_elf64(&to_write, relocs, &symbols, outpath);
-        }
-        "elf32-experimental" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            let elf = obj::elf::make_elf(&sections, &to_write, &relocs, &symbols, false);
+            let elf = obj::Elf::new(&sections, outpath, &to_write, &relocs, &symbols, false);
             if let Err(why) = elf {
                 error::print_error(why, &ast.file);
                 process::exit(1);
@@ -305,9 +295,9 @@ fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
             let elf = elf.unwrap();
             to_write = elf.compile(false);
         }
-        "elf64-experimental" => {
+        "elf64" => {
             symbols.extend(comp::extern_trf(&ast.externs));
-            let elf = obj::elf::make_elf(&sections, &to_write, &relocs, &symbols, true);
+            let elf = obj::Elf::new(&sections, outpath, &to_write, &relocs, &symbols, true);
             if let Err(why) = elf {
                 error::print_error(why, &ast.file);
                 process::exit(1);
