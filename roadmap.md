@@ -1,0 +1,121 @@
+<div align=center>
+    <h1>roadmap.md</h1>
+</div>
+
+## alpha
+
+- [x] MVP
+- [x] Better variable support
+- [x] Support for 64-bit ELF
+- [x] Support for 32-bit (protected) and 16-bit (real) modes; cr, dr, eflags and segments (cs, fs, etc.)
+- [x] Support for: SSE, SSE2, SSE3, SSSE3, SSE4_1, SSE4_2, MMX x86(-64) extensions
+- [x] Support for AVX and AVX2 extensions
+- [x] moving into beta phase (release of beta0)...
+
+## beta
+
+### betaf (beta foundation)
+
+- [x] Support for most of "normal" (to norm-part6) x86-64 instructions
+- [x] Transforming `Mem` enum into struct
+- [x] Parser support for closures `()` other than memory address
+- [x] Support for "modifiers" that is: `base:mod1:mod2`
+- [x] Support for comptime mathematical evaluations (`$()` closure)
+- [x] Support for constant user defined mathematical values (that aren't symbols, but inline immediates)
+- [x] Improved segmentation (allow prefixing with `%` and free up `#` prefix)
+- [x] Support for includes 
+- [x] Support for label attributes (`#()` closure)
+- [x] Migration (from legacy `*gen_ins`) to new codegen API (`GenAPI` struct)
+- [x] Fix OSOP and ASOP prefixes (Operand/Address Size Override Prefix (for memory))
+- [x] Optimize `Instruction` struct
+
+### betao (beta obj)
+
+- [x] Variables overhaul (labels as variables)
+- [x] Switch `!` prefix for keywords for `.`
+- [x] Relocation/Symbol overhaul (use of `@()` closure)
+- [x] Tests for relocations and other things
+- [x] Better target handling (ELF rewritten from zero)
+- [x] Support for custom sections (with `.section` keyword)
+
+### beta
+
+- [ ] Create documentation (including better readme ;))
+- [ ] Create logo (bc why not?)
+- Overall polish:
+    - [ ] Use RPN instead of current approach in `src/shr/math.rs`.
+    - [ ] Allow for `type` in labels attributes.
+    - [ ] Make sections also symbols.
+    - [ ] Allow for use of `PREFIX_VAL` in `ExtSymbolRef`.
+    - [ ] Move some of logic in `src/main.rs` to separate file.
+    - [ ] Mem support for (R)IP (addresing like `($10)`)
+    - [ ] Fix `in`, `lea`, `wrf/gsbase`, `loopXX` and `out` instructions.
+    - [ ] Add missing `lgdt` and `lidt` instructions.
+    - [ ] Allow for different size relocations (`relXX` and `absXX`)
+    - [ ] Add flags like: `--debug`, `--debug-assemble`, `--verbose-assemble`, `--benchmark` and more.
+    - [ ] Allow for usage of symbols in more places (maybe as `Immediate`?)
+    - [ ] Create friendlier check API (like i did with `GenAPI`) and more verbose `AType`
+    - [ ] Allow to use multiple threads for assembling (like `conf::MULTI_THREAD` and `conf::THREAD_LIMIT` config flags)
+    - [ ] Optimize and clean up (if possible) code and minimize usage of vectors (minimize heap allocation)
+    - [ ] Optimize size of some structures (use `booltable::*`, etc.)
+    - [ ] Allow using `lock` mnemonic as prefix
+- [ ] moving into beta-avx phase...
+
+## beta-avx
+
+Goal: implement most of AVX based (E)VEX instructions
+
+- [ ] Prepare `rasm`'s syntax for AVX-512
+- [ ] Prepare backend for AVX-512 (add `IS_BCST` flag to Mem, add support for masks, etc. in parser)
+- [ ] implement EVEX support
+- ISA implementation (divided in 16 parts; add all instructions starting with `v`):
+    - [ ] avx-ext-0
+    - [ ] avx-ext-1
+    - [ ] avx-ext-2
+    - [ ] avx-ext-3
+    - [ ] avx-ext-4
+    - [ ] avx-ext-5
+    - [ ] avx-ext-6
+    - [ ] avx-ext-7
+    - [ ] avx-ext-8
+    - [ ] avx-ext-9
+    - [ ] avx-ext-a
+    - [ ] avx-ext-b
+    - [ ] avx-ext-c
+    - [ ] avx-ext-d
+    - [ ] avx-ext-e
+    - [ ] avx-ext-f
+- [ ] Move to beta-min
+
+## beta-min
+
+Goal: support for smaller x86-64 ISA extensions
+
+- [ ] x87 ISA
+- [ ] CET_SS (Shadow Stack)
+- [ ] GFNI
+- [ ] AMX-TILE
+- [ ] Xeon Phi
+- [ ] BMI*
+- [ ] missing x86-64 instructions
+- [ ] move to beta-macro
+
+## beta-macro
+
+Goal: support for compile-time code generation
+
+- [ ] Define macro syntax
+- [ ] Implement support for macro in parser
+- [ ] Plug macros into compilation
+- [ ] move to rc
+
+## rc
+
+Goal: extensive testing/polish of assembler, less updates/commits
+
+- [ ] To Be Defined: polish
+- [ ] move to stable
+
+## stable
+
+- [ ] release of `stable` version

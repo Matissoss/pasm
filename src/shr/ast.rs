@@ -73,8 +73,6 @@ pub struct Label {
 #[derive(Debug, Clone, Default)]
 pub struct AST {
     pub sections: Vec<Section>,
-    //pub labels: Vec<Label>,
-    //pub globals: Vec<String>,
     pub externs: Vec<String>,
     pub bits: Option<u8>,
     pub entry: Option<String>,

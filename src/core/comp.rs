@@ -85,7 +85,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::WORD | Ins::WORDLE | Ins::WORDBE => (
+        Ins::WORD => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 2)
+                .fixed_size(Size::Byte)
+                .imm_is_be(false)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::WORDLE | Ins::WORDBE => (
             GenAPI::new()
                 .opcode(&[])
                 .imm_atindex(0, 2)
@@ -94,7 +103,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::DWORD | Ins::DWORDLE | Ins::DWORDBE => (
+        Ins::DWORD => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 4)
+                .fixed_size(Size::Byte)
+                .imm_is_be(false)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::DWORDLE | Ins::DWORDBE => (
             GenAPI::new()
                 .opcode(&[])
                 .imm_atindex(0, 4)
@@ -103,7 +121,16 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::QWORD | Ins::QWORDBE | Ins::QWORDLE => (
+        Ins::QWORD => (
+            GenAPI::new()
+                .opcode(&[])
+                .imm_atindex(0, 8)
+                .fixed_size(Size::Byte)
+                .imm_is_be(false)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::QWORDBE | Ins::QWORDLE => (
             GenAPI::new()
                 .opcode(&[])
                 .imm_atindex(0, 8)
@@ -7535,15 +7562,13 @@ fn ins_empty(ins: &Instruction) -> Vec<u8> {
 }
 
 fn ins_str(ins: &Instruction) -> Vec<u8> {
-    let mut vector = if let Some(Operand::String(s)) = ins.dst() {
-        // we need to clone here :(
-        s.clone().into_bytes()
-    } else {
-        vec![]
+    let mut bts = Vec::new();
+    if let Some(Operand::String(s)) = ins.dst() {
+        bts.extend(s.as_bytes())
     };
-    vector.push(0x00);
+    bts.push(0x00);
 
-    vector
+    bts
 }
 
 // ==============================
