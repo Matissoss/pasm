@@ -1,4 +1,5 @@
 <div align=center>
+    <img src="assets/logo.svg" width=25%>
     <h1>rasm</h1>
 </div>
 
