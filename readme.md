@@ -16,11 +16,13 @@
 
 - Support for ~50%+ x86-64 ISA (~848 instructions)
 - Support for `SSE*`, `AVX`, `AVX2`, (`AVX512` coming soon) `MMX` and more x86-64 extensions
-- Support for 64-bit and 32-bit ELF export
+- Support for 64-bit and 32-bit ELF as export target
 
 ## getting started
 
-see [docs/getting-started.md](docs/getting-started.md)
+Firstly you want to download/compile `rasm`'s binary.
+
+Then you should read documentation (`docs`) and see examples (some can be currently found in `tests` directory).
 
 ## dev roadmap
 

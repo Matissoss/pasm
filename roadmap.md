@@ -40,7 +40,7 @@
 
 ### beta
 
-- [ ] Create documentation (including better readme ;))
+- [x] Create documentation (including better readme ;))
 - [ ] Create logo (bc why not?)
 - Overall polish:
     - [ ] Use RPN instead of current approach in `src/shr/math.rs`.
