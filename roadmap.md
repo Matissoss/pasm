@@ -41,9 +41,7 @@
 ### beta
 
 - [x] Create documentation (including better readme ;))
-- [x] Create logo (bc why not?)
 - Overall polish:
-    - [ ] Use RPN instead of current approach in `src/shr/math.rs`.
     - [ ] Allow for `type` in labels attributes.
     - [ ] Make sections also symbols.
     - [ ] Allow for use of `PREFIX_VAL` in `ExtSymbolRef`.
@@ -52,12 +50,6 @@
     - [ ] Fix `in`, `lea`, `wrf/gsbase`, `loopXX` and `out` instructions.
     - [ ] Add missing `lgdt` and `lidt` instructions.
     - [ ] Allow for different size relocations (`relXX` and `absXX`)
-    - [ ] Add flags like: `--debug`, `--debug-assemble`, `--verbose-assemble`, `--benchmark` and more.
-    - [ ] Allow for usage of symbols in more places (maybe as `Immediate`?)
-    - [ ] Create friendlier check API (like i did with `GenAPI`) and more verbose `AType`
-    - [ ] Allow to use multiple threads for assembling (like `conf::MULTI_THREAD` and `conf::THREAD_LIMIT` config flags)
-    - [ ] Optimize and clean up (if possible) code and minimize usage of vectors (minimize heap allocation)
-    - [ ] Optimize size of some structures (use `booltable::*`, etc.)
     - [ ] Allow using `lock` mnemonic as prefix
 - [ ] moving into beta-avx phase...
 

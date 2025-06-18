@@ -124,7 +124,7 @@ Sections basically store labels.
 
 ## data
 
-To preserve simplicity (unlike `NASM`'s `dX` and `resX` directives) data is stored in labels.
+To preserve simplicity data is stored in labels.
 
 For this purpose few "instructions" were added. `be` suffix means big endian and `le` (and no) suffix means little endian.
 
@@ -183,6 +183,9 @@ _start:
     mov %rax, @PI
 ```
 
+> [!NOTE]
+> `rasm`'s constevals don't use classical mathematic expression solver (like RPN), but custom one.
+
 ### attributes
 
 See `label` section
@@ -193,16 +196,16 @@ See `symbols references` section
 
 ## directives
 
-Here is a list of availiable directives with their explaination:
+Here is a list of availiable directives (also known as keywords) with their explaination:
 
 - `.extern <SYMBOL_NAME>`: forbidden in `bin` target
 - `.include <FILE_NAME>`
 - `.section <SECTION_NAME>`
 - `.align <UINT16_T>`
 - `.bits <UINT8_T>`
-- `.alloc`
-- `.write`
-- `.exec`
+- `.alloc` - used in ELF targets
+- `.write` - used in ELF targets
+- `.exec` - used in ELF targets
 - `.math <MATHSYMBOL> $<IMMEDIATE>`
 
 Here is list of size directives:
