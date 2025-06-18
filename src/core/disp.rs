@@ -20,6 +20,11 @@ pub fn gen_disp_ins(ins: &Instruction) -> Option<Vec<u8>> {
             return Some(disp);
         }
     }
+    if let Some(src) = ins.src2() {
+        if let Some(disp) = gen_disp(src) {
+            return Some(disp);
+        }
+    }
     None
 }
 
@@ -31,7 +36,7 @@ pub fn gen_disp(op: &Op) -> Option<Vec<u8>> {
             address: m,
         }) => {
             if let Some((offs, sz)) = m.offset_x86() {
-                if sz == 1 {
+                if sz == 1 && !m.is_riprel() {
                     Some(vec![offs[0]])
                 } else {
                     Some(offs.to_vec())

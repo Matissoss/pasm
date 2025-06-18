@@ -44,6 +44,8 @@ pub fn gen_sib(op: &Operand) -> Option<u8> {
                 let index = m.index().unwrap();
                 let scale = m.scale().unwrap();
                 Some(sib(scale as u8, index.to_byte(), base))
+            } else if m.is_riprel() {
+                None
             } else {
                 if let (Some(_), Some(Register::RSP)) = (m.offset(), m.base()) {
                     Some(sib(0, Register::RSP.to_byte(), Register::RSP.to_byte()))

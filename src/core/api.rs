@@ -318,7 +318,6 @@ impl GenAPI {
         base.extend(&opc[..sz]);
         if self.flags.get(USE_MODRM).unwrap() {
             base.push(modrm::modrm(ins, self));
-
             if let Some(sib) = sib::gen_sib_ins(ins) {
                 base.push(sib);
             }

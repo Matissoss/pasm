@@ -9,7 +9,7 @@ use std::{
     fmt::{Display, Error, Formatter},
     fs::{File, OpenOptions},
     io::Read,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::LazyLock,
 };
 
@@ -51,7 +51,7 @@ pub struct RASMError {
     tip: Option<String>,
 }
 
-pub fn print_error(r: RASMError, file_name: &PathBuf) {
+pub fn print_error(r: RASMError, file_name: &Path) {
     let mut fileb = String::new();
     File::read_to_string(&mut File::open(file_name).unwrap(), &mut fileb).unwrap();
     let file: Vec<String> = fileb.lines().map(|s| s.to_string()).collect();

@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::conf::PREFIX_VAL;
 use crate::shr::{error::RASMError, num::Number, reloc::RelType};
 
 #[repr(u8)]
@@ -72,6 +73,7 @@ fn new_tok(str: String) -> Token {
     }
 }
 
+const PREFIX_VAL_U8: u8 = PREFIX_VAL as u8;
 impl SymbolRef {
     // syntax:
     //
@@ -83,7 +85,7 @@ impl SymbolRef {
         let mut tmp_buf = Vec::new();
         for b in bytes {
             match *b {
-                b'(' | b')' => continue,
+                PREFIX_VAL_U8 | b'(' | b')' => continue,
                 b':' => {
                     if !tmp_buf.is_empty() {
                         let string = String::from_utf8(tmp_buf).unwrap_or_default();

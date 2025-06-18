@@ -20,10 +20,14 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     let (mut reg, mut rm) = ctx.get_modrm().deserialize();
     let mut mod_ = if let Some(m) = ins.get_mem() {
         if let Some((_, sz)) = m.offset_x86() {
-            if sz == 1 {
-                0b01
+            if m.is_riprel() {
+                0b00
             } else {
-                0b10
+                if sz == 1 {
+                    0b01
+                } else {
+                    0b10
+                }
             }
         } else {
             0b00
@@ -43,6 +47,8 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     if rm.is_none() {
         rm = if ins.uses_sib() {
             Some(0b100)
+        } else if ins.uses_rip() {
+            Some(0b101)
         } else {
             Some(gen_rmreg(&dst))
         }

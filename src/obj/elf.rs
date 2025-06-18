@@ -523,10 +523,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let symtab_name = elf.push_shstrtab(".symtab");
 
     for idx in 0..rel_info.len() {
-        let cstr = format!(
-            ".rel{}",
-            cstring(&elf.shstrtab, elf.sections[idx].name)
-        );
+        let cstr = format!(".rel{}", cstring(&elf.shstrtab, elf.sections[idx].name));
         rel_info[idx].name = elf.push_shstrtab(&cstr);
     }
 

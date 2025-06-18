@@ -17,7 +17,7 @@ use crate::shr::{
     section::Section,
     segment::Segment,
     size::Size,
-    symbol::{SymbolRef, Visibility},
+    symbol::{SymbolRef, SymbolType, Visibility},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +66,7 @@ pub struct Label {
     pub inst: Vec<Instruction>,
     pub shidx: usize,
     pub align: u16,
+    pub stype: SymbolType,
     pub visibility: Visibility,
     pub bits: u8,
 }
@@ -270,6 +271,12 @@ impl Instruction {
             }
         }
     }
+    pub fn uses_rip(&self) -> bool {
+        if let Some(m) = self.get_mem() {
+            return m.is_riprel();
+        }
+        false
+    }
     pub fn uses_cr(&self) -> bool {
         let dst = if let Some(dst) = self.dst() {
             dst
@@ -390,22 +397,12 @@ impl Instruction {
     }
     #[inline]
     pub fn get_sib_idx(&self) -> Option<usize> {
-        if let Some(Operand::Mem(m)) = self.dst() {
-            if m.is_sib() {
-                return Some(0);
-            }
+        let idx = self.get_mem_idx()?;
+        if self.get_opr(idx)?.get_mem()?.is_sib() {
+            Some(idx)
+        } else {
+            None
         }
-        if let Some(Operand::Mem(m)) = self.src() {
-            if m.is_sib() {
-                return Some(1);
-            }
-        }
-        if let Some(Operand::Mem(m)) = self.src2() {
-            if m.is_sib() {
-                return Some(2);
-            }
-        }
-        None
     }
     #[inline]
     pub fn uses_sib(&self) -> bool {

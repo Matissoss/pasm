@@ -67,8 +67,14 @@ impl Mem {
         }
     }
     // type
+    pub fn is_riprel(&self) -> bool {
+        self.get_flag(RIP_ADDRESSING).unwrap_or(false)
+    }
     pub fn is_sib(&self) -> bool {
-        self.index().is_some() && self.scale().is_some() && self.base().is_some()
+        self.index().is_some()
+            && self.scale().is_some()
+            && self.base().is_some()
+            && !self.is_riprel()
     }
 
     // getters

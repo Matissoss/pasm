@@ -8,7 +8,7 @@ use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
     error::RASMError,
     section::Section,
-    symbol::Visibility,
+    symbol::{SymbolType, Visibility},
 };
 
 pub struct Parser;
@@ -258,6 +258,7 @@ struct TmpLabelAttr {
     align: u16,
     bits: u8,
     global: bool,
+    stype: SymbolType,
 }
 
 fn collect_label(
@@ -268,8 +269,8 @@ fn collect_label(
     defbits: u8,
     secidx: usize,
 ) -> Result<(), Error> {
-    let (bits, align, global) = match parse_attr(attrs) {
-        Ok(t) => (t.bits, t.align, t.global),
+    let (bits, align, global, stype) = match parse_attr(attrs) {
+        Ok(t) => (t.bits, t.align, t.global, t.stype),
         Err(e) => return Err(e),
     };
     vec.push(Label {
@@ -287,6 +288,7 @@ fn collect_label(
         },
         shidx: secidx,
         align,
+        stype,
     });
     Ok(())
 }
@@ -309,6 +311,18 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
                         return Err(RASMError::no_tip(None, Some("Tried to assign label visibility attribute; expected either \"global\" or \"local\", found unknown")));
                     }
                 }
+                "type" => match val {
+                    "func" => attrs.stype = SymbolType::Func,
+                    "objc" => attrs.stype = SymbolType::Object,
+                    "sect" => attrs.stype = SymbolType::Section,
+                    "file" => attrs.stype = SymbolType::File,
+                    "none" => attrs.stype = SymbolType::NoType,
+                    _ => {
+                        return Err(RASMError::msg(format!(
+                            "Tried to use unknown type in attributes: \"{val}\""
+                        )))
+                    }
+                },
                 "align" => {
                     if let Ok(n) = val.parse::<u16>() {
                         attrs.align = n;
@@ -347,6 +361,7 @@ mod tests {
     fn section_par_test() {
         use crate::shr::*;
         use section::SectionAttributes;
+        use symbol::SymbolType;
         let nodes = vec![
             Ok((ASTNode::Section(".text".to_string()), 0)),
             Ok((ASTNode::Align(16), 0)),
@@ -400,79 +415,83 @@ mod tests {
         assert_eq!(
             ast.unwrap().sections,
             vec![
-            Section {
-                name: String::from(".text"),
-                align: 16,
-                offset: 0,
-                size: 0,
-                attributes: SectionAttributes::new(),
-                content: vec![
-                    Label {
-                        name: String::from("test"),
-                        align: 0,
-                        visibility: symbol::Visibility::Local,
-                        bits: 64,
-                        inst: vec![Instruction {
-                            oprs: [None, None, None, None, None],
-                            addt: None,
-                            line: 0,
-                            mnem: ins::Mnemonic::__LAST,
-                        }],
-                        shidx: 0,
-                    },
-                    Label {
-                        name: String::from("tesy"),
-                        align: 0,
-                        visibility: symbol::Visibility::Local,
-                        bits: 64,
-                        inst: vec![Instruction {
-                            oprs: [None, None, None, None, None],
-                            addt: None,
-                            line: 0,
-                            mnem: ins::Mnemonic::__LAST,
-                        }],
-                        shidx: 0,
-                    },
-                ],
-                bits: 64
-            },
-            Section {
-                name: String::from(".text1"),
-                align: 16,
-                offset: 0,
-                size: 0,
-                attributes: SectionAttributes::new(),
-                content: vec![
-                    Label {
-                        name: String::from("test"),
-                        align: 0,
-                        visibility: symbol::Visibility::Local,
-                        bits: 64,
-                        inst: vec![Instruction {
-                            oprs: [None, None, None, None, None],
-                            addt: None,
-                            line: 0,
-                            mnem: ins::Mnemonic::__LAST,
-                        }],
-                        shidx: 1,
-                    },
-                    Label {
-                        name: String::from("tesy"),
-                        align: 0,
-                        visibility: symbol::Visibility::Local,
-                        bits: 64,
-                        inst: vec![Instruction {
-                            oprs: [None, None, None, None, None],
-                            addt: None,
-                            line: 0,
-                            mnem: ins::Mnemonic::__LAST,
-                        }],
-                        shidx: 1,
-                    },
-                ],
-                bits: 64
-            },
-        ]
+                Section {
+                    name: String::from(".text"),
+                    align: 16,
+                    offset: 0,
+                    size: 0,
+                    attributes: SectionAttributes::new(),
+                    content: vec![
+                        Label {
+                            name: String::from("test"),
+                            align: 0,
+                            stype: SymbolType::NoType,
+                            visibility: symbol::Visibility::Local,
+                            bits: 64,
+                            inst: vec![Instruction {
+                                oprs: [None, None, None, None, None],
+                                addt: None,
+                                line: 0,
+                                mnem: ins::Mnemonic::__LAST,
+                            }],
+                            shidx: 0,
+                        },
+                        Label {
+                            name: String::from("tesy"),
+                            align: 0,
+                            stype: SymbolType::NoType,
+                            visibility: symbol::Visibility::Local,
+                            bits: 64,
+                            inst: vec![Instruction {
+                                oprs: [None, None, None, None, None],
+                                addt: None,
+                                line: 0,
+                                mnem: ins::Mnemonic::__LAST,
+                            }],
+                            shidx: 0,
+                        },
+                    ],
+                    bits: 64
+                },
+                Section {
+                    name: String::from(".text1"),
+                    align: 16,
+                    offset: 0,
+                    size: 0,
+                    attributes: SectionAttributes::new(),
+                    content: vec![
+                        Label {
+                            name: String::from("test"),
+                            align: 0,
+                            visibility: symbol::Visibility::Local,
+                            bits: 64,
+                            inst: vec![Instruction {
+                                oprs: [None, None, None, None, None],
+                                addt: None,
+                                line: 0,
+                                mnem: ins::Mnemonic::__LAST,
+                            }],
+                            shidx: 1,
+                            stype: SymbolType::NoType,
+                        },
+                        Label {
+                            name: String::from("tesy"),
+                            align: 0,
+                            visibility: symbol::Visibility::Local,
+                            bits: 64,
+                            inst: vec![Instruction {
+                                oprs: [None, None, None, None, None],
+                                addt: None,
+                                line: 0,
+                                mnem: ins::Mnemonic::__LAST,
+                            }],
+                            stype: SymbolType::NoType,
+                            shidx: 1,
+                        },
+                    ],
+                    bits: 64
+                },
+            ]
         );
     }
 }

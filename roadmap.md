@@ -42,11 +42,11 @@
 
 - [x] Create documentation (including better readme ;))
 - Overall polish:
-    - [ ] Allow for `type` in labels attributes.
-    - [ ] Make sections also symbols.
-    - [ ] Allow for use of `PREFIX_VAL` in `ExtSymbolRef`.
-    - [ ] Move some of logic in `src/main.rs` to separate file.
-    - [ ] Mem support for (R)IP (addresing like `($10)`)
+    - [x] Allow for `type` in labels attributes.
+    - [x] Make sections also symbols.
+    - [x] Allow for use of `PREFIX_VAL` in `ExtSymbolRef`.
+    - [x] Move some of logic in `src/main.rs` to separate file.
+    - [x] Mem support for (R)IP (addresing like `($10)`)
     - [ ] Fix `in`, `lea`, `wrf/gsbase`, `loopXX` and `out` instructions.
     - [ ] Add missing `lgdt` and `lidt` instructions.
     - [ ] Allow for different size relocations (`relXX` and `absXX`)

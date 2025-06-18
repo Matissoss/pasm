@@ -10,28 +10,19 @@
 #![allow(clippy::needless_range_loop)]
 
 //  global imports go here
-use std::{
-    fs,
-    fs::{File, OpenOptions},
-    io::Write,
-    path::PathBuf,
-    process, time,
-};
+use std::{path::PathBuf, process, time};
 
 // local imports go here
 
 // rasmx86_64 modules
 pub mod core;
+pub mod libr;
 pub mod obj;
 pub mod pre;
 pub mod pre_core;
 pub mod shr;
 
 use core::comp;
-use pre::lex::Lexer;
-use pre::par::Parser;
-use pre::tok::Tokenizer;
-use shr::ast::AST;
 use shr::error;
 
 // rasmx86_64 helper utilities
@@ -41,8 +32,6 @@ pub mod conf;
 pub mod help;
 
 pub use shr::rpanic::switch_panichandler;
-
-use shr::symbol::{Symbol, SymbolType};
 
 use cli::CLI;
 use color::{ColString, Color};
@@ -84,7 +73,15 @@ fn main() {
         None
     };
 
-    let ast = parse_file(&infile);
+    let ast = libr::par_file(&infile);
+
+    if let Err(errs) = ast {
+        for e in errs {
+            error::print_error(e, &infile);
+        }
+        std::process::exit(1);
+    }
+    let ast = ast.unwrap();
 
     if cli.has_arg("check") {
         if conf::TIME {
@@ -113,7 +110,10 @@ fn main() {
     };
 
     if let Some(form) = cli.get_kv_arg("-f") {
-        assemble_file(ast, &outfile, form);
+        if let Err(e) = libr::compile(ast, &outfile, form) {
+            eprintln!("{e}");
+            std::process::exit(1);
+        };
         if conf::TIME && cli.has_arg("-t") {
             let end = time::SystemTime::now();
             println!(
@@ -129,198 +129,6 @@ fn main() {
                 .set_color(Color::RED)
             )
         }
-    }
-}
-
-fn parse_file(inpath: &PathBuf) -> AST {
-    if let Ok(true) = fs::exists(inpath) {
-        if let Ok(buf) = fs::read_to_string(inpath) {
-            let mut tokenized_file = Vec::new();
-            for line in buf.lines() {
-                tokenized_file.push(Tokenizer::tokenize_line(line));
-            }
-
-            let lexed = Lexer::parse_file(tokenized_file);
-            match Parser::build_tree(lexed) {
-                Ok(mut ast) => {
-                    ast.file = inpath.to_path_buf();
-                    if let Err(why) = pre_core::post_process(&mut ast) {
-                        error::print_error(why, &ast.file);
-                        process::exit(1);
-                    }
-                    if conf::FAST_MODE {
-                        return ast;
-                    } else if let Some(errs) = pre::chk::check_ast(&ast) {
-                        let mut error_count: usize = 0;
-                        for (name, errors) in errs {
-                            eprintln!(
-                                "\n--- {}:{} ---\n",
-                                &ast.file.to_string_lossy(),
-                                ColString::new(name).set_color(Color::PURPLE)
-                            );
-                            for err in errors {
-                                error_count += 1;
-                                error::print_error(err, &ast.file);
-                            }
-                        }
-                        CLI.exit(
-                            "main.rs",
-                            "parse_file",
-                            &format!(
-                                "Assembling ended unsuccesfully with {}!",
-                                ColString::new(format!("{} errors", error_count))
-                                    .set_color(Color::RED)
-                            ),
-                            1,
-                        );
-                    } else {
-                        if !ast.includes.is_empty() {
-                            let paths = {
-                                let mut v = Vec::new();
-                                for p in &ast.includes {
-                                    v.push(p.clone())
-                                }
-                                v
-                            };
-                            for p in paths {
-                                let sast = parse_file(&p);
-                                if let Err(why) = ast.extend(sast) {
-                                    error::print_error(why, &ast.file);
-                                    process::exit(1);
-                                }
-                            }
-                        }
-                        return ast;
-                    }
-                }
-                Err(errors) => {
-                    for e in errors {
-                        eprintln!("{e}");
-                    }
-                }
-            }
-            CLI.exit("main.rs", "parse_file", "Assembling ended with error!", 1);
-        } else {
-            CLI.exit(
-                "main.rs",
-                "parse_file",
-                "Error occured, while reading file!",
-                1,
-            );
-        }
-    } else {
-        CLI.exit("main.rs", "parse_file", "Source file doesn't exist!", 1);
-    }
-}
-
-fn assemble_file(mut ast: AST, outpath: &PathBuf, form: &str) {
-    match fs::exists(outpath) {
-        Ok(false) => match File::create(outpath) {
-            Ok(_) => {}
-            Err(err) => {
-                eprintln!("{err}");
-                process::exit(1);
-            }
-        },
-        Ok(true) => {
-            if let Err(why) = fs::remove_file(outpath) {
-                eprintln!("{why}");
-                process::exit(1);
-            }
-            if let Err(why) = File::create(outpath) {
-                eprintln!("{why}");
-                process::exit(1);
-            }
-        }
-        Err(error) => {
-            eprintln!("{error}");
-            process::exit(1);
-        }
-    }
-    let file = OpenOptions::new().write(true).open(outpath);
-
-    if let Err(why) = file {
-        eprintln!("{why}");
-        process::exit(1);
-    }
-
-    let mut file = file.unwrap();
-    let mut symbols = Vec::new();
-    let mut relocs = Vec::new();
-    let mut to_write: Vec<u8> = Vec::new();
-
-    ast.fix_entry();
-    let mut sections: Vec<&crate::shr::section::Section> = Vec::new();
-    for (idx, section) in ast.sections.iter_mut().enumerate() {
-        let prev_len = to_write.len();
-        section.offset = to_write.len() as u32;
-        for label in &mut section.content {
-            label.shidx = idx;
-        }
-        for label in &section.content {
-            let mut code = comp::compile_label(label, to_write.len());
-            let label_symbol = Symbol {
-                name: &label.name,
-                offset: to_write.len() as u32 - section.offset,
-                size: code.0.len() as u32,
-                sindex: idx as u16 + 1,
-                visibility: label.visibility,
-                stype: SymbolType::Func,
-                is_extern: false,
-            };
-            for reloc in &mut code.1 {
-                reloc.shidx = idx as u16;
-                reloc.offset += to_write.len() as u32;
-            }
-            relocs.extend(code.1);
-            to_write.extend(code.0);
-            symbols.push(label_symbol);
-        }
-        section.size = (to_write.len() - prev_len) as u32;
-        sections.push(section);
-    }
-    match form {
-        "bin" => {
-            if let Err(err) = shr::reloc::relocate_addresses(&mut to_write, relocs, &symbols) {
-                eprintln!("{err}");
-                CLI.exit(
-                    "main.rs",
-                    "assemble_file",
-                    "Assembling ended with 1 error!",
-                    1,
-                );
-            }
-        }
-        "elf32" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            let elf = obj::Elf::new(&sections, outpath, &to_write, &relocs, &symbols, false);
-            if let Err(why) = elf {
-                error::print_error(why, &ast.file);
-                process::exit(1);
-            }
-            let elf = elf.unwrap();
-            to_write = elf.compile(false);
-        }
-        "elf64" => {
-            symbols.extend(comp::extern_trf(&ast.externs));
-            let elf = obj::Elf::new(&sections, outpath, &to_write, &relocs, &symbols, true);
-            if let Err(why) = elf {
-                error::print_error(why, &ast.file);
-                process::exit(1);
-            }
-            let elf = elf.unwrap();
-            to_write = elf.compile(true);
-        }
-        _ => CLI.exit(
-            "main.rs",
-            "assemble_file",
-            &format!("Unknown format `{}`!", form),
-            1,
-        ),
-    }
-    if let Err(why) = file.write_all(&to_write) {
-        eprintln!("Couldn't save output to file: {}", why);
-        process::exit(1);
     }
 }
 
