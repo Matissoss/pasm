@@ -14,18 +14,18 @@ Meaning of following prefixes (especially ones from `lock/repXX`) can be used to
 
 ### lock/repXX prefixes
 
-0xF0 - LOCK prefix
-0xF2 - REPNE/Z prefix
-0xF3 - REP prefix
+- 0xF0 - LOCK prefix
+- 0xF2 - REPNE/Z prefix
+- 0xF3 - REP prefix
 
 ### segment prefixes
 
-0x2E - CS
-0x36 - SS
-0x3E - DS
-0x26 - ES
-0x64 - FS
-0x65 - GS
+- 0x2E - CS
+- 0x36 - SS
+- 0x3E - DS
+- 0x26 - ES
+- 0x64 - FS
+- 0x65 - GS
 
 > [!NOTE]
 > In long mode ES, DS, SS and CS segment overrides are ignored.
@@ -142,7 +142,7 @@ To encode SIB you will need one byte:
 - `base`: specifies `base_register`
 - `index`: specifies `index_register`
 
-Sometimes hovewer you will encounter variant like: `(%rcx * $1)`. It means that it is
+Sometimes hovewer you will encounter variant like: `(%rcx * $1)` (no base register). It means that you have to set base register to `*BP*`.
 
 ## displacement/immediate
 
