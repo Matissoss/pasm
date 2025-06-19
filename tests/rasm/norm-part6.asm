@@ -33,3 +33,6 @@ _start:
 	xsaves64 .qword (%rax)
 	
 	lea %eax, .dword (%rax + %rcx * $4 + $10)
+	
+	lidt .word (%rbx)
+	lgdt .word (%rbx)

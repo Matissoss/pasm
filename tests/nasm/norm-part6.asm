@@ -35,3 +35,6 @@ _start:
 	xsaves64 [rax]
 
 	lea eax, [rax + rcx * 4 + 10]
+
+	lidt [rbx]
+	lgdt [rbx]

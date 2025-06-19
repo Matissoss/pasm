@@ -160,9 +160,9 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
             ],
             &[(MA, MA)],
-            &[],
+            &[LOCK],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC | SBB => ot_chk(
+        CMP => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -173,6 +173,18 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[(MA, MA)],
             &[],
+        ),
+        Mnm::SUB | Mnm::ADD | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC | SBB => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                (
+                    &[R8, R16, R32, M8, M16, M32, I8, I16, I32],
+                    Optional::Needed,
+                ),
+            ],
+            &[(MA, MA)],
+            &[LOCK],
         ),
         Mnm::IMUL => ot_chk(
             ins,
@@ -202,12 +214,19 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::DIV | Mnm::IDIV | Mnm::MUL | Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+        Mnm::DIV | Mnm::IDIV | Mnm::MUL => ot_chk(
             ins,
             &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed)],
             &[],
             &[],
         ),
+        Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+            ins,
+            &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed)],
+            &[],
+            &[LOCK],
+        ),
+        
         Mnm::JMP | Mnm::CALL => ot_chk(
             ins,
             &[(&[AType::Symbol, R32, R16, M32, M16], Optional::Needed)],
@@ -235,7 +254,16 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::BT | BTC | BTR | BTS => ot_chk(
+        BTC | BTR | BTS => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, M16, M32], Optional::Needed),
+                (&[I8, R16, R32], Optional::Needed),
+            ],
+            &[],
+            &[LOCK],
+        ),
+        Mnm::BT => ot_chk(
             ins,
             &[
                 (&[R16, R32, M16, M32], Optional::Needed),
@@ -277,7 +305,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // part c
-        CMPSTRB | CMPSTRW | CMPSTRD | ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
+        CMPSTRB | CMPSTRW | CMPSTRD | SCASB | SCASW | SCASD => ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ]),
+        ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
         CMPXCHG => ot_chk(
             ins,
             &[
@@ -285,11 +314,11 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32], Optional::Needed),
             ],
             &[],
-            &[],
+            &[LOCK],
         ),
         CLDEMOTE => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
-        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
+        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[LOCK]),
         // part 2
         INTO => ot_chk(ins, &[], &[], &[]),
         INVPCID => ot_chk(
@@ -318,7 +347,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(R16, M16), (R16, M16)],
             &[],
         ),
-        MOVSTRB | MOVSTRW | MOVSTRD => ot_chk(ins, &[], &[], &[]),
+        MOVSTRB | MOVSTRW | MOVSTRD => ot_chk(ins, &[], &[], &[REP]),
         MOVDIRI => ot_chk(
             ins,
             &[(&[M32], Optional::Needed), (&[R32], Optional::Needed)],
@@ -385,7 +414,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32], Optional::Needed),
             ],
             &[],
-            &[],
+            &[LOCK],
         ),
 
         // #   #  #   #  #   #
@@ -517,9 +546,9 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
             ],
             &[(MA, MA)],
-            &[],
+            &[LOCK],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::CMP | Mnm::AND | Mnm::OR | Mnm::XOR | ADC | SBB => ot_chk(
+        Mnm::CMP => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -530,6 +559,18 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[(MA, MA)],
             &[],
+        ),
+        Mnm::SUB | Mnm::ADD | Mnm::AND | Mnm::OR | Mnm::XOR | ADC | SBB => ot_chk(
+            ins,
+            &[
+                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+                (
+                    &[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32],
+                    Optional::Needed,
+                ),
+            ],
+            &[(MA, MA)],
+            &[LOCK],
         ),
         Mnm::IMUL => ot_chk(
             ins,
@@ -559,11 +600,17 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::DIV | Mnm::IDIV | Mnm::MUL | Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+        Mnm::DIV | Mnm::IDIV | Mnm::MUL => ot_chk(
             ins,
             &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed)],
             &[],
             &[],
+        ),
+        Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+            ins,
+            &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed)],
+            &[],
+            &[LOCK],
         ),
         Mnm::JMP | Mnm::CALL => ot_chk(
             ins,
@@ -592,7 +639,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::BT | BTC | BTR | BTS => ot_chk(
+        BT => ot_chk(
             ins,
             &[
                 (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
@@ -600,6 +647,16 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
             &[],
+        ),
+
+        BTC | BTR | BTS => ot_chk(
+            ins,
+            &[
+                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
+                (&[I8, R16, R32, R64], Optional::Needed),
+            ],
+            &[],
+            &[LOCK],
         ),
         CBW | CMC | CWD | CDQ | CQO | CLD | CLI => ot_chk(ins, &[], &[], &[]),
 
@@ -627,7 +684,8 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // part c
-        CMPSTRB | CMPSTRW | CMPSTRD | ENDBR64 | ENDBR32 | CMPSTRQ => ot_chk(ins, &[], &[], &[]),
+        CMPSTRB | CMPSTRW | CMPSTRD | CMPSTRQ | SCASB | SCASW | SCASD | SCASQ => ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ]),
+        ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
         CMPXCHG => ot_chk(
             ins,
             &[
@@ -635,12 +693,12 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32, R64], Optional::Needed),
             ],
             &[],
-            &[],
+            &[LOCK],
         ),
         CLDEMOTE => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         CLRSSBSY => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
-        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
-        CMPXCHG16B => ot_chk(ins, &[(&[M128], Optional::Needed)], &[], &[]),
+        CMPXCHG8B => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[LOCK]),
+        CMPXCHG16B => ot_chk(ins, &[(&[M128], Optional::Needed)], &[], &[LOCK]),
         // part 2
         INVPCID => ot_chk(
             ins,
@@ -670,7 +728,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[(R16, M16), (R16, R16)],
             &[],
         ),
-        MOVSTRB | MOVSTRW | MOVSTRD | MOVSTRQ => ot_chk(ins, &[], &[], &[]),
+        MOVSTRB | MOVSTRW | MOVSTRD | MOVSTRQ => ot_chk(ins, &[], &[], &[REP]),
         MOVDIRI => ot_chk(
             ins,
             &[
@@ -699,7 +757,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // part 4
-        SCASQ => ot_chk(ins, &[], &[], &[]),
         SENDUIPI => ot_chk(ins, &[(&[R64], Optional::Needed)], &[], &[]),
         RDRAND | RDSEED => ot_chk(ins, &[(&[R16, R32, R64], Optional::Needed)], &[], &[]),
         RDSSPD => ot_chk(ins, &[(&[R32], Optional::Needed)], &[], &[]),
@@ -743,7 +800,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                 (&[R8, R16, R32, R64], Optional::Needed),
             ],
             &[],
-            &[],
+            &[LOCK],
         ),
         _ => shr_chk(ins),
     }
@@ -753,6 +810,10 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     use Register::*;
     match ins.mnem {
+        LGDT | LIDT => ot_chk(ins, &[
+            (&[M16], Optional::Needed)
+        ], &[], &[]),
+
         OUT => ot_chk(ins, &[
             (&[ExtendedRegister(DX), I8], Optional::Needed),
             (&[ExtendedRegister(AL), ExtendedRegister(AX), ExtendedRegister(EAX)], Optional::Needed), 
@@ -785,9 +846,9 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        OUTSB | OUTSW | OUTSD => ot_chk(ins, &[], &[], &[]),
+        OUTSB | OUTSW | OUTSD | STOSB | STOSW | STOSD | STOSQ => ot_chk(ins, &[], &[], &[REP]),
 
-        SFENCE | STAC | STC | STD | STI | STOSB | STOSW | STOSD | STOSQ | STUI | SYSENTER
+        SFENCE | STAC | STC | STD | STI | STUI | SYSENTER
         | SYSEXIT | SYSRET | TESTUI | UD2 | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => {
             ot_chk(ins, &[], &[], &[])
         }
@@ -861,8 +922,10 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        HLT | INSB | INSW | INSD | INT3 | INT1 | IRET | IRETD | LAHF | LEAVE | LODSB | LODSW
-        | LODSD => ot_chk(ins, &[], &[], &[]),
+        HLT | INT3 | INT1 | IRET | IRETD | LAHF | LEAVE => ot_chk(ins, &[], &[], &[]),
+
+        INSB | INSW | INSD | LODSB | LODSW | LODSD => ot_chk(ins, &[], &[], &[REP]),
+
         HRESET => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
         INVD | INVLPG => ot_chk(ins, &[], &[], &[]),
         INT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -877,7 +940,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         ),
         LLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
 
-        RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF | SCASB | SCASW | SCASD
+        RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF
         | SERIALIZE | SETSSBY => ot_chk(ins, &[], &[], &[]),
         RSTORSSP => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
 

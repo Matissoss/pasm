@@ -4,7 +4,7 @@ NASM_BIN="nasm"
 RASM_BIN="rasm"
 BIN=.tmp/$RASM_BIN
 TESTING_PROFILE="testing"
-NASM_FLAGS="-Wno-prefix-seg -Wno-prefix-hle -Wno-label-orphan"
+NASM_FLAGS="-Wno-prefix-seg -Wno-prefix-hle -Wno-label-orphan -Wno-prefix-lock"
 RASM_FLAGS="-t"
 NASM_FILE_RES=.tmp/nasm-tmp.bin
 RASM_FILE_RES=.tmp/rasm-tmp.bin
@@ -67,12 +67,14 @@ for file in ./nasm/*.asm; do
 		echo "RASM HEX DUMP"
 		echo "-------------"
 		sxd -1=$RASM_FILE_RES $SXD_FLAGS
-		echo "-------------"
-		echo "     DIFF    "
-		echo " left = RASM "
-		echo "right = NASM"
-		echo "-------------"
-		sxd -1=$RASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
+		
+		# temporarily disabled
+		#echo "-------------"
+		#echo "     DIFF    "
+		#echo " left = RASM "
+		#echo "right = NASM"
+		#echo "-------------"
+		#sxd -1=$RASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
 		echo ""
 		echo ""
 		errors=$((errors + 1))

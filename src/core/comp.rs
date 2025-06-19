@@ -5641,7 +5641,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         // part c
-        Ins::CMPSTRB => (vec![0xA6], None),
+        Ins::CMPSTRB => (
+            GenAPI::new()
+                .opcode(&[0xA6])
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::CMPSTRW => (
             GenAPI::new()
                 .opcode(&[0xA7])
@@ -5656,7 +5662,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::CMPSTRQ => (vec![0b0100_1000, 0xA7], None),
+        Ins::CMPSTRQ => (
+            GenAPI::new()
+                .opcode(&[0x48, 0xA7])
+                .fixed_size(Size::Qword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::ENDBR64 => (vec![0xF3, 0x0F, 0x1E, 0xFA], None),
         Ins::ENDBR32 => (vec![0xF3, 0x0F, 0x1E, 0xFB], None),
         Ins::CMPXCHG => (
@@ -5708,10 +5720,9 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::INSB => (vec![0x6C], None),
-        Ins::INSW => (vec![0x66, 0x6D], None),
-        Ins::INSD => (vec![0x6D], None),
-
+        Ins::INSB => (GenAPI::new().opcode(&[0x6C]).fixed_size(Size::Byte).assemble(ins, bits), None),
+        Ins::INSW => (GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Word).assemble(ins, bits), None),
+        Ins::INSD => (GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Dword).assemble(ins, bits), None),
         Ins::INT => (
             vec![
                 0xCC,
@@ -5766,7 +5777,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::LODSB => (vec![0xAC], None),
+        Ins::LODSB => (
+            GenAPI::new()
+                .fixed_size(Size::Byte)
+                .opcode(&[0xAC])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::LODSW => (
             GenAPI::new()
                 .fixed_size(Size::Word)
@@ -5781,7 +5798,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::LODSQ => (vec![0x48, 0xAD], None),
+        Ins::LODSQ => (
+            GenAPI::new()
+                .fixed_size(Size::Qword)
+                .opcode(&[0x48, 0xAD])
+                .assemble(ins, bits),
+            None,
+        ),
 
         // part 3
         Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
@@ -5847,7 +5870,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::MOVSTRB => (vec![0xA4], None),
+        Ins::MOVSTRB => (
+            GenAPI::new()
+                .opcode(&[0xA4])
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::MOVSTRW => (
             GenAPI::new()
                 .opcode(&[0xA5])
@@ -5862,7 +5891,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::MOVSTRQ => (vec![0x48, 0xA5], None),
+        Ins::MOVSTRQ => (
+            GenAPI::new()
+                .opcode(&[0x48, 0xA5])
+                .fixed_size(Size::Qword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::MULX => (
             GenAPI::new()
                 .vex(
@@ -5877,7 +5912,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::OUTSB => (vec![0x6E], None),
+        Ins::OUTSB => (
+            GenAPI::new()
+                .opcode(&[0x6E])
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::OUTSW => (
             GenAPI::new()
                 .opcode(&[0x6F])
@@ -6089,7 +6130,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             ),
             None,
         ),
-        Ins::SCASB => (vec![0xAE], None),
+        Ins::SCASB => (
+            GenAPI::new()
+                .fixed_size(Size::Byte)
+                .opcode(&[0xAE])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::SCASW => (
             GenAPI::new()
                 .fixed_size(Size::Word)
@@ -6104,7 +6151,13 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::SCASQ => (vec![0x48, 0xAF], None),
+        Ins::SCASQ => (
+            GenAPI::new()
+                .fixed_size(Size::Qword)
+                .opcode(&[0x48, 0xAF])
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::SENDUIPI => (
             GenAPI::new()
                 .prefix(0xF3)
@@ -6520,6 +6573,25 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .rex(true)
                 .assemble(ins, bits)
             , None),
+        Ins::LIDT => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x01])
+                .modrm(true, Some(3), None)
+                .rex(true)
+                .can_h66(false)
+                .assemble(ins, bits)
+            , None),
+        Ins::LGDT => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0x01])
+                .modrm(true, Some(2), None)
+                .rex(true)
+                .can_h66(false)
+                .assemble(ins, bits)
+            , None),
+        Ins::LOCK => (vec![0xF0], None),
+        Ins::REPNE | Ins::REPNZ => (vec![0xF2], None),
+        Ins::REP | Ins::REPE | Ins::REPZ => (vec![0xF3], None),
     }
 }
 

@@ -39,6 +39,7 @@ use crate::{
         error::RASMError,
         reg::Register,
         size::Size,
+        ins::Mnemonic
     },
 };
 
@@ -259,6 +260,10 @@ impl GenAPI {
         let mut base = {
             let mut base = Vec::new();
 
+            if let Some(a) = gen_addt_pfx(ins) {
+                base.push(a);
+            }
+
             let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
                 && !self.get_flag(STRICT_PFX).unwrap()
             {
@@ -446,6 +451,20 @@ impl GenAPI {
     }
 }
 
+fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
+    use Mnemonic as Ins;
+    if let Some(s) = ins.addt {
+        match s {
+            Ins::LOCK => Some(0xF0),
+            Ins::REPNE | Ins::REPNZ => Some(0xF2),
+            Ins::REP | Ins::REPE | Ins::REPZ => Some(0xF3),
+            _ => None
+        }
+    } else {
+        None
+    }
+}
+
 fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<[Option<u8>; 2]> {
     let mut arr = [None; 2];
     if ins.dst().is_some() && ins.src().is_none() {
@@ -506,6 +525,11 @@ fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
         }
     }
     if let Some(d) = ins.src() {
+        if let Some(s) = gen_segm_pref_op(d) {
+            return Some(s);
+        }
+    }
+    if let Some(d) = ins.src2() {
         if let Some(s) = gen_segm_pref_op(d) {
             return Some(s);
         }

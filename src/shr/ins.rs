@@ -450,7 +450,9 @@ pub enum Mnemonic {
     STRZ, ASCIIZ,
 
     // fixed instructions
-    IN, OUT,
+    IN, OUT, LGDT, LIDT,
+
+    LOCK, REPNE, REPNZ, REPZ, REPE, REP,
 
     // this has no real purpose, but why not?
     __LAST
