@@ -65,7 +65,7 @@ fn new_tok(str: String) -> Token {
     } else {
         match str.as_ref() {
             "abs" => Token::RelType(RelType::ABS32),
-            "rel"|"rel32" => Token::RelType(RelType::REL32),
+            "rel" | "rel32" => Token::RelType(RelType::REL32),
             "rel16" => Token::RelType(RelType::REL16),
             "rel8" => Token::RelType(RelType::REL8),
             _ => Token::String(str),

@@ -11,7 +11,7 @@ impl RelType {
             Self::ABS32 => 11,
             Self::REL32 => 2,
             Self::REL16 => 13,
-            Self::REL8  => 15,
+            Self::REL8 => 15,
         }
     }
     pub fn to_elf32_rtype(&self) -> u32 {
@@ -19,7 +19,7 @@ impl RelType {
             Self::ABS32 => 1,
             Self::REL32 => 2,
             Self::REL16 => 21,
-            Self::REL8  => 23,
+            Self::REL8 => 23,
         }
     }
 }
@@ -38,7 +38,7 @@ impl RelType {
             Self::ABS32 => 4,
             Self::REL32 => 4,
             Self::REL16 => 2,
-            Self::REL8  => 1,
+            Self::REL8 => 1,
         }
     }
     pub const fn is_rel(&self) -> bool {
@@ -65,8 +65,8 @@ impl Relocation<'_> {
     pub fn lea(&self, addr: u32) -> u32 {
         // this might not work very well with larger numbers, so
         // later i might need to cast as i64/u64.
-        let addend : i64 = self.addend.into();
-        let offset : i64 = self.offset.into();
+        let addend: i64 = self.addend.into();
+        let offset: i64 = self.offset.into();
         if self.is_rel() {
             // S + A - P
             (offset + addend - <u32 as Into<i64>>::into(addr)) as u32
@@ -102,12 +102,15 @@ pub fn relocate<'a>(
     let addr = rel.lea(symbol.offset);
 
     let rs = match rel.reltype.size() {
-        1 => u8::MAX  as u32,
+        1 => u8::MAX as u32,
         2 => u16::MAX as u32,
         _ => u32::MAX,
     };
     if addr > rs {
-        return Err(RASMError::msg(format!("Tried to perform {}-bit relocation on too large address", rs << 3)));
+        return Err(RASMError::msg(format!(
+            "Tried to perform {}-bit relocation on too large address",
+            rs << 3
+        )));
     }
     let addr = addr.to_le_bytes();
     let buf_offset = rel.offset as usize;

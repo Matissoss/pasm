@@ -37,9 +37,9 @@ use crate::{
         ast::{Instruction, Operand},
         booltable::BoolTable16,
         error::RASMError,
+        ins::Mnemonic,
         reg::Register,
         size::Size,
-        ins::Mnemonic
     },
 };
 
@@ -299,7 +299,7 @@ impl GenAPI {
                     if h67.is_some() && self.prefix != 0x67 {
                         base.push(0x67);
                     }
-                } 
+                }
                 if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
                     base.push(self.prefix);
                 }
@@ -458,7 +458,7 @@ fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
             Ins::LOCK => Some(0xF0),
             Ins::REPNE | Ins::REPNZ => Some(0xF2),
             Ins::REP | Ins::REPE | Ins::REPZ => Some(0xF3),
-            _ => None
+            _ => None,
         }
     } else {
         None

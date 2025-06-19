@@ -226,7 +226,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[LOCK],
         ),
-        
+
         Mnm::JMP | Mnm::CALL => ot_chk(
             ins,
             &[(&[AType::Symbol, R32, R16, M32, M16], Optional::Needed)],
@@ -305,7 +305,9 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // part c
-        CMPSTRB | CMPSTRW | CMPSTRD | SCASB | SCASW | SCASD => ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ]),
+        CMPSTRB | CMPSTRW | CMPSTRD | SCASB | SCASW | SCASD => {
+            ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ])
+        }
         ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
         CMPXCHG => ot_chk(
             ins,
@@ -684,7 +686,9 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
         // part c
-        CMPSTRB | CMPSTRW | CMPSTRD | CMPSTRQ | SCASB | SCASW | SCASD | SCASQ => ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ]),
+        CMPSTRB | CMPSTRW | CMPSTRD | CMPSTRQ | SCASB | SCASW | SCASD | SCASQ => {
+            ot_chk(ins, &[], &[], &[REPE, REPZ, REPNE, REPNZ])
+        }
         ENDBR64 | ENDBR32 => ot_chk(ins, &[], &[], &[]),
         CMPXCHG => ot_chk(
             ins,
@@ -810,18 +814,40 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     use Register::*;
     match ins.mnem {
-        LGDT | LIDT => ot_chk(ins, &[
-            (&[M16], Optional::Needed)
-        ], &[], &[]),
+        LGDT | LIDT => ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[]),
 
-        OUT => ot_chk(ins, &[
-            (&[ExtendedRegister(DX), I8], Optional::Needed),
-            (&[ExtendedRegister(AL), ExtendedRegister(AX), ExtendedRegister(EAX)], Optional::Needed), 
-        ], &[], &[]),
-        IN => ot_chk(ins, &[
-            (&[ExtendedRegister(AL), ExtendedRegister(AX), ExtendedRegister(EAX)], Optional::Needed),
-            (&[ExtendedRegister(DX), I8], Optional::Needed)
-        ], &[], &[]),
+        OUT => ot_chk(
+            ins,
+            &[
+                (&[ExtendedRegister(DX), I8], Optional::Needed),
+                (
+                    &[
+                        ExtendedRegister(AL),
+                        ExtendedRegister(AX),
+                        ExtendedRegister(EAX),
+                    ],
+                    Optional::Needed,
+                ),
+            ],
+            &[],
+            &[],
+        ),
+        IN => ot_chk(
+            ins,
+            &[
+                (
+                    &[
+                        ExtendedRegister(AL),
+                        ExtendedRegister(AX),
+                        ExtendedRegister(EAX),
+                    ],
+                    Optional::Needed,
+                ),
+                (&[ExtendedRegister(DX), I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
 
         // instruction as "variable"
         BYTE | BYTELE | BYTEBE => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -848,10 +874,8 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         ),
         OUTSB | OUTSW | OUTSD | STOSB | STOSW | STOSD | STOSQ => ot_chk(ins, &[], &[], &[REP]),
 
-        SFENCE | STAC | STC | STD | STI | STUI | SYSENTER
-        | SYSEXIT | SYSRET | TESTUI | UD2 | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => {
-            ot_chk(ins, &[], &[], &[])
-        }
+        SFENCE | STAC | STC | STD | STI | STUI | SYSENTER | SYSEXIT | SYSRET | TESTUI | UD2
+        | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => ot_chk(ins, &[], &[], &[]),
         TPAUSE | UMWAIT => ot_chk(
             ins,
             &[
@@ -940,15 +964,19 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         ),
         LLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
 
-        RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF
-        | SERIALIZE | SETSSBY => ot_chk(ins, &[], &[], &[]),
+        RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF | SERIALIZE | SETSSBY => {
+            ot_chk(ins, &[], &[], &[])
+        }
         RSTORSSP => ot_chk(ins, &[(&[M64], Optional::Needed)], &[], &[]),
 
         SETA | SETAE | SETB | SETBE | SETC | SETE | SETG | SETGE | SETL | SETLE | SETNA
         | SETNAE | SETNB | SETNBE | SETNC | SETNE | SETNG | SETNL | SETNGE | SETNLE | SETNO
-        | SETNP | SETNS | SETNZ | SETO | SETP | SETPE | SETPO | SETS | SETZ => {
-            ot_chk(ins, &[(&[crate::shr::atype::R8, M8], Optional::Needed)], &[], &[])
-        }
+        | SETNP | SETNS | SETNZ | SETO | SETP | SETPE | SETPO | SETS | SETZ => ot_chk(
+            ins,
+            &[(&[crate::shr::atype::R8, M8], Optional::Needed)],
+            &[],
+            &[],
+        ),
 
         // norm-part6
         XABORT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),

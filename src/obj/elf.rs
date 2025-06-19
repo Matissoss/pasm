@@ -155,7 +155,7 @@ impl<'a> Elf<'a> {
                 } as u64,
             addend: reloc.addend.into(),
             sindex: reloc.sindex,
-            iglob: false
+            iglob: false,
         });
     }
     fn push_symbols(&mut self, symbols: &[Symbol]) {
@@ -281,7 +281,12 @@ fn make_elf<'a>(
         if let Some(symbol) = find_index(reloc, symbols) {
             elf.push_reloc(
                 &TmpRelocation {
-                    symbol: symbol as u32 + if symbols[symbol].is_global() { elf.get_local_symbol_count() as u32 } else {1},
+                    symbol: symbol as u32
+                        + if symbols[symbol].is_global() {
+                            elf.get_local_symbol_count() as u32
+                        } else {
+                            1
+                        },
                     offset: reloc.offset,
                     addend: reloc.addend,
                     reltype: reloc.reltype,
@@ -461,7 +466,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
             } else {
                 rela_info.push(RelInfo {
                     name: 0,
-                    relcount: rela_count
+                    relcount: rela_count,
                 });
                 rela_count = 1;
                 rela_shidx += 1;

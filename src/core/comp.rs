@@ -5720,9 +5720,27 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::INSB => (GenAPI::new().opcode(&[0x6C]).fixed_size(Size::Byte).assemble(ins, bits), None),
-        Ins::INSW => (GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Word).assemble(ins, bits), None),
-        Ins::INSD => (GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Dword).assemble(ins, bits), None),
+        Ins::INSB => (
+            GenAPI::new()
+                .opcode(&[0x6C])
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::INSW => (
+            GenAPI::new()
+                .opcode(&[0x6D])
+                .fixed_size(Size::Word)
+                .assemble(ins, bits),
+            None,
+        ),
+        Ins::INSD => (
+            GenAPI::new()
+                .opcode(&[0x6D])
+                .fixed_size(Size::Dword)
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::INT => (
             vec![
                 0xCC,
@@ -6563,32 +6581,36 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .modrm(true, Some(3), None)
                 .prefix(0xF3)
                 .rex(true)
-                .assemble(ins, bits)
-            , None),
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::WRFSBASE => (
             GenAPI::new()
                 .opcode(&[0x0F, 0xAE])
                 .modrm(true, Some(2), None)
                 .prefix(0xF3)
                 .rex(true)
-                .assemble(ins, bits)
-            , None),
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::LIDT => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x01])
                 .modrm(true, Some(3), None)
                 .rex(true)
                 .can_h66(false)
-                .assemble(ins, bits)
-            , None),
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::LGDT => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x01])
                 .modrm(true, Some(2), None)
                 .rex(true)
                 .can_h66(false)
-                .assemble(ins, bits)
-            , None),
+                .assemble(ins, bits),
+            None,
+        ),
         Ins::LOCK => (vec![0xF0], None),
         Ins::REPNE | Ins::REPNZ => (vec![0xF2], None),
         Ins::REP | Ins::REPE | Ins::REPZ => (vec![0xF3], None),
@@ -7467,11 +7489,14 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {
 
 fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
     if ins.src().unwrap().is_mem() {
-        return (GenAPI::new()
-            .opcode(&[0x8D])
-            .modrm(true, None, None)
-            .ord(&[MODRM_REG, MODRM_RM])
-            .assemble(ins, bits), None)
+        return (
+            GenAPI::new()
+                .opcode(&[0x8D])
+                .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
+                .assemble(ins, bits),
+            None,
+        );
     }
     let mut base = GenAPI::new()
         .opcode(&[0x8D])
@@ -7654,13 +7679,16 @@ fn ins_shrtjmp(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation<'
     } else {
         panic!("Unhandled exception");
     };
-    (b.to_vec(), Some(Relocation {
-        symbol,
-        offset: 1,
-        addend: addend + 1,
-        shidx: 0,
-        reltype,
-    }))
+    (
+        b.to_vec(),
+        Some(Relocation {
+            symbol,
+            offset: 1,
+            addend: addend + 1,
+            shidx: 0,
+            reltype,
+        }),
+    )
 }
 
 // ==============================
