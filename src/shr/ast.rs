@@ -36,10 +36,10 @@ pub enum Operand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
-    pub mnem: Mnemonic,
-    pub addt: Option<Mnemonic>,
     pub oprs: [Option<Operand>; 5],
     pub line: usize,
+    pub addt: Option<Mnemonic>,
+    pub mnem: Mnemonic,
 }
 
 #[derive(Debug, Clone)]
@@ -251,24 +251,14 @@ impl Instruction {
             None => Size::Unknown,
         };
 
-        match (dst, src) {
-            (Size::Unknown, _) => src,
-            (_, Size::Unknown) => dst,
-            (_, _) => {
-                if let Some(Operand::Imm(_)) = &self.src() {
-                    if dst >= src {
-                        dst
-                    } else {
-                        Size::Unknown
-                    }
-                } else {
-                    if dst < src {
-                        src
-                    } else {
-                        dst
-                    }
-                }
-            }
+        if dst == Size::Unknown && src != Size::Unknown {
+            src
+        } else if dst != Size::Unknown && src == Size::Unknown {
+            dst
+        } else if dst < src {
+            src
+        } else {
+            dst
         }
     }
     pub fn uses_rip(&self) -> bool {

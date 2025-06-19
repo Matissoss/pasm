@@ -13,8 +13,8 @@ _start:
 	shrd %ax, %bx, %cl
 	shrd %ax, %bx, $10
 
-	;wrfsbase %rbx
-	;wrgsbase %rbx
+	wrfsbase %rbx
+	wrgsbase %rbx
 
 	sfence
 	stac

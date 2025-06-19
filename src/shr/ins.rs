@@ -391,8 +391,6 @@ pub enum Mnemonic {
     CMPXCHG16B,
     // /tests/*/norm-part2.asm
     ENTER, HLT, HRESET, 
-    INPORTB, INPORTW, INPORTD, 
-    INDXB, INDXD, INDXW,
     INSB, INSD, INSW, INT,
     INT3, INTO, INT1, INVD, INVLPG, INVPCID,
     IRET, IRETD, IRETQ, LAHF, LAR, LEAVE, LLDT, LMSW,
@@ -401,7 +399,6 @@ pub enum Mnemonic {
     LOOP, LOOPE, LOOPNE, LSL, LTR, LZCNT, MOVBE,
     MOVDIRI, MOVSTRB, MOVSTRW, MOVSTRD, MOVSTRQ,
     MOVZX, MULX, 
-    OUTIB, OUTIW, OUTID, OUTRB, OUTRW, OUTRD,
     OUTSB, OUTSD, OUTSW, 
     PEXT,
     PDEP, PREFETCHW, PREFETCH0, PREFETCH1, PREFETCH2, PREFETCHA,
@@ -451,6 +448,9 @@ pub enum Mnemonic {
     EMPTY,
 
     STRZ, ASCIIZ,
+
+    // fixed instructions
+    IN, OUT,
 
     // this has no real purpose, but why not?
     __LAST

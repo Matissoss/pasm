@@ -3,6 +3,13 @@
 //  made by matissoss
 //  licensed under MPL 2.0
 
+/* RESERVED FOR FUTURE :)
+#[cfg(feature = "multi_threaded")]
+pub type RString = std::sync::Arc<str>;
+#[cfg(not(feature = "multi_threaded"))]
+pub type RString = std::rc::Rc<str>;
+*/
+
 // LINE_WIDTH is used in src/main.rs:print_supported_instructions
 // --------------------------------------------------------------
 // default = 25

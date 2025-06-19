@@ -44,14 +44,15 @@ _start:
 	lsl %eax, %ebx
 	lsl %rax, %rbx
 
-	outib $10
-	outiw $10
-	outid $10
+	out $10, %al
+	out $10, %ax
+	out $10, %eax
 
-	outrb
-	outrw
-	outrd
+	out %dx, %al
+	out %dx, %ax
 
 	outsb
 	outsw
 	outsd
+	
+	out %dx, %eax

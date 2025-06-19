@@ -281,7 +281,11 @@ impl GenAPI {
                 if let Some(segm) = gen_segm_pref(ins) {
                     base.push(segm);
                 }
-                if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
+                if fx_size {
+                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
+                        base.push(size_ovr);
+                    }
+                } else if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
                     let h66 = size_ovr[0];
                     let h67 = size_ovr[1];
                     if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
@@ -290,11 +294,7 @@ impl GenAPI {
                     if h67.is_some() && self.prefix != 0x67 {
                         base.push(0x67);
                     }
-                } else if fx_size {
-                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
-                        base.push(size_ovr);
-                    }
-                }
+                } 
                 if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
                     base.push(self.prefix);
                 }

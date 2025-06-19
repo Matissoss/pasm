@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 
+[features]
+multi_threaded = []
+
 [profile.testing]
 inherits = "release"
 opt-level = 0

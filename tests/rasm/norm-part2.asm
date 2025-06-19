@@ -21,13 +21,13 @@ _start:
 	lodsd
 	hreset $10
 
-	indxb
-	indxw
-	indxd
+	in %al, %dx
+	in %ax, %dx
+	in %eax, %dx
 
-	inportb $10
-	inportw $10
-	inportd $10
+	in %al, $10
+	in %ax, $10
+	in %eax, $10
 
 	lar %ax, %eax
 	lar %ax, %bx

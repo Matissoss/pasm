@@ -100,6 +100,7 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             });
             wrt.extend(bts);
         }
+        /*
         sym.push(Symbol {
             name: &section.name,
             offset: section.offset,
@@ -109,7 +110,19 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             stype: SymbolType::Section,
             is_extern: false,
         });
+        */
         sec.push(section);
+    }
+    for (idx, section) in sec.iter().enumerate() {
+        sym.push(Symbol {
+            name: &section.name,
+            offset: section.offset,
+            size: 0,
+            sindex: idx as u16,
+            visibility: Visibility::Local,
+            stype: SymbolType::Section,
+            is_extern: false,
+        });
     }
 
     match tgt {

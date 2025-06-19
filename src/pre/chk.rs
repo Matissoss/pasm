@@ -575,7 +575,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ins,
             &[
                 (&[R16, R32, R64], Optional::Needed),
-                (&[AType::Symbol], Optional::Needed),
+                (&[AType::Symbol, MA], Optional::Needed),
             ],
             &[],
             &[],
@@ -751,7 +751,17 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
 
 pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
+    use Register::*;
     match ins.mnem {
+        OUT => ot_chk(ins, &[
+            (&[ExtendedRegister(DX), I8], Optional::Needed),
+            (&[ExtendedRegister(AL), ExtendedRegister(AX), ExtendedRegister(EAX)], Optional::Needed), 
+        ], &[], &[]),
+        IN => ot_chk(ins, &[
+            (&[ExtendedRegister(AL), ExtendedRegister(AX), ExtendedRegister(EAX)], Optional::Needed),
+            (&[ExtendedRegister(DX), I8], Optional::Needed)
+        ], &[], &[]),
+
         // instruction as "variable"
         BYTE | BYTELE | BYTEBE => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
         WORD | WORDLE | WORDBE => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
@@ -775,8 +785,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        OUTIB | OUTIW | OUTID => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
-        OUTRB | OUTRW | OUTRD | OUTSB | OUTSW | OUTSD => ot_chk(ins, &[], &[], &[]),
+        OUTSB | OUTSW | OUTSD => ot_chk(ins, &[], &[], &[]),
 
         SFENCE | STAC | STC | STD | STI | STOSB | STOSW | STOSD | STOSQ | STUI | SYSENTER
         | SYSEXIT | SYSRET | TESTUI | UD2 | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => {
@@ -855,8 +864,8 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         HLT | INSB | INSW | INSD | INT3 | INT1 | IRET | IRETD | LAHF | LEAVE | LODSB | LODSW
         | LODSD => ot_chk(ins, &[], &[], &[]),
         HRESET => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
-        INDXB | INDXW | INDXD | INVD | INVLPG => ot_chk(ins, &[], &[], &[]),
-        INPORTB | INPORTW | INPORTD | INT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        INVD | INVLPG => ot_chk(ins, &[], &[], &[]),
+        INT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
         LAR => ot_chk(
             ins,
             &[
@@ -875,7 +884,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         SETA | SETAE | SETB | SETBE | SETC | SETE | SETG | SETGE | SETL | SETLE | SETNA
         | SETNAE | SETNB | SETNBE | SETNC | SETNE | SETNG | SETNL | SETNGE | SETNLE | SETNO
         | SETNP | SETNS | SETNZ | SETO | SETP | SETPE | SETPO | SETS | SETZ => {
-            ot_chk(ins, &[(&[R8, M8], Optional::Needed)], &[], &[])
+            ot_chk(ins, &[(&[crate::shr::atype::R8, M8], Optional::Needed)], &[], &[])
         }
 
         // norm-part6
@@ -2675,7 +2684,18 @@ fn ot_chk(
     }
     if ops.len() == 2 {
         if let Some(err) = size_chk(ins) {
-            return Some(err);
+            let mut b = false;
+            for o in ops {
+                for o in o.0 {
+                    if let AType::ExtendedRegister(_) = o {
+                        b = true;
+                        break;
+                    }
+                }
+            }
+            if !b {
+                return Some(err);
+            }
         }
     }
     if let Some(err) = forb_chk(ins, forb) {

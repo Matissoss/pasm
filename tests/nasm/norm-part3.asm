@@ -52,8 +52,9 @@ _start:
 
 	out dx, al
 	out dx, ax
-	out dx, eax
 
 	outsb
 	outsw
 	outsd
+	
+	out dx, eax

@@ -77,6 +77,9 @@ pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
 
 pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<Relocation<'_>>) {
     match ins.mnem {
+        Ins::IN => (ins_in(ins, bits), None),
+        Ins::OUT => (ins_out(ins, bits), None),
+
         Ins::BYTE | Ins::BYTELE | Ins::BYTEBE => (
             GenAPI::new()
                 .opcode(&[])
@@ -5705,46 +5708,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::INPORTB => (
-            GenAPI::new()
-                .opcode(&[0xE4])
-                .fixed_size(Size::Byte)
-                .modrm(false, None, None)
-                .imm_atindex(0, 1)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::INPORTW => (
-            GenAPI::new()
-                .opcode(&[0xE5])
-                .fixed_size(Size::Word)
-                .imm_atindex(0, 1)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::INPORTD => (
-            GenAPI::new()
-                .opcode(&[0xE5])
-                .fixed_size(Size::Dword)
-                .imm_atindex(0, 1)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::INDXB => (vec![0xEC], None),
-        Ins::INDXW => (
-            GenAPI::new()
-                .opcode(&[0xED])
-                .fixed_size(Size::Word)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::INDXD => (
-            GenAPI::new()
-                .opcode(&[0xED])
-                .fixed_size(Size::Dword)
-                .assemble(ins, bits),
-            None,
-        ),
         Ins::INSB => (vec![0x6C], None),
         Ins::INSW => (vec![0x66, 0x6D], None),
         Ins::INSD => (vec![0x6D], None),
@@ -5821,9 +5784,9 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::LODSQ => (vec![0x48, 0xAD], None),
 
         // part 3
-        //Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
-        //Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
-        //Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
+        Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
+        Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
+        Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
         Ins::LSL => (
             GenAPI::new()
                 .opcode(&[0x0F, 0x03])
@@ -5911,49 +5874,6 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .opcode(&[0xF6])
                 .modrm(true, None, None)
                 .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
-                .assemble(ins, bits),
-            None,
-        ),
-
-        Ins::OUTIB => (
-            vec![
-                0xE6,
-                if let Operand::Imm(i) = ins.dst().unwrap() {
-                    i.split_into_bytes()[0]
-                } else {
-                    0x00
-                },
-            ],
-            None,
-        ),
-        Ins::OUTID => (
-            GenAPI::new()
-                .opcode(&[0xE7])
-                .fixed_size(Size::Dword)
-                .imm_atindex(0, 1)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::OUTIW => (
-            GenAPI::new()
-                .opcode(&[0xE7])
-                .fixed_size(Size::Word)
-                .imm_atindex(0, 1)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::OUTRB => (vec![0xEE], None),
-        Ins::OUTRW => (
-            GenAPI::new()
-                .opcode(&[0xEF])
-                .fixed_size(Size::Word)
-                .assemble(ins, bits),
-            None,
-        ),
-        Ins::OUTRD => (
-            GenAPI::new()
-                .opcode(&[0xEF])
-                .fixed_size(Size::Dword)
                 .assemble(ins, bits),
             None,
         ),
@@ -6582,8 +6502,24 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        // other
-        _ => todo!("Instruction unsupported in src/core/comp.rs: {:?}", ins),
+
+        // fxd
+        Ins::WRGSBASE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(3), None)
+                .prefix(0xF3)
+                .rex(true)
+                .assemble(ins, bits)
+            , None),
+        Ins::WRFSBASE => (
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .modrm(true, Some(2), None)
+                .prefix(0xF3)
+                .rex(true)
+                .assemble(ins, bits)
+            , None),
     }
 }
 
@@ -7458,6 +7394,13 @@ fn ins_inclike(ins: &Instruction, opc: &[u8; 2], ovr: u8, bits: u8) -> Vec<u8> {
 }
 
 fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
+    if ins.src().unwrap().is_mem() {
+        return (GenAPI::new()
+            .opcode(&[0x8D])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .assemble(ins, bits), None)
+    }
     let mut base = GenAPI::new()
         .opcode(&[0x8D])
         .modrm(
@@ -7509,9 +7452,7 @@ fn ins_jmplike(
                 reltype: s.reltype,
                 symbol: &s.symbol,
                 offset: opc[0].len() as u32,
-                // we need to use addend for it to even work?
-                // why even is that, ELF?
-                addend: s.addend - 4,
+                addend: s.addend,
                 shidx: 0,
             };
             let mut opc = opc[0].clone();
@@ -7569,6 +7510,85 @@ fn ins_str(ins: &Instruction) -> Vec<u8> {
     bts.push(0x00);
 
     bts
+}
+
+fn ins_in(ins: &Instruction, bits: u8) -> Vec<u8> {
+    if let Operand::Reg(_) = ins.src().unwrap() {
+        let sz = ins.dst().unwrap().size();
+        if sz == Size::Byte {
+            GenAPI::new()
+                .opcode(&[0xEC])
+                .fixed_size(Size::Byte)
+                .assemble(ins, bits)
+        } else {
+            GenAPI::new()
+                .opcode(&[0xED])
+                .fixed_size(sz)
+                .assemble(ins, bits)
+        }
+    } else {
+        if ins.size() == Size::Byte {
+            GenAPI::new()
+                .opcode(&[0xE4])
+                .imm_atindex(1, 1)
+                .assemble(ins, bits)
+        } else {
+            GenAPI::new()
+                .opcode(&[0xE5])
+                .imm_atindex(1, 1)
+                .assemble(ins, bits)
+        }
+    }
+}
+
+fn ins_out(ins: &Instruction, bits: u8) -> Vec<u8> {
+    let sz = ins.src().unwrap().size();
+    if let Operand::Reg(_) = ins.dst().unwrap() {
+        if sz == Size::Byte {
+            GenAPI::new()
+                .opcode(&[0xEE])
+                .fixed_size(Size::Byte)
+                .can_h66(false)
+                .assemble(ins, bits)
+        } else {
+            GenAPI::new()
+                .opcode(&[0xEF])
+                .fixed_size(sz)
+                .assemble(ins, bits)
+        }
+    } else {
+        if sz == Size::Byte {
+            GenAPI::new()
+                .opcode(&[0xE6])
+                .imm_atindex(0, 1)
+                .assemble(ins, bits)
+        } else {
+            GenAPI::new()
+                .opcode(&[0xE7])
+                .imm_atindex(0, 1)
+                .fixed_size(sz)
+                .assemble(ins, bits)
+        }
+    }
+}
+
+fn ins_shrtjmp(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation<'_>>) {
+    let mut b = [0; 2];
+    b[0] = opc[0];
+    let (symbol, reltype, addend) = if let Operand::SymbolRefExt(s) = ins.dst().unwrap() {
+        (&s.symbol, s.reltype, s.addend)
+    } else if let Operand::SymbolRef(r) = ins.dst().unwrap() {
+        (r, RelType::REL8, 0)
+    } else {
+        panic!("Unhandled exception");
+    };
+    (b.to_vec(), Some(Relocation {
+        symbol,
+        offset: 1,
+        addend: addend + 1,
+        shidx: 0,
+        reltype,
+    }))
 }
 
 // ==============================

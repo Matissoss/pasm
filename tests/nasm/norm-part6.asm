@@ -33,3 +33,5 @@ _start:
 	
 	xsaves [rax]
 	xsaves64 [rax]
+
+	lea eax, [rax + rcx * 4 + 10]

@@ -82,24 +82,6 @@ for file in ./nasm/*.asm; do
 	rm $RASM_FILE_RES
 done
 
-# reverts change to set -e
-#set -e himBHse
-#
-#for file in ./elf/*.asm; do
-#	rm -f .tmp/tmp.o
-#	$BIN -i=$file -o=.tmp/tmp.o -f=elf64 $RASM_FLAGS
-#	readelf_res=$(readelf -a ".tmp/tmp.o" | grep -i "error:|warning:")
-#	if [[ "$?" != "0" ]]; then
-#		_=""
-#	fi
-#	if [[ $readelf_res != "" ]]; then
-#		errors=$((errors+1))
-#		echo "Invalid output in ${file}:"
-#		readelf -a ".tmp/tmp.o"
-#	fi
-#	rm .tmp/tmp.o
-#done
-
 if [[ "$errors" == "0" ]]; then
 	echo "No errors found!"
 	exit 0

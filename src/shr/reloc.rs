@@ -10,12 +10,16 @@ impl RelType {
         match self {
             Self::ABS32 => 11,
             Self::REL32 => 2,
+            Self::REL16 => 13,
+            Self::REL8  => 15,
         }
     }
     pub fn to_elf32_rtype(&self) -> u32 {
         match self {
             Self::ABS32 => 1,
             Self::REL32 => 2,
+            Self::REL16 => 21,
+            Self::REL8  => 23,
         }
     }
 }
@@ -24,6 +28,8 @@ impl RelType {
 pub enum RelType {
     ABS32,
     REL32,
+    REL16,
+    REL8,
 }
 
 impl RelType {
@@ -31,7 +37,12 @@ impl RelType {
         match self {
             Self::ABS32 => 4,
             Self::REL32 => 4,
+            Self::REL16 => 2,
+            Self::REL8  => 1,
         }
+    }
+    pub const fn is_rel(&self) -> bool {
+        !matches!(self, Self::ABS32)
     }
 }
 
@@ -45,14 +56,22 @@ pub struct Relocation<'a> {
 }
 
 impl Relocation<'_> {
+    pub const fn is_rel(&self) -> bool {
+        self.reltype.is_rel()
+    }
+    pub const fn size(&self) -> usize {
+        self.reltype.size()
+    }
     pub fn lea(&self, addr: u32) -> u32 {
         // this might not work very well with larger numbers, so
         // later i might need to cast as i64/u64.
-        if self.reltype == RelType::REL32 {
+        let addend : i64 = self.addend.into();
+        let offset : i64 = self.offset.into();
+        if self.is_rel() {
             // S + A - P
-            (self.offset as i32 + self.addend) as u32 - addr
+            (offset + addend - <u32 as Into<i64>>::into(addr)) as u32
         } else {
-            (self.offset as i32 + self.addend) as u32
+            (offset + addend).abs_diff(0) as u32
         }
     }
 }
@@ -80,14 +99,24 @@ pub fn relocate<'a>(
             "Tried to do relocation with non-existent symbol",
         ));
     };
-    let addr = rel.lea(symbol.offset).to_le_bytes();
+    let addr = rel.lea(symbol.offset);
+
+    let rs = match rel.reltype.size() {
+        1 => u8::MAX  as u32,
+        2 => u16::MAX as u32,
+        _ => u32::MAX,
+    };
+    if addr > rs {
+        return Err(RASMError::msg(format!("Tried to perform {}-bit relocation on too large address", rs << 3)));
+    }
+    let addr = addr.to_le_bytes();
     let buf_offset = rel.offset as usize;
 
-    if buf.len() < buf_offset {
+    if buf.len() + rel.size() < buf_offset {
         return Err(RASMError::msg("Tried to access field outside of buffer"));
     }
     let mut idx = 0;
-    while idx < rel.reltype.size() {
+    while idx < rel.size() {
         buf[buf_offset + idx] = addr[idx];
         idx += 1;
     }
