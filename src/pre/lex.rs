@@ -11,8 +11,8 @@ use crate::{
         ins::Mnemonic as Mnm,
         kwd::Keyword,
         mem::Mem,
-        segment::Segment,
         size::Size,
+        symbol::SymbolRef,
     },
 };
 use std::path::PathBuf;
@@ -289,6 +289,22 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
 
     if line.len() == 2 {
         match (&line[0], &line[1]){
+            (Token::Keyword(Keyword::Deref|Keyword::Ref), 
+             Token::SymbolRefExt(_)
+            ) => {
+                let mut s = if let Token::SymbolRefExt(s) = line.pop().unwrap() {
+                    s
+                } else {
+                    panic!("S1");
+                };
+                s.deref(line[0] == Token::Keyword(Keyword::Deref));
+                return Ok(Operand::SymbolRef(s));
+            }
+            (Token::Keyword(Keyword::Deref|Keyword::Ref), 
+             Token::SymbolRef(s)
+            ) => {
+                return Ok(Operand::SymbolRef(SymbolRef::new(s.to_string(), None, line[0] == Token::Keyword(Keyword::Deref), None, None)));
+            }
              (Token::Closure(' ', m), Token::Keyword(k))
             |(Token::Keyword(k), Token::Closure(' ', m)) =>
                 return Ok(Operand::Mem(Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),
@@ -312,17 +328,40 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
                             r.to_string()
                     ))))
                 };
-                let mem = if let Token::Closure(' ', s) = &**m {
+                let mut mem = if let Token::Closure(' ', s) = &**m {
                     Mem::new(s, size)?
                 } else {
                     return Err(RASMError::no_tip(None, Some("Expected memory address as second (idx 1) modifier")));
                 };
-                return Ok(Operand::Segment(Segment { segment: r, address: mem}));
+                mem.set_segment(r);
+                return Ok(Operand::Mem(mem));
             }
             _ => return Err(RASMError::no_tip(
                 None,
                 Some("Tried to make unexpected operand from two tokens; expected memory address (or segment) along with size specifier".to_string()),
             ))
+        }
+    }
+
+    if line.len() == 3 {
+        match (&line[0], &line[1], &line[2]) {
+            (Token::Keyword(Keyword::Deref), Token::SymbolRefExt(_), Token::Keyword(s)) => {
+                let sz = if let Ok(sz) = Size::try_from(*s) {
+                    sz
+                } else {
+                    return Err(RASMError::msg("Expected size directive after symbolref, found unknown keyword"));
+                };
+                let _ = line.pop();
+                let mut sref = if let Token::SymbolRefExt(s) = line.pop().unwrap() {
+                    s
+                } else {
+                    panic!("S2");
+                };
+                sref.deref(true);
+                sref.set_size(sz);
+                return Ok(Operand::SymbolRef(sref));
+            },
+            _ => return Err(RASMError::msg("Unknown triple token combo")),
         }
     }
 

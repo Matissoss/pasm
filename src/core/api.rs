@@ -40,6 +40,8 @@ use crate::{
         ins::Mnemonic,
         reg::Register,
         size::Size,
+        reloc::Relocation,
+        mem::Mem
     },
 };
 
@@ -247,6 +249,177 @@ impl GenAPI {
         }
 
         None
+    }
+    // you can have max 2 relocations returned, because of variants like:
+    // mov .deref @symbol, @other_symbol
+    // (yes valid variant: first operand is mem, second is immediate)
+    pub fn assemble_wrel<'a>(&'a self, ins: &'a Instruction, bits: u8) -> (Vec<u8>, [Option<Relocation<'a>>; 2]) {
+        let mut rels = [None, None];
+        let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
+        let rex_flag_set = self.flags.get(REX_PFX).unwrap();
+        let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
+        let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
+            (sz, true)
+        } else {
+            (ins.size(), false)
+        };
+        let mut base = {
+            let mut base = Vec::new();
+
+            if let Some(a) = gen_addt_pfx(ins) {
+                base.push(a);
+            }
+
+            let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
+                && !self.get_flag(STRICT_PFX).unwrap()
+            {
+                rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
+            } else {
+                0x00
+            };
+
+            let rexw = if bits == 64 {
+                if rex != 0x00 {
+                    rex & 0x08 == 0x08
+                } else {
+                    ins_size == Size::Qword || ins_size == Size::Any
+                }
+            } else {
+                false
+            };
+
+            if !(vex_flag_set || evex_flag_set) {
+                if let Some(segm) = gen_segm_pref(ins) {
+                    base.push(segm);
+                }
+                if fx_size {
+                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
+                        base.push(size_ovr);
+                    }
+                } else if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
+                    let h66 = size_ovr[0];
+                    let h67 = size_ovr[1];
+                    if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
+                        base.push(0x66);
+                    }
+                    if h67.is_some() && self.prefix != 0x67 {
+                        base.push(0x67);
+                    }
+                }
+                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
+                    base.push(self.prefix);
+                }
+            }
+
+            if rex_flag_set && rex != 0x00 {
+                base.push(rex);
+            }
+            if vex_flag_set {
+                if let Some(vex) = vex::vex(ins, self) {
+                    base.extend(vex);
+                }
+            }
+            if evex_flag_set {
+                panic!("EVEX prefix is not availiable!");
+            }
+            base
+        };
+
+        let (opc, sz) = self.opcode.collect();
+        base.extend(&opc[..sz]);
+        if self.flags.get(USE_MODRM).unwrap() {
+            base.push(modrm::modrm(ins, self));
+            if let Some(sib) = sib::gen_sib_ins(ins) {
+                base.push(sib);
+            }
+            if let Some(disp) = disp::gen_disp_ins(ins) {
+                base.extend(disp);
+            } else {
+                // we assert that second symbol is 
+                let symb = ins.get_symbs()[0];
+                if let Some((s, _)) = symb {
+                    rels[0] = Some(Relocation {
+                        symbol: &s.symbol,
+                        offset: base.len() as u32,
+                        addend: s.addend().unwrap_or(0),
+                        shidx: 0,
+                        reltype: s.reltype().unwrap_or_default(),
+                    });
+                    base.extend(vec![0; 4]);
+                }
+            }
+        }
+        if self.flags.get(IMM_ATIDX).unwrap() {
+            let size = ((self.addt & 0x00_F0) >> 4) as usize;
+            let idx = (self.addt & 0x00_0F) as usize;
+            if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
+                let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
+                    (&i.get_raw_be()[8 - i.get_real_size()..], true)
+                } else {
+                    (&i.get_raw_le()[..i.get_real_size()], false)
+                };
+                let mut idx = 0;
+                if be {
+                    while idx < size.abs_diff(imm.len()) {
+                        base.push(0x00);
+                        idx += 1;
+                    }
+                }
+                for b in imm {
+                    if idx < size {
+                        base.push(*b);
+                        idx += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if !be {
+                    while idx < size {
+                        base.push(0x00);
+                        idx += 1;
+                    }
+                }
+            } else if let Some(Operand::String(s)) = ins.get_opr(idx) {
+                if size == 0 {
+                    base.extend(s.as_bytes());
+                } else {
+                    let mut bts = s.as_bytes().to_vec();
+                    while bts.len() < size {
+                        bts.push(0x00);
+                    }
+                    base.extend(bts);
+                }
+            } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
+                rels[1] = Some(Relocation {
+                    symbol: &s.symbol,
+                    offset: base.len() as u32,
+                    addend: s.addend().unwrap_or(0),
+                    shidx: 0,
+                    reltype: s.reltype().unwrap_or_default(),
+                });
+                let sz : u8 = s.size().unwrap_or(Size::Dword).into();
+                base.extend(vec![0; sz as usize]);
+            }
+            // rvrm
+            else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
+                let mut v = Vec::new();
+                v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
+                extend_imm(&mut v, size as u8);
+                base.extend(v);
+            } else {
+                RASMError::warn(format!(
+                    "Tried to use immediate at index {idx} - didn't find one."
+                ));
+            }
+        }
+        if self.flags.get(OBY_CONST).unwrap() {
+            let size = (self.addt & 0xFF00) >> 8;
+            let mut imm = vec![((self.addt & 0x00FF) as u8)];
+            extend_imm(&mut imm, size as u8);
+            base.extend(imm);
+        }
+
+        (base, rels)
     }
     pub fn assemble(&self, ins: &Instruction, bits: u8) -> Vec<u8> {
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
@@ -519,20 +692,8 @@ fn gen_sizeovr_fixed_size(sz: Size, bits: u8) -> Option<u8> {
 }
 
 fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
-    if let Some(d) = ins.dst() {
-        if let Some(s) = gen_segm_pref_op(d) {
-            return Some(s);
-        }
-    }
-    if let Some(d) = ins.src() {
-        if let Some(s) = gen_segm_pref_op(d) {
-            return Some(s);
-        }
-    }
-    if let Some(d) = ins.src2() {
-        if let Some(s) = gen_segm_pref_op(d) {
-            return Some(s);
-        }
+    if let Some(mem) = ins.get_mem() {
+        return gen_segm_pref_op(mem);
     }
     None
 }
@@ -544,19 +705,15 @@ fn extend_imm(imm: &mut Vec<u8>, size: u8) {
     }
 }
 
-const fn gen_segm_pref_op(op: &Operand) -> Option<u8> {
-    if let Operand::Segment(s) = op {
-        match s.segment {
-            Register::CS => Some(0x2E),
-            Register::SS => Some(0x36),
-            Register::DS => Some(0x3E),
-            Register::ES => Some(0x26),
-            Register::FS => Some(0x64),
-            Register::GS => Some(0x65),
-            _ => None,
-        }
-    } else {
-        None
+const fn gen_segm_pref_op(mem: &Mem) -> Option<u8> {
+    match mem.get_segment() {
+        Some(Register::CS) => Some(0x2E),
+        Some(Register::SS) => Some(0x36),
+        Some(Register::DS) => Some(0x3E),
+        Some(Register::ES) => Some(0x26),
+        Some(Register::FS) => Some(0x64),
+        Some(Register::GS) => Some(0x65),
+        _ => None,
     }
 }
 

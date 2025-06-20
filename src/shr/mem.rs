@@ -35,9 +35,17 @@ pub struct Mem {
     // - 7th: metadata_2:
     //      BBBF_FFCD
     //      BBB - size of used registers (byte, word, dword or qword registers)
+    //      FFF - segment:
+    //          0b000 - no segment
+    //          0b001 - CS
+    //          0b010 - SS
+    //          0b011 - DS
+    //          0b100 - ES
+    //          0b101 - FS
+    //          0b110 - GS
+    //          0b111 - reserved
     //      C - base uses REX
     //      D - index uses REX
-    //      FFF - reserved
     //  - 8th: flags
     offset: i32,
     regs: u8,
@@ -75,6 +83,36 @@ impl Mem {
             && self.scale().is_some()
             && self.base().is_some()
             && !self.is_riprel()
+    }
+    pub const fn get_segment(&self) -> Option<Register> {
+        match (self.metadata_2 & 0b0001_1100) >> 2 {
+            0b000 => None,
+            0b001 => Some(Register::CS),
+            0b010 => Some(Register::SS),
+            0b011 => Some(Register::DS),
+            0b100 => Some(Register::ES),
+            0b101 => Some(Register::FS),
+            0b110 => Some(Register::GS),
+            _     => None,
+        }
+    }
+
+    pub fn set_segment(&mut self, rg: Register) -> bool {
+        if rg.purpose() == RPurpose::Sgmnt {
+            self.metadata_2 &= 0b1110_0011;
+            self.metadata_2 |= (match rg {
+                Register::CS => 0b001,
+                Register::SS => 0b010,
+                Register::DS => 0b011,
+                Register::ES => 0b100,
+                Register::FS => 0b101,
+                Register::GS => 0b110,
+                _            => 0b000,
+            }) << 2;
+            true
+        } else {
+            false
+        }
     }
 
     // getters

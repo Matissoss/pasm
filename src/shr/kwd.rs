@@ -27,6 +27,10 @@ pub enum Keyword {
     Write,
     Alloc,
 
+    // symbol referencing
+    Deref,
+    Ref,
+
     Math,
 }
 
@@ -55,7 +59,11 @@ impl FromStr for Keyword {
         let kwd = kwd_raw;
         match kwd_raw.len() {
             // experimental
-            3 => kwd_ie(kwd, b"any", 0, 2, Keyword::Any),
+            3 => match kwd_raw[0] {
+                b'a' => kwd_ie(kwd, b"any", 1, 2, Keyword::Any),
+                b'r' => kwd_ie(kwd, b"ref", 1, 2, Keyword::Ref),
+                _ => Err(()),
+            },
 
             4 => match kwd_raw[0] as char {
                 'e' => kwd_ie(kwd, b"exec", 1, 3, Keyword::Exec),
@@ -81,7 +89,11 @@ impl FromStr for Keyword {
                 'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
                 'y' => kwd_ie(kwd, b"yword", 1, 4, Keyword::Yword),
                 'q' => kwd_ie(kwd, b"qword", 1, 4, Keyword::Qword),
-                'd' => kwd_ie(kwd, b"dword", 1, 4, Keyword::Dword),
+                'd' => match kwd_raw[1] { 
+                    b'w' => kwd_ie(kwd, b"dword", 1, 4, Keyword::Dword),
+                    b'e' => kwd_ie(kwd, b"deref", 1, 4, Keyword::Deref),
+                    _    => Err(()),
+                },
                 'e' => kwd_ie(kwd, b"entry", 1, 4, Keyword::Entry),
                 _ => Err(()),
             },
@@ -103,25 +115,6 @@ impl FromStr for Keyword {
 #[allow(clippy::to_string_trait_impl)]
 impl ToString for Keyword {
     fn to_string(&self) -> String {
-        match self {
-            Self::Include => String::from("include"),
-            Self::Align => String::from("align"),
-            Self::Exec => String::from("exec"),
-            Self::Write => String::from("write"),
-            Self::Alloc => String::from("alloc"),
-            Self::Section => String::from("section"),
-            Self::Math => String::from("math"),
-            Self::Qword => String::from("qword"),
-            Self::Any => String::from("any"),
-            Self::Dword => String::from("dword"),
-            Self::Word => String::from("word"),
-            Self::Byte => String::from("byte"),
-            Self::Entry => String::from("entry"),
-            Self::Global => String::from("global"),
-            Self::Extern => String::from("extern"),
-            Self::Bits => String::from("bits"),
-            Self::Xword => String::from("xword"),
-            Self::Yword => String::from("yword"),
-        }
+        format!("{:?}", self).to_lowercase()
     }
 }

@@ -417,14 +417,5 @@ mod tests {
             Tokenizer::tokenize_line(str),
             vec![Token::String("Hello, World!".to_string())]
         );
-        let str = "@(symbol:rel:+10)";
-        assert_eq!(
-            Tokenizer::tokenize_line(str),
-            vec![Token::SymbolRefExt(SymbolRef {
-                symbol: "symbol".to_string(),
-                addend: 10,
-                reltype: crate::shr::reloc::RelType::REL32,
-            })]
-        );
     }
 }

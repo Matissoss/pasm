@@ -87,8 +87,8 @@ fn main() {
         if conf::TIME {
             let end = time::SystemTime::now();
             println!(
-                "Checking {:?} took {}s and ended without errors!",
-                infile,
+                "Checking {} took {}s and ended without errors!",
+                infile.to_string_lossy(),
                 match end.duration_since(start.unwrap()) {
                     Ok(t) => t.as_secs_f32(),
                     Err(e) => e.duration().as_secs_f32(),
@@ -117,8 +117,8 @@ fn main() {
         if conf::TIME && cli.has_arg("-t") {
             let end = time::SystemTime::now();
             println!(
-                "Assembling {:?} took {}",
-                infile,
+                "Assembling {} took {}",
+                infile.to_string_lossy(),
                 ColString::new(format!(
                     "{}s",
                     match end.duration_since(start.unwrap()) {

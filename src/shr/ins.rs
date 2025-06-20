@@ -447,12 +447,14 @@ pub enum Mnemonic {
     
     EMPTY,
 
-    STRZ, ASCIIZ,
+    ASCII, STRING,
 
     // fixed instructions
     IN, OUT, LGDT, LIDT,
 
     LOCK, REPNE, REPNZ, REPZ, REPE, REP,
+
+    JCXZ, JECXZ, JRCXZ,
 
     // this has no real purpose, but why not?
     __LAST

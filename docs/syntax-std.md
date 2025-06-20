@@ -139,11 +139,11 @@ Following "instructions" need immediate at destination operand.
 - `empty`: makes zero'ed buffer
 
 Following "instructions" need string at destination operand.
-- `strz`/`asciiz`: string terminated with null
+- `string`/`ascii`: string without null terminator
 
 ```
 _data:
-    strz "Hello, World!"
+    string "Hello, World!"
     byte $0
     wordbe $10
     qword $10

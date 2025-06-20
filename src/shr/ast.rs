@@ -15,7 +15,6 @@ use crate::shr::{
     num::Number,
     reg::{Purpose as RPurpose, Register},
     section::Section,
-    segment::Segment,
     size::Size,
     symbol::{SymbolRef, SymbolType, Visibility},
 };
@@ -28,10 +27,8 @@ pub enum Operand {
     DbgReg(Register),
     Imm(Number),
     Mem(Mem),
-    SymbolRef(String),
-    SymbolRefExt(SymbolRef),
+    SymbolRef(SymbolRef),
     String(String),
-    Segment(Segment),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,8 +127,10 @@ impl TryFrom<Token> for Operand {
             }
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
-            Token::SymbolRefExt(val) => Ok(Self::SymbolRefExt(val)),
+            Token::SymbolRef(val) => {
+                Ok(Self::SymbolRef(SymbolRef::new(val, None, false, None, None)))
+            }
+            Token::SymbolRefExt(val) => Ok(Self::SymbolRef(val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
     }
@@ -139,15 +138,11 @@ impl TryFrom<Token> for Operand {
 
 impl Operand {
     pub fn is_mem(&self) -> bool {
-        matches!(self, Operand::Mem(_) | Operand::Segment(_))
+        matches!(self, Operand::Mem(_))
     }
     pub fn get_mem(&self) -> Option<&Mem> {
         match self {
             Operand::Mem(m) => Some(m),
-            Operand::Segment(Segment {
-                segment: _,
-                address: m,
-            }) => Some(m),
             _ => None,
         }
     }
@@ -158,8 +153,7 @@ impl Operand {
             Self::CtrReg(r) => r.size(),
             Self::DbgReg(r) => r.size(),
             Self::Mem(m) => m.size().unwrap_or(Size::Unknown),
-            Self::SymbolRef(_) | Self::SymbolRefExt(_) => Size::Any,
-            Self::Segment(s) => s.address.size().unwrap_or(Size::Unknown),
+            Self::SymbolRef(s) => if let Some(sz) = s.size() { sz } else { Size::Dword },
             Self::SegReg(_) => Size::Word,
             Self::String(_) => Size::Unknown,
         }
@@ -171,8 +165,7 @@ impl Operand {
                 AType::ExtendedRegister(*r)
             }
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(_) | Self::SymbolRefExt(_) => AType::Symbol,
-            Self::Segment(s) => s.address.atype(),
+            Self::SymbolRef(s) => if s.is_deref() { AType::Memory(s.size().unwrap_or(Size::Unknown)) } else { AType::Immediate(Size::Dword) },
             Self::String(_) => AType::Immediate(Size::Unknown),
         }
     }
@@ -184,9 +177,16 @@ impl ToAType for Operand {
             Self::Mem(m) => m.atype(),
             Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(_) | Self::SymbolRefExt(_) => AType::Symbol,
-            Self::String(_) => AType::Immediate(Size::Unknown),
-            Self::Segment(s) => s.address.atype(),
+            Self::SymbolRef(s) => if s.is_deref() { AType::Memory(s.size().unwrap_or(Size::Unknown)) } else { AType::Immediate(Size::Dword) },
+            Self::String(s) =>  {
+               match s.len() {
+                   1 => AType::Immediate(Size::Byte),
+                   2 => AType::Immediate(Size::Word),
+                   3..=4 => AType::Immediate(Size::Dword),
+                   5..=8 => AType::Immediate(Size::Qword),
+                   _ => AType::Immediate(Size::Unknown),
+               }
+            },
         }
     }
 }
@@ -355,27 +355,36 @@ impl Instruction {
     }
     #[inline]
     pub fn get_mem_idx(&self) -> Option<usize> {
-        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.dst() {
+        if let Some(Operand::Mem(_)) = self.dst() {
             return Some(0);
         }
-        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.src() {
+        if let Some(Operand::Mem(_)) = self.src() {
             return Some(1);
         }
-        if let Some(Operand::Mem(_) | Operand::Segment(_)) = self.src2() {
+        if let Some(Operand::Mem(_)) = self.src2() {
             return Some(2);
         }
         None
+    }
+    //                                  operand,  index
+    pub fn get_symbs(&self) -> [Option<(&SymbolRef, usize)>; 2] {
+        let mut ops = [None, None];
+        for (idx, s) in self.oprs.iter().enumerate() {
+            if let Some(Operand::SymbolRef(s)) = s {
+                if s.is_deref() {
+                    ops[0] = Some((s, idx));
+                } else {
+                    ops[1] = Some((s, idx));
+                }
+            }
+        }
+        ops
     }
     #[inline]
     pub fn get_mem(&self) -> Option<&Mem> {
         if let Some(idx) = self.get_mem_idx() {
             if let Some(
-                Operand::Mem(m)
-                | Operand::Segment(Segment {
-                    segment: _,
-                    address: m,
-                }),
-            ) = self.get_opr(idx)
+                Operand::Mem(m)) = self.get_opr(idx)
             {
                 Some(m)
             } else {

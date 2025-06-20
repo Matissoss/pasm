@@ -29,9 +29,9 @@ build(){
 }
 add_instr(){
 	echo "Adding instructions to /src/shr/ins_switch.rs..."
-	cargo run -- supported-instructions-raw > ins_adder/tmp.txt
+	cargo run -q -- supported-instructions-raw > ins_adder/tmp.txt
 	cd ins_adder
-	cargo run --release -- tmp.txt
+	cargo run -q --release -- tmp.txt
 	rm tmp.txt
 	mv ins_switch.rs ../src/shr/ins_switch.rs
 	cd ..
@@ -52,7 +52,7 @@ build_dev(){
 	done
 }
 install(){
-	cargo install --path .
+	cargo install -q --path .
 }
 _test(){
 	cd tests

@@ -53,6 +53,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         ));
     }
     match ins.mnem {
+        JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+
         Mnm::CMOVA
         | Mnm::CMOVB
         | Mnm::CMOVC
@@ -229,7 +231,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
 
         Mnm::JMP | Mnm::CALL => ot_chk(
             ins,
-            &[(&[AType::Symbol, R32, R16, M32, M16], Optional::Needed)],
+            &[(&[I32, R32, R16, M32, M16], Optional::Needed)],
             &[],
             &[],
         ),
@@ -237,7 +239,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             ins,
             &[
                 (&[R16, R32], Optional::Needed),
-                (&[AType::Symbol], Optional::Needed),
+                (&[I32, MA], Optional::Needed),
             ],
             &[],
             &[],
@@ -445,6 +447,8 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
 fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     match ins.mnem {
+        JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        
         Mnm::CMOVA
         | Mnm::CMOVB
         | Mnm::CMOVC
@@ -616,7 +620,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         ),
         Mnm::JMP | Mnm::CALL => ot_chk(
             ins,
-            &[(&[AType::Symbol, R64, M64], Optional::Needed)],
+            &[(&[I32, R64, M64], Optional::Needed)],
             &[],
             &[],
         ),
@@ -624,7 +628,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ins,
             &[
                 (&[R16, R32, R64], Optional::Needed),
-                (&[AType::Symbol, MA], Optional::Needed),
+                (&[I32, MA], Optional::Needed),
             ],
             &[],
             &[],
@@ -857,7 +861,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
         }
         EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
-        STRZ | ASCIIZ => ot_chk(ins, &[(&[ASTR], Optional::Needed)], &[], &[]),
+        STRING | ASCII => ot_chk(ins, &[(&[ASTR], Optional::Needed)], &[], &[]),
 
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
@@ -937,7 +941,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         | Mnm::JL
         | Mnm::JLE
         | Mnm::JG
-        | Mnm::JGE => ot_chk(ins, &[(&[AType::Symbol], Optional::Needed)], &[], &[]),
+        | Mnm::JGE => ot_chk(ins, &[(&[I32, I16, I8], Optional::Needed)], &[], &[]),
         Mnm::CPUID => ot_chk(ins, &[], &[], &[]),
 
         ENTER => ot_chk(
@@ -983,7 +987,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
         XACQUIRE | XRELEASE | XEND | XGETBV | XLAT | XLATB | XLATB64 | XRESLDTRK | XSETBV
         | XSUSLDTRK | XTEST => ot_chk(ins, &[], &[], &[]),
 
-        XBEGIN => ot_chk(ins, &[(&[Symbol], Optional::Needed)], &[], &[]),
+        XBEGIN => ot_chk(ins, &[(&[I32, I16], Optional::Needed)], &[], &[]),
         XRSTOR | XRSTORS | XRSTORS64 | XSAVE | XSAVE64 | XSAVEC | XSAVEC64 | XSAVEOPT
         | XSAVEOPT64 | XSAVES | XSAVES64 | XRSTOR64 => {
             ot_chk(ins, &[(&[M32, M64], Optional::Needed)], &[], &[])
@@ -2875,7 +2879,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
     }
     // should work (i hope so)
     match (dst.atype(), src.atype()) {
-        (AType::Register(_, s0) | AType::Memory(s0) | AType::SMemory(s0), AType::Immediate(s1)) => {
+        (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
             if s1 <= s0 {
                 None
             } else {
@@ -2890,7 +2894,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
                 }
             }
         }
-        (AType::Memory(s0) | AType::SMemory(s0), AType::Memory(s1) | AType::SMemory(s1)) => {
+        (AType::Memory(s0), AType::Memory(s1)) => {
             if s1 == s0 {
                 None
             } else {
@@ -2946,7 +2950,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
     }
     // should work (i hope so)
     match (dst.atype(), src.atype()) {
-        (AType::Register(_, s0) | AType::Memory(s0) | AType::SMemory(s0), AType::Immediate(s1)) => {
+        (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
             if s1 <= s0 {
                 None
             } else {
@@ -2961,7 +2965,7 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 }
             }
         }
-        (AType::Memory(s0) | AType::SMemory(s0), AType::Memory(s1) | AType::SMemory(s1)) => {
+        (AType::Memory(s0), AType::Memory(s1)) => {
             if s1 == s0 {
                 None
             } else {
@@ -3037,16 +3041,14 @@ fn find_ext(items: &[AType], searched: AType) -> bool {
     let (size, regprp, reg) = match searched {
         AType::Register(prp, size) => (size, Some(prp), None),
         AType::Immediate(size) => (size, None, None),
-        AType::SMemory(size) | AType::Memory(size) => (size, None, None),
-        AType::Symbol => (Size::Any, None, None),
+        AType::Memory(size) => (size, None, None),
         AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(r)),
     };
     for i in items {
         let (isize, iregprp, ireg) = match i {
             AType::Register(prp, size) => (*size, Some(*prp), None),
             AType::Immediate(size) => (*size, None, None),
-            AType::SMemory(size) | AType::Memory(size) => (*size, None, None),
-            AType::Symbol => (Size::Any, None, None),
+            AType::Memory(size) => (*size, None, None),
             AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(*r)),
         };
         if let (Some(ireg), Some(reg)) = (ireg, reg) {
@@ -3063,16 +3065,14 @@ fn find(items: &[AType], searched: AType) -> bool {
     let (size, regprp) = match searched {
         AType::Register(prp, size) => (size, Some(prp)),
         AType::Immediate(size) => (size, None),
-        AType::SMemory(size) | AType::Memory(size) => (size, None),
-        AType::Symbol => (Size::Any, None),
+        AType::Memory(size) => (size, None),
         _ => (Size::Unknown, None),
     };
     for i in items {
         let (isize, iregprp) = match i {
             AType::Register(prp, size) => (size, Some(prp)),
             AType::Immediate(size) => (size, None),
-            AType::SMemory(size) | AType::Memory(size) => (size, None),
-            AType::Symbol => (&Size::Any, None),
+            AType::Memory(size) => (size, None),
             _ => (&Size::Unknown, None),
         };
         if isize == &size && regprp.as_ref() == iregprp {

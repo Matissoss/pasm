@@ -68,13 +68,12 @@ for file in ./nasm/*.asm; do
 		echo "-------------"
 		sxd -1=$RASM_FILE_RES $SXD_FLAGS
 		
-		# temporarily disabled
-		#echo "-------------"
-		#echo "     DIFF    "
-		#echo " left = RASM "
-		#echo "right = NASM"
-		#echo "-------------"
-		#sxd -1=$RASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
+		echo "-------------"
+		echo "     DIFF    "
+		echo " left = RASM "
+		echo "right = NASM"
+		echo "-------------"
+		sxd -1=$RASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
 		echo ""
 		echo ""
 		errors=$((errors + 1))

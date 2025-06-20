@@ -125,8 +125,8 @@ fn needs_rex(ins: &Instruction) -> bool {
         Mnm::EXTRACTPS => true,
         Mnm::MOV => {
             if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))
-            | (Some(Operand::Mem(_) | Operand::Segment(_)), _)
-            | (_, Some(Operand::Mem(_) | Operand::Segment(_))) = (ins.dst(), ins.src())
+            | (Some(Operand::Mem(_)), _)
+            | (_, Some(Operand::Mem(_))) = (ins.dst(), ins.src())
             {
                 return true;
             }
@@ -156,8 +156,8 @@ fn needs_rex(ins: &Instruction) -> bool {
                 (ins.dst(), ins.src()),
                 (_, Some(Operand::Reg(_)))
                     | (Some(Operand::Reg(_)), _)
-                    | (Some(Operand::Mem(_) | Operand::Segment(_)), _)
-                    | (_, Some(Operand::Mem(_) | Operand::Segment(_)))
+                    | (Some(Operand::Mem(_)), _)
+                    | (_, Some(Operand::Mem(_)))
             )
         }
         Mnm::SAR | Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::LEA => true,
@@ -225,9 +225,6 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
     let mut x = false;
 
     match (ins.dst(), ins.src()) {
-        (Some(Operand::Segment(s)), _) | (_, Some(Operand::Segment(s))) => {
-            (b, x) = s.address.needs_rex()
-        }
         (Some(Operand::Mem(m)), _) | (_, Some(Operand::Mem(m))) => (b, x) = m.needs_rex(),
         _ => {}
     }

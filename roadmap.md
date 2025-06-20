@@ -51,12 +51,12 @@
     - [x] Fix `in`, `lea`, `wrf/gsbase`, `loopXX` and `out` instructions.
     - [x] Add missing `lgdt` and `lidt` instructions.
     - [x] Allow using `lock`, `repXX` mnemonics as prefix
+    - [ ] Allow for using symbols/relocations in more than one place (as address or value under address; `.deref`/`.ref` directives)
     - [ ] Remove `.assemble()` from `match` statement in `src/core/comp.rs:compile_instruction` and move inside `compile_label`
     - [ ] Create `.debug_assemble()` (`--debug`), `.verbose_assemble()` (`--verbose`)
     - [ ] Limit lifetimes, where they are unnecessary (use owned values)
     - [ ] Replace `String`s with `Arc<str>`/`Rc<str>`.
     - [ ] Allow for usage of multi threads to compile labels
-    - [ ] Allow for using symbols/relocations in more than one place (as address or value under address; `.deref`/`.ref` directives)
 - [ ] moving into beta-avx phase...
 
 ## beta-avx

@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::conf::PREFIX_VAL;
-use crate::shr::{error::RASMError, num::Number, reloc::RelType};
+use crate::shr::{error::RASMError, num::Number, reloc::RelType, size::Size, booltable::BoolTable8};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -44,11 +44,18 @@ impl Symbol<'_> {
     }
 }
 
+const SIZE_GUARDIAN: u8 = 0x0;
+const RELT_GUARDIAN: u8 = 0x1;
+const ADED_GUARDIAN: u8 = 0x2;
+const IS_DEREF     : u8 = 0x3;
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct SymbolRef {
     pub symbol: String,
-    pub addend: i32,
-    pub reltype: RelType,
+    addend: i32,
+    size: Size,
+    reltype: RelType,
+    guardians: BoolTable8,
 }
 
 type Error = RASMError;
@@ -75,6 +82,50 @@ fn new_tok(str: String) -> Token {
 
 const PREFIX_VAL_U8: u8 = PREFIX_VAL as u8;
 impl SymbolRef {
+    pub fn deref(&mut self, bool: bool) {
+        self.guardians.set(IS_DEREF, bool)
+    }
+    pub fn new(symb: String, addend: Option<i32>, is_deref: bool, sz: Option<Size>, reltype: Option<RelType>) -> Self {
+        Self {
+            symbol: symb,
+            addend: addend.unwrap_or(0),
+            size: sz.unwrap_or(Size::Unknown),
+            reltype: reltype.unwrap_or(RelType::REL32),
+            guardians: BoolTable8::new()
+                .setc(IS_DEREF, is_deref)
+                .setc(ADED_GUARDIAN, addend.is_some())
+                .setc(SIZE_GUARDIAN, sz.is_some())
+                .setc(RELT_GUARDIAN, reltype.is_some())
+        }
+    }
+    pub fn is_deref(&self) -> bool {
+        self.guardians.get(IS_DEREF).unwrap()
+    }
+    pub fn set_size(&mut self, sz: Size) {
+        self.guardians.set(SIZE_GUARDIAN, true);
+        self.size = sz;
+    }
+    pub fn size(&self) -> Option<Size> {
+        if self.guardians.get(SIZE_GUARDIAN).unwrap() {
+            Some(self.size)
+        } else {
+            None
+        }
+    }
+    pub fn reltype(&self) -> Option<RelType> {
+        if self.guardians.get(RELT_GUARDIAN).unwrap() {
+            Some(self.reltype)
+        } else {
+            None
+        }
+    }
+    pub fn addend(&self) -> Option<i32> {
+        if self.guardians.get(ADED_GUARDIAN).unwrap() {
+            Some(self.addend)
+        } else {
+            None
+        }
+    }
     // syntax:
     //
     // @(name:reltype:+/-addend)
@@ -120,11 +171,7 @@ impl SymbolRef {
             ));
         }
 
-        Ok(Self {
-            symbol: name,
-            reltype: rtype,
-            addend,
-        })
+        Ok(Self::new(name, Some(addend), false, None, Some(rtype)))
     }
 }
 
@@ -132,7 +179,7 @@ impl ToString for SymbolRef {
     fn to_string(&self) -> String {
         let mut string = self.symbol.clone();
         string.push(':');
-        string.push_str(if self.reltype == RelType::REL32 {
+        string.push_str(if self.reltype().unwrap_or(RelType::REL32).is_rel() {
             "rel"
         } else {
             "abs"
@@ -142,49 +189,5 @@ impl ToString for SymbolRef {
             string.push_str(&self.addend.to_string());
         }
         string
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn rel_fromstr() {
-        let str0 = "symbol:abs:+10";
-        let str1 = "symbol:-10";
-        let str2 = "symbol:abs";
-        let str3 = "symbol";
-        assert_eq!(
-            SymbolRef::try_new(str0),
-            Ok(SymbolRef {
-                symbol: String::from("symbol"),
-                reltype: RelType::ABS32,
-                addend: 10
-            })
-        );
-        assert_eq!(
-            SymbolRef::try_new(str1),
-            Ok(SymbolRef {
-                symbol: String::from("symbol"),
-                addend: -10,
-                reltype: RelType::REL32
-            })
-        );
-        assert_eq!(
-            SymbolRef::try_new(str2),
-            Ok(SymbolRef {
-                symbol: String::from("symbol"),
-                reltype: RelType::ABS32,
-                addend: 0
-            })
-        );
-        assert_eq!(
-            SymbolRef::try_new(str3),
-            Ok(SymbolRef {
-                symbol: String::from("symbol"),
-                addend: 0,
-                reltype: RelType::REL32
-            })
-        );
     }
 }

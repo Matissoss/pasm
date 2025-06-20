@@ -41,9 +41,9 @@ pub fn replace_mathevals(
     for i in &mut label.inst {
         for o in &mut i.oprs {
             if let Some(Operand::SymbolRef(s)) = o {
-                if mth.contains_key(&*s) {
+                if mth.contains_key(&s.symbol) {
                     let eval = {
-                        let e = mth.get(&*s).unwrap();
+                        let e = mth.get(&s.symbol).unwrap();
                         if let Ok(n) = Number::from_str(e) {
                             n.get_as_u64()
                         } else {
@@ -51,7 +51,7 @@ pub fn replace_mathevals(
                             let n = MathEval::eval(eval);
                             if n.is_none() {
                                 return Err(RASMError::with_tip(None,
-                                    Some(format!("Couldn't evaluate symbol {s}, despite it being declared as mathematical symbol")),
+                                    Some(format!("Couldn't evaluate symbol {}, despite it being declared as mathematical symbol", &s.symbol)),
                                     Some("If this helps: you cannot reference other mathematical symbols"),
                                 ));
                             }

@@ -12,7 +12,7 @@ pub const CR: AType = AType::Register(RegisterPurpose::Ctrl, Size::Any);
 pub const DR: AType = AType::Register(RegisterPurpose::Dbg, Size::Any);
 pub const SR: AType = AType::Register(RegisterPurpose::Sgmnt, Size::Any);
 
-pub const ASTR: AType = AType::Immediate(Size::Unknown);
+pub const ASTR: AType = AType::Immediate(Size::Any);
 pub const IA: AType = AType::Immediate(Size::Any);
 pub const I64: AType = AType::Immediate(Size::Qword);
 pub const I32: AType = AType::Immediate(Size::Dword);
@@ -42,9 +42,7 @@ pub enum AType {
     Immediate(Size),                 // immediate
     Register(RegisterPurpose, Size), // register
     Memory(Size),                    // memory
-    SMemory(Size),                   // segment memory
     ExtendedRegister(Register),
-    Symbol,
 }
 
 pub trait ToAType {
@@ -64,13 +62,9 @@ impl ToString for AType {
             Self::Memory(sz) => {
                 format!("{} mem", sz)
             }
-            Self::SMemory(sz) => {
-                format!("{} segmented mem", sz)
-            }
             Self::Immediate(sz) => {
                 format!("{} imm", sz)
             }
-            Self::Symbol => String::from("symbol"),
         }
     }
 }

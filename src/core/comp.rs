@@ -12,7 +12,6 @@ use crate::{
         reg::{Purpose as RPurpose, Register},
         reloc::RelType,
         reloc::Relocation,
-        segment::Segment,
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
     },
@@ -142,7 +141,12 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
                 .assemble(ins, bits),
             None,
         ),
-        Ins::STRZ | Ins::ASCIIZ => (ins_str(ins), None),
+        Ins::ASCII | Ins::STRING => (
+            GenAPI::new().opcode(&[])
+                .imm_atindex(0, 0)
+                .assemble(ins, bits), 
+                None
+        ),
         Ins::EMPTY => (ins_empty(ins), None),
 
         Ins::__LAST => (vec![], None),
@@ -219,38 +223,42 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
         Ins::DIV => (ins_divmul(ins, 6, bits), None),
         Ins::IDIV => (ins_divmul(ins, 7, bits), None),
         Ins::MUL => (ins_divmul(ins, 4, bits), None),
-        Ins::JMP => ins_jmplike(ins, [vec![0xE9], vec![0xFF]], 4, bits),
-        Ins::CALL => ins_jmplike(ins, [vec![0xE8], vec![0xFF]], 2, bits),
+        Ins::JMP => ins_jmplike(ins, [&[0xE9], &[0xFF], &[0xEB]], 4, bits),
+        Ins::CALL => ins_jmplike(ins, [&[0xE8], &[0xFF], &[0xE8]], 2, bits),
 
         // jcc
-        Ins::JA => ins_jmplike(ins, [vec![0x0F, 0x87], vec![]], 0, bits),
-        Ins::JB => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
-        Ins::JC => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
-        Ins::JO => ins_jmplike(ins, [vec![0x0F, 0x80], vec![]], 0, bits),
-        Ins::JP => ins_jmplike(ins, [vec![0x0F, 0x8A], vec![]], 0, bits),
-        Ins::JS => ins_jmplike(ins, [vec![0x0F, 0x88], vec![]], 0, bits),
-        Ins::JL => ins_jmplike(ins, [vec![0x0F, 0x8C], vec![]], 0, bits),
-        Ins::JG => ins_jmplike(ins, [vec![0x0F, 0x8F], vec![]], 0, bits),
-        Ins::JE | Ins::JZ => ins_jmplike(ins, [vec![0x0F, 0x84], vec![]], 0, bits),
-        Ins::JAE => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
-        Ins::JBE => ins_jmplike(ins, [vec![0x0F, 0x86], vec![]], 0, bits),
-        Ins::JNA => ins_jmplike(ins, [vec![0x0F, 0x86], vec![]], 0, bits),
-        Ins::JNB => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
-        Ins::JNC => ins_jmplike(ins, [vec![0x0F, 0x83], vec![]], 0, bits),
-        Ins::JNG => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
-        Ins::JNL => ins_jmplike(ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
-        Ins::JNO => ins_jmplike(ins, [vec![0x0F, 0x81], vec![]], 0, bits),
-        Ins::JNP => ins_jmplike(ins, [vec![0x0F, 0x8B], vec![]], 0, bits),
-        Ins::JNS => ins_jmplike(ins, [vec![0x0F, 0x89], vec![]], 0, bits),
-        Ins::JPE => ins_jmplike(ins, [vec![0x0F, 0x8A], vec![]], 0, bits),
-        Ins::JPO => ins_jmplike(ins, [vec![0x0F, 0x8B], vec![]], 0, bits),
-        Ins::JNE | Ins::JNZ => ins_jmplike(ins, [vec![0xFF, 0x85], vec![]], 0, bits),
-        Ins::JLE => ins_jmplike(ins, [vec![0x0F, 0x8E], vec![]], 0, bits),
-        Ins::JGE => ins_jmplike(ins, [vec![0x0F, 0x8D], vec![]], 0, bits),
-        Ins::JNAE => ins_jmplike(ins, [vec![0x0F, 0x82], vec![]], 0, bits),
-        Ins::JNBE => ins_jmplike(ins, [vec![0x0F, 0x87], vec![]], 0, bits),
-        Ins::JNGE => ins_jmplike(ins, [vec![0x0F, 0x8C], vec![]], 0, bits),
-        Ins::JNLE => ins_jmplike(ins, [vec![0x0F, 0x8F], vec![]], 0, bits),
+        Ins::JA => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
+        Ins::JB => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Ins::JC => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Ins::JO => ins_jmplike(ins, [&[0x0F, 0x80], &[], &[0x70]], 0, bits),
+        Ins::JP => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
+        Ins::JS => ins_jmplike(ins, [&[0x0F, 0x88], &[], &[0x78]], 0, bits),
+        Ins::JL => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
+        Ins::JG => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7C]], 0, bits),
+        Ins::JE | Ins::JZ => ins_jmplike(ins, [&[0x0F, 0x84], &[], &[0x74]], 0, bits),
+        Ins::JAE => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Ins::JBE => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
+        Ins::JNA => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
+        Ins::JNB => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Ins::JNC => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Ins::JNG => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
+        Ins::JNL => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
+        Ins::JNO => ins_jmplike(ins, [&[0x0F, 0x81], &[], &[0x71]], 0, bits),
+        Ins::JNP => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
+        Ins::JNS => ins_jmplike(ins, [&[0x0F, 0x89], &[], &[0x79]], 0, bits),
+        Ins::JPE => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
+        Ins::JPO => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
+        Ins::JNE | Ins::JNZ => ins_jmplike(ins, [&[0xFF, 0x85], &[], &[0x75]], 0, bits),
+        Ins::JLE => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
+        Ins::JGE => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
+        Ins::JNAE => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Ins::JNBE => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
+        Ins::JNGE => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
+        Ins::JNLE => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7F]], 0, bits),
+
+        Ins::JCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
+        Ins::JECXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
+        Ins::JRCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
 
         Ins::LEA => ins_lea(ins, bits),
 
@@ -5710,7 +5718,7 @@ pub fn compile_instruction(ins: &'_ Instruction, bits: u8) -> (Vec<u8>, Option<R
             None,
         ),
         // part 3
-        Ins::ENTER => (ins_enter(ins, bits), None),
+        //Ins::ENTER => (ins_enter(ins, bits), None),
         Ins::HLT => (vec![0xF4], None),
         Ins::HRESET => (
             GenAPI::new()
@@ -6692,10 +6700,8 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
 }
 
 fn ins_xbegin(ins: &Instruction) -> (Vec<u8>, Option<Relocation>) {
-    let (symbol, reltype, addend) = if let Some(Operand::SymbolRef(str)) = ins.dst() {
-        (str, RelType::REL32, 0)
-    } else if let Some(Operand::SymbolRefExt(s)) = ins.dst() {
-        (&s.symbol, s.reltype, s.addend)
+    let (symbol, reltype, addend) = if let Some(Operand::SymbolRef(s)) = ins.dst() {
+        (&s.symbol, s.reltype().unwrap_or(RelType::REL32), s.addend().unwrap_or(0))
     } else {
         invalid(3923)
     };
@@ -6786,7 +6792,7 @@ fn ins_pop(ins: &Instruction, bits: u8) -> Vec<u8> {
             Register::CS => vec![0x90],
             _ => invalid(34),
         },
-        Operand::Mem(_) | Operand::Segment(_) => GenAPI::new()
+        Operand::Mem(_) => GenAPI::new()
             .opcode(&[0x8F])
             .rex(true)
             .modrm(true, None, Some(0))
@@ -6821,7 +6827,7 @@ fn ins_push(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .assemble(ins, bits),
             _ => invalid(31),
         },
-        Operand::Mem(_) | Operand::Segment(_) => GenAPI::new()
+        Operand::Mem(_) => GenAPI::new()
             .opcode(&[0xFF])
             .modrm(true, Some(6), None)
             .rex(true)
@@ -6883,7 +6889,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
                     .rex(true)
                     .assemble(ins, bits)
             }
-            Operand::Mem(_) | Operand::Segment(_) => {
+            Operand::Mem(_) => {
                 let opc = if let Operand::Reg(_) = src {
                     match dst.size() {
                         Size::Byte => 0x88,
@@ -6929,7 +6935,7 @@ fn ins_mov(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .assemble(ins, bits),
             _ => invalid(25),
         }
-    } else if let Operand::Mem(_) | Operand::Segment(_) = dst {
+    } else if let Operand::Mem(_) = dst {
         match src {
             Operand::Reg(_) => {
                 let opc = match dst.size() {
@@ -7028,11 +7034,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 .assemble(ins, bits)
         }
         (
-            Operand::Mem(dstm)
-            | Operand::Segment(Segment {
-                segment: _,
-                address: dstm,
-            }),
+            Operand::Mem(dstm),
             Operand::Imm(srci),
         ) => {
             let imm = srci.split_into_bytes();
@@ -7069,23 +7071,11 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> Vec<u
                 .imm_atindex(1, size)
                 .assemble(ins, bits)
         }
-        (Operand::Reg(r), Operand::Segment(_) | Operand::Mem(_) | Operand::Reg(_)) => {
+        (Operand::Reg(r), Operand::Mem(_) | Operand::Reg(_)) => {
             let opc = match r.size() {
                 Size::Byte => opc[7],
                 Size::Word | Size::Dword | Size::Qword => opc[6],
                 _ => invalid(17),
-            };
-            GenAPI::new()
-                .opcode(&[opc])
-                .modrm(true, None, None)
-                .rex(true)
-                .assemble(ins, bits)
-        }
-        (Operand::Segment(m), Operand::Reg(_)) => {
-            let opc = match m.address.size().unwrap_or_default() {
-                Size::Byte => opc[7],
-                Size::Word | Size::Dword | Size::Qword => opc[6],
-                _ => invalid(16),
             };
             GenAPI::new()
                 .opcode(&[opc])
@@ -7167,43 +7157,6 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .imm_atindex(1, 1)
                 .assemble(ins, bits)
         }
-        (Operand::Segment(dstm), Operand::Imm(srci)) => {
-            let imm = srci.split_into_bytes();
-            let opc = match dstm.address.size().unwrap_or_default() {
-                Size::Byte => 0x80,
-                Size::Qword | Size::Word | Size::Dword => {
-                    if imm.len() == 1 {
-                        if imm[0] <= 127 {
-                            0x83
-                        } else {
-                            0x81
-                        }
-                    } else {
-                        0x81
-                    }
-                }
-                _ => invalid(12),
-            };
-            let size = if let (Size::Word | Size::Byte, Size::Word) =
-                (srci.size(), dstm.address.size().unwrap_or_default())
-            {
-                2
-            } else if let (Size::Byte, Size::Dword | Size::Qword) =
-                (srci.size(), dstm.address.size().unwrap_or_default())
-            {
-                4
-            } else if srci.size() != Size::Byte {
-                4
-            } else {
-                1
-            };
-            GenAPI::new()
-                .opcode(&[opc])
-                .modrm(true, Some(7), None)
-                .rex(true)
-                .imm_atindex(1, size)
-                .assemble(ins, bits)
-        }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let imm = srci.split_into_bytes();
             let opc = match dstm.size().unwrap_or_default() {
@@ -7241,7 +7194,7 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .imm_atindex(1, size)
                 .assemble(ins, bits)
         }
-        (Operand::Reg(r), Operand::Segment(_) | Operand::Mem(_) | Operand::Reg(_)) => {
+        (Operand::Reg(r), Operand::Mem(_) | Operand::Reg(_)) => {
             let opc = match r.size() {
                 Size::Byte => 0x3A,
                 Size::Word | Size::Dword | Size::Qword => 0x3B,
@@ -7258,18 +7211,6 @@ fn ins_cmp(ins: &Instruction, bits: u8) -> Vec<u8> {
                 Size::Byte => 0x38,
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(9),
-            };
-            GenAPI::new()
-                .opcode(&[opc])
-                .modrm(true, None, None)
-                .rex(true)
-                .assemble(ins, bits)
-        }
-        (Operand::Segment(m), Operand::Reg(_)) => {
-            let opc = match m.address.size().unwrap_or_default() {
-                Size::Byte => 0x38,
-                Size::Word | Size::Dword | Size::Qword => 0x39,
-                _ => invalid(8),
             };
             GenAPI::new()
                 .opcode(&[opc])
@@ -7334,32 +7275,6 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .rex(true)
                 .assemble(ins, bits)
         }
-        (Operand::Segment(dsts), Operand::Imm(srci)) => {
-            let opc = match dsts.address.size().unwrap_or_default() {
-                Size::Byte => 0xF6,
-                Size::Qword | Size::Word | Size::Dword => 0xF7,
-                _ => invalid(5),
-            };
-            let size = if let (Size::Word | Size::Byte, Size::Word) =
-                (srci.size(), dsts.address.size().unwrap_or_default())
-            {
-                2
-            } else if let (Size::Byte, Size::Dword | Size::Qword) =
-                (srci.size(), dsts.address.size().unwrap_or_default())
-            {
-                4
-            } else if srci.size() != Size::Byte {
-                4
-            } else {
-                1
-            };
-            GenAPI::new()
-                .opcode(&[opc])
-                .modrm(true, Some(0), None)
-                .rex(true)
-                .imm_atindex(1, size)
-                .assemble(ins, bits)
-        }
         (Operand::Mem(dstm), Operand::Imm(srci)) => {
             let opc = match dstm.size().unwrap_or_default() {
                 Size::Byte => 0xF6,
@@ -7386,7 +7301,7 @@ fn ins_test(ins: &Instruction, bits: u8) -> Vec<u8> {
                 .imm_atindex(1, size)
                 .assemble(ins, bits)
         }
-        (Operand::Reg(_) | Operand::Mem(_) | Operand::Segment(_), Operand::Reg(_)) => {
+        (Operand::Reg(_) | Operand::Mem(_), Operand::Reg(_)) => {
             let opc = match dst.size() {
                 Size::Byte => 0x84,
                 Size::Word | Size::Dword | Size::Qword => 0x85,
@@ -7514,8 +7429,7 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
         .assemble(ins, bits);
     base.push(0x25);
     let (symbol, reltype, addend) = match ins.src().unwrap() {
-        Operand::SymbolRef(s) => (s, RelType::ABS32, 0),
-        Operand::SymbolRefExt(s) => (&s.symbol, s.reltype, s.addend),
+        Operand::SymbolRef(s) => (&s.symbol, s.reltype().unwrap_or(RelType::ABS32), s.addend().unwrap_or(0)),
         _ => invalid(1),
     };
     let blen = base.len();
@@ -7532,45 +7446,47 @@ fn ins_lea(ins: &Instruction, bits: u8) -> (Vec<u8>, Option<Relocation>) {
     )
 }
 
-// opc = opcode ONLY for rel32
-// why? because i'm too lazy to implement other rel's
-//
-// opc[0] = rel32
+// opc[0] = rel16/32
 // opc[1] = r/m
-fn ins_jmplike(
-    ins: &Instruction,
-    opc: [Vec<u8>; 2],
+// opc[2] = rel8
+fn ins_jmplike<'a>(
+    ins: &'a Instruction,
+    opc: [&'a [u8]; 3],
     addt: u8,
     bits: u8,
-) -> (Vec<u8>, Option<Relocation>) {
+) -> (Vec<u8>, Option<Relocation<'a>>) {
     match ins.dst().unwrap() {
-        Operand::SymbolRefExt(s) => {
-            let rel = Relocation {
-                reltype: s.reltype,
-                symbol: &s.symbol,
-                offset: opc[0].len() as u32,
-                addend: s.addend,
-                shidx: 0,
+        Operand::Imm(i) => {
+            let (mut opc, sz) = match i.size() {
+                Size::Byte => (opc[2].to_vec(), 1),
+                _ => (opc[0].to_vec(), 4),
             };
-            let mut opc = opc[0].clone();
-            opc.extend([0; 4]);
-            (opc, Some(rel))
+            let mut bts = i.split_into_bytes();
+            while bts.len() < sz {
+                bts.push(0x00);
+            }
+            opc.extend(bts);
+            (opc, None)
         }
         Operand::SymbolRef(s) => {
+            let sz = s.reltype().unwrap_or(RelType::REL32).size();
+            let mut base = match sz {
+                1 => opc[2].to_vec(),
+                _ => opc[0].to_vec(),
+            };
             let rel = Relocation {
-                reltype: RelType::REL32,
-                symbol: s,
-                addend: -4,
+                reltype: s.reltype().unwrap_or(RelType::REL32),
+                symbol: &s.symbol,
                 offset: opc[0].len() as u32,
+                addend: s.addend().unwrap_or(-(sz as i32)),
                 shidx: 0,
             };
-            let mut opc = opc[0].clone();
-            opc.extend([0; 4]);
-            (opc, Some(rel))
+            base.extend(vec![0; sz]);
+            (base, Some(rel))
         }
         Operand::Reg(_) | Operand::Mem(_) => (
             GenAPI::new()
-                .opcode(&opc[1])
+                .opcode(opc[1])
                 .modrm(true, Some(addt), None)
                 .rex(true)
                 .assemble(ins, bits),
@@ -7672,10 +7588,8 @@ fn ins_out(ins: &Instruction, bits: u8) -> Vec<u8> {
 fn ins_shrtjmp(ins: &Instruction, opc: Vec<u8>) -> (Vec<u8>, Option<Relocation<'_>>) {
     let mut b = [0; 2];
     b[0] = opc[0];
-    let (symbol, reltype, addend) = if let Operand::SymbolRefExt(s) = ins.dst().unwrap() {
-        (&s.symbol, s.reltype, s.addend)
-    } else if let Operand::SymbolRef(r) = ins.dst().unwrap() {
-        (r, RelType::REL8, 0)
+    let (symbol, reltype, addend) = if let Operand::SymbolRef(s) = ins.dst().unwrap() {
+        (&s.symbol, s.reltype().unwrap_or(RelType::REL8), s.addend().unwrap_or(0))
     } else {
         panic!("Unhandled exception");
     };

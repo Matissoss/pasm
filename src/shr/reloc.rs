@@ -24,9 +24,10 @@ impl RelType {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Copy)]
+#[derive(PartialEq, Default, Clone, Debug, Copy)]
 pub enum RelType {
     ABS32,
+    #[default]
     REL32,
     REL16,
     REL8,

@@ -4,14 +4,12 @@
 // licensed under MPL 2.0
 
 use crate::core::api;
-use crate::shr::{
-    ast::{Instruction, Operand},
-    segment::Segment,
-};
+use crate::shr::ast::{Instruction, Operand};
 
 pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
     let [mut dst, mut src, _] = ctx.get_ord_oprs(ins);
 
+    // fallback to default
     if let (None, None) = (dst, src) {
         dst = ins.dst();
         src = ins.src();
@@ -32,7 +30,11 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
         } else {
             0b00
         }
-    } else {
+    }
+    else if let [Some(_), _] = ins.get_symbs() {
+        0b00
+    }
+    else {
         0b11
     };
 
@@ -66,14 +68,8 @@ fn gen_rmreg(op: &Option<&Operand>) -> u8 {
     };
     match op.unwrap() {
         Operand::DbgReg(r) | Operand::CtrReg(r) | Operand::Reg(r) => r.to_byte(),
-        Operand::Mem(m)
-        | Operand::Segment(Segment {
-            address: m,
-            segment: _,
-        }) => {
-            if m.is_sib() {
-                0b100
-            } else if let Some(r) = m.base() {
+        Operand::Mem(m) => {
+            if let Some(r) = m.base() {
                 r.to_byte()
             } else {
                 0
