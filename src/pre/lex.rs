@@ -289,7 +289,7 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
 
     if line.len() == 2 {
         match (&line[0], &line[1]){
-            (Token::Keyword(Keyword::Deref|Keyword::Ref), 
+            (Token::Keyword(Keyword::Deref|Keyword::Ref),
              Token::SymbolRefExt(_)
             ) => {
                 let mut s = if let Token::SymbolRefExt(s) = line.pop().unwrap() {
@@ -300,7 +300,7 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
                 s.deref(line[0] == Token::Keyword(Keyword::Deref));
                 return Ok(Operand::SymbolRef(s));
             }
-            (Token::Keyword(Keyword::Deref|Keyword::Ref), 
+            (Token::Keyword(Keyword::Deref|Keyword::Ref),
              Token::SymbolRef(s)
             ) => {
                 return Ok(Operand::SymbolRef(SymbolRef::new(s.to_string(), None, line[0] == Token::Keyword(Keyword::Deref), None, None)));
@@ -349,7 +349,9 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
                 let sz = if let Ok(sz) = Size::try_from(*s) {
                     sz
                 } else {
-                    return Err(RASMError::msg("Expected size directive after symbolref, found unknown keyword"));
+                    return Err(RASMError::msg(
+                        "Expected size directive after symbolref, found unknown keyword",
+                    ));
                 };
                 let _ = line.pop();
                 let mut sref = if let Token::SymbolRefExt(s) = line.pop().unwrap() {
@@ -360,7 +362,7 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
                 sref.deref(true);
                 sref.set_size(sz);
                 return Ok(Operand::SymbolRef(sref));
-            },
+            }
             _ => return Err(RASMError::msg("Unknown triple token combo")),
         }
     }

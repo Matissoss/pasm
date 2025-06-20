@@ -237,10 +237,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
         ),
         Mnm::LEA => ot_chk(
             ins,
-            &[
-                (&[R16, R32], Optional::Needed),
-                (&[I32, MA], Optional::Needed),
-            ],
+            &[(&[R16, R32], Optional::Needed), (&[MA], Optional::Needed)],
             &[],
             &[],
         ),
@@ -448,7 +445,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
     use Mnm::*;
     match ins.mnem {
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
-        
+
         Mnm::CMOVA
         | Mnm::CMOVB
         | Mnm::CMOVC
@@ -618,17 +615,12 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[LOCK],
         ),
-        Mnm::JMP | Mnm::CALL => ot_chk(
-            ins,
-            &[(&[I32, R64, M64], Optional::Needed)],
-            &[],
-            &[],
-        ),
+        Mnm::JMP | Mnm::CALL => ot_chk(ins, &[(&[I32, R64, M64], Optional::Needed)], &[], &[]),
         Mnm::LEA => ot_chk(
             ins,
             &[
                 (&[R16, R32, R64], Optional::Needed),
-                (&[I32, MA], Optional::Needed),
+                (&[MA], Optional::Needed),
             ],
             &[],
             &[],

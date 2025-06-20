@@ -38,10 +38,10 @@ use crate::{
         booltable::BoolTable16,
         error::RASMError,
         ins::Mnemonic,
+        mem::Mem,
         reg::Register,
-        size::Size,
         reloc::Relocation,
-        mem::Mem
+        size::Size,
     },
 };
 
@@ -253,7 +253,11 @@ impl GenAPI {
     // you can have max 2 relocations returned, because of variants like:
     // mov .deref @symbol, @other_symbol
     // (yes valid variant: first operand is mem, second is immediate)
-    pub fn assemble_wrel<'a>(&'a self, ins: &'a Instruction, bits: u8) -> (Vec<u8>, [Option<Relocation<'a>>; 2]) {
+    pub fn assemble<'a>(
+        &'a self,
+        ins: &'a Instruction,
+        bits: u8,
+    ) -> (Vec<u8>, [Option<Relocation>; 2]) {
         let mut rels = [None, None];
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
         let rex_flag_set = self.flags.get(REX_PFX).unwrap();
@@ -335,13 +339,21 @@ impl GenAPI {
             if let Some(disp) = disp::gen_disp_ins(ins) {
                 base.extend(disp);
             } else {
-                // we assert that second symbol is 
                 let symb = ins.get_symbs()[0];
                 if let Some((s, _)) = symb {
+                    let addend = if let Some(addend) = s.addend() {
+                        addend
+                    } else {
+                        if s.reltype().unwrap_or_default().is_rel() {
+                            -(s.reltype().unwrap_or_default().size() as i32)
+                        } else {
+                            0
+                        }
+                    };
                     rels[0] = Some(Relocation {
-                        symbol: &s.symbol,
+                        symbol: s.symbol.clone(),
                         offset: base.len() as u32,
-                        addend: s.addend().unwrap_or(0),
+                        addend,
                         shidx: 0,
                         reltype: s.reltype().unwrap_or_default(),
                     });
@@ -390,14 +402,23 @@ impl GenAPI {
                     base.extend(bts);
                 }
             } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
+                let addend = if let Some(addend) = s.addend() {
+                    addend
+                } else {
+                    if s.reltype().unwrap_or_default().is_rel() {
+                        -(s.reltype().unwrap_or_default().size() as i32)
+                    } else {
+                        0
+                    }
+                };
                 rels[1] = Some(Relocation {
-                    symbol: &s.symbol,
+                    symbol: s.symbol.clone(),
                     offset: base.len() as u32,
-                    addend: s.addend().unwrap_or(0),
+                    addend,
                     shidx: 0,
                     reltype: s.reltype().unwrap_or_default(),
                 });
-                let sz : u8 = s.size().unwrap_or(Size::Dword).into();
+                let sz: u8 = s.size().unwrap_or(Size::Dword).into();
                 base.extend(vec![0; sz as usize]);
             }
             // rvrm
@@ -411,8 +432,7 @@ impl GenAPI {
                     "Tried to use immediate at index {idx} - didn't find one."
                 ));
             }
-        }
-        if self.flags.get(OBY_CONST).unwrap() {
+        } else if self.flags.get(OBY_CONST).unwrap() {
             let size = (self.addt & 0xFF00) >> 8;
             let mut imm = vec![((self.addt & 0x00FF) as u8)];
             extend_imm(&mut imm, size as u8);
@@ -421,145 +441,11 @@ impl GenAPI {
 
         (base, rels)
     }
-    pub fn assemble(&self, ins: &Instruction, bits: u8) -> Vec<u8> {
-        let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
-        let rex_flag_set = self.flags.get(REX_PFX).unwrap();
-        let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
-        let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
-            (sz, true)
-        } else {
-            (ins.size(), false)
-        };
-        let mut base = {
-            let mut base = Vec::new();
-
-            if let Some(a) = gen_addt_pfx(ins) {
-                base.push(a);
-            }
-
-            let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
-                && !self.get_flag(STRICT_PFX).unwrap()
-            {
-                rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
-            } else {
-                0x00
-            };
-
-            let rexw = if bits == 64 {
-                if rex != 0x00 {
-                    rex & 0x08 == 0x08
-                } else {
-                    ins_size == Size::Qword || ins_size == Size::Any
-                }
-            } else {
-                false
-            };
-
-            if !(vex_flag_set || evex_flag_set) {
-                if let Some(segm) = gen_segm_pref(ins) {
-                    base.push(segm);
-                }
-                if fx_size {
-                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
-                        base.push(size_ovr);
-                    }
-                } else if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
-                    let h66 = size_ovr[0];
-                    let h67 = size_ovr[1];
-                    if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
-                        base.push(0x66);
-                    }
-                    if h67.is_some() && self.prefix != 0x67 {
-                        base.push(0x67);
-                    }
-                }
-                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
-                    base.push(self.prefix);
-                }
-            }
-
-            if rex_flag_set && rex != 0x00 {
-                base.push(rex);
-            }
-            if vex_flag_set {
-                if let Some(vex) = vex::vex(ins, self) {
-                    base.extend(vex);
-                }
-            }
-            if evex_flag_set {
-                panic!("EVEX prefix is not availiable!");
-            }
-            base
-        };
-
-        let (opc, sz) = self.opcode.collect();
-        base.extend(&opc[..sz]);
-        if self.flags.get(USE_MODRM).unwrap() {
-            base.push(modrm::modrm(ins, self));
-            if let Some(sib) = sib::gen_sib_ins(ins) {
-                base.push(sib);
-            }
-            if let Some(disp) = disp::gen_disp_ins(ins) {
-                base.extend(disp);
-            }
-        }
-        if self.flags.get(IMM_ATIDX).unwrap() {
-            let size = ((self.addt & 0x00_F0) >> 4) as usize;
-            let idx = (self.addt & 0x00_0F) as usize;
-            if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
-                let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
-                    (&i.get_raw_be()[8 - i.get_real_size()..], true)
-                } else {
-                    (&i.get_raw_le()[..i.get_real_size()], false)
-                };
-                let mut idx = 0;
-                if be {
-                    while idx < size.abs_diff(imm.len()) {
-                        base.push(0x00);
-                        idx += 1;
-                    }
-                }
-                for b in imm {
-                    if idx < size {
-                        base.push(*b);
-                        idx += 1;
-                    } else {
-                        break;
-                    }
-                }
-                if !be {
-                    while idx < size {
-                        base.push(0x00);
-                        idx += 1;
-                    }
-                }
-            }
-            // rvrm
-            else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
-                let mut v = Vec::new();
-                v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
-                extend_imm(&mut v, size as u8);
-                base.extend(v);
-            } else {
-                RASMError::warn(format!(
-                    "Tried to use immediate at index {idx} - didn't find one."
-                ));
-            }
-        }
-        if self.flags.get(OBY_CONST).unwrap() {
-            let size = (self.addt & 0xFF00) >> 8;
-            let mut imm = vec![((self.addt & 0x00FF) as u8)];
-            extend_imm(&mut imm, size as u8);
-            base.extend(imm);
-        }
-
-        base
-    }
     pub fn try_assemble(&self, ins: &Instruction, bits: u8) -> Result<Vec<u8>, RASMError> {
         if let Some(err) = self.validate() {
             Err(err)
         } else {
-            Ok(self.assemble(ins, bits))
+            Ok(self.assemble(ins, bits).0)
         }
     }
     pub const fn modrm_reg_is_dst(&self) -> bool {

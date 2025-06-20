@@ -127,9 +127,9 @@ impl TryFrom<Token> for Operand {
             }
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => {
-                Ok(Self::SymbolRef(SymbolRef::new(val, None, false, None, None)))
-            }
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(SymbolRef::new(
+                val, None, false, None, None,
+            ))),
             Token::SymbolRefExt(val) => Ok(Self::SymbolRef(val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
@@ -153,7 +153,13 @@ impl Operand {
             Self::CtrReg(r) => r.size(),
             Self::DbgReg(r) => r.size(),
             Self::Mem(m) => m.size().unwrap_or(Size::Unknown),
-            Self::SymbolRef(s) => if let Some(sz) = s.size() { sz } else { Size::Dword },
+            Self::SymbolRef(s) => {
+                if let Some(sz) = s.size() {
+                    sz
+                } else {
+                    Size::Dword
+                }
+            }
             Self::SegReg(_) => Size::Word,
             Self::String(_) => Size::Unknown,
         }
@@ -165,7 +171,13 @@ impl Operand {
                 AType::ExtendedRegister(*r)
             }
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(s) => if s.is_deref() { AType::Memory(s.size().unwrap_or(Size::Unknown)) } else { AType::Immediate(Size::Dword) },
+            Self::SymbolRef(s) => {
+                if s.is_deref() {
+                    AType::Memory(s.size().unwrap_or(Size::Unknown))
+                } else {
+                    AType::Immediate(Size::Dword)
+                }
+            }
             Self::String(_) => AType::Immediate(Size::Unknown),
         }
     }
@@ -177,15 +189,19 @@ impl ToAType for Operand {
             Self::Mem(m) => m.atype(),
             Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => r.atype(),
             Self::Imm(n) => n.atype(),
-            Self::SymbolRef(s) => if s.is_deref() { AType::Memory(s.size().unwrap_or(Size::Unknown)) } else { AType::Immediate(Size::Dword) },
-            Self::String(s) =>  {
-               match s.len() {
-                   1 => AType::Immediate(Size::Byte),
-                   2 => AType::Immediate(Size::Word),
-                   3..=4 => AType::Immediate(Size::Dword),
-                   5..=8 => AType::Immediate(Size::Qword),
-                   _ => AType::Immediate(Size::Unknown),
-               }
+            Self::SymbolRef(s) => {
+                if s.is_deref() {
+                    AType::Memory(s.size().unwrap_or(Size::Unknown))
+                } else {
+                    AType::Immediate(Size::Dword)
+                }
+            }
+            Self::String(s) => match s.len() {
+                1 => AType::Immediate(Size::Byte),
+                2 => AType::Immediate(Size::Word),
+                3..=4 => AType::Immediate(Size::Dword),
+                5..=8 => AType::Immediate(Size::Qword),
+                _ => AType::Immediate(Size::Unknown),
             },
         }
     }
@@ -264,6 +280,9 @@ impl Instruction {
     pub fn uses_rip(&self) -> bool {
         if let Some(m) = self.get_mem() {
             return m.is_riprel();
+        }
+        if self.get_symbs().iter().flatten().count() >= 1 {
+            return true;
         }
         false
     }
@@ -383,9 +402,7 @@ impl Instruction {
     #[inline]
     pub fn get_mem(&self) -> Option<&Mem> {
         if let Some(idx) = self.get_mem_idx() {
-            if let Some(
-                Operand::Mem(m)) = self.get_opr(idx)
-            {
+            if let Some(Operand::Mem(m)) = self.get_opr(idx) {
                 Some(m)
             } else {
                 None

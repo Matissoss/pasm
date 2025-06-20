@@ -89,10 +89,10 @@ impl FromStr for Keyword {
                 'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
                 'y' => kwd_ie(kwd, b"yword", 1, 4, Keyword::Yword),
                 'q' => kwd_ie(kwd, b"qword", 1, 4, Keyword::Qword),
-                'd' => match kwd_raw[1] { 
+                'd' => match kwd_raw[1] {
                     b'w' => kwd_ie(kwd, b"dword", 1, 4, Keyword::Dword),
                     b'e' => kwd_ie(kwd, b"deref", 1, 4, Keyword::Deref),
-                    _    => Err(()),
+                    _ => Err(()),
                 },
                 'e' => kwd_ie(kwd, b"entry", 1, 4, Keyword::Entry),
                 _ => Err(()),

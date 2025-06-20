@@ -4,7 +4,9 @@
 // licensed under MPL 2.0
 
 use crate::conf::PREFIX_VAL;
-use crate::shr::{error::RASMError, num::Number, reloc::RelType, size::Size, booltable::BoolTable8};
+use crate::shr::{
+    booltable::BoolTable8, error::RASMError, num::Number, reloc::RelType, size::Size,
+};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -47,7 +49,7 @@ impl Symbol<'_> {
 const SIZE_GUARDIAN: u8 = 0x0;
 const RELT_GUARDIAN: u8 = 0x1;
 const ADED_GUARDIAN: u8 = 0x2;
-const IS_DEREF     : u8 = 0x3;
+const IS_DEREF: u8 = 0x3;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct SymbolRef {
@@ -85,7 +87,13 @@ impl SymbolRef {
     pub fn deref(&mut self, bool: bool) {
         self.guardians.set(IS_DEREF, bool)
     }
-    pub fn new(symb: String, addend: Option<i32>, is_deref: bool, sz: Option<Size>, reltype: Option<RelType>) -> Self {
+    pub fn new(
+        symb: String,
+        addend: Option<i32>,
+        is_deref: bool,
+        sz: Option<Size>,
+        reltype: Option<RelType>,
+    ) -> Self {
         Self {
             symbol: symb,
             addend: addend.unwrap_or(0),
@@ -95,7 +103,7 @@ impl SymbolRef {
                 .setc(IS_DEREF, is_deref)
                 .setc(ADED_GUARDIAN, addend.is_some())
                 .setc(SIZE_GUARDIAN, sz.is_some())
-                .setc(RELT_GUARDIAN, reltype.is_some())
+                .setc(RELT_GUARDIAN, reltype.is_some()),
         }
     }
     pub fn is_deref(&self) -> bool {

@@ -30,11 +30,9 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
         } else {
             0b00
         }
-    }
-    else if let [Some(_), _] = ins.get_symbs() {
+    } else if let [Some(_), _] = ins.get_symbs() {
         0b00
-    }
-    else {
+    } else {
         0b11
     };
 

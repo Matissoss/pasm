@@ -3,11 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{
-    ast::Instruction,
-    reg::Register,
-    mem::Mem,
-};
+use crate::shr::{ast::Instruction, mem::Mem, reg::Register};
 
 pub fn gen_sib_ins(ins: &Instruction) -> Option<u8> {
     if let Some(mem) = ins.get_mem() {

@@ -93,7 +93,7 @@ impl Mem {
             0b100 => Some(Register::ES),
             0b101 => Some(Register::FS),
             0b110 => Some(Register::GS),
-            _     => None,
+            _ => None,
         }
     }
 
@@ -107,7 +107,7 @@ impl Mem {
                 Register::ES => 0b100,
                 Register::FS => 0b101,
                 Register::GS => 0b110,
-                _            => 0b000,
+                _ => 0b000,
             }) << 2;
             true
         } else {

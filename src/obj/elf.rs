@@ -131,7 +131,7 @@ impl<'a> Elf<'a> {
         sections: &'a [&'a Section],
         path: &'a Path,
         code: &'a [u8],
-        relocs: &'a [Relocation<'a>],
+        relocs: &'a [Relocation],
         symbols: &'a [Symbol<'a>],
         is_64bit: bool,
     ) -> Result<Self, Error> {
@@ -221,7 +221,7 @@ fn make_elf<'a>(
     sections: &'a [&'a Section],
     outpath: &'a Path,
     code: &'a [u8],
-    relocs: &'a [Relocation<'a>],
+    relocs: &'a [Relocation],
     symbols: &'a [Symbol<'a>],
     is_64bit: bool,
 ) -> Result<Elf<'a>, Error> {
@@ -285,7 +285,7 @@ fn make_elf<'a>(
                         + if symbols[symbol].is_global() {
                             elf.get_local_symbol_count() as u32
                         } else {
-                            1
+                            2
                         },
                     offset: reloc.offset,
                     addend: reloc.addend,
@@ -296,7 +296,7 @@ fn make_elf<'a>(
             );
         } else {
             return Err(Error::msg(format!(
-                "Could not find symbol \"{}\" which you tried to use. Consider making it extern.",
+                "Could not find symbol \"{}\" which you tried to use. Consider using extern directive",
                 reloc.symbol
             )));
         }
@@ -403,9 +403,9 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
     b
 }
 
-fn find_index<'a>(reloc: &'a Relocation<'a>, symbols: &'a [Symbol<'a>]) -> Option<usize> {
+fn find_index<'a>(reloc: &'a Relocation, symbols: &'a [Symbol<'a>]) -> Option<usize> {
     for (idx, s) in symbols.iter().enumerate() {
-        if s.name == reloc.symbol {
+        if s.name == &reloc.symbol {
             return Some(idx);
         }
     }
@@ -549,11 +549,8 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         is_64bit,
     ));
     // other sections
-    let mut off = bytes.len();
     for mut section in elf.sections {
         section.offset += code_offset;
-        section.size = section.offset - off as u32;
-        off += section.offset as usize;
         bytes.extend(shdr_collect(section, is_64bit));
     }
     if !elf.relocations.is_empty() {

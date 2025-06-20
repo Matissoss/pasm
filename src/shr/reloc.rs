@@ -48,15 +48,15 @@ impl RelType {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Relocation<'a> {
-    pub symbol: &'a String,
+pub struct Relocation {
+    pub symbol: String,
     pub offset: u32,
     pub addend: i32,
     pub shidx: u16,
     pub reltype: RelType,
 }
 
-impl Relocation<'_> {
+impl Relocation {
     pub const fn is_rel(&self) -> bool {
         self.reltype.is_rel()
     }
@@ -79,7 +79,7 @@ impl Relocation<'_> {
 
 pub fn relocate_addresses<'a>(
     buf: &mut [u8],
-    rels: Vec<Relocation<'a>>,
+    rels: Vec<Relocation>,
     symbols: &'a [Symbol<'a>],
 ) -> Result<(), RASMError> {
     for rel in rels {
@@ -90,10 +90,10 @@ pub fn relocate_addresses<'a>(
 
 pub fn relocate<'a>(
     buf: &mut [u8],
-    rel: Relocation<'a>,
+    rel: Relocation,
     symbols: &'a [Symbol<'a>],
 ) -> Result<(), RASMError> {
-    let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == rel.symbol) {
+    let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == &rel.symbol) {
         symbol
     } else {
         return Err(RASMError::msg(
@@ -149,7 +149,7 @@ mod tests {
             is_extern: false,
         };
         let relocation = Relocation {
-            symbol: &"Symbol".to_string(),
+            symbol: "Symbol".to_string(),
             offset: 0x02,
             addend: 0,
             reltype: RelType::REL32,
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0x01, 0x00, 0x00, 0x00, 0x81, 0x91]);
         let relocation = Relocation {
-            symbol: &"Symbol".to_string(),
+            symbol: "Symbol".to_string(),
             offset: 0x03,
             addend: -1,
             reltype: RelType::REL32,

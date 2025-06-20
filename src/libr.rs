@@ -100,24 +100,14 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             });
             wrt.extend(bts);
         }
-        /*
-        sym.push(Symbol {
-            name: &section.name,
-            offset: section.offset,
-            size: (wrt.len() - plen) as u32,
-            sindex: idx as u16,
-            visibility: Visibility::Local,
-            stype: SymbolType::Section,
-            is_extern: false,
-        });
-        */
+        section.size = (wrt.len() - plen) as u32;
         sec.push(section);
     }
     for (idx, section) in sec.iter().enumerate() {
         sym.push(Symbol {
             name: &section.name,
             offset: section.offset,
-            size: 0,
+            size: section.size,
             sindex: idx as u16,
             visibility: Visibility::Local,
             stype: SymbolType::Section,
