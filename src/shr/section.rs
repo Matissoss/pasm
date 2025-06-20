@@ -12,7 +12,7 @@ const EXEC_FLAG: u8 = 0x4;
 
 #[derive(PartialEq, Clone, Debug, Default)]
 pub struct Section {
-    pub name: String,
+    pub name: crate::RString,
     pub content: Vec<ast::Label>,
     pub size: u32,
     pub offset: u32,

@@ -10,7 +10,7 @@
 #![allow(clippy::needless_range_loop)]
 
 //  global imports go here
-use std::{path::PathBuf, process, time};
+use std::{path::PathBuf, process};
 
 // local imports go here
 
@@ -34,11 +34,15 @@ pub mod help;
 pub use shr::rpanic::switch_panichandler;
 
 use cli::CLI;
-use color::{ColString, Color};
+
 use help::Help;
 
-// start
+// feature dependent
+#[cfg(feature = "timed")]
+use std::time;
 
+use crate::conf::RString;
+// start
 fn main() {
     switch_panichandler();
     let cli = &*CLI;
@@ -47,10 +51,12 @@ fn main() {
         Help::main_help();
         process::exit(0)
     }
+    #[cfg(feature = "iinfo")]
     if cli.has_arg("supported-instructions") {
         print_supported_instructions();
         return;
     }
+    #[cfg(feature = "iinfo")]
     if cli.has_arg("supported-instructions-raw") {
         print_supported_instructions_raw();
         return;
@@ -67,11 +73,8 @@ fn main() {
         );
     };
 
-    let start = if conf::TIME {
-        Some(time::SystemTime::now())
-    } else {
-        None
-    };
+    #[cfg(feature = "timed")]
+    let start = time::SystemTime::now();
 
     let ast = libr::par_file(&infile);
 
@@ -84,12 +87,13 @@ fn main() {
     let ast = ast.unwrap();
 
     if cli.has_arg("check") {
-        if conf::TIME {
+        #[cfg(feature = "timed")]
+        {
             let end = time::SystemTime::now();
             println!(
                 "Checking {} took {}s and ended without errors!",
                 infile.to_string_lossy(),
-                match end.duration_since(start.unwrap()) {
+                match end.duration_since(start) {
                     Ok(t) => t.as_secs_f32(),
                     Err(e) => e.duration().as_secs_f32(),
                 }
@@ -114,26 +118,24 @@ fn main() {
             eprintln!("{e}");
             std::process::exit(1);
         };
-        if conf::TIME && cli.has_arg("-t") {
+        #[cfg(feature = "timed")]
+        {
             let end = time::SystemTime::now();
             println!(
-                "Assembling {} took {}",
+                "Assembling {} took {}s and ended without errors!",
                 infile.to_string_lossy(),
-                ColString::new(format!(
-                    "{}s",
-                    match end.duration_since(start.unwrap()) {
-                        Ok(t) => t.as_secs_f32(),
-                        Err(e) => e.duration().as_secs_f32(),
-                    }
-                ))
-                .set_color(Color::RED)
+                match end.duration_since(start) {
+                    Ok(t) => t.as_secs_f32(),
+                    Err(e) => e.duration().as_secs_f32(),
+                }
             )
         }
     }
 }
 
-use crate::shr::ins::Mnemonic;
+#[cfg(feature = "iinfo")]
 fn print_supported_instructions() {
+    use crate::shr::ins::Mnemonic;
     let ins_count = Mnemonic::__LAST as u16;
     println!("This version of RASM supports {} mnemonics!", ins_count - 1);
     println!("Here's a list of all of them:");
@@ -158,7 +160,9 @@ fn print_supported_instructions() {
         mod_ -= 1;
     }
 }
+#[cfg(feature = "iinfo")]
 fn print_supported_instructions_raw() {
+    use crate::shr::ins::Mnemonic;
     for idx in 0..Mnemonic::__LAST as u16 {
         if idx + 1 == Mnemonic::__LAST as u16 {
             print!(

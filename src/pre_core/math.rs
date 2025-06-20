@@ -36,7 +36,7 @@ pub fn post_process(ast: &mut AST) -> Result<(), RASMError> {
 
 pub fn replace_mathevals(
     label: &mut Label,
-    mth: &HashMap<&String, &String>,
+    mth: &HashMap<&crate::RString, &crate::RString>,
 ) -> Result<(), RASMError> {
     for i in &mut label.inst {
         for o in &mut i.oprs {

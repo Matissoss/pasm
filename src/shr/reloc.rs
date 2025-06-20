@@ -49,7 +49,7 @@ impl RelType {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Relocation {
-    pub symbol: String,
+    pub symbol: crate::RString,
     pub offset: u32,
     pub addend: i32,
     pub shidx: u16,
@@ -77,10 +77,10 @@ impl Relocation {
     }
 }
 
-pub fn relocate_addresses<'a>(
+pub fn relocate_addresses(
     buf: &mut [u8],
     rels: Vec<Relocation>,
-    symbols: &'a [Symbol<'a>],
+    symbols: &[Symbol],
 ) -> Result<(), RASMError> {
     for rel in rels {
         relocate(buf, rel, symbols)?;
@@ -88,12 +88,12 @@ pub fn relocate_addresses<'a>(
     Ok(())
 }
 
-pub fn relocate<'a>(
+pub fn relocate(
     buf: &mut [u8],
     rel: Relocation,
-    symbols: &'a [Symbol<'a>],
+    symbols: &[Symbol],
 ) -> Result<(), RASMError> {
-    let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == &rel.symbol) {
+    let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == rel.symbol) {
         symbol
     } else {
         return Err(RASMError::msg(
@@ -140,7 +140,7 @@ mod tests {
         //                0     1     2     3     4     5     6     7
         let mut bytes = [0x00, 0x71, 0x00, 0x00, 0x00, 0x00, 0x81, 0x91];
         let symbol = Symbol {
-            name: &"Symbol".to_string(),
+            name: "Symbol".to_string().into(),
             offset: 0x01,
             stype: SymbolType::NoType,
             size: 0,
@@ -149,7 +149,7 @@ mod tests {
             is_extern: false,
         };
         let relocation = Relocation {
-            symbol: "Symbol".to_string(),
+            symbol: "Symbol".to_string().into(),
             offset: 0x02,
             addend: 0,
             reltype: RelType::REL32,
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0x01, 0x00, 0x00, 0x00, 0x81, 0x91]);
         let relocation = Relocation {
-            symbol: "Symbol".to_string(),
+            symbol: "Symbol".to_string().into(),
             offset: 0x03,
             addend: -1,
             reltype: RelType::REL32,

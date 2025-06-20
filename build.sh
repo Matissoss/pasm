@@ -14,7 +14,7 @@ _RASM_BIN="rasm"
 build(){
 	TYPE=$1
 	if [[ "$TYPE" == "--dev" ]]; then
-		#add_instr
+		add_instr
 		build_dev
 	else
 		echo "Do you want to install (1) or to build binary (2, default)?"
@@ -29,7 +29,7 @@ build(){
 }
 add_instr(){
 	echo "Adding instructions to /src/shr/ins_switch.rs..."
-	cargo run -q -- supported-instructions-raw > ins_adder/tmp.txt
+	cargo run -q --features refresh -- supported-instructions-raw > ins_adder/tmp.txt
 	cd ins_adder
 	cargo run -q --release -- tmp.txt
 	rm tmp.txt

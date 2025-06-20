@@ -18,6 +18,7 @@ use crate::shr::{
     size::Size,
     symbol::{SymbolRef, SymbolType, Visibility},
 };
+use crate::RString;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
@@ -28,7 +29,7 @@ pub enum Operand {
     Imm(Number),
     Mem(Mem),
     SymbolRef(SymbolRef),
-    String(String),
+    String(RString),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,15 +43,15 @@ pub struct Instruction {
 #[derive(Debug, Clone)]
 pub enum ASTNode {
     Ins(Instruction),
-    Attributes(String),
+    Attributes(RString),
     Bits(u8),
-    Entry(String),
-    Label(String),
+    Entry(RString),
+    Label(RString),
     Extern(String),
     Include(PathBuf),
-    MathEval(String, String),
+    MathEval(RString, RString),
 
-    Section(String),
+    Section(RString),
     Align(u16),
     Exec,
     Write,
@@ -59,7 +60,7 @@ pub enum ASTNode {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Label {
-    pub name: String,
+    pub name: RString,
     pub inst: Vec<Instruction>,
     pub shidx: usize,
     pub align: u16,
@@ -71,11 +72,11 @@ pub struct Label {
 #[derive(Debug, Clone, Default)]
 pub struct AST {
     pub sections: Vec<Section>,
-    pub externs: Vec<String>,
+    pub externs: Vec<RString>,
     pub bits: Option<u8>,
-    pub entry: Option<String>,
+    pub entry: Option<RString>,
     pub includes: Vec<PathBuf>,
-    pub math: Vec<(String, String)>,
+    pub math: Vec<(RString, RString)>,
     pub file: PathBuf,
 }
 
@@ -125,7 +126,7 @@ impl TryFrom<Token> for Operand {
                     Ok(Self::Reg(reg))
                 }
             }
-            Token::String(val) => Ok(Self::String(val)),
+            Token::String(val) => Ok(Self::String(val.into())),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(SymbolRef::new(
                 val, None, false, None, None,

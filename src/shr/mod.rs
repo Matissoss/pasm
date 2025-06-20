@@ -3,6 +3,7 @@ pub mod atype;
 pub mod booltable;
 pub mod error;
 pub mod ins;
+#[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
 pub mod kwd;
 pub mod math;

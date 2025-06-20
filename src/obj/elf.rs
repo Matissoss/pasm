@@ -128,11 +128,11 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
 
 impl<'a> Elf<'a> {
     pub fn new(
-        sections: &'a [&'a Section],
+        sections: &'a [/*&'a*/ Section],
         path: &'a Path,
         code: &'a [u8],
         relocs: &'a [Relocation],
-        symbols: &'a [Symbol<'a>],
+        symbols: &'a [Symbol],
         is_64bit: bool,
     ) -> Result<Self, Error> {
         make_elf(sections, path, code, relocs, symbols, is_64bit)
@@ -172,7 +172,7 @@ impl<'a> Elf<'a> {
         }
     }
     fn push_symbol(&mut self, symbol: &Symbol) {
-        let name = self.push_strtab(symbol.name);
+        let name = self.push_strtab(&symbol.name);
         self.symbols.push(ElfSymbol {
             name,
             value: symbol.offset,
@@ -218,11 +218,11 @@ struct TmpRelocation {
 }
 
 fn make_elf<'a>(
-    sections: &'a [&'a Section],
+    sections: &'a [/*&'a*/ Section],
     outpath: &'a Path,
     code: &'a [u8],
     relocs: &'a [Relocation],
-    symbols: &'a [Symbol<'a>],
+    symbols: &'a [Symbol],
     is_64bit: bool,
 ) -> Result<Elf<'a>, Error> {
     let mut elf = Elf::default();
@@ -403,9 +403,9 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
     b
 }
 
-fn find_index<'a>(reloc: &'a Relocation, symbols: &'a [Symbol<'a>]) -> Option<usize> {
+fn find_index<'a>(reloc: &'a Relocation, symbols: &'a [Symbol]) -> Option<usize> {
     for (idx, s) in symbols.iter().enumerate() {
-        if s.name == &reloc.symbol {
+        if s.name == reloc.symbol {
             return Some(idx);
         }
     }

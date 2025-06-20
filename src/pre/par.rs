@@ -15,14 +15,17 @@ pub struct Parser;
 
 const PAR_INST_CAP: usize = 16;
 
+use crate::RString;
+
 type Error = RASMError;
 type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
+        let empty : RString = EMPTY_STRING.into();
         let mut errors: Vec<RASMError> = Vec::new();
         let mut ast = AST::default();
-        let mut tmp_attributes: Vec<String> = Vec::with_capacity(4);
-        let mut inside_label: (bool, String) = (false, String::new());
+        let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
+        let mut inside_label: (bool, RString) = (false, RString::from(""));
         let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
         let mut section_idx: usize = 0;
         let mut inside_section = Section::default();
@@ -77,7 +80,7 @@ impl Parser {
                                 inside_section = Section::default();
                                 inside_section.bits = 16;
                                 inside_section.name = s;
-                                inside_label = (false, EMPTY_STRING.to_string());
+                                inside_label = (false, empty.clone());
                                 continue;
                             }
                             if !instructions.is_empty() {
@@ -101,7 +104,7 @@ impl Parser {
                             section_idx += 1;
                             tmp_attributes.clear();
                             instructions = Vec::with_capacity(PAR_INST_CAP);
-                            inside_label = (false, EMPTY_STRING.to_string());
+                            inside_label = (false, empty.clone());
                         }
                         ASTNode::Attributes(s) => {
                             if !instructions.is_empty() {
@@ -117,7 +120,7 @@ impl Parser {
                                 }
                                 instructions = Vec::with_capacity(PAR_INST_CAP);
                                 tmp_attributes.clear();
-                                inside_label = (false, EMPTY_STRING.to_string());
+                                inside_label = (false, empty.clone());
                             }
                             if !s.is_empty() {
                                 tmp_attributes.push(s)
@@ -154,8 +157,8 @@ impl Parser {
                             }
                         }
                         ASTNode::Extern(extrn) => {
-                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
-                                ast.externs.push(extrn);
+                            if (inside_label.0, &inside_label.1) == (false, &empty) {
+                                ast.externs.push(extrn.into());
                             } else {
                                 errors.push(RASMError::no_tip(
                                     Some(node.1),
@@ -164,7 +167,7 @@ impl Parser {
                             }
                         }
                         ASTNode::Entry(entry) => {
-                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
+                            if (inside_label.0, &inside_label.1) == (false, &empty) {
                                 if ast.entry.is_none() {
                                     ast.entry = Some(entry);
                                 } else {
@@ -181,7 +184,7 @@ impl Parser {
                             }
                         }
                         ASTNode::Bits(bits_new) => {
-                            if (inside_label.0, inside_label.1.as_str()) == (false, EMPTY_STRING) {
+                            if (inside_label.0, &inside_label.1) == (false, &empty) {
                                 match bits_new {
                                     16 | 32 | 64 => inside_section.bits = bits_new,
                                     n => errors.push(RASMError::no_tip(
@@ -221,7 +224,7 @@ impl Parser {
             ast.sections.push(inside_section);
         } else if !labels.is_empty() {
             inside_section.bits = 16;
-            inside_section.name = String::from(".rasm.default");
+            inside_section.name = String::from(".rasm.default").into();
             inside_section.content = labels;
             ast.sections.push(inside_section);
         }
@@ -265,11 +268,11 @@ fn collect_label(
     vec: &mut Vec<Label>,
     attrs: String,
     inst: Vec<Instruction>,
-    name: String,
+    name: RString,
     defbits: u8,
     secidx: usize,
 ) -> Result<(), Error> {
-    let (bits, align, global, stype) = match parse_attr(attrs) {
+    let (bits, align, global, stype) = match parse_attr(attrs.to_string()) {
         Ok(t) => (t.bits, t.align, t.global, t.stype),
         Err(e) => return Err(e),
     };
@@ -363,10 +366,10 @@ mod tests {
         use section::SectionAttributes;
         use symbol::SymbolType;
         let nodes = vec![
-            Ok((ASTNode::Section(".text".to_string()), 0)),
+            Ok((ASTNode::Section(".text".to_string().into()), 0)),
             Ok((ASTNode::Align(16), 0)),
             Ok((ASTNode::Bits(64), 0)),
-            Ok((ASTNode::Label("test".to_string()), 0)),
+            Ok((ASTNode::Label("test".to_string().into()), 0)),
             Ok((
                 ASTNode::Ins(Instruction {
                     oprs: [None, None, None, None, None],
@@ -376,7 +379,7 @@ mod tests {
                 }),
                 0,
             )),
-            Ok((ASTNode::Label("tesy".to_string()), 0)),
+            Ok((ASTNode::Label("tesy".to_string().into()), 0)),
             Ok((
                 ASTNode::Ins(Instruction {
                     oprs: [None, None, None, None, None],
@@ -386,10 +389,10 @@ mod tests {
                 }),
                 0,
             )),
-            Ok((ASTNode::Section(".text1".to_string()), 0)),
+            Ok((ASTNode::Section(".text1".to_string().into()), 0)),
             Ok((ASTNode::Align(16), 0)),
             Ok((ASTNode::Bits(64), 0)),
-            Ok((ASTNode::Label("test".to_string()), 0)),
+            Ok((ASTNode::Label("test".to_string().into()), 0)),
             Ok((
                 ASTNode::Ins(Instruction {
                     oprs: [None, None, None, None, None],
@@ -399,7 +402,7 @@ mod tests {
                 }),
                 0,
             )),
-            Ok((ASTNode::Label("tesy".to_string()), 0)),
+            Ok((ASTNode::Label("tesy".to_string().into()), 0)),
             Ok((
                 ASTNode::Ins(Instruction {
                     oprs: [None, None, None, None, None],
@@ -416,14 +419,14 @@ mod tests {
             ast.unwrap().sections,
             vec![
                 Section {
-                    name: String::from(".text"),
+                    name: String::from(".text").into(),
                     align: 16,
                     offset: 0,
                     size: 0,
                     attributes: SectionAttributes::new(),
                     content: vec![
                         Label {
-                            name: String::from("test"),
+                            name: String::from("test").into(),
                             align: 0,
                             stype: SymbolType::NoType,
                             visibility: symbol::Visibility::Local,
@@ -437,7 +440,7 @@ mod tests {
                             shidx: 0,
                         },
                         Label {
-                            name: String::from("tesy"),
+                            name: String::from("tesy").into(),
                             align: 0,
                             stype: SymbolType::NoType,
                             visibility: symbol::Visibility::Local,
@@ -454,14 +457,14 @@ mod tests {
                     bits: 64
                 },
                 Section {
-                    name: String::from(".text1"),
+                    name: String::from(".text1").into(),
                     align: 16,
                     offset: 0,
                     size: 0,
                     attributes: SectionAttributes::new(),
                     content: vec![
                         Label {
-                            name: String::from("test"),
+                            name: String::from("test").into(),
                             align: 0,
                             visibility: symbol::Visibility::Local,
                             bits: 64,
@@ -475,7 +478,7 @@ mod tests {
                             stype: SymbolType::NoType,
                         },
                         Label {
-                            name: String::from("tesy"),
+                            name: String::from("tesy").into(),
                             align: 0,
                             visibility: symbol::Visibility::Local,
                             bits: 64,

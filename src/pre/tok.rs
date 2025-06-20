@@ -301,11 +301,14 @@ impl Token {
             Some(PREFIX_SEG) => Self::Segment(val),
             Some(PREFIX_REF) => Self::SymbolRef(val),
             _ => {
+                #[cfg(not(feature = "refresh"))]
                 if let Ok(mnm) = Mnm::from_str(&val) {
                     Self::Mnemonic(mnm)
                 } else {
                     Self::Unknown(val)
                 }
+                #[cfg(feature = "refresh")]
+                Self::Unknown(val)
             }
         }
     }
@@ -318,7 +321,10 @@ impl ToString for Token {
             Self::Register(reg) => format!("{}{}", PREFIX_REG, reg.to_string()),
             Self::Immediate(v) => format!("{}{}", PREFIX_VAL, v.to_string()),
             Self::Keyword(kwd) => kwd.to_string(),
+            #[cfg(feature = "iinfo")]
             Self::Mnemonic(m) => m.to_string(),
+            #[cfg(not(feature = "iinfo"))]
+            Self::Mnemonic(_) => "".to_string(),
             Self::Label(lbl) => lbl.to_string(),
             Self::SymbolRef(lbl) => format!("{}{}", PREFIX_REF, lbl),
             Self::String(str) => str.to_string(),

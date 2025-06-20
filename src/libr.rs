@@ -74,15 +74,15 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
     let mut wrt = Vec::new();
     let mut sym = Vec::new();
     let mut rel = Vec::new();
-    let mut sec: Vec<&shr::section::Section> = Vec::with_capacity(ast.sections.len());
     for (idx, section) in ast.sections.iter_mut().enumerate() {
         let plen = wrt.len();
         section.offset = plen as u32;
         for lbl in &mut section.content {
             lbl.shidx = idx;
-        }
-        for lbl in &section.content {
-            let (bts, mut rels) = comp::compile_label(lbl, plen);
+            let st = lbl.stype;
+            let vi = lbl.visibility;
+            let nm = lbl.name.clone();
+            let (bts, mut rels) = comp::compile_label((&lbl.inst, lbl.align, lbl.bits), plen);
             for rel in &mut rels {
                 rel.shidx = idx as u16;
                 rel.offset += wrt.len() as u32;
@@ -90,22 +90,22 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             rel.extend(rels);
 
             sym.push(Symbol {
-                name: &lbl.name,
+                stype: st,
+                name: nm,
+                visibility: vi,
                 offset: wrt.len() as u32 - section.offset,
                 size: bts.len() as u32,
                 sindex: idx as u16,
-                visibility: lbl.visibility,
-                stype: lbl.stype,
                 is_extern: false,
             });
             wrt.extend(bts);
         }
         section.size = (wrt.len() - plen) as u32;
-        sec.push(section);
     }
-    for (idx, section) in sec.iter().enumerate() {
+
+    for (idx, section) in ast.sections.iter().enumerate() {
         sym.push(Symbol {
-            name: &section.name,
+            name: section.name.clone(),
             offset: section.offset,
             size: section.size,
             sindex: idx as u16,
@@ -117,10 +117,11 @@ fn com_file(mut ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
 
     match tgt {
         "bin" => reloc::relocate_addresses(&mut wrt, rel, &sym)?,
+        #[cfg(feature = "target_elf")]
         "elf32" | "elf64" => {
             sym.extend(comp::extern_trf(&ast.externs));
             let is_64bit = tgt == "elf64";
-            let elf = crate::obj::Elf::new(&sec, opath, &wrt, &rel, &sym, is_64bit)?;
+            let elf = crate::obj::Elf::new(&ast.sections, opath, &wrt, &rel, &sym, is_64bit)?;
             wrt = elf.compile(is_64bit);
         }
         _ => return Err(Error::msg(format!("Unknown format: \"{tgt}\""))),

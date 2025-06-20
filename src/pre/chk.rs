@@ -3011,8 +3011,7 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
             return Some(RASMError::no_tip(
                 Some(ins.line),
                 Some(format!(
-                    "Use of forbidden additional mnemonic: {}",
-                    addt.to_string()
+                    "Tried to use forbidden additional mnemonic",
                 )),
             ));
         }

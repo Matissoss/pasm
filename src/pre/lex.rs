@@ -21,7 +21,7 @@ pub struct Lexer;
 impl Lexer {
     pub fn parse_file(file: Vec<Vec<Token>>) -> Vec<Result<(ASTNode, usize), RASMError>> {
         let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
-        for (line_count, line) in file.into_iter().enumerate() {
+        for (line_count, mut line) in file.into_iter().enumerate() {
             if line.is_empty() {
                 continue;
             }
@@ -29,8 +29,8 @@ impl Lexer {
             let mut node: Option<ASTNode> = None;
             let mut error: Option<RASMError> = None;
             match line.first() {
-                Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string())),
-                Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string())),
+                Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string().into())),
+                Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string().into())),
                 Some(Token::Keyword(Keyword::Align)) => {
                     if let Some(Token::Immediate(bits)) = line.get(1) {
                         let uint32 = bits.get_as_u32();
@@ -70,8 +70,8 @@ impl Lexer {
                     }
                 }
                 Some(Token::Keyword(Keyword::Section)) => {
-                    if let Some(Token::String(str) | Token::Unknown(str)) = line.get(1) {
-                        node = Some(ASTNode::Section(str.to_string()));
+                    if let Some(Token::String(str) | Token::Unknown(str)) = line.pop() {
+                        node = Some(ASTNode::Section(str.into()));
                     } else {
                         error = Some(RASMError::with_tip(
                             Some(line_count),
@@ -90,8 +90,8 @@ impl Lexer {
                     node = Some(ASTNode::Exec);
                 }
                 Some(Token::Keyword(Keyword::Entry)) => {
-                    if let Some(Token::String(entr) | Token::Unknown(entr)) = line.get(1) {
-                        node = Some(ASTNode::Entry(entr.to_string()));
+                    if let Some(Token::String(entr) | Token::Unknown(entr)) = line.pop() {
+                        node = Some(ASTNode::Entry(entr.into()));
                     } else {
                         error = Some(RASMError::with_tip(
                             Some(line_count),
@@ -119,7 +119,7 @@ impl Lexer {
                     }
                 }
                 Some(Token::Keyword(Keyword::Math)) => match make_eval(line) {
-                    Ok(n) => node = Some(ASTNode::MathEval(n.0, n.1)),
+                    Ok(n) => node = Some(ASTNode::MathEval(n.0.into(), n.1.into())),
                     Err(mut e) => {
                         e.set_line(line_count);
                         error = Some(e)

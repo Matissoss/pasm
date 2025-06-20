@@ -6,7 +6,15 @@ edition = "2021"
 [dependencies]
 
 [features]
-multi_threaded = []
+default = ["timed", "target_all", "iinfo"]
+mthread = []
+timed = []
+iinfo = []
+target_all = ["target_elf"]
+target_elf= []
+
+# should not be used
+refresh = ["iinfo"]
 
 [profile.testing]
 inherits = "release"

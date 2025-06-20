@@ -6,7 +6,7 @@
 use crate::{
     core::api::*,
     shr::{
-        ast::{IVariant, Instruction, Label, Operand},
+        ast::{IVariant, Instruction, Operand},
         ins::Mnemonic as Ins,
         num::Number,
         reg::{Purpose as RPurpose, Register},
@@ -21,10 +21,10 @@ use crate::{
 use OpOrd::*;
 
 #[inline]
-pub fn make_globals(symbols: &mut [Symbol], globals: &[String]) {
+pub fn make_globals(symbols: &mut [Symbol], globals: &[crate::RString]) {
     for s in symbols {
         for g in globals {
-            if s.name == g {
+            if &s.name == g {
                 s.visibility = Visibility::Global;
                 break;
             }
@@ -32,11 +32,11 @@ pub fn make_globals(symbols: &mut [Symbol], globals: &[String]) {
     }
 }
 #[inline]
-pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
+pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
     let mut symbols = Vec::new();
     for extern_ in externs {
         symbols.push(Symbol {
-            name: extern_,
+            name: extern_.clone(),
             offset: 0,
             size: 0,
             sindex: 0,
@@ -48,7 +48,7 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
     symbols
 }
 
-pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
+pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>, Vec<Relocation>) {
     let fn_ptr = if CLI.debug {
         GenAPI::debug_assemble
     } else {
@@ -56,8 +56,8 @@ pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
     };
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
-    let lbl_bits = lbl.bits;
-    let lbl_align = lbl.align;
+    let lbl_bits = lbl.2;
+    let lbl_align = lbl.1;
     // we do not want situation, where label is entry and we place padding before it -
     // preventing UB
     if offset != 0 && lbl_align != 0 {
@@ -68,7 +68,7 @@ pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
             padding -= 1;
         }
     }
-    for ins in &lbl.inst {
+    for ins in lbl.0 {
         let res = fn_ptr(&get_genapi(ins, lbl_bits), ins, lbl_bits);
         for mut rl in res.1.into_iter().flatten() {
             rl.offset += bytes.len() as u32;

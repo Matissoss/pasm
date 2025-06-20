@@ -3,7 +3,13 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ins_switch, size::Size};
+use crate::shr;
+use shr::size::Size;
+
+#[cfg(not(feature = "refresh"))]
+use shr::ins_switch;
+
+#[cfg(not(feature = "refresh"))]
 use std::str::FromStr;
 
 #[rustfmt::skip]
@@ -460,6 +466,7 @@ pub enum Mnemonic {
     __LAST
 }
 
+#[cfg(not(feature = "refresh"))]
 impl FromStr for Mnemonic {
     type Err = ();
     fn from_str(str_ins: &str) -> Result<Self, <Self as FromStr>::Err> {
@@ -514,6 +521,7 @@ impl Mnemonic {
     }
 }
 
+#[cfg(feature = "iinfo")]
 impl ToString for Mnemonic {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
