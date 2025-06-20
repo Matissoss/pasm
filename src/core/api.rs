@@ -252,7 +252,7 @@ impl GenAPI {
     }
     pub fn debug_assemble<'a>(&'a self, ins: &'a Instruction, bits: u8) -> (Vec<u8>, [Option<Relocation>; 2]) {
         let res = self.assemble(ins, bits);
-        print!("LINE {:8}:", ins.line);
+        print!("LINE {:8}:", ins.line + 1);
         for b in &res.0 {
             print!(" {:02x}", b);
         }
