@@ -53,7 +53,7 @@
     - [x] Allow using `lock`, `repXX` mnemonics as prefix
     - [x] Allow for using symbols/relocations in more than one place (as address or value under address; `.deref`/`.ref` directives)
     - [x] Remove `.assemble()` from `match` statement in `src/core/comp.rs:compile_instruction` and move inside `compile_label`
-    - [ ] Create `.debug_assemble()` (`--debug`), `.verbose_assemble()` (`--verbose`)
+    - [x] Create `.debug_assemble()` (`--debug`)
     - [ ] Limit lifetimes, where they are unnecessary (use owned values)
     - [ ] Replace `String`s with `Arc<str>`/`Rc<str>`.
     - [ ] Allow for usage of multi threads to compile labels

@@ -15,6 +15,7 @@ use crate::{
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
     },
+    cli::CLI,
 };
 
 use OpOrd::*;
@@ -48,6 +49,11 @@ pub fn extern_trf(externs: &Vec<String>) -> Vec<Symbol> {
 }
 
 pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
+    let fn_ptr = if CLI.debug {
+        GenAPI::debug_assemble
+    } else {
+        GenAPI::assemble
+    };
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     let lbl_bits = lbl.bits;
@@ -63,7 +69,7 @@ pub fn compile_label(lbl: &Label, offset: usize) -> (Vec<u8>, Vec<Relocation>) {
         }
     }
     for ins in &lbl.inst {
-        let res = get_genapi(ins, lbl_bits).assemble(ins, lbl_bits);
+        let res = fn_ptr(&get_genapi(ins, lbl_bits), ins, lbl_bits);
         for mut rl in res.1.into_iter().flatten() {
             rl.offset += bytes.len() as u32;
             reallocs.push(rl);

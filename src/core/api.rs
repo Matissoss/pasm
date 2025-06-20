@@ -250,9 +250,18 @@ impl GenAPI {
 
         None
     }
+    pub fn debug_assemble<'a>(&'a self, ins: &'a Instruction, bits: u8) -> (Vec<u8>, [Option<Relocation>; 2]) {
+        let res = self.assemble(ins, bits);
+        print!("LINE {:8}:", ins.line);
+        for b in &res.0 {
+            print!(" {:02x}", b);
+        }
+        println!();
+        res
+    }
     // you can have max 2 relocations returned, because of variants like:
     // mov .deref @symbol, @other_symbol
-    // (yes valid variant: first operand is mem, second is immediate)
+    // (yes it is in fact a valid variant: first operand is mem, second is immediate)
     pub fn assemble<'a>(
         &'a self,
         ins: &'a Instruction,
