@@ -23,7 +23,7 @@ pub fn split_str_owned(s: &str, chr: char) -> Vec<String> {
     for b in s.as_bytes() {
         if b == &chrb {
             strs.push(String::from_utf8_lossy(&tmp_buf).to_string());
-            tmp_buf = Vec::new();
+            tmp_buf.clear();
         } else {
             tmp_buf.push(*b);
         }
