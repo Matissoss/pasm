@@ -30,7 +30,9 @@ impl Lexer {
             let mut error: Option<RASMError> = None;
             match line.first() {
                 Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.to_string().into())),
-                Some(Token::Closure('#', str)) => node = Some(ASTNode::Attributes(str.to_string().into())),
+                Some(Token::Closure('#', str)) => {
+                    node = Some(ASTNode::Attributes(str.to_string().into()))
+                }
                 Some(Token::Keyword(Keyword::Align)) => {
                     if let Some(Token::Immediate(bits)) = line.get(1) {
                         let uint32 = bits.get_as_u32();

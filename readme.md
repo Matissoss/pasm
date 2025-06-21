@@ -17,12 +17,25 @@
 - Support for ~50%+ x86-64 ISA (~848 instructions)
 - Support for `SSE*`, `AVX`, `AVX2`, (`AVX512` coming soon) `MMX` and more x86-64 extensions
 - Support for 64-bit and 32-bit ELF as export target
+- Support for multithreading to assemble your code
 
 ## getting started
 
 Firstly you want to download/compile `rasm`'s binary.
 
 Then you should read documentation (`docs`) and see examples (some can be currently found in `tests` directory).
+
+## features
+
+Precompiled `rasm` binary defaultly consists of only one feature: `target_all` which allows for `elf` target handler.
+
+Here is exhaustive list of features you can use:
+
+- `mthread`: multi-threading
+- `timed`: measures time it took for assembling (as a whole)
+- `vtimed`: for benchmarking
+- `iinfo` : instruction info (also stores Mnemonics as strings)
+- `target_elf`: elf target handling
 
 ## dev roadmap
 

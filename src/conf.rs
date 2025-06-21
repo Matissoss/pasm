@@ -8,6 +8,31 @@ pub type RString = std::sync::Arc<str>;
 #[cfg(not(feature = "mthread"))]
 pub type RString = std::rc::Rc<str>;
 
+#[cfg(feature = "mthread")]
+pub type Shared<T> = std::sync::Arc<T>;
+#[cfg(not(feature = "mthread"))]
+pub type Shared<T> = T;
+
+// CORE_LB_GROUP groups CORE_LB_GROUP lines to make assembling
+// labels faster in multithreading.
+// -----------
+// default = 2
+#[cfg(feature = "mthread")]
+pub const CORE_LB_GROUP: usize = 2;
+// TOK_LN_GROUP groups (THREAD_LIMIT << TOK_LN_GROUP) lines to make tokenizer
+// faster in multithreading.
+// -----------
+// default = 4
+#[cfg(feature = "mthread")]
+pub const TOK_LN_GROUP: usize = 4;
+// default = 8
+#[cfg(feature = "mthread")]
+pub const THREAD_LIMIT: u8 = 16;
+
+// default = 5
+#[cfg(feature = "mthread")]
+pub const RETRY_TIME_MS: u64 = 5;
+
 // LINE_WIDTH is used in src/main.rs:print_supported_instructions
 // --------------------------------------------------------------
 // default = 25

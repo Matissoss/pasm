@@ -88,11 +88,7 @@ pub fn relocate_addresses(
     Ok(())
 }
 
-pub fn relocate(
-    buf: &mut [u8],
-    rel: Relocation,
-    symbols: &[Symbol],
-) -> Result<(), RASMError> {
+pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(), RASMError> {
     let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == rel.symbol) {
         symbol
     } else {

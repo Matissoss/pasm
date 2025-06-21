@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
+    cli::CLI,
     core::api::*,
     shr::{
         ast::{IVariant, Instruction, Operand},
@@ -15,7 +16,6 @@ use crate::{
         size::Size,
         symbol::{Symbol, SymbolType, Visibility},
     },
-    cli::CLI,
 };
 
 use OpOrd::*;

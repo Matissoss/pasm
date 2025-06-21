@@ -65,12 +65,8 @@ fn main() {
     let infile: PathBuf = if let Some(path) = cli.get_kv_arg("-i") {
         PathBuf::from(path)
     } else {
-        cli.exit(
-            "src/main.rs",
-            "main",
-            "no input file specified; tip: try using (example) = `-i=input.asm`!",
-            1,
-        );
+        println!("error: you forgot to provide -i=[PATH] flag");
+        std::process::exit(1);
     };
 
     #[cfg(feature = "timed")]
@@ -91,7 +87,7 @@ fn main() {
         {
             let end = time::SystemTime::now();
             println!(
-                "Checking {} took {}s and ended without errors!",
+                "Checking {} took {:08.16}s and ended without errors!",
                 infile.to_string_lossy(),
                 match end.duration_since(start) {
                     Ok(t) => t.as_secs_f32(),
@@ -105,12 +101,8 @@ fn main() {
     let outfile: PathBuf = if let Some(path) = cli.get_kv_arg("-o") {
         PathBuf::from(path)
     } else {
-        cli.exit(
-            "src/main.rs",
-            "main",
-            "no output file specified; tip: try using (example): `-o=file.asm`!",
-            1,
-        );
+        println!("error: you forgot to provide -o=[PATH] flag");
+        std::process::exit(1);
     };
 
     if let Some(form) = cli.get_kv_arg("-f") {
@@ -118,11 +110,22 @@ fn main() {
             eprintln!("{e}");
             std::process::exit(1);
         };
-        #[cfg(feature = "timed")]
+        #[cfg(all(feature = "timed", feature = "vtimed"))]
         {
             let end = time::SystemTime::now();
             println!(
-                "Assembling {} took {}s and ended without errors!",
+                "overall took {:08.16}s",
+                match end.duration_since(start) {
+                    Ok(t) => t.as_secs_f32(),
+                    Err(e) => e.duration().as_secs_f32(),
+                }
+            )
+        }
+        #[cfg(all(feature = "timed", not(feature = "vtimed")))]
+        {
+            let end = time::SystemTime::now();
+            println!(
+                "Assembling {} took {:08.16}s and ended without errors!",
                 infile.to_string_lossy(),
                 match end.duration_since(start) {
                     Ok(t) => t.as_secs_f32(),

@@ -250,7 +250,11 @@ impl GenAPI {
 
         None
     }
-    pub fn debug_assemble<'a>(&'a self, ins: &'a Instruction, bits: u8) -> (Vec<u8>, [Option<Relocation>; 2]) {
+    pub fn debug_assemble<'a>(
+        &'a self,
+        ins: &'a Instruction,
+        bits: u8,
+    ) -> (Vec<u8>, [Option<Relocation>; 2]) {
         let res = self.assemble(ins, bits);
         print!("LINE {:8}:", ins.line + 1);
         for b in &res.0 {
@@ -802,7 +806,7 @@ mod tests {
         assert_eq!(api.addt, 0b0000_0011_0001_0010);
         assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
         let ins = Instruction {
-            mnem: crate::Mnemonic::CMP,
+            mnem: crate::shr::ins::Mnemonic::CMP,
             addt: None,
             oprs: [
                 Some(Operand::Reg(Register::AX)),

@@ -128,7 +128,7 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
 
 impl<'a> Elf<'a> {
     pub fn new(
-        sections: &'a [/*&'a*/ Section],
+        sections: crate::conf::Shared<Vec<Section>>,
         path: &'a Path,
         code: &'a [u8],
         relocs: &'a [Relocation],
@@ -218,7 +218,7 @@ struct TmpRelocation {
 }
 
 fn make_elf<'a>(
-    sections: &'a [/*&'a*/ Section],
+    sections: crate::conf::Shared<Vec<Section>>,
     outpath: &'a Path,
     code: &'a [u8],
     relocs: &'a [Relocation],

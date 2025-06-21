@@ -504,9 +504,6 @@ impl Mnemonic {
     pub fn allows_mem_mem(&self) -> bool {
         false
     }
-    pub fn is_avx(&self) -> bool {
-        format!("{:?}", self).starts_with('V')
-    }
     #[rustfmt::skip]
     pub fn defaults_to_64bit(&self) -> bool {
         matches!(

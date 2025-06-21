@@ -6,9 +6,16 @@ edition = "2021"
 [dependencies]
 
 [features]
-default = ["timed", "target_all", "iinfo"]
+default = ["target_all", "mthread"]
+# multi thread
 mthread = []
+# measure time for assembling
 timed = []
+# verbose timing (aka benchmark)
+# individual timing for: parsing, checking and assembling
+vtimed = ["timed"]
+# instruction info
+# takes extra space, because of `Mnemonic::to_string()`
 iinfo = []
 target_all = ["target_elf"]
 target_elf= []

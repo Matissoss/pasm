@@ -3010,9 +3010,7 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
         if !find_bool(accpt_addt, addt) {
             return Some(RASMError::no_tip(
                 Some(ins.line),
-                Some(format!(
-                    "Tried to use forbidden additional mnemonic",
-                )),
+                Some("Tried to use forbidden additional mnemonic"),
             ));
         }
     }

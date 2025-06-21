@@ -65,8 +65,8 @@ fn post_process(toks: &mut [Token]) {
 
 impl Tokenizer {
     pub fn tokenize_line(line: &str) -> Vec<Token> {
-        let mut tokens: Vec<Token> = Vec::with_capacity(8);
-        let mut tmp_buf: Vec<char> = Vec::with_capacity(32);
+        let mut tokens: Vec<Token> = Vec::with_capacity(4);
+        let mut tmp_buf: Vec<char> = Vec::with_capacity(24);
         let mut inside_closure: Option<char> = None;
         let mut closure_pfx: Option<char> = None;
         let mut delimeter_count: usize = 0;

@@ -21,7 +21,7 @@ type Error = RASMError;
 type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
 impl Parser {
     pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
-        let empty : RString = EMPTY_STRING.into();
+        let empty: RString = EMPTY_STRING.into();
         let mut errors: Vec<RASMError> = Vec::new();
         let mut ast = AST::default();
         let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
