@@ -4,7 +4,8 @@
 // licensed under MPL 2.0
 
 use crate::color::{ColString, Color, Modifier};
-use crate::CLI;
+use crate::shr::booltable::BoolTable8;
+use crate::{RString, CLI};
 use std::{
     fmt::{Display, Error, Formatter},
     fs::{File, OpenOptions},
@@ -43,21 +44,32 @@ enum ExceptionType {
     Info,
 }
 
+pub const HAS_LINE: u8 = 0x0;
+pub const HAS_MSG: u8 = 0x1;
+pub const HAS_TIP: u8 = 0x2;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RASMErrorInfo {
+    extype: ExceptionType,
+    guardians: BoolTable8,
+}
+
+impl RASMErrorInfo {}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RASMError {
-    line: Option<usize>,
-    etype: ExceptionType,
-    msg: Option<String>,
-    tip: Option<String>,
+    line: usize,
+    msg: RString,
+    tip: RString,
+    etype: RASMErrorInfo,
 }
 
 pub fn print_error(r: RASMError, file_name: &Path) {
     let mut fileb = String::new();
     File::read_to_string(&mut File::open(file_name).unwrap(), &mut fileb).unwrap();
     let file: Vec<String> = fileb.lines().map(|s| s.to_string()).collect();
-    let line = r.line;
 
-    let ctx = if let Some(line) = line {
+    let ctx = if let Some(line) = r.get_line() {
         Some(&file[line])
     } else {
         None
@@ -65,9 +77,9 @@ pub fn print_error(r: RASMError, file_name: &Path) {
 
     println!(
         "{}:\n\tin {}{}{}{}{}",
-        r.etype,
+        r.etype.extype,
         ColString::new(file_name.to_string_lossy()).set_color(Color::YELLOW),
-        if let Some(line) = line {
+        if let Some(line) = r.get_line() {
             format!(
                 " at line {}",
                 ColString::new(line + 1).set_color(Color::YELLOW)
@@ -85,12 +97,12 @@ pub fn print_error(r: RASMError, file_name: &Path) {
         } else {
             "".to_string()
         },
-        if let Some(msg) = &r.msg {
+        if let Some(msg) = r.get_msg() {
             format!("\n\t---\n\t{}", msg)
         } else {
             "".to_string()
         },
-        if let Some(tip) = &r.tip {
+        if let Some(tip) = r.get_tip() {
             format!(
                 "\n\t{} {}",
                 ColString::new("tip:")
@@ -108,9 +120,7 @@ pub fn print_error(r: RASMError, file_name: &Path) {
 
 impl Display for RASMError {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), Error> {
-        let line = self.line;
-
-        let ctx = if let Some(line) = line {
+        let ctx = if let Some(line) = self.get_line() {
             Some(&FILE[line])
         } else {
             None
@@ -119,9 +129,9 @@ impl Display for RASMError {
         writeln!(
             frm,
             "{}:\n\tin {}{}{}{}{}",
-            self.etype,
+            self.etype.extype,
             ColString::new(ERR_CTX.1.to_string_lossy()).set_color(Color::YELLOW),
-            if let Some(line) = line {
+            if let Some(line) = self.get_line() {
                 format!(
                     " at line {}",
                     ColString::new(line + 1).set_color(Color::YELLOW)
@@ -139,12 +149,12 @@ impl Display for RASMError {
             } else {
                 "".to_string()
             },
-            if let Some(msg) = &self.msg {
+            if let Some(msg) = self.get_msg() {
                 format!("\n\t---\n\t{}", msg)
             } else {
                 "".to_string()
             },
-            if let Some(tip) = &self.tip {
+            if let Some(tip) = self.get_tip() {
                 format!(
                     "\n\t{} {}",
                     ColString::new("tip:")
@@ -178,24 +188,46 @@ impl Display for ExceptionType {
 }
 
 impl RASMError {
+    fn get_tip(&self) -> Option<RString> {
+        if self.etype.guardians.get(HAS_TIP).unwrap_or_default() {
+            Some(self.tip.clone())
+        } else {
+            None
+        }
+    }
+    fn get_msg(&self) -> Option<RString> {
+        if self.etype.guardians.get(HAS_MSG).unwrap_or_default() {
+            Some(self.msg.clone())
+        } else {
+            None
+        }
+    }
     pub fn msg(msg: impl ToString) -> Self {
         Self {
-            line: None,
-            msg: Some(msg.to_string()),
-            tip: None,
-            etype: ExceptionType::Error,
+            line: 0,
+            msg: msg.to_string().into(),
+            tip: RString::from(""),
+            etype: RASMErrorInfo {
+                extype: ExceptionType::Error,
+                guardians: BoolTable8::new().setc(HAS_MSG, true),
+            },
         }
     }
     pub fn no_tip(line: Option<usize>, msg: Option<impl ToString>) -> Self {
         Self {
-            line,
-            etype: ExceptionType::Error,
-            msg: if let Some(m) = msg {
-                Some(m.to_string())
+            line: line.unwrap_or(0),
+            msg: if let Some(ref m) = msg {
+                m.to_string().into()
             } else {
-                None
+                RString::from("")
             },
-            tip: None,
+            tip: RString::from(""),
+            etype: RASMErrorInfo {
+                extype: ExceptionType::Error,
+                guardians: BoolTable8::new()
+                    .setc(HAS_LINE, line.is_some())
+                    .setc(HAS_MSG, msg.is_some()),
+            },
         }
     }
     pub fn with_tip(
@@ -204,32 +236,46 @@ impl RASMError {
         tip: Option<impl ToString>,
     ) -> Self {
         Self {
-            line,
-            etype: ExceptionType::Error,
-            msg: if let Some(m) = msg {
-                Some(m.to_string())
+            line: line.unwrap_or(0),
+            msg: if let Some(ref m) = msg {
+                m.to_string().into()
             } else {
-                None
+                RString::from("")
             },
-            tip: if let Some(t) = tip {
-                Some(t.to_string())
+            tip: if let Some(ref m) = tip {
+                m.to_string().into()
             } else {
-                None
+                RString::from("")
+            },
+            etype: RASMErrorInfo {
+                extype: ExceptionType::Error,
+                guardians: BoolTable8::new()
+                    .setc(HAS_LINE, line.is_some())
+                    .setc(HAS_MSG, msg.is_some())
+                    .setc(HAS_TIP, tip.is_some()),
             },
         }
     }
-    pub fn get_line(&self) -> Option<&usize> {
-        self.line.as_ref()
+    pub fn get_line(&self) -> Option<usize> {
+        if self.etype.guardians.get(HAS_LINE).unwrap_or_default() {
+            Some(self.line)
+        } else {
+            None
+        }
     }
     pub fn set_line(&mut self, newline: usize) {
-        self.line = Some(newline);
+        self.line = newline;
+        self.etype.guardians.set(HAS_LINE, true);
     }
     pub fn warn(msg: String) {
         let err = Self {
-            line: None,
-            etype: ExceptionType::Warn,
-            msg: Some(msg),
-            tip: None,
+            line: 0,
+            msg: msg.to_string().into(),
+            tip: RString::from(""),
+            etype: RASMErrorInfo {
+                extype: ExceptionType::Error,
+                guardians: BoolTable8::new().setc(HAS_MSG, true),
+            },
         };
         println!("{}", err);
     }

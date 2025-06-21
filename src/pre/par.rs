@@ -11,249 +11,225 @@ use crate::shr::{
     symbol::{SymbolType, Visibility},
 };
 
-pub struct Parser;
-
 const PAR_INST_CAP: usize = 16;
 
 use crate::RString;
 
 type Error = RASMError;
 type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
-impl Parser {
-    pub fn build_tree(list: LexTree) -> Result<AST, Vec<RASMError>> {
-        let empty: RString = EMPTY_STRING.into();
-        let mut errors: Vec<RASMError> = Vec::new();
-        let mut ast = AST::default();
-        let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
-        let mut inside_label: (bool, RString) = (false, RString::from(""));
-        let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
-        let mut section_idx: usize = 0;
-        let mut inside_section = Section::default();
-        let mut labels = Vec::new();
-        for node in list {
-            match node {
-                Err(error) => errors.push(error),
-                Ok(node) => {
-                    match node.0 {
-                        ASTNode::Write => {
-                            if inside_label.0 {
-                                errors.push(Error::no_tip(
-                                    Some(node.1),
-                                    Some("Align keyword can only be used inside sections."),
-                                ));
-                            } else {
-                                inside_section.attributes.set_write(true);
-                            }
+
+pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
+    let empty: RString = EMPTY_STRING.into();
+    let mut errors: Vec<RASMError> = Vec::new();
+    let mut ast = AST::default();
+    let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
+    let mut inside_label: (bool, RString) = (false, RString::from(""));
+    let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
+    let mut section_idx: usize = 0;
+    let mut inside_section = Section::default();
+    let mut labels = Vec::new();
+    for node in list {
+        match node {
+            Err(error) => errors.push(error),
+            Ok(node) => match node.0 {
+                ASTNode::Write => {
+                    if inside_label.0 {
+                        errors.push(Error::no_tip(
+                            Some(node.1),
+                            Some("Align keyword can only be used inside sections."),
+                        ));
+                    } else {
+                        inside_section.attributes.set_write(true);
+                    }
+                }
+                ASTNode::Exec => {
+                    if inside_label.0 {
+                        errors.push(Error::no_tip(
+                            Some(node.1),
+                            Some("Align keyword can only be used inside sections."),
+                        ));
+                    } else {
+                        inside_section.attributes.set_exec(true);
+                    }
+                }
+                ASTNode::Alloc => {
+                    if inside_label.0 {
+                        errors.push(Error::no_tip(
+                            Some(node.1),
+                            Some("Align keyword can only be used inside sections."),
+                        ));
+                    } else {
+                        inside_section.attributes.set_alloc(true);
+                    }
+                }
+                ASTNode::Align(a) => {
+                    if inside_label.0 {
+                        errors.push(Error::no_tip(
+                            Some(node.1),
+                            Some("Align keyword can only be used inside sections."),
+                        ));
+                    } else {
+                        inside_section.align = a;
+                    }
+                }
+                ASTNode::Section(s) => {
+                    if inside_section == Section::default() {
+                        inside_section = Section::default();
+                        inside_section.bits = 16;
+                        inside_section.name = s;
+                        inside_label = (false, empty.clone());
+                        continue;
+                    }
+                    if !instructions.is_empty() {
+                        if let Err(err) = collect_label(
+                            &mut labels,
+                            tmp_attributes.join(","),
+                            instructions,
+                            inside_label.1,
+                            inside_section.bits,
+                            section_idx,
+                        ) {
+                            errors.push(err);
                         }
-                        ASTNode::Exec => {
-                            if inside_label.0 {
-                                errors.push(Error::no_tip(
-                                    Some(node.1),
-                                    Some("Align keyword can only be used inside sections."),
-                                ));
-                            } else {
-                                inside_section.attributes.set_exec(true);
-                            }
+                    }
+                    inside_section.content = labels;
+                    labels = Vec::new();
+                    ast.sections.push(inside_section);
+                    inside_section = Section::default();
+                    inside_section.bits = 16;
+                    inside_section.name = s;
+                    section_idx += 1;
+                    tmp_attributes.clear();
+                    instructions = Vec::with_capacity(PAR_INST_CAP);
+                    inside_label = (false, empty.clone());
+                }
+                ASTNode::Attributes(s) => {
+                    if !instructions.is_empty() {
+                        if let Err(err) = collect_label(
+                            &mut labels,
+                            tmp_attributes.join(","),
+                            instructions,
+                            inside_label.1,
+                            inside_section.bits,
+                            section_idx,
+                        ) {
+                            errors.push(err);
                         }
-                        ASTNode::Alloc => {
-                            if inside_label.0 {
-                                errors.push(Error::no_tip(
-                                    Some(node.1),
-                                    Some("Align keyword can only be used inside sections."),
-                                ));
-                            } else {
-                                inside_section.attributes.set_alloc(true);
-                            }
+                        instructions = Vec::with_capacity(PAR_INST_CAP);
+                        tmp_attributes.clear();
+                        inside_label = (false, empty.clone());
+                    }
+                    if !s.is_empty() {
+                        tmp_attributes.push(s)
+                    }
+                }
+                ASTNode::Include(p) => ast.includes.push(p),
+                ASTNode::MathEval(name, value) => ast.math.push((name, value)),
+                ASTNode::Label(lbl) => {
+                    if !instructions.is_empty() {
+                        if let Err(err) = collect_label(
+                            &mut labels,
+                            tmp_attributes.join(","),
+                            instructions,
+                            inside_label.1,
+                            inside_section.bits,
+                            section_idx,
+                        ) {
+                            errors.push(err);
                         }
-                        ASTNode::Align(a) => {
-                            if inside_label.0 {
-                                errors.push(Error::no_tip(
-                                    Some(node.1),
-                                    Some("Align keyword can only be used inside sections."),
-                                ));
-                            } else {
-                                inside_section.align = a;
-                            }
-                        }
-                        ASTNode::Section(s) => {
-                            if inside_section == Section::default() {
-                                inside_section = Section::default();
-                                inside_section.bits = 16;
-                                inside_section.name = s;
-                                inside_label = (false, empty.clone());
-                                continue;
-                            }
-                            if !instructions.is_empty() {
-                                if let Err(err) = collect_label(
-                                    &mut labels,
-                                    tmp_attributes.join(","),
-                                    instructions,
-                                    inside_label.1,
-                                    inside_section.bits,
-                                    section_idx,
-                                ) {
-                                    errors.push(err);
-                                }
-                            }
-                            inside_section.content = labels;
-                            labels = Vec::new();
-                            ast.sections.push(inside_section);
-                            inside_section = Section::default();
-                            inside_section.bits = 16;
-                            inside_section.name = s;
-                            section_idx += 1;
-                            tmp_attributes.clear();
-                            instructions = Vec::with_capacity(PAR_INST_CAP);
-                            inside_label = (false, empty.clone());
-                        }
-                        ASTNode::Attributes(s) => {
-                            if !instructions.is_empty() {
-                                if let Err(err) = collect_label(
-                                    &mut labels,
-                                    tmp_attributes.join(","),
-                                    instructions,
-                                    inside_label.1,
-                                    inside_section.bits,
-                                    section_idx,
-                                ) {
-                                    errors.push(err);
-                                }
-                                instructions = Vec::with_capacity(PAR_INST_CAP);
-                                tmp_attributes.clear();
-                                inside_label = (false, empty.clone());
-                            }
-                            if !s.is_empty() {
-                                tmp_attributes.push(s)
-                            }
-                        }
-                        ASTNode::Include(p) => ast.includes.push(p),
-                        ASTNode::MathEval(name, value) => ast.math.push((name, value)),
-                        ASTNode::Label(lbl) => {
-                            if !instructions.is_empty() {
-                                if let Err(err) = collect_label(
-                                    &mut labels,
-                                    tmp_attributes.join(","),
-                                    instructions,
-                                    inside_label.1,
-                                    inside_section.bits,
-                                    section_idx,
-                                ) {
-                                    errors.push(err);
-                                }
-                                instructions = Vec::with_capacity(PAR_INST_CAP);
-                                tmp_attributes.clear();
-                            }
-                            inside_label = (true, lbl)
-                        }
-                        ASTNode::Ins(ins) => {
-                            if !inside_label.0 {
-                                errors.push(RASMError::with_tip(
+                        instructions = Vec::with_capacity(PAR_INST_CAP);
+                        tmp_attributes.clear();
+                    }
+                    inside_label = (true, lbl)
+                }
+                ASTNode::Ins(ins) => {
+                    if !inside_label.0 {
+                        errors.push(RASMError::with_tip(
                                     Some(node.1),
                                     Some("This instruction was outside of label!"),
                                     Some("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this")
                                 ));
-                            } else {
-                                instructions.push(ins);
-                            }
-                        }
-                        ASTNode::Extern(extrn) => {
-                            if (inside_label.0, &inside_label.1) == (false, &empty) {
-                                ast.externs.push(extrn.into());
-                            } else {
-                                errors.push(RASMError::no_tip(
-                                    Some(node.1),
-                                    Some("Externs can be only declared outside of labels, not inside of"),
-                                ));
-                            }
-                        }
-                        ASTNode::Entry(entry) => {
-                            if (inside_label.0, &inside_label.1) == (false, &empty) {
-                                if ast.entry.is_none() {
-                                    ast.entry = Some(entry);
-                                } else {
-                                    errors.push(RASMError::no_tip(
-                                        Some(node.1),
-                                        Some("Entry point declared twice"),
-                                    ));
-                                }
-                            } else {
-                                errors.push(RASMError::no_tip(
-                                    Some(node.1),
-                                    Some("Entries can be only declared outside of labels, not inside of"),
-                                ));
-                            }
-                        }
-                        ASTNode::Bits(bits_new) => {
-                            if (inside_label.0, &inside_label.1) == (false, &empty) {
-                                match bits_new {
-                                    16 | 32 | 64 => inside_section.bits = bits_new,
-                                    n => errors.push(RASMError::no_tip(
-                                        Some(node.1),
-                                        Some(format!(
-                                            "Invalid bits specifier; expected 16, 32, 64, found {}",
-                                            n
-                                        )),
-                                    )),
-                                }
-                            } else {
-                                errors.push(RASMError::no_tip(
-                                    Some(node.1),
-                                    Some("Bits can be only declared outside of labels, not inside of"),
-                                ));
-                            }
-                        }
+                    } else {
+                        instructions.push(ins);
                     }
                 }
-            }
-        }
-
-        if !instructions.is_empty() {
-            if let Err(err) = collect_label(
-                &mut labels,
-                tmp_attributes.join(","),
-                instructions,
-                inside_label.1,
-                inside_section.bits,
-                section_idx,
-            ) {
-                errors.push(err);
-            }
-        }
-        if inside_section != Section::default() {
-            inside_section.content = labels;
-            ast.sections.push(inside_section);
-        } else if !labels.is_empty() {
-            inside_section.bits = 16;
-            inside_section.name = String::from(".rasm.default").into();
-            inside_section.content = labels;
-            ast.sections.push(inside_section);
-        }
-
-        if !errors.is_empty() {
-            Err(errors)
-        } else {
-            Ok(ast)
+                ASTNode::Extern(extrn) => {
+                    if (inside_label.0, &inside_label.1) == (false, &empty) {
+                        ast.externs.push(extrn.into());
+                    } else {
+                        errors.push(RASMError::no_tip(
+                            Some(node.1),
+                            Some("Externs can be only declared outside of labels, not inside of"),
+                        ));
+                    }
+                }
+                ASTNode::Entry(entry) => {
+                    if (inside_label.0, &inside_label.1) == (false, &empty) {
+                        if ast.entry.is_none() {
+                            ast.entry = Some(entry);
+                        } else {
+                            errors.push(RASMError::no_tip(
+                                Some(node.1),
+                                Some("Entry point declared twice"),
+                            ));
+                        }
+                    } else {
+                        errors.push(RASMError::no_tip(
+                            Some(node.1),
+                            Some("Entries can be only declared outside of labels, not inside of"),
+                        ));
+                    }
+                }
+                ASTNode::Bits(bits_new) => {
+                    if (inside_label.0, &inside_label.1) == (false, &empty) {
+                        match bits_new {
+                            16 | 32 | 64 => inside_section.bits = bits_new,
+                            n => errors.push(RASMError::no_tip(
+                                Some(node.1),
+                                Some(format!(
+                                    "Invalid bits specifier; expected 16, 32, 64, found {}",
+                                    n
+                                )),
+                            )),
+                        }
+                    } else {
+                        errors.push(RASMError::no_tip(
+                            Some(node.1),
+                            Some("Bits can be only declared outside of labels, not inside of"),
+                        ));
+                    }
+                }
+            },
         }
     }
-}
 
-fn split_str_into_vec(str: &str) -> Vec<String> {
-    let mut strs = Vec::with_capacity(8);
-    let mut buf = Vec::with_capacity(24);
-    for b in str.as_bytes() {
-        if b != &b',' {
-            buf.push(*b);
-        } else if b == &b' ' {
-            continue;
-        } else {
-            strs.push(String::from_utf8(buf).expect("Code should be encoded in UTF-8"));
-            buf = Vec::new();
+    if !instructions.is_empty() {
+        if let Err(err) = collect_label(
+            &mut labels,
+            tmp_attributes.join(","),
+            instructions,
+            inside_label.1,
+            inside_section.bits,
+            section_idx,
+        ) {
+            errors.push(err);
         }
     }
-    if !buf.is_empty() {
-        strs.push(String::from_utf8(buf).expect("Code should be encoded in UTF-8"));
+    if inside_section != Section::default() {
+        inside_section.content = labels;
+        ast.sections.push(inside_section);
+    } else if !labels.is_empty() {
+        inside_section.bits = 16;
+        inside_section.name = String::from(".rasm.default").into();
+        inside_section.content = labels;
+        ast.sections.push(inside_section);
     }
-    strs
+
+    if !errors.is_empty() {
+        Err(errors)
+    } else {
+        Ok(ast)
+    }
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
@@ -301,7 +277,7 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
         return Ok(TmpLabelAttr::default());
     }
     let mut attrs = TmpLabelAttr::default();
-    let args = split_str_into_vec(&attr);
+    let args = crate::utils::split_str_owned(&attr, ',');
     for a in args {
         if let Some((key, val)) = a.split_once('=') {
             match key {
@@ -413,7 +389,7 @@ mod tests {
                 0,
             )),
         ];
-        let ast = Parser::build_tree(nodes);
+        let ast = ast(nodes);
         assert_eq!(true, ast.is_ok());
         assert_eq!(
             ast.unwrap().sections,

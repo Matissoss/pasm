@@ -30,6 +30,7 @@ pub mod cli;
 pub mod color;
 pub mod conf;
 pub mod help;
+pub mod utils;
 
 pub use shr::rpanic::switch_panichandler;
 
@@ -106,7 +107,7 @@ fn main() {
     };
 
     if let Some(form) = cli.get_kv_arg("-f") {
-        if let Err(e) = libr::compile(ast, &outfile, form) {
+        if let Err(e) = libr::assemble(ast, &outfile, form) {
             eprintln!("{e}");
             std::process::exit(1);
         };

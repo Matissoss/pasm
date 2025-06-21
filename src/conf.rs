@@ -13,6 +13,16 @@ pub type Shared<T> = std::sync::Arc<T>;
 #[cfg(not(feature = "mthread"))]
 pub type Shared<T> = T;
 
+#[cfg(feature = "mthread")]
+pub type SharedArr<T> = std::sync::Arc<[T]>;
+#[cfg(not(feature = "mthread"))]
+pub type SharedArr<T> = std::rc::Rc<[T]>;
+
+#[cfg(feature = "mthread")]
+pub type SharedTp<T> = std::sync::Arc<T>;
+#[cfg(not(feature = "mthread"))]
+pub type SharedTp<T> = std::rc::Rc<T>;
+
 // CORE_LB_GROUP groups CORE_LB_GROUP lines to make assembling
 // labels faster in multithreading.
 // -----------
@@ -27,11 +37,13 @@ pub const CORE_LB_GROUP: usize = 2;
 pub const TOK_LN_GROUP: usize = 4;
 // default = 8
 #[cfg(feature = "mthread")]
-pub const THREAD_LIMIT: u8 = 16;
+pub const THREAD_LIMIT: u8 = 12;
 
 // default = 5
 #[cfg(feature = "mthread")]
 pub const RETRY_TIME_MS: u64 = 5;
+
+pub const SMALLVEC_TOKENS_LEN: usize = 16;
 
 // LINE_WIDTH is used in src/main.rs:print_supported_instructions
 // --------------------------------------------------------------

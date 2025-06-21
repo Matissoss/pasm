@@ -10,7 +10,6 @@ use crate::shr::{
     atype::{AType, ToAType},
     error::RASMError,
     ins::Mnemonic,
-    math::MathematicalEvaluation as MathEval,
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
@@ -49,7 +48,7 @@ pub enum ASTNode {
     Label(RString),
     Extern(String),
     Include(PathBuf),
-    MathEval(RString, RString),
+    MathEval(RString, u64),
 
     Section(RString),
     Align(u16),
@@ -76,7 +75,7 @@ pub struct AST {
     pub bits: Option<u8>,
     pub entry: Option<RString>,
     pub includes: Vec<PathBuf>,
-    pub math: Vec<(RString, RString)>,
+    pub math: Vec<(RString, u64)>,
     pub file: PathBuf,
 }
 
@@ -95,26 +94,6 @@ impl TryFrom<Token> for Operand {
     type Error = RASMError;
     fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
         match tok {
-            // experimental
-            // idk what if this works (i hope so; will have to check)
-            Token::Closure(' ', m) => match Mem::new(&m, Size::Any) {
-                Ok(m) => Ok(Operand::Mem(m)),
-                Err(e) => Err(e),
-            },
-            Token::Closure('$', m) => match MathEval::from_str(&m) {
-                Ok(v) => {
-                    let e = MathEval::eval(v);
-                    if let Some(e) = e {
-                        Ok(Self::Imm(Number::uint64(e)))
-                    } else {
-                        Err(Self::Error::no_tip(
-                            None,
-                            Some("Failed to evaluate mathematical expression"),
-                        ))
-                    }
-                }
-                Err(e) => Err(e),
-            },
             Token::Register(reg) => {
                 if reg.is_ctrl_reg() {
                     Ok(Self::CtrReg(reg))
@@ -126,12 +105,9 @@ impl TryFrom<Token> for Operand {
                     Ok(Self::Reg(reg))
                 }
             }
-            Token::String(val) => Ok(Self::String(val.into())),
+            Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(SymbolRef::new(
-                val, None, false, None, None,
-            ))),
-            Token::SymbolRefExt(val) => Ok(Self::SymbolRef(val)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
             _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
         }
     }

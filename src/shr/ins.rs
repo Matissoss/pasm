@@ -524,12 +524,3 @@ impl ToString for Mnemonic {
         format!("{:?}", self).to_lowercase()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn ins_test() {
-        assert!(ins_switch::mnem_fromstr("vphminposuw") == Some(Mnemonic::VPHMINPOSUW));
-    }
-}

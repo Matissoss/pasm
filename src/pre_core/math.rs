@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use crate::shr::{
     ast::{Label, Operand, AST},
     error::RASMError,
-    math::MathematicalEvaluation as MathEval,
     num::Number,
 };
 
@@ -23,7 +22,7 @@ pub fn post_process(ast: &mut AST) -> Result<(), RASMError> {
                 )),
             ));
         } else {
-            math_symbols.insert(&m.0, &m.1);
+            math_symbols.insert(&m.0, m.1);
         }
     }
     for sec in &mut ast.sections {
@@ -36,29 +35,14 @@ pub fn post_process(ast: &mut AST) -> Result<(), RASMError> {
 
 pub fn replace_mathevals(
     label: &mut Label,
-    mth: &HashMap<&crate::RString, &crate::RString>,
+    mth: &HashMap<&crate::RString, u64>,
 ) -> Result<(), RASMError> {
     for i in &mut label.inst {
         for o in &mut i.oprs {
             if let Some(Operand::SymbolRef(s)) = o {
                 if mth.contains_key(&s.symbol) {
-                    let eval = {
-                        let e = mth.get(&s.symbol).unwrap();
-                        if let Ok(n) = Number::from_str(e) {
-                            n.get_as_u64()
-                        } else {
-                            let eval = MathEval::from_str(e)?;
-                            let n = MathEval::eval(eval);
-                            if n.is_none() {
-                                return Err(RASMError::with_tip(None,
-                                    Some(format!("Couldn't evaluate symbol {}, despite it being declared as mathematical symbol", &s.symbol)),
-                                    Some("If this helps: you cannot reference other mathematical symbols"),
-                                ));
-                            }
-                            n.unwrap()
-                        }
-                    };
-                    *o = Some(Operand::Imm(Number::uint64(eval)));
+                    let eval = mth.get(&s.symbol).unwrap();
+                    *o = Some(Operand::Imm(Number::uint64(*eval)));
                 }
             }
         }

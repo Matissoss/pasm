@@ -534,6 +534,9 @@ impl Register {
             Self::IP | Self::EIP | Self::RIP => 0b000
         }
     }
+    pub fn is_sgmnt(&self) -> bool {
+        self.purpose() == Purpose::Sgmnt
+    }
     #[rustfmt::skip]
     pub fn purpose(&self) -> Purpose{
         match self {

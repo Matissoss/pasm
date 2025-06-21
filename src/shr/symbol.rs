@@ -88,14 +88,14 @@ impl SymbolRef {
         self.guardians.set(IS_DEREF, bool)
     }
     pub fn new(
-        symb: String,
+        symb: crate::RString,
         addend: Option<i32>,
         is_deref: bool,
         sz: Option<Size>,
         reltype: Option<RelType>,
     ) -> Self {
         Self {
-            symbol: symb.into(),
+            symbol: symb,
             addend: addend.unwrap_or(0),
             size: sz.unwrap_or(Size::Unknown),
             reltype: reltype.unwrap_or(RelType::REL32),
@@ -179,7 +179,13 @@ impl SymbolRef {
             ));
         }
 
-        Ok(Self::new(name, Some(addend), false, None, Some(rtype)))
+        Ok(Self::new(
+            name.into(),
+            Some(addend),
+            false,
+            None,
+            Some(rtype),
+        ))
     }
 }
 

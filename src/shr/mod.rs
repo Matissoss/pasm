@@ -13,5 +13,8 @@ pub mod reg;
 pub mod reloc;
 pub mod rpanic;
 pub mod section;
+#[cfg(feature = "mthread")]
+pub mod semaphore;
 pub mod size;
+pub mod smallvec;
 pub mod symbol;
