@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 
 [features]
-default = ["target_all", "timed", "iinfo"]
+default = ["target_all", "mthread", "timed", "iinfo"]
 # multi threading
 mthread = []
 # measure time for assembling

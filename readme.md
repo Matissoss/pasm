@@ -27,7 +27,9 @@ Then you should read documentation (`docs`) and see examples (some can be curren
 
 ## features
 
-Precompiled `rasm` binary defaultly consists of only one feature: `target_all` which allows for `elf` target handler.
+Precompiled `rasm` binary on default ships with following features: `mthread`, `timed`, `iinfo` and `target_all`.
+
+You can also customize few parameters in `src/conf.rs`.
 
 Here is exhaustive list of features you can use:
 
@@ -35,6 +37,7 @@ Here is exhaustive list of features you can use:
 - `timed`: measures time it took for assembling (as a whole)
 - `vtimed`: for benchmarking
 - `iinfo` : instruction info (also stores Mnemonics as strings)
+- `target_all`: every `target_*`
 - `target_elf`: elf target handling
 
 ## dev roadmap
