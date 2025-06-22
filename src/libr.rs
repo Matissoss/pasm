@@ -44,7 +44,7 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     {
         let mut semaphore = crate::shr::semaphore::Semaphore::new(conf::THREAD_LIMIT as usize);
         let mut handles = Vec::with_capacity(lcount);
-        let lcount = (conf::THREAD_LIMIT as usize) << conf::TOK_LN_GROUP;
+        let lcount = conf::TOK_LN_GROUP;
         let mut lns = Vec::with_capacity(lcount);
         for l in lines {
             if lns.len() < lcount {
@@ -82,13 +82,23 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtimed")]
     let start = std::time::SystemTime::now();
 
-    let mut ast = pre::par::ast(pre::mer::mer(toks))?;
+    let mer = pre::mer::mer(toks);
+    #[cfg(feature = "vtimed")]
+    utils::vtimed_print("mer    ", start);
+    #[cfg(feature = "vtimed")]
+    let start = std::time::SystemTime::now();
+
+    let mut ast = pre::par::ast(mer)?;
+
+    #[cfg(feature = "vtimed")]
+    utils::vtimed_print("par    ", start);
+    #[cfg(feature = "vtimed")]
+    let start = std::time::SystemTime::now();
 
     pre_core::post_process(&mut ast).map_err(|e| vec![e])?;
 
     #[cfg(feature = "vtimed")]
-    utils::vtimed_print("par/lex", start);
-
+    utils::vtimed_print("post   ", start);
     #[cfg(feature = "vtimed")]
     let start = std::time::SystemTime::now();
 
@@ -170,11 +180,11 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
         let plen = wrt.len();
         section.offset = plen as u32;
         for lbl in &mut section.content {
-            lbl.shidx = idx;
+            lbl.shidx = idx as u16;
             let st = lbl.stype;
-            let vi = lbl.visibility;
+            let vi = lbl.visibility();
             let nm = lbl.name.clone();
-            let (bts, mut rels) = comp::compile_label((&lbl.inst, lbl.align, lbl.bits), plen);
+            let (bts, mut rels) = comp::compile_label((&lbl.inst, lbl.align, lbl.bits()), plen);
             for rel in &mut rels {
                 rel.shidx = idx as u16;
                 rel.offset += wrt.len() as u32;
@@ -216,7 +226,7 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
                 let (mut bts, mut rel, mut sym) = (Vec::new(), Vec::new(), Vec::new());
                 for label in lbls {
                     let (bts_n, mut rel_n) =
-                        comp::compile_label((&label.inst, label.align, label.bits), 0);
+                        comp::compile_label((&label.inst, label.align, label.bits()), 0);
                     for rel in &mut rel_n {
                         rel.offset += len as u32;
                         rel.shidx = shidx as u16;
@@ -226,7 +236,7 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
                         offset: len as u32 - *soff,
                         size: bts.len() as u32,
                         sindex: shidx as u16,
-                        visibility: label.visibility,
+                        visibility: label.visibility(),
                         stype: label.stype,
                         is_extern: false,
                     });
@@ -245,7 +255,7 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
                 let (mut bts, mut rel, mut sym) = (Vec::new(), Vec::new(), Vec::new());
                 for label in lbls {
                     let (bts_n, mut rel_n) =
-                        comp::compile_label((&label.inst, label.align, label.bits), 0);
+                        comp::compile_label((&label.inst, label.align, label.bits()), 0);
                     for rel in &mut rel_n {
                         rel.offset += len as u32;
                         rel.shidx = shidx as u16;
@@ -255,7 +265,7 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
                         offset: len as u32 - *soff,
                         size: bts.len() as u32,
                         sindex: shidx as u16,
-                        visibility: label.visibility,
+                        visibility: label.visibility(),
                         stype: label.stype,
                         is_extern: false,
                     });

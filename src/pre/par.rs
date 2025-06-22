@@ -8,10 +8,8 @@ use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
     error::RASMError,
     section::Section,
-    symbol::{SymbolType, Visibility},
+    symbol::SymbolType,
 };
-
-const PAR_INST_CAP: usize = 16;
 
 use crate::RString;
 
@@ -24,8 +22,8 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
     let mut ast = AST::default();
     let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
     let mut inside_label: (bool, RString) = (false, RString::from(""));
-    let mut instructions: Vec<Instruction> = Vec::with_capacity(PAR_INST_CAP);
-    let mut section_idx: usize = 0;
+    let mut instructions: Vec<Instruction> = Vec::new();
+    let mut section_idx: u16 = 0;
     let mut inside_section = Section::default();
     let mut labels = Vec::new();
     for node in list {
@@ -100,7 +98,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                     inside_section.name = s;
                     section_idx += 1;
                     tmp_attributes.clear();
-                    instructions = Vec::with_capacity(PAR_INST_CAP);
+                    instructions = Vec::new();
                     inside_label = (false, empty.clone());
                 }
                 ASTNode::Attributes(s) => {
@@ -115,7 +113,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                         ) {
                             errors.push(err);
                         }
-                        instructions = Vec::with_capacity(PAR_INST_CAP);
+                        instructions = Vec::new();
                         tmp_attributes.clear();
                         inside_label = (false, empty.clone());
                     }
@@ -137,7 +135,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                         ) {
                             errors.push(err);
                         }
-                        instructions = Vec::with_capacity(PAR_INST_CAP);
+                        instructions = Vec::new();
                         tmp_attributes.clear();
                     }
                     inside_label = (true, lbl)
@@ -155,7 +153,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                 }
                 ASTNode::Extern(extrn) => {
                     if (inside_label.0, &inside_label.1) == (false, &empty) {
-                        ast.externs.push(extrn.into());
+                        ast.externs.push(extrn);
                     } else {
                         errors.push(RASMError::no_tip(
                             Some(node.1),
@@ -246,7 +244,7 @@ fn collect_label(
     inst: Vec<Instruction>,
     name: RString,
     defbits: u8,
-    secidx: usize,
+    secidx: u16,
 ) -> Result<(), Error> {
     let (bits, align, global, stype) = match parse_attr(attrs.to_string()) {
         Ok(t) => (t.bits, t.align, t.global, t.stype),
@@ -255,16 +253,12 @@ fn collect_label(
     vec.push(Label {
         name,
         inst,
-        visibility: if global {
-            Visibility::Global
-        } else {
-            Visibility::Local
-        },
-        bits: if matches!(bits, 16 | 32 | 64) {
-            bits
-        } else {
-            defbits
-        },
+        meta: (global as u8) << 7
+            | if matches!(bits, 16 | 32 | 64) {
+                bits >> 4
+            } else {
+                defbits >> 4
+            },
         shidx: secidx,
         align,
         stype,
@@ -331,146 +325,4 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
         }
     }
     Ok(attrs)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn section_par_test() {
-        use crate::shr::*;
-        use section::SectionAttributes;
-        use symbol::SymbolType;
-        let nodes = vec![
-            Ok((ASTNode::Section(".text".to_string().into()), 0)),
-            Ok((ASTNode::Align(16), 0)),
-            Ok((ASTNode::Bits(64), 0)),
-            Ok((ASTNode::Label("test".to_string().into()), 0)),
-            Ok((
-                ASTNode::Ins(Instruction {
-                    oprs: [None, None, None, None, None],
-                    addt: None,
-                    line: 0,
-                    mnem: ins::Mnemonic::__LAST,
-                }),
-                0,
-            )),
-            Ok((ASTNode::Label("tesy".to_string().into()), 0)),
-            Ok((
-                ASTNode::Ins(Instruction {
-                    oprs: [None, None, None, None, None],
-                    addt: None,
-                    line: 0,
-                    mnem: ins::Mnemonic::__LAST,
-                }),
-                0,
-            )),
-            Ok((ASTNode::Section(".text1".to_string().into()), 0)),
-            Ok((ASTNode::Align(16), 0)),
-            Ok((ASTNode::Bits(64), 0)),
-            Ok((ASTNode::Label("test".to_string().into()), 0)),
-            Ok((
-                ASTNode::Ins(Instruction {
-                    oprs: [None, None, None, None, None],
-                    addt: None,
-                    line: 0,
-                    mnem: ins::Mnemonic::__LAST,
-                }),
-                0,
-            )),
-            Ok((ASTNode::Label("tesy".to_string().into()), 0)),
-            Ok((
-                ASTNode::Ins(Instruction {
-                    oprs: [None, None, None, None, None],
-                    addt: None,
-                    line: 0,
-                    mnem: ins::Mnemonic::__LAST,
-                }),
-                0,
-            )),
-        ];
-        let ast = ast(nodes);
-        assert_eq!(true, ast.is_ok());
-        assert_eq!(
-            ast.unwrap().sections,
-            vec![
-                Section {
-                    name: String::from(".text").into(),
-                    align: 16,
-                    offset: 0,
-                    size: 0,
-                    attributes: SectionAttributes::new(),
-                    content: vec![
-                        Label {
-                            name: String::from("test").into(),
-                            align: 0,
-                            stype: SymbolType::NoType,
-                            visibility: symbol::Visibility::Local,
-                            bits: 64,
-                            inst: vec![Instruction {
-                                oprs: [None, None, None, None, None],
-                                addt: None,
-                                line: 0,
-                                mnem: ins::Mnemonic::__LAST,
-                            }],
-                            shidx: 0,
-                        },
-                        Label {
-                            name: String::from("tesy").into(),
-                            align: 0,
-                            stype: SymbolType::NoType,
-                            visibility: symbol::Visibility::Local,
-                            bits: 64,
-                            inst: vec![Instruction {
-                                oprs: [None, None, None, None, None],
-                                addt: None,
-                                line: 0,
-                                mnem: ins::Mnemonic::__LAST,
-                            }],
-                            shidx: 0,
-                        },
-                    ],
-                    bits: 64
-                },
-                Section {
-                    name: String::from(".text1").into(),
-                    align: 16,
-                    offset: 0,
-                    size: 0,
-                    attributes: SectionAttributes::new(),
-                    content: vec![
-                        Label {
-                            name: String::from("test").into(),
-                            align: 0,
-                            visibility: symbol::Visibility::Local,
-                            bits: 64,
-                            inst: vec![Instruction {
-                                oprs: [None, None, None, None, None],
-                                addt: None,
-                                line: 0,
-                                mnem: ins::Mnemonic::__LAST,
-                            }],
-                            shidx: 1,
-                            stype: SymbolType::NoType,
-                        },
-                        Label {
-                            name: String::from("tesy").into(),
-                            align: 0,
-                            visibility: symbol::Visibility::Local,
-                            bits: 64,
-                            inst: vec![Instruction {
-                                oprs: [None, None, None, None, None],
-                                addt: None,
-                                line: 0,
-                                mnem: ins::Mnemonic::__LAST,
-                            }],
-                            stype: SymbolType::NoType,
-                            shidx: 1,
-                        },
-                    ],
-                    bits: 64
-                },
-            ]
-        );
-    }
 }

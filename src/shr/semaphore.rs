@@ -5,7 +5,6 @@
 
 use std::sync::atomic::*;
 
-#[cfg(feature = "mthread")]
 #[repr(transparent)]
 pub struct Semaphore {
     content: AtomicUsize,

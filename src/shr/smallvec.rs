@@ -3,39 +3,60 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::{iter::Iterator, mem::MaybeUninit};
+
 pub struct SmallVec<T, const N: usize> {
     len: usize,
-    pub content: [T; N],
+    pub content: [MaybeUninit<T>; N],
 }
 
 impl<T, const N: usize> SmallVec<T, N>
 where
     T: Clone,
 {
+    #[allow(clippy::new_without_default)]
+    pub const fn new() -> Self {
+        Self {
+            len: 0,
+            content: unsafe { MaybeUninit::<[MaybeUninit<T>; N]>::uninit().assume_init() },
+        }
+    }
+    pub const fn get_unchecked(&self, idx: usize) -> &T {
+        unsafe { self.content[idx].assume_init_ref() }
+    }
     #[inline]
-    pub fn push(&mut self, t: T) {
-        self.content[self.len] = t;
+    pub const fn push(&mut self, t: T) {
+        self.content[self.len] = MaybeUninit::new(t);
         self.len += 1;
     }
     #[inline]
-    pub fn pop(&mut self) -> Option<&T> {
+    pub const fn pop(&mut self) -> Option<T> {
         if self.is_empty() {
             None
         } else {
             self.len -= 1;
-            Some(&self.content[self.len()])
+            let s = unsafe { self.content[self.len()].assume_init_read() };
+            self.content[self.len()] = unsafe { MaybeUninit::uninit().assume_init() };
+            Some(s)
         }
     }
     #[inline]
-    pub fn get(&self, idx: usize) -> Option<&T> {
-        self.content.get(idx)
+    pub const fn get(&self, idx: usize) -> Option<&T> {
+        if idx < self.len() {
+            Some(unsafe { self.content[idx].assume_init_ref() })
+        } else {
+            None
+        }
+    }
+    pub const fn can_push(&self) -> bool {
+        self.len() < N
     }
     #[inline]
-    pub fn first(&self) -> Option<&T> {
+    pub const fn first(&self) -> Option<&T> {
         self.get(0)
     }
     #[inline]
-    pub fn last(&self) -> Option<&T> {
+    pub const fn last(&self) -> Option<&T> {
         self.get(self.len() - 1)
     }
     #[inline]
@@ -46,55 +67,19 @@ where
     pub const fn len(&self) -> usize {
         self.len
     }
-    #[inline]
-    pub fn into_vec(self) -> Vec<T> {
-        self.content[..self.len()].to_vec()
+    #[allow(clippy::should_implement_trait)]
+    pub fn into_iter(self) -> Vec<T> {
+        (0..self.len())
+            .map(|s| unsafe { self.content[s].assume_init_read() })
+            .collect()
     }
     #[inline]
-    pub fn iter(&self) -> &[T] {
-        &self.content[..self.len()]
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        (0..self.len()).map(|s| unsafe { self.content[s].assume_init_ref() })
     }
     #[inline]
-    pub fn iter_mut(&mut self) -> &mut [T] {
-        &mut self.content[..self.len]
-    }
-    pub const fn blank(arr: [T; N]) -> Self {
-        Self {
-            len: 0,
-            content: arr,
-        }
-    }
-}
-
-impl<T, const N: usize> SmallVec<T, N>
-where
-    T: Default,
-{
-    pub fn new() -> Self {
-        Self {
-            len: 0,
-            content: std::array::from_fn(|_| T::default()),
-        }
-    }
-}
-impl<T, const N: usize> SmallVec<T, N>
-where
-    T: Default + Copy,
-{
-    pub fn new_copy() -> Self {
-        Self {
-            len: 0,
-            content: [T::default(); N],
-        }
-    }
-}
-
-impl<T, const N: usize> Default for SmallVec<T, N>
-where
-    T: Default,
-{
-    fn default() -> Self {
-        Self::new()
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        (0..self.len()).map(|s| unsafe { &mut *self.content[s].as_mut_ptr() })
     }
 }
 
@@ -105,7 +90,6 @@ mod tests {
     fn test() {
         let mut myvec: SmallVec<u8, 12> = SmallVec::new();
         myvec.push(10);
-        println!("{:?}", myvec.content);
         assert_eq!(myvec.first(), Some(&10));
         myvec.push(20);
         assert_eq!(myvec.get(1), Some(&20));

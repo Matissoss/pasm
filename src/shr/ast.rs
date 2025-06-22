@@ -46,7 +46,7 @@ pub enum ASTNode {
     Bits(u8),
     Entry(RString),
     Label(RString),
-    Extern(String),
+    Extern(RString),
     Include(PathBuf),
     MathEval(RString, u64),
 
@@ -61,11 +61,30 @@ pub enum ASTNode {
 pub struct Label {
     pub name: RString,
     pub inst: Vec<Instruction>,
-    pub shidx: usize,
+    pub shidx: u16,
     pub align: u16,
     pub stype: SymbolType,
-    pub visibility: Visibility,
-    pub bits: u8,
+    // layout:
+    // 0bXYYY_YZZZ
+    // X : is global
+    // YYYY: is reserved
+    // ZZZ: bits: 0b000 - 16; 0b001 - 32; 0b010 - 64
+    pub meta: u8,
+    //pub visibility: Visibility,
+    //pub bits: u8,
+}
+
+impl Label {
+    pub fn bits(&self) -> u8 {
+        (self.meta & 0b111) << 4
+    }
+    pub fn visibility(&self) -> Visibility {
+        if self.meta & 0b1000_0000 == 0b1000_0000 {
+            Visibility::Global
+        } else {
+            Visibility::Local
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -410,7 +429,7 @@ impl AST {
                 for label in &mut self.sections[index].content {
                     if &label.name == entry {
                         let (flabel, llabel) = self.sections[index].content.split_at_mut(index);
-                        llabel[0].visibility = Visibility::Global;
+                        llabel[0].meta = (Visibility::Global as u8) << 7;
                         std::mem::swap(&mut flabel[0], &mut llabel[0]);
                         return;
                     }
@@ -442,5 +461,18 @@ impl AST {
         }
         self.math.extend(rhs.math);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod t {
+    use super::*;
+    #[test]
+    fn t() {
+        println!("{}", size_of::<Operand>());
+        println!("{}", size_of::<Option<Operand>>());
+        println!("{}", size_of::<[Option<Operand>; 5]>());
+        println!("{}", size_of::<Instruction>());
+        assert_eq!(1, 0);
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     shr::{
         ast::{ASTNode, Instruction, Operand},
         error::RASMError,
-        ins::Mnemonic as Mnm,
+        ins::Mnemonic,
         kwd::Keyword,
         mem::Mem,
         size::Size,
@@ -110,7 +110,7 @@ pub fn mer(
             },
             Some(Token::Keyword(Keyword::Extern)) => {
                 if let Some(Token::String(etrn) | Token::Unknown(etrn)) = line.get(1) {
-                    node = Some(ASTNode::Extern(etrn.to_string()));
+                    node = Some(ASTNode::Extern(etrn.clone()));
                 } else {
                     error = Some(RASMError::with_tip(
                             Some(line_count),
@@ -209,6 +209,7 @@ fn make_eval(mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<(RString,
     Ok((name, eval))
 }
 
+const OPS: [Option<Operand>; 5] = [None, None, None, None, None];
 fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
@@ -216,12 +217,18 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
             Some("Tried to make instruction from nothing"),
         ));
     }
-    let mut mnems: Vec<Mnm> = Vec::with_capacity(2);
-    let mut tmp_buf: Vec<Token> = Vec::with_capacity(6);
-    let mut iter = line.into_vec().into_iter();
+    let mut mnems: SmallVec<Mnemonic, 2> = SmallVec::new();
+    let mut tmp_buf: SmallVec<Token, 8> = SmallVec::new();
+    let mut iter = line.into_iter().into_iter();
     while let Some(t) = iter.next() {
         if let Token::Mnemonic(m) = t {
-            mnems.push(m);
+            if mnems.can_push() {
+                mnems.push(m);
+            } else {
+                return Err(RASMError::msg(
+                    "Tried to make instruction with 2+ mnemonics",
+                ));
+            }
         } else {
             if t != Token::Comma {
                 tmp_buf.push(t);
@@ -230,12 +237,12 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
         }
     }
 
-    let mut ops = [None, None, None, None, None];
+    let mut ops = OPS;
     let mut opi = 0;
     while let Some(t) = iter.next() {
         if t == Token::Comma {
             if !tmp_buf.is_empty() {
-                ops[opi] = Some(make_op(&mut tmp_buf)?);
+                ops[opi] = Some(make_op(tmp_buf)?);
                 if opi > 5 {
                     return Err(RASMError::no_tip(
                         None,
@@ -243,14 +250,14 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
                     ));
                 }
                 opi += 1;
-                tmp_buf.clear();
+                tmp_buf = SmallVec::new();
             }
         } else {
             tmp_buf.push(t);
         }
     }
     if !tmp_buf.is_empty() {
-        ops[opi] = Some(make_op(&mut tmp_buf)?);
+        ops[opi] = Some(make_op(tmp_buf)?);
     }
     if mnems.is_empty() {
         return Err(RASMError::no_tip(
@@ -261,11 +268,10 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
 
     let (mnem, addt) = {
         match mnems.len() {
-            1 => (mnems[0], None),
-            _ => (mnems[1], Some(mnems[0])),
+            1 => (*mnems.get_unchecked(0), None),
+            _ => (*mnems.get_unchecked(1), Some(*mnems.get_unchecked(0))),
         }
     };
-
     Ok(Instruction {
         mnem,
         addt,
@@ -274,7 +280,7 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
     })
 }
 
-fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
+fn make_op(line: SmallVec<Token, 8>) -> Result<Operand, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
             None,
@@ -283,16 +289,16 @@ fn make_op(line: &mut Vec<Token>) -> Result<Operand, RASMError> {
     }
 
     if line.len() == 1 {
-        return Operand::try_from(line.pop().unwrap());
+        return Operand::try_from(line.get_unchecked(0).clone());
     }
 
     if line.len() == 2 {
-        match (&line[0], &line[1]){
+        match (&line.get_unchecked(0), &line.get_unchecked(1)){
             (Token::Keyword(Keyword::Deref|Keyword::Ref),
              Token::SymbolRef(s)
             ) => {
                 let mut s = s.clone();
-                s.deref(line[0] == Token::Keyword(Keyword::Deref));
+                s.deref(line.get_unchecked(0) == &Token::Keyword(Keyword::Deref));
                 return Ok(Operand::SymbolRef(*s.clone()));
             }
             (Token::Keyword(Keyword::Deref), Token::Modifier(m)) => {

@@ -29,15 +29,17 @@ pub type SharedTp<T> = std::rc::Rc<T>;
 // default = 2
 #[cfg(feature = "mthread")]
 pub const CORE_LB_GROUP: usize = 2;
-// TOK_LN_GROUP groups (THREAD_LIMIT << TOK_LN_GROUP) lines to make tokenizer
+
+// TOK_LN_GROUP groups (TOK_LN_GROUP) lines to make tokenizer
 // faster in multithreading.
 // -----------
-// default = 4
+// default = 256
 #[cfg(feature = "mthread")]
-pub const TOK_LN_GROUP: usize = 4;
+pub const TOK_LN_GROUP: usize = 256;
+
 // default = 8
 #[cfg(feature = "mthread")]
-pub const THREAD_LIMIT: u8 = 12;
+pub const THREAD_LIMIT: u8 = 8;
 
 // default = 5
 #[cfg(feature = "mthread")]

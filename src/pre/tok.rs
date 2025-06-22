@@ -21,7 +21,6 @@ pub enum Token {
     Label(RString),
     SymbolRef(Box<SymbolRef>),
     String(RString),
-    Segment(RString),
     Comma,
 
     Unknown(RString),
@@ -47,7 +46,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
     for b in line.as_bytes() {
         let c = *b as char;
         match (inside_closure, c) {
-            (_, COMMENT_S) => break,
+            (None, COMMENT_S) => break,
 
             (None, '"') => {
                 inside_closure = Some('"');
@@ -126,7 +125,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
                         ));
                     }
                     tmp_buf.clear();
-                    tokens.push(Token::make_modifier(tmp_toks.into_vec()));
+                    tokens.push(Token::make_modifier(tmp_toks.into_iter()));
                     tmp_toks = SmallVec::new();
                     inside_closure = None;
                     closure_pfx = None;
@@ -214,7 +213,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
                 closure_pfx,
                 String::from_iter(tmp_buf.iter()),
             ));
-            tokens.push(Token::make_modifier(tmp_toks.into_vec()))
+            tokens.push(Token::make_modifier(tmp_toks.into_iter()))
         } else {
             tokens.push(Token::make_from(
                 inside_closure,
@@ -222,7 +221,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
             ));
         }
     } else if !tmp_toks.is_empty() {
-        tokens.push(Token::make_modifier(tmp_toks.into_vec()));
+        tokens.push(Token::make_modifier(tmp_toks.into_iter()));
     }
     tokens
 }
@@ -263,7 +262,6 @@ impl Token {
                     Self::Unknown(val.into())
                 }
             }
-            Some(PREFIX_SEG) => Self::Segment(val.into()),
             Some(PREFIX_REF) => match SymbolRef::try_new(&val) {
                 Ok(s) => Self::SymbolRef(Box::new(s)),
                 Err(e) => Self::Error(Box::new(e)),
@@ -298,7 +296,6 @@ impl ToString for Token {
             Self::String(str) => str.to_string(),
             Self::Error(_) => "".to_string(),
             Self::Unknown(val) => val.to_string(),
-            Self::Segment(s) => s.to_string(),
             Self::Comma => ','.to_string(),
             Self::Closure(pfx, ctt) => format!("{pfx}({ctt})"),
             Self::Modifier(content) => {

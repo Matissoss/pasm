@@ -54,8 +54,6 @@ struct RASMErrorInfo {
     guardians: BoolTable8,
 }
 
-impl RASMErrorInfo {}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct RASMError {
     line: usize,
