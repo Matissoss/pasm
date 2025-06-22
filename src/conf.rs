@@ -9,9 +9,9 @@ pub type RString = std::sync::Arc<str>;
 pub type RString = std::rc::Rc<str>;
 
 #[cfg(feature = "mthread")]
-pub type Shared<T> = std::sync::Arc<T>;
+pub type SharedElf<T> = std::sync::Arc<T>;
 #[cfg(not(feature = "mthread"))]
-pub type Shared<T> = T;
+pub type SharedElf<T> = T;
 
 #[cfg(feature = "mthread")]
 pub type SharedArr<T> = std::sync::Arc<[T]>;
@@ -19,9 +19,9 @@ pub type SharedArr<T> = std::sync::Arc<[T]>;
 pub type SharedArr<T> = std::rc::Rc<[T]>;
 
 #[cfg(feature = "mthread")]
-pub type SharedTp<T> = std::sync::Arc<T>;
+pub type Shared<T> = std::sync::Arc<T>;
 #[cfg(not(feature = "mthread"))]
-pub type SharedTp<T> = std::rc::Rc<T>;
+pub type Shared<T> = std::rc::Rc<T>;
 
 // CORE_LB_GROUP groups CORE_LB_GROUP lines to make assembling
 // labels faster in multithreading.
