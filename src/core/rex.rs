@@ -6,7 +6,6 @@
 use crate::shr::{
     ast::{Instruction, Operand},
     ins::Mnemonic as Mnm,
-    reg::Purpose as RPurpose,
     size::Size,
 };
 
@@ -188,7 +187,7 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
     #[allow(clippy::single_match)]
     match ins.dst() {
         Some(Operand::Reg(reg)) => {
-            if reg.purpose() == RPurpose::F128 {
+            if reg.size() == Size::Xword {
                 *r = true;
             }
         }

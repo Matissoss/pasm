@@ -25,9 +25,10 @@ pub const R32: AType = AType::Register(RegisterPurpose::General, Size::Dword);
 pub const R16: AType = AType::Register(RegisterPurpose::General, Size::Word);
 pub const R8: AType = AType::Register(RegisterPurpose::General, Size::Byte);
 
-pub const MMX: AType = AType::Register(RegisterPurpose::Mmx, Size::Any);
-pub const XMM: AType = AType::Register(RegisterPurpose::F128, Size::Any);
-pub const YMM: AType = AType::Register(RegisterPurpose::F256, Size::Any);
+pub const MMX: AType = AType::Register(RegisterPurpose::Mmx, Size::Qword);
+
+pub const XMM: AType = AType::Register(RegisterPurpose::F128, Size::Xword);
+pub const YMM: AType = AType::Register(RegisterPurpose::F256, Size::Yword);
 
 pub const MA: AType = AType::Memory(Size::Any);
 pub const M256: AType = AType::Memory(Size::Yword);

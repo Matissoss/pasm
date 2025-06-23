@@ -210,16 +210,16 @@ impl Instruction {
                 Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => {
-                    if r.purpose() == RPurpose::Mmx || r.purpose() == RPurpose::F128 {
+                    if r.purpose() == RPurpose::Mmx || r.size() == Size::Xword {
                         IVariant::MMX
                     } else {
                         match self.src() {
                             Some(Operand::Reg(r)) => {
                                 if r.purpose() == RPurpose::Mmx {
                                     IVariant::MMX
-                                } else if r.purpose() == RPurpose::F256 {
+                                } else if r.size() == Size::Yword {
                                     IVariant::YMM
-                                } else if r.purpose() == RPurpose::F128 {
+                                } else if r.size() == Size::Xword {
                                     IVariant::XMM
                                 } else {
                                     IVariant::STD
@@ -238,9 +238,9 @@ impl Instruction {
                     Some(Operand::Reg(r)) => {
                         if r.purpose() == RPurpose::Mmx {
                             IVariant::MMX
-                        } else if r.purpose() == RPurpose::F128 {
+                        } else if r.size() == Size::Xword {
                             IVariant::XMM
-                        } else if r.purpose() == RPurpose::F128 {
+                        } else if r.size() == Size::Yword {
                             IVariant::YMM
                         } else {
                             IVariant::STD
@@ -461,18 +461,5 @@ impl AST {
         }
         self.math.extend(rhs.math);
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod t {
-    use super::*;
-    #[test]
-    fn t() {
-        println!("{}", size_of::<Operand>());
-        println!("{}", size_of::<Option<Operand>>());
-        println!("{}", size_of::<[Option<Operand>; 5]>());
-        println!("{}", size_of::<Instruction>());
-        assert_eq!(1, 0);
     }
 }

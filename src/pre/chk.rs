@@ -2978,14 +2978,14 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                     || g0 == RPurpose::Ctrl
                     || g0 == RPurpose::Sgmnt
                     || g0 == RPurpose::Mmx
-                    || g0 == RPurpose::F128
-                    || g0 == RPurpose::F256)
+                    || s0 == Size::Xword
+                    || s0 == Size::Yword)
                     || (g1 == RPurpose::Dbg
                         || g1 == RPurpose::Ctrl
                         || g1 == RPurpose::Sgmnt
                         || g1 == RPurpose::Mmx
-                        || g1 == RPurpose::F128
-                        || g1 == RPurpose::F256))
+                        || s1 == Size::Xword
+                        || s1 == Size::Yword))
             {
                 None
             } else {

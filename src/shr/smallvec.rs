@@ -10,10 +10,7 @@ pub struct SmallVec<T, const N: usize> {
     pub content: [MaybeUninit<T>; N],
 }
 
-impl<T, const N: usize> SmallVec<T, N>
-where
-    T: Clone,
-{
+impl<T, const N: usize> SmallVec<T, N> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
@@ -95,7 +92,7 @@ mod tests {
         assert_eq!(myvec.get(1), Some(&20));
         assert_eq!(myvec.len(), 2);
         let v = myvec.pop().unwrap();
-        assert_eq!(v, &20);
+        assert_eq!(v, 20);
         assert_eq!(myvec.len(), 1);
     }
 }

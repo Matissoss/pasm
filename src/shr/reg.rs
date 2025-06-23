@@ -9,8 +9,9 @@ use crate::shr::{
 };
 use std::{cmp::Ordering, str::FromStr};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, Clone, Copy)]
 pub enum Purpose {
+    __ANY,
     General,
     IPtr,  // ip/rip/eip
     Dbg,   // drX
@@ -21,8 +22,26 @@ pub enum Purpose {
     Sgmnt, // segment registers (cs, ss, ds, es, ...)
 }
 
+impl Purpose {
+    pub const fn is_any(&self) -> bool {
+        *self as u8 == Self::__ANY as u8
+    }
+}
+
+impl PartialEq for Purpose {
+    fn eq(&self, rhs: &Self) -> bool {
+        let su8 = *self as u8;
+        let ru8 = *rhs  as u8;
+        if su8 == Self::__ANY as u8 || ru8 == Self::__ANY as u8 {
+            true
+        } else {
+            su8 == ru8
+        }
+    }
+}
+
 #[rustfmt::skip]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Register {
     // 8-bit general purpose registers
     AL , BL , CL , DL,
@@ -94,6 +113,21 @@ pub enum Register {
     
     YMM8 , YMM9 , YMM10, YMM11,
     YMM12, YMM13, YMM14, YMM15,
+
+    // Any register
+    __ANY,
+}
+
+impl PartialEq for Register {
+    fn eq(&self, rhs: &Self) -> bool {
+        let su8 = *self as u8;
+        let ru8 = *rhs  as u8;
+        if su8 == Register::__ANY as u8 || ru8 == Register::__ANY as u8 {
+            true
+        } else {
+            su8 == ru8
+        }
+    }
 }
 
 #[inline(always)]
@@ -410,8 +444,10 @@ impl Register {
         self.purpose() == Purpose::Ctrl
     }
     #[rustfmt::skip]
-    pub fn size(&self) -> Size {
+    pub const fn size(&self) -> Size {
         match self {
+            Self::__ANY => Size::Unknown,
+
             Self::AL  | Self::BL | Self::CL  | Self::DL |
             Self::AH  | Self::BH | Self::CH  | Self::DH |
             Self::SPL | Self::BPL| Self::SIL | Self::DIL|
@@ -456,7 +492,7 @@ impl Register {
         }
     }
     #[rustfmt::skip]
-    pub fn needs_rex(&self) -> bool {
+    pub const fn needs_rex(&self) -> bool {
         matches!(
             self,
             Self::R8   | Self::R9   | Self::R10  | Self::R11  |
@@ -479,8 +515,10 @@ impl Register {
         )
     }
     #[rustfmt::skip]
-    pub fn to_byte(&self) -> u8 {
+    pub const fn to_byte(&self) -> u8 {
         match &self {
+            Self::__ANY => 0b000,
+            
             Self::ES   | Self::MM0 |
             Self::R8   | Self::R8B | Self::R8W  | Self::R8D   |
             Self::XMM8 | Self::YMM8| Self::AL   | Self::AX    |
@@ -538,8 +576,10 @@ impl Register {
         self.purpose() == Purpose::Sgmnt
     }
     #[rustfmt::skip]
-    pub fn purpose(&self) -> Purpose{
+    pub const fn purpose(&self) -> Purpose{
         match self {
+            Self::__ANY => Purpose::__ANY,
+
             Self::AX  | Self::AL  | Self::EAX  | Self::RAX |
             Self::DX  | Self::DL  | Self::EDX  | Self::RDX |
             Self::CX  | Self::CL  | Self::ECX  | Self::RCX |
@@ -587,20 +627,116 @@ impl Register {
             Self::MM4 | Self::MM5 | Self::MM6 | Self::MM7  => Purpose::Mmx,
         }
     }
+    // returns 9 bits
+    // 0bXX_YYYY_ZZZ
+    //  - XX: extension of register
+    //  - YYYY: purpose of register,
+    //  - ZZZ : code of register
+    pub const fn ser(&self) -> u16 {
+        let mut tret = 0;
+
+        // SET X2
+        if self.needs_rex() {
+            tret |= 0b01_0000_000;
+        }
+        // SET YYYY
+        tret |= (self.purpose() as u16) << 3;
+
+        // SET ZZZ
+        tret |= self.to_byte() as u16;
+
+        tret
+    }
+    pub const fn de(data: u16) -> Register {
+        let extension = data & 0b11_0000_000 >> 7;
+        let purpose   = data & 0b00_1111_000 >> 3;
+        let code      = data & 0b00_0000_111;
+
+        let purpose = unsafe { std::mem::transmute::<u8, Purpose>(purpose as u8) };
+
+        let (_evex, rex) = (extension & 0b10 == 0b10, extension & 0b01 == 0b01);
+
+        if rex {
+            match purpose {
+                Purpose::__ANY => Register::__ANY,
+                Purpose::Mmx => panic!("mm registers cannot be extended!"),
+                Purpose::Sgmnt => panic!("segment registers cannot be extended!"),
+                Purpose::General => match code {
+                    0b000 => Register::CR8,
+                    0b001 => Register::CR9,
+                    0b010 => Register::CR10,
+                    0b011 => Register::CR11,
+                    0b100 => Register::CR12,
+                    0b101 => Register::CR13,
+                    0b110 => Register::CR14,
+                    0b111 => Register::CR15,
+                    _     => Register::__ANY,
+                },
+                Purpose::Dbg => match code {
+                    0b000 => Register::DR8,
+                    0b001 => Register::DR9,
+                    0b010 => Register::DR10,
+                    0b011 => Register::DR11,
+                    0b100 => Register::DR12,
+                    0b101 => Register::DR13,
+                    0b110 => Register::DR14,
+                    0b111 => Register::DR15,
+                    _     => Register::__ANY,
+                },
+                Purpose::Ctrl => match code {
+                    0b000 => Register::CR8,
+                    0b001 => Register::CR9,
+                    0b010 => Register::CR10,
+                    0b011 => Register::CR11,
+                    0b100 => Register::CR12,
+                    0b101 => Register::CR13,
+                    0b110 => Register::CR14,
+                    0b111 => Register::CR15,
+                    _     => Register::__ANY,
+                },
+                Purpose::F128 => match code {
+                    0b000 => Register::XMM8,
+                    0b001 => Register::XMM9,
+                    0b010 => Register::XMM10,
+                    0b011 => Register::XMM11,
+                    0b100 => Register::XMM12,
+                    0b101 => Register::XMM13,
+                    0b110 => Register::XMM14,
+                    0b111 => Register::XMM15,
+                    _     => Register::__ANY,
+                },
+                Purpose::F256 => match code {
+                    0b000 => Register::YMM8,
+                    0b001 => Register::YMM9,
+                    0b010 => Register::YMM10,
+                    0b011 => Register::YMM11,
+                    0b100 => Register::YMM12,
+                    0b101 => Register::YMM13,
+                    0b110 => Register::YMM14,
+                    0b111 => Register::YMM15,
+                    _     => Register::__ANY,
+                },
+                _ => Register::__ANY
+            }
+        } else {
+            Register::__ANY
+        }
+    }
 }
 
 #[allow(clippy::to_string_trait_impl)]
 impl ToString for Purpose {
     fn to_string(&self) -> String {
         match self {
-            Self::General => "general purpose".to_string(),
-            Self::Mmx => "mmx".to_string(),
-            Self::F128 => "sse (xmm)".to_string(),
-            Self::F256 => "avx (ymm)".to_string(),
+            Self::General => "r".to_string(),
+            Self::Mmx => "mm".to_string(),
+            Self::F128 => "xmm".to_string(),
+            Self::F256 => "ymm".to_string(),
             Self::Sgmnt => "segment".to_string(),
-            Self::IPtr => "instruction pointer".to_string(),
-            Self::Dbg => "debug".to_string(),
-            Self::Ctrl => "control".to_string(),
+            Self::IPtr => "ip".to_string(),
+            Self::Dbg => "dr".to_string(),
+            Self::Ctrl => "cr".to_string(),
+            Self::__ANY => "any".to_string(),
         }
     }
 }
