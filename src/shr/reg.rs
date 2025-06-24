@@ -31,7 +31,7 @@ impl Purpose {
 impl PartialEq for Purpose {
     fn eq(&self, rhs: &Self) -> bool {
         let su8 = *self as u8;
-        let ru8 = *rhs  as u8;
+        let ru8 = *rhs as u8;
         if su8 == Self::__ANY as u8 || ru8 == Self::__ANY as u8 {
             true
         } else {
@@ -121,7 +121,7 @@ pub enum Register {
 impl PartialEq for Register {
     fn eq(&self, rhs: &Self) -> bool {
         let su8 = *self as u8;
-        let ru8 = *rhs  as u8;
+        let ru8 = *rhs as u8;
         if su8 == Register::__ANY as u8 || ru8 == Register::__ANY as u8 {
             true
         } else {
@@ -518,7 +518,6 @@ impl Register {
     pub const fn to_byte(&self) -> u8 {
         match &self {
             Self::__ANY => 0b000,
-            
             Self::ES   | Self::MM0 |
             Self::R8   | Self::R8B | Self::R8W  | Self::R8D   |
             Self::XMM8 | Self::YMM8| Self::AL   | Self::AX    |
@@ -627,99 +626,221 @@ impl Register {
             Self::MM4 | Self::MM5 | Self::MM6 | Self::MM7  => Purpose::Mmx,
         }
     }
-    // returns 9 bits
-    // 0bXX_YYYY_ZZZ
-    //  - XX: extension of register
-    //  - YYYY: purpose of register,
-    //  - ZZZ : code of register
-    pub const fn ser(&self) -> u16 {
+    // For mksek(), se() and de():
+    // 0b000_XX_YYYY_ZZZZ_AAA
+    // X0 - reserved
+    // X1 - extended register
+    //
+    // YYYY - size
+    // ZZZZ - purpose
+    // AAA  - register code
+    pub const fn mksek(ext: bool, sz: u16, prp: u16, cd: u16) -> u16 {
+        (ext as u16) << 11 | sz << 7 | prp << 3 | cd
+    }
+    pub const fn se(&self) -> u16 {
         let mut tret = 0;
 
-        // SET X2
-        if self.needs_rex() {
-            tret |= 0b01_0000_000;
-        }
-        // SET YYYY
-        tret |= (self.purpose() as u16) << 3;
-
-        // SET ZZZ
         tret |= self.to_byte() as u16;
+
+        tret |= (self.purpose() as u16) << 3;
+        tret |= (self.size() as u16) << 7;
+        tret |= (self.needs_rex() as u16) << 11;
 
         tret
     }
-    pub const fn de(data: u16) -> Register {
-        let extension = data & 0b11_0000_000 >> 7;
-        let purpose   = data & 0b00_1111_000 >> 3;
-        let code      = data & 0b00_0000_111;
+    pub const fn is_any(&self) -> bool {
+        *self as u8 == Self::__ANY as u8
+    }
+    pub const fn de(data: u16) -> Self {
+        let code = data & 0b111;
+        let purp = data & 0b1111_000;
+        let purp = unsafe { std::mem::transmute::<u8, Purpose>((purp >> 3) as u8) };
+        let size = unsafe { std::mem::transmute::<u8, Size>(((data & 0b1111 << 7) >> 7) as u8) };
+        let extr = (data & 0b01 << 11) >> 11;
 
-        let purpose = unsafe { std::mem::transmute::<u8, Purpose>(purpose as u8) };
-
-        let (_evex, rex) = (extension & 0b10 == 0b10, extension & 0b01 == 0b01);
-
-        if rex {
-            match purpose {
-                Purpose::__ANY => Register::__ANY,
-                Purpose::Mmx => panic!("mm registers cannot be extended!"),
-                Purpose::Sgmnt => panic!("segment registers cannot be extended!"),
-                Purpose::General => match code {
-                    0b000 => Register::CR8,
-                    0b001 => Register::CR9,
-                    0b010 => Register::CR10,
-                    0b011 => Register::CR11,
-                    0b100 => Register::CR12,
-                    0b101 => Register::CR13,
-                    0b110 => Register::CR14,
-                    0b111 => Register::CR15,
-                    _     => Register::__ANY,
+        match purp {
+            Purpose::__ANY => Self::__ANY,
+            Purpose::IPtr => match size {
+                Size::Word => Register::IP,
+                Size::Dword => Register::EIP,
+                Size::Qword => Register::RIP,
+                _ => Register::__ANY,
+            },
+            Purpose::Sgmnt => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::ES,
+                (false, 0b001) => Self::CS,
+                (false, 0b010) => Self::SS,
+                (false, 0b011) => Self::DS,
+                (false, 0b100) => Self::FS,
+                (false, 0b101) => Self::GS,
+                _ => Self::__ANY,
+            },
+            Purpose::Mmx => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::MM0,
+                (false, 0b001) => Self::MM1,
+                (false, 0b010) => Self::MM2,
+                (false, 0b011) => Self::MM3,
+                (false, 0b100) => Self::MM4,
+                (false, 0b101) => Self::MM5,
+                (false, 0b110) => Self::MM6,
+                (false, 0b111) => Self::MM7,
+                _ => Self::__ANY,
+            },
+            Purpose::F256 => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::YMM0,
+                (false, 0b001) => Self::YMM1,
+                (false, 0b010) => Self::YMM2,
+                (false, 0b011) => Self::YMM3,
+                (false, 0b100) => Self::YMM4,
+                (false, 0b101) => Self::YMM5,
+                (false, 0b110) => Self::YMM6,
+                (false, 0b111) => Self::YMM7,
+                (true, 0b000) => Self::YMM8,
+                (true, 0b001) => Self::YMM9,
+                (true, 0b010) => Self::YMM10,
+                (true, 0b011) => Self::YMM11,
+                (true, 0b100) => Self::YMM12,
+                (true, 0b101) => Self::YMM13,
+                (true, 0b110) => Self::YMM14,
+                (true, 0b111) => Self::YMM15,
+                _ => Self::__ANY,
+            },
+            Purpose::F128 => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::XMM0,
+                (false, 0b001) => Self::XMM1,
+                (false, 0b010) => Self::XMM2,
+                (false, 0b011) => Self::XMM3,
+                (false, 0b100) => Self::XMM4,
+                (false, 0b101) => Self::XMM5,
+                (false, 0b110) => Self::XMM6,
+                (false, 0b111) => Self::XMM7,
+                (true, 0b000) => Self::XMM8,
+                (true, 0b001) => Self::XMM9,
+                (true, 0b010) => Self::XMM10,
+                (true, 0b011) => Self::XMM11,
+                (true, 0b100) => Self::XMM12,
+                (true, 0b101) => Self::XMM13,
+                (true, 0b110) => Self::XMM14,
+                (true, 0b111) => Self::XMM15,
+                _ => Self::__ANY,
+            },
+            Purpose::Ctrl => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::CR0,
+                (false, 0b001) => Self::CR1,
+                (false, 0b010) => Self::CR2,
+                (false, 0b011) => Self::CR3,
+                (false, 0b100) => Self::CR4,
+                (false, 0b101) => Self::CR5,
+                (false, 0b110) => Self::CR6,
+                (false, 0b111) => Self::CR7,
+                (true, 0b000) => Self::CR8,
+                (true, 0b001) => Self::CR9,
+                (true, 0b010) => Self::CR10,
+                (true, 0b011) => Self::CR11,
+                (true, 0b100) => Self::CR12,
+                (true, 0b101) => Self::CR13,
+                (true, 0b110) => Self::CR14,
+                (true, 0b111) => Self::CR15,
+                _ => Self::__ANY,
+            },
+            Purpose::Dbg => match (extr & 0b01 == 0b01, code) {
+                (false, 0b000) => Self::DR0,
+                (false, 0b001) => Self::DR1,
+                (false, 0b010) => Self::DR2,
+                (false, 0b011) => Self::DR3,
+                (false, 0b100) => Self::DR4,
+                (false, 0b101) => Self::DR5,
+                (false, 0b110) => Self::DR6,
+                (false, 0b111) => Self::DR7,
+                (true, 0b000) => Self::DR8,
+                (true, 0b001) => Self::DR9,
+                (true, 0b010) => Self::DR10,
+                (true, 0b011) => Self::DR11,
+                (true, 0b100) => Self::DR12,
+                (true, 0b101) => Self::DR13,
+                (true, 0b110) => Self::DR14,
+                (true, 0b111) => Self::DR15,
+                _ => Self::__ANY,
+            },
+            Purpose::General => match size {
+                Size::Byte => match (extr & 0b01 == 0b01, code) {
+                    (false, 0b000) => Self::AL,
+                    (false, 0b001) => Self::CL,
+                    (false, 0b010) => Self::DL,
+                    (false, 0b011) => Self::BL,
+                    (false, 0b100) => Self::AH,
+                    (false, 0b101) => Self::CH,
+                    (false, 0b110) => Self::DH,
+                    (false, 0b111) => Self::BH,
+                    (true, 0b000) => Self::R8B,
+                    (true, 0b001) => Self::R9B,
+                    (true, 0b010) => Self::R10B,
+                    (true, 0b011) => Self::R11B,
+                    (true, 0b100) => Self::R12B,
+                    (true, 0b101) => Self::R13B,
+                    (true, 0b110) => Self::R14B,
+                    (true, 0b111) => Self::R15B,
+                    _ => Self::__ANY,
                 },
-                Purpose::Dbg => match code {
-                    0b000 => Register::DR8,
-                    0b001 => Register::DR9,
-                    0b010 => Register::DR10,
-                    0b011 => Register::DR11,
-                    0b100 => Register::DR12,
-                    0b101 => Register::DR13,
-                    0b110 => Register::DR14,
-                    0b111 => Register::DR15,
-                    _     => Register::__ANY,
+                Size::Word => match (extr & 0b01 == 0b01, code) {
+                    (false, 0b000) => Self::AX,
+                    (false, 0b001) => Self::CX,
+                    (false, 0b010) => Self::DX,
+                    (false, 0b011) => Self::BX,
+                    (false, 0b100) => Self::SP,
+                    (false, 0b101) => Self::BP,
+                    (false, 0b110) => Self::SI,
+                    (false, 0b111) => Self::DI,
+                    (true, 0b000) => Self::R8W,
+                    (true, 0b001) => Self::R9W,
+                    (true, 0b010) => Self::R10W,
+                    (true, 0b011) => Self::R11W,
+                    (true, 0b100) => Self::R12W,
+                    (true, 0b101) => Self::R13W,
+                    (true, 0b110) => Self::R14W,
+                    (true, 0b111) => Self::R15W,
+                    _ => Self::__ANY,
                 },
-                Purpose::Ctrl => match code {
-                    0b000 => Register::CR8,
-                    0b001 => Register::CR9,
-                    0b010 => Register::CR10,
-                    0b011 => Register::CR11,
-                    0b100 => Register::CR12,
-                    0b101 => Register::CR13,
-                    0b110 => Register::CR14,
-                    0b111 => Register::CR15,
-                    _     => Register::__ANY,
+                Size::Dword => match (extr & 0b01 == 0b01, code) {
+                    (false, 0b000) => Self::EAX,
+                    (false, 0b001) => Self::ECX,
+                    (false, 0b010) => Self::EDX,
+                    (false, 0b011) => Self::EBX,
+                    (false, 0b100) => Self::ESP,
+                    (false, 0b101) => Self::EBP,
+                    (false, 0b110) => Self::ESI,
+                    (false, 0b111) => Self::EDI,
+                    (true, 0b000) => Self::R8D,
+                    (true, 0b001) => Self::R9D,
+                    (true, 0b010) => Self::R10D,
+                    (true, 0b011) => Self::R11D,
+                    (true, 0b100) => Self::R12D,
+                    (true, 0b101) => Self::R13D,
+                    (true, 0b110) => Self::R14D,
+                    (true, 0b111) => Self::R15D,
+                    _ => Self::__ANY,
                 },
-                Purpose::F128 => match code {
-                    0b000 => Register::XMM8,
-                    0b001 => Register::XMM9,
-                    0b010 => Register::XMM10,
-                    0b011 => Register::XMM11,
-                    0b100 => Register::XMM12,
-                    0b101 => Register::XMM13,
-                    0b110 => Register::XMM14,
-                    0b111 => Register::XMM15,
-                    _     => Register::__ANY,
+                Size::Qword => match (extr & 0b01 == 0b01, code) {
+                    (false, 0b000) => Self::RAX,
+                    (false, 0b001) => Self::RCX,
+                    (false, 0b010) => Self::RDX,
+                    (false, 0b011) => Self::RBX,
+                    (false, 0b100) => Self::RSP,
+                    (false, 0b101) => Self::RBP,
+                    (false, 0b110) => Self::RSI,
+                    (false, 0b111) => Self::RDI,
+                    (true, 0b000) => Self::R8,
+                    (true, 0b001) => Self::R9,
+                    (true, 0b010) => Self::R10,
+                    (true, 0b011) => Self::R11,
+                    (true, 0b100) => Self::R12,
+                    (true, 0b101) => Self::R13,
+                    (true, 0b110) => Self::R14,
+                    (true, 0b111) => Self::R15,
+                    _ => Self::__ANY,
                 },
-                Purpose::F256 => match code {
-                    0b000 => Register::YMM8,
-                    0b001 => Register::YMM9,
-                    0b010 => Register::YMM10,
-                    0b011 => Register::YMM11,
-                    0b100 => Register::YMM12,
-                    0b101 => Register::YMM13,
-                    0b110 => Register::YMM14,
-                    0b111 => Register::YMM15,
-                    _     => Register::__ANY,
-                },
-                _ => Register::__ANY
-            }
-        } else {
-            Register::__ANY
+                _ => Self::__ANY,
+            },
         }
     }
 }

@@ -8,6 +8,7 @@
 #![allow(clippy::to_string_trait_impl)]
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::needless_range_loop)]
+#![allow(clippy::unusual_byte_groupings)]
 
 //  global imports go here
 use std::{path::PathBuf, process};
