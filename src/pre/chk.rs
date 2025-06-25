@@ -2747,7 +2747,7 @@ fn ot_chk(
     if let Some(err) = addt_chk(ins, addt) {
         return Some(err);
     }
-    if ops.is_empty() && !(ins.oprs == [None, None, None, None, None]) {
+    if ops.is_empty() && !ins.oprs.is_empty() {
         return Some(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction doesn't accept any operand, but you tried to use one anyways"),

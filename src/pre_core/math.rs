@@ -38,11 +38,11 @@ pub fn replace_mathevals(
     mth: &HashMap<&crate::RString, u64>,
 ) -> Result<(), RASMError> {
     for i in &mut label.inst {
-        for o in &mut i.oprs {
-            if let Some(Operand::SymbolRef(s)) = o {
+        for o in i.oprs.iter_mut() {
+            if let Operand::SymbolRef(s) = o {
                 if mth.contains_key(&s.symbol) {
                     let eval = mth.get(&s.symbol).unwrap();
-                    *o = Some(Operand::Imm(Number::uint64(*eval)));
+                    *o = Operand::Imm(Number::uint64(*eval));
                 }
             }
         }

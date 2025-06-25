@@ -3,11 +3,54 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::{iter::Iterator, mem::MaybeUninit};
+use std::{iter::Iterator, mem::MaybeUninit, fmt::{Debug, Formatter}};
 
 pub struct SmallVec<T, const N: usize> {
     len: usize,
     pub content: [MaybeUninit<T>; N],
+}
+
+impl<T, const N: usize> Clone for SmallVec<T, N> where T: Clone{
+    fn clone(&self) -> Self {
+        let mut idx = 0;
+        let mut b = [const { MaybeUninit::uninit() }; N];
+        for c in &self.content {
+            b[idx] = unsafe { MaybeUninit::new(c.assume_init_ref().clone()) };
+            idx += 1;
+        }
+        Self {
+            len: self.len,
+            content: b,
+        }
+    }
+}
+
+impl<T, const N: usize> Debug for SmallVec<T, N> where T: Debug {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.write_str("[")?;
+        for (i, e) in self.iter().enumerate() {
+            e.fmt(f)?;
+            if i != self.len() {
+                f.write_str(", ")?;
+            }
+        }
+        f.write_str("]")?;
+        Ok(())
+    }
+}
+
+impl<T, const N: usize> PartialEq for SmallVec<T, N> where T: PartialEq {
+    fn eq(&self, rhs: &Self) -> bool {
+        if self.len() != rhs.len() {
+            return false;
+        }
+        for i in 0..self.len() {
+            if self.get_unchecked(i) != rhs.get_unchecked(i) {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 impl<T, const N: usize> SmallVec<T, N> {

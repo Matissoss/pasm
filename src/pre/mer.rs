@@ -209,7 +209,7 @@ fn make_eval(mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<(RString,
     Ok((name, eval))
 }
 
-const OPS: [Option<Operand>; 5] = [None, None, None, None, None];
+const OPS: SmallVec<Operand, 5> = SmallVec::new();
 fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, RASMError> {
     if line.is_empty() {
         return Err(RASMError::no_tip(
@@ -238,18 +238,16 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
     }
 
     let mut ops = OPS;
-    let mut opi = 0;
     while let Some(t) = iter.next() {
         if t == Token::Comma {
             if !tmp_buf.is_empty() {
-                ops[opi] = Some(make_op(tmp_buf)?);
-                if opi > 5 {
+                if !ops.can_push() {
                     return Err(RASMError::no_tip(
                         None,
                         Some("More than max operands in instruction (5) were used!"),
                     ));
                 }
-                opi += 1;
+                ops.push(make_op(tmp_buf)?);
                 tmp_buf = SmallVec::new();
             }
         } else {
@@ -257,7 +255,7 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
         }
     }
     if !tmp_buf.is_empty() {
-        ops[opi] = Some(make_op(tmp_buf)?);
+        ops.push(make_op(tmp_buf)?);
     }
     if mnems.is_empty() {
         return Err(RASMError::no_tip(

@@ -16,6 +16,7 @@ use crate::shr::{
     section::Section,
     size::Size,
     symbol::{SymbolRef, SymbolType, Visibility},
+    smallvec::SmallVec,
 };
 use crate::RString;
 
@@ -33,7 +34,7 @@ pub enum Operand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
-    pub oprs: [Option<Operand>; 5],
+    pub oprs: SmallVec<Operand, 5>,
     pub line: usize,
     pub addt: Option<Mnemonic>,
     pub mnem: Mnemonic,
@@ -57,7 +58,7 @@ pub enum ASTNode {
     Alloc,
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(PartialEq, Debug, Clone, Default)]
 pub struct Label {
     pub name: RString,
     pub inst: Vec<Instruction>,
@@ -320,15 +321,11 @@ impl Instruction {
     }
     #[inline]
     pub fn dst(&self) -> Option<&Operand> {
-        if let Some(Some(o)) = self.oprs.first() {
-            Some(o)
-        } else {
-            None
-        }
+        self.oprs.first()
     }
     #[inline]
     pub fn reg_byte(&self, idx: usize) -> Option<u8> {
-        if let Some(Some(Operand::Reg(r))) = self.oprs.get(idx) {
+        if let Some(Operand::Reg(r)) = self.oprs.get(idx) {
             Some(r.to_byte())
         } else {
             None
@@ -336,19 +333,11 @@ impl Instruction {
     }
     #[inline]
     pub fn src(&self) -> Option<&Operand> {
-        if let Some(Some(o)) = self.oprs.get(1) {
-            Some(o)
-        } else {
-            None
-        }
+        self.oprs.get(1)
     }
     #[inline]
     pub fn src2(&self) -> Option<&Operand> {
-        if let Some(Some(o)) = self.oprs.get(2) {
-            Some(o)
-        } else {
-            None
-        }
+        self.oprs.get(2)
     }
     #[inline]
     // operand existence
@@ -362,11 +351,7 @@ impl Instruction {
     }
     #[inline]
     pub fn get_opr(&self, idx: usize) -> Option<&Operand> {
-        if let Some(Some(o)) = self.oprs.get(idx) {
-            Some(o)
-        } else {
-            None
-        }
+        self.oprs.get(idx)
     }
     #[inline]
     pub fn get_mem_idx(&self) -> Option<usize> {
@@ -385,7 +370,7 @@ impl Instruction {
     pub fn get_symbs(&self) -> [Option<(&SymbolRef, usize)>; 2] {
         let mut ops = [None, None];
         for (idx, s) in self.oprs.iter().enumerate() {
-            if let Some(Operand::SymbolRef(s)) = s {
+            if let Operand::SymbolRef(s) = s {
                 if s.is_deref() {
                     ops[0] = Some((s, idx));
                 } else {
