@@ -21,13 +21,13 @@
 
 ## getting started
 
-Firstly you want to download/compile `rasm`'s binary.
+Firstly you want to download/compile `pasm`'s binary.
 
 Then you should read documentation (`docs`) and see examples (some can be currently found in `tests` directory).
 
 ## features
 
-Precompiled `rasm` binary on default ships with following features: `mthread`, `timed`, `iinfo` and `target_all`.
+Precompiled `pasm` binary on default ships with following features: `mthread`, `timed`, `iinfo` and `target_all`.
 
 You can also customize few parameters in `src/conf.rs`.
 
