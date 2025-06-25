@@ -59,6 +59,8 @@
     - [x] Allow for usage of multi threads to compile labels/sections
     - [ ] Revamp `AType` and `src/pre/chk.rs` in favor of `CheckAPI` (like is with `GenAPI`)
     - [ ] Fully migrate to `CheckAPI`
+    - [ ] Revamp errors (better readability) with explainations
+    - [ ] Create `src/docs/errors.md`
 - [ ] moving into beta-avx phase...
 
 ## beta-avx
