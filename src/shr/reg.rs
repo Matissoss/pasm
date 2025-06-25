@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/reg.rs
-// ---------------------------
+// pasm - src/shr/reg.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 

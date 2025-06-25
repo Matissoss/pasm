@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/math.rs
-// ----------------------------
+// pasm - src/shr/math.rs
+// ----------------------
 // made by matissoss
 // licensed under MPL 2.0
 

@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/booltable.rs
-// ---------------------------------
+// pasm - src/shr/booltable.rs
+// ---------------------------
 // made by matissoss
 // licensed under MPL 2.0
 

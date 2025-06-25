@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/smallvec.rs
-// --------------------------------
+// pasm - src/shr/smallvec.rs
+// --------------------------
 // made by matissoss
 // licensed under MPL 2.0
 

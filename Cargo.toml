@@ -1,19 +1,19 @@
 [package]
-name = "rasm"
+name = "pasm"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 
 [features]
-default = ["target_all", "mthread", "timed", "iinfo"]
+default = ["target_all", "mthread", "time", "iinfo"]
 # multi threading
 mthread = []
 # measure time for assembling
-timed = []
+time = []
 # verbose timing (aka benchmark)
 # individual timing for: parsing, checking and assembling
-vtimed = ["timed"]
+vtime = ["time"]
 # instruction info
 # takes extra space, because of `Mnemonic::to_string()`
 iinfo = []

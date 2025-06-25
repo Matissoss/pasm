@@ -1,5 +1,5 @@
-# rasmx86_64 - build.sh
-# --------------------
+# pasm - build.sh
+# ---------------
 # made by matissoss
 # licensed under MPL 2.0
 
@@ -8,7 +8,7 @@ set -e
 # constants
 _RUST_TARGETS=("x86_64-unknown-linux-gnu" "x86_64-unknown-linux-musl")
 _EXPT_TARGETS=("-linux-glibc" "-linux-musl")
-_RASM_BIN="rasm"
+_PASM_BIN="pasm"
 
 # $1 = type (--local or --dev; def = --dev)
 build(){
@@ -42,12 +42,12 @@ build_dev(){
 	for target in "${!_RUST_TARGETS[@]}"; do
 		rtt=${_RUST_TARGETS[$target]}
 		echo "compiling for ${rtt}..."
-		path="${_RASM_BIN}-${_EXPT_TARGETS[$target]}"
+		path="${_PASM_BIN}-${_EXPT_TARGETS[$target]}"
 		cargo build -q --release --target ${rtt}
-		mv "target/${rtt}/release/${_RASM_BIN}" "build/${_RASM_BIN}"
+		mv "target/${rtt}/release/${_PASM_BIN}" "build/${_PASM_BIN}"
 		cd build
-		tar -czf "${path}.tar.gz" $_RASM_BIN
-		rm $_RASM_BIN
+		tar -czf "${path}.tar.gz" $_PASM_BIN
+		rm $_PASM_BIN
 		cd ..
 	done
 }

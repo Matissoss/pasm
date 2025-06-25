@@ -135,7 +135,7 @@ const fn map_select(v: u8) -> u8 {
 }
 ```
 
-Code snippets shown here are from `rasm/src/core/api.rs:pp/map_select` functions.
+Code snippets shown here are from `pasm/src/core/api.rs:pp/map_select` functions.
 
 ## sources
 

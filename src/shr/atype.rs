@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/atype.rs
-// -----------------------------
+// pasm - src/shr/atype.rs
+// -----------------------
 // made by matissoss
 // licensed under MPL 2.0
 

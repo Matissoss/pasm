@@ -112,9 +112,9 @@ My recommendation to encoding `MODRM` is that you do NOT assume that `MODRM.reg`
 But if we reverse the order (`mov %eax, .dword (%rax)`), then 
 `MODRM.r/m` refers to `.dword (%rax)` (src) and `MODRM.reg` refers to `%eax` (dst).
 
-In `rasm` we used that approach before, but it was replaced with `GenAPI` by `.ord()` and `.get_ord_oprs()` function that allow to set order and then retrieve operands used by `MODRM.reg` and `MODRM.r/m`.
+In `pasm` we used that approach before, but it was replaced with `GenAPI` by `.ord()` and `.get_ord_oprs()` function that allow to set order and then retrieve operands used by `MODRM.reg` and `MODRM.r/m`.
 
-For more info see `rasm/src/core/modrm.rs` (it is 79 LOC of somewhat readable code).
+For more info see `pasm/src/core/modrm.rs` (it is 79 LOC of somewhat readable code).
 
 ## sib
 
@@ -214,6 +214,8 @@ Then we encode MODRM:
 We don't need SIB, displacement and immediate here, so we skip.
 
 Our final result: `0x48 0xB8 0xC1`.
+
+For more info check `src/core` directory (files: `disp.rs`, `api.rs`, `modrm.rs`, `sib.rs`)
 
 ## register encoding table
 

@@ -1,5 +1,5 @@
-// rasmx86_64 - src/libr.rs
-// ------------------------
+// pasm - src/libr.rs
+// ------------------
 // made by matissoss
 // licensed under MPL 2.0
 
@@ -10,7 +10,7 @@ use crate::*;
 use shr::{ast::AST, error::RASMError as Error, reloc, symbol::*};
 
 pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let file = fs::read_to_string(inpath);
@@ -20,16 +20,16 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
             "Couldn't open file \"{pathstr}\""
         ))]);
     }
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("read   ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let lines = utils::split_str_owned(&file.unwrap(), '\n');
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("split  ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let lcount = lines.len();
@@ -77,34 +77,34 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
             toks.extend(t);
         }
     }
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("tok    ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let mer = pre::mer::mer(toks);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("mer    ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let mut ast = pre::par::ast(mer)?;
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("par    ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     pre_core::post_process(&mut ast).map_err(|e| vec![e])?;
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("post   ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let res = pre::chk::check_ast(&ast);
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("chk    ", start);
 
     if let Some(errs) = res {
@@ -134,7 +134,7 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
 }
 
 pub fn assemble(ast: AST, opath: &Path, tgt: &str) -> Result<(), Error> {
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let wrt = assemble_file(ast, opath, tgt)?;
@@ -149,14 +149,14 @@ pub fn assemble(ast: AST, opath: &Path, tgt: &str) -> Result<(), Error> {
         )));
     }
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("core   ", start);
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     write(&mut file.unwrap(), &wrt)?;
 
-    #[cfg(feature = "vtimed")]
+    #[cfg(feature = "vtime")]
     utils::vtimed_print("write  ", start);
 
     Ok(())

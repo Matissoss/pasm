@@ -1,4 +1,4 @@
-rasmx86_64 	    25.06-betao
+pasm     	    25.06-betao
 -------------------------------
 DISCLAIMER:
 This assembler is in beta.

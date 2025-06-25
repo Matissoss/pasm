@@ -1,8 +1,8 @@
 <div align=center>
-    <h1>extending-rasm.md</h1>
+    <h1>extending-pasm.md</h1>
 </div>
 
-This is short documentation on how to modify `rasm`'s source code.
+This is short documentation on how to modify `pasm`'s source code.
 
 ## adding new instructions
 
@@ -41,8 +41,8 @@ File header follow format (my favourite one):
 This is one used in `src/core/api.rs`
 
 ```
-// rasmx86_64 - src/core/api.rs
-// ----------------------------
+// pasm - src/core/api.rs
+// ----------------------
 // made by matissoss
 // licensed under MPL 2.0
 ```
@@ -53,7 +53,7 @@ Title of document should be (if we are using Github flavored markdown (which we 
 
 ```
 <div align=center>
-    <h1>NAME.EXTENSION</h1>
+    <h1>FILE.EXTENSION</h1>
 </div>
 
 ## section

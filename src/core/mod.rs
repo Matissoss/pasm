@@ -1,4 +1,4 @@
-// core of rasm codegen
+// core of pasm codegen
 pub mod comp;
 pub mod disp;
 pub mod modrm;

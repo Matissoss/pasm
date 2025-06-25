@@ -1,5 +1,5 @@
-// rasmx86_64 - src/core/sib.rs
-// ----------------------------
+// pasm - src/core/sib.rs
+// ----------------------
 // made by matissoss
 // licensed under MPL 2.0
 

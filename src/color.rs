@@ -1,5 +1,5 @@
-// rasmx86_64 - src/color.rs
-// -------------------------
+// pasm - src/color.rs
+// -------------------
 // made by matissoss
 // licensed under MPL 2.0
 

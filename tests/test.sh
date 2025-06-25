@@ -1,8 +1,8 @@
 #!/bin/sh
 
 NASM_BIN="nasm"
-RASM_BIN="rasm"
-BIN=.tmp/$RASM_BIN
+PASM_BIN="pasm"
+BIN=.tmp/$PASM_BIN
 TESTING_PROFILE="testing"
 NASM_FLAGS="-Wno-prefix-seg -Wno-prefix-hle -Wno-label-orphan -Wno-prefix-lock"
 RASM_FLAGS="-t"
@@ -39,48 +39,47 @@ mkdir .tmp
 cd ..
 echo "building tmp binary..."
 cargo build --profile $TESTING_PROFILE -q
-mv target/$TESTING_PROFILE/$RASM_BIN tests/.tmp/$RASM_BIN
+mv target/$TESTING_PROFILE/$PASM_BIN tests/.tmp/$PASM_BIN
 cd tests
 
 errors=0
 
 for file in ./nasm/*.asm; do
 	NASM_FILE=$file
-	RASM_FILE=${file/nasm/rasm}
+	PASM_FILE=${file/nasm/rasm}
 
-	./.tmp/rasm -i=$RASM_FILE -o=$RASM_FILE_RES -f=bin -t
+	./.tmp/rasm -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
 	$NASM_BIN $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS
 	
-	RASM_RES=$(sxd -1=$RASM_FILE_RES)
+	PASM_RES=$(sxd -1=$PASM_FILE_RES)
 	NASM_RES=$(sxd -1=$NASM_FILE_RES)
 
-	if [[ "$RASM_RES" != "$NASM_RES" ]]; then
+	if [[ "$PASM_RES" != "$NASM_RES" ]]; then
 		printf "\nNASM FILE\n"
 		cat $NASM_FILE
 		echo   "-------------"
-		printf "\nRASM FILE\n"
-		cat $RASM_FILE
+		printf "\nPASM FILE\n"
+		cat $PASM_FILE
 		printf "\nNASM HEX DUMP\n"
 		echo   "-------------"
 		sxd -1=$NASM_FILE_RES $SXD_FLAGS
 		echo "-------------"
-		echo "RASM HEX DUMP"
+		echo "PASM HEX DUMP"
 		echo "-------------"
-		sxd -1=$RASM_FILE_RES $SXD_FLAGS
+		sxd -1=$PASM_FILE_RES $SXD_FLAGS
 		
 		echo "-------------"
 		echo "     DIFF    "
-		echo " left = RASM "
-		echo "right = NASM"
+		echo " up   = PASM "
+		echo "down  = NASM "
 		echo "-------------"
-		sxd -1=$RASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
+		sxd -1=$PASM_FILE_RES -2=$NASM_FILE_RES --diff -e -lw=16 $SXD_FLAGS
 		echo ""
 		echo ""
 		errors=$((errors + 1))
 	fi
-
 	rm $NASM_FILE_RES
-	rm $RASM_FILE_RES
+	rm $PASM_FILE_RES
 done
 
 if [[ "$errors" == "0" ]]; then

@@ -1,13 +1,13 @@
 <div align=center>
-    <h1>rasm</h1>
+    <h1>pasm</h1>
 </div>
 
 ## about
 
-`rasm` is modern and independent assembler for x86-64 architecture as one of key parts in (future project) `RAD` toolchain.
+`pasm` is modern and independent assembler for x86-64 architecture as one of key parts in (future project) `POLON` toolchain.
 
 > [!NOTE]
-> `rasm` is still in beta phase and should not be relied on for any serious work.
+> `pasm` is still in beta phase and should not be relied on for any serious work.
 
 ## features
 
@@ -34,8 +34,8 @@ You can also customize few parameters in `src/conf.rs`.
 Here is exhaustive list of features you can use:
 
 - `mthread`: multi-threading
-- `timed`: measures time it took for assembling (as a whole)
-- `vtimed`: for benchmarking
+- `time`: measures time it took for assembling (as a whole)
+- `vtime`: for benchmarking
 - `iinfo` : instruction info (also stores Mnemonics as strings)
 - `target_all`: every `target_*`
 - `target_elf`: elf target handling

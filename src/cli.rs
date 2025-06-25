@@ -1,7 +1,7 @@
-//  rasmx86_64 - src/cli.rs
-//  -----------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// pasm - src/cli.rs
+// -----------------
+// made by matissoss
+// licensed under MPL 2.0
 
 use crate::color::{ColString, Color, Modifier};
 use std::{env, process, sync::LazyLock};

@@ -1,5 +1,5 @@
-// rasmx86_64 - src/pre_core/math.rs
-// ---------------------------------
+// pasm - src/pre_core/math.rs
+// ---------------------------
 // made by matissoss
 // licensed under MPL 2.0
 use std::collections::HashMap;

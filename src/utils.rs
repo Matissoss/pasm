@@ -1,5 +1,5 @@
-// rasmx86_64 - src/utils.rs
-// -------------------------
+// pasm - src/utils.rs
+// -------------------
 // made by matissoss
 // licensed under MPL 2.0
 

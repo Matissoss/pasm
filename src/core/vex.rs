@@ -1,5 +1,5 @@
-// rasmx86_64 - src/core/vex.rs
-// ----------------------------
+// pasm - src/core/vex.rs
+// ----------------------
 // made by matissoss
 // licensed under MPL 2.0
 

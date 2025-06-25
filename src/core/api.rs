@@ -1,5 +1,5 @@
-// rasmx86_64 - src/core/api.rs
-// ----------------------------
+// pasm - src/core/api.rs
+// ----------------------
 // made by matissoss
 // licensed under MPL 2.0
 

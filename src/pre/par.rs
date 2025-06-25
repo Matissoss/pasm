@@ -1,5 +1,5 @@
-// rasmx86_64 - src/pre/par.rs
-// ---------------------------
+// pasm - src/pre/par.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 

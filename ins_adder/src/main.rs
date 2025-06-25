@@ -1,13 +1,13 @@
-// rasmx86_64 - ins_adder module
-// -----------------------------
+// pasm - ins_adder module
+// -----------------------
 // made by matissoss
 // licensed under MPL 2.0
 
 use std::collections::BTreeSet;
 
 const PLACEHOLDER : &'static str = 
-"// rasmx86_64 - src/shr/ins_switch.rs
-// ----------------------------------
+"// pasm - src/shr/ins_switch.rs
+// ----------------------------
 // made by matissoss
 // licensed under MPL 2.0
 //

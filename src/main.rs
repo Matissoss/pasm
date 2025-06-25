@@ -1,5 +1,5 @@
-// rasmx86_64 - src/main.rs
-// -----------------------
+// pasm - src/main.rs
+// ------------------
 // made by matissoss
 // licensed under MPL 2.0
 
@@ -15,7 +15,7 @@ use std::{path::PathBuf, process};
 
 // local imports go here
 
-// rasmx86_64 modules
+// pasm modules
 pub mod core;
 pub mod libr;
 pub mod obj;
@@ -26,7 +26,7 @@ pub mod shr;
 use core::comp;
 use shr::error;
 
-// rasmx86_64 helper utilities
+// pasm helper utilities
 pub mod cli;
 pub mod color;
 pub mod conf;
@@ -40,7 +40,7 @@ use cli::CLI;
 use help::Help;
 
 // feature dependent
-#[cfg(feature = "timed")]
+#[cfg(feature = "time")]
 use std::time;
 
 use crate::conf::RString;
@@ -71,7 +71,7 @@ fn main() {
         std::process::exit(1);
     };
 
-    #[cfg(feature = "timed")]
+    #[cfg(feature = "time")]
     let start = time::SystemTime::now();
 
     let ast = libr::par_file(&infile);
@@ -85,7 +85,7 @@ fn main() {
     let ast = ast.unwrap();
 
     if cli.has_arg("check") {
-        #[cfg(feature = "timed")]
+        #[cfg(feature = "time")]
         {
             let end = time::SystemTime::now();
             println!(
@@ -112,7 +112,7 @@ fn main() {
             eprintln!("{e}");
             std::process::exit(1);
         };
-        #[cfg(all(feature = "timed", feature = "vtimed"))]
+        #[cfg(all(feature = "time", feature = "vtime"))]
         {
             let end = time::SystemTime::now();
             println!(
@@ -123,7 +123,7 @@ fn main() {
                 }
             )
         }
-        #[cfg(all(feature = "timed", not(feature = "vtimed")))]
+        #[cfg(all(feature = "time", not(feature = "vtime")))]
         {
             let end = time::SystemTime::now();
             println!(

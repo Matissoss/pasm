@@ -1,5 +1,5 @@
-// rasmx86_64 - src/obj/elf.rs
-// ---------------------------
+// pasm - src/obj/elf.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 

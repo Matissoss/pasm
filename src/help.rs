@@ -1,5 +1,5 @@
-// rasmx86_64 - src/help.rs
-// ------------------------
+// pasm - src/help.rs
+// ------------------
 // made by matissoss
 // licensed under MPL 2.0
 static MAIN_HELP: &str = include_str!("hlp/main.txt");

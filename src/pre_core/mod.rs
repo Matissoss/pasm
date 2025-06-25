@@ -1,5 +1,5 @@
-// rasmx86_64 - src/pre_core/mod.rs
-// --------------------------------
+// pasm - src/pre_core/mod.rs
+// --------------------------
 // made by matissoss
 // licensed under MPL 2.0
 

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This is legacy testing script - use ./test.sh instead
+
 NASM_BIN="nasm"
 RASM_BIN="rasm"
 BIN=.tmp/$RASM_BIN

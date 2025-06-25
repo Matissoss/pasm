@@ -1,7 +1,7 @@
-//  rasmx86_64 - src/conf.rs
-//  --------------------------
-//  made by matissoss
-//  licensed under MPL 2.0
+// pasm - src/conf.rs
+// ------------------
+// made by matissoss
+// licensed under MPL 2.0
 
 #[cfg(feature = "mthread")]
 pub type RString = std::sync::Arc<str>;

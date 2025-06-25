@@ -1,5 +1,5 @@
-// rasmx86_64 - src/shr/kwd.rs
-// ---------------------------
+// pasm - src/shr/kwd.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 

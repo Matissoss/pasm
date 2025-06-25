@@ -1,5 +1,5 @@
-// rasmx86_64 - src/pre/chk.rs
-// ---------------------------
+// pasm - src/pre/chk.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 

@@ -1,5 +1,5 @@
-// rasmx86_64 - src/pre/tok.rs
-// ---------------------------
+// pasm - src/pre/tok.rs
+// ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 
