@@ -46,4 +46,4 @@ see [roadmap.md](roadmap.md)
 
 ## credits
 
-`rasm` was brought to you by matissoss \<matissossgamedev@proton.me> under MPL 2.0 license.
+`pasm` was brought to you by matissoss \<matissossgamedev@proton.me> under MPL 2.0 license.
