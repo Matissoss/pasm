@@ -126,9 +126,11 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
     ]
 }
 
+type Sections<'a> = &'a [Section];
+
 impl<'a> Elf<'a> {
     pub fn new(
-        sections: crate::conf::SharedElf<Vec<Section>>,
+        sections: Sections<'a>,
         path: &'a Path,
         code: &'a [u8],
         relocs: &'a [Relocation],
@@ -218,7 +220,7 @@ struct TmpRelocation {
 }
 
 fn make_elf<'a>(
-    sections: crate::conf::SharedElf<Vec<Section>>,
+    sections: Sections<'a>,
     outpath: &'a Path,
     code: &'a [u8],
     relocs: &'a [Relocation],
@@ -239,7 +241,8 @@ fn make_elf<'a>(
         section_index: 0xFFF1,
         size: 0,
     });
-    for section in sections.iter() {
+    let iter = sections.iter();
+    for section in iter {
         let idx = elf.push_shstrtab(&section.name);
         elf.push_section(ElfSection {
             name: idx,

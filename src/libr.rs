@@ -162,20 +162,13 @@ pub fn assemble(ast: AST, opath: &Path, tgt: &str) -> Result<(), Error> {
     Ok(())
 }
 
+// TODO: reimplement multithreading
 fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
-    #[cfg(feature = "mthread")]
-    use std::sync::Arc;
-    #[cfg(feature = "mthread")]
-    use std::thread;
     let mut wrt = Vec::new();
     let mut sym = Vec::new();
     let mut rel = Vec::new();
 
-    #[cfg(feature = "mthread")]
-    let sections = Arc::new(ast.sections);
-    #[cfg(not(feature = "mthread"))]
     let mut sections = ast.sections;
-    #[cfg(not(feature = "mthread"))]
     for (idx, section) in sections.iter_mut().enumerate() {
         let plen = wrt.len();
         section.offset = plen as u32;
@@ -203,102 +196,6 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             wrt.extend(bts);
         }
         section.size = (wrt.len() - plen) as u32;
-    }
-    #[cfg(feature = "mthread")]
-    let mut semaphore = crate::shr::semaphore::Semaphore::new(crate::conf::THREAD_LIMIT as usize);
-    #[cfg(feature = "mthread")]
-    for (shidx, mut section) in (*sections).clone().into_iter().enumerate() {
-        section.offset = wrt.len() as u32;
-        let mut handles = Vec::with_capacity(crate::conf::THREAD_LIMIT as usize);
-
-        let s_offset = Arc::new(wrt.len() as u32);
-        let mut lbls = Vec::with_capacity(conf::CORE_LB_GROUP);
-        for lbl in section.content {
-            if lbls.len() < conf::CORE_LB_GROUP {
-                lbls.push(lbl);
-                continue;
-            }
-            semaphore.acquire();
-
-            let len = wrt.len();
-            let soff = Arc::clone(&s_offset);
-            handles.push(thread::spawn(move || {
-                let (mut bts, mut rel, mut sym) = (Vec::new(), Vec::new(), Vec::new());
-                for label in lbls {
-                    let (bts_n, mut rel_n) =
-                        comp::compile_label((&label.inst, label.align, label.bits()), 0);
-                    for rel in &mut rel_n {
-                        rel.offset += len as u32;
-                        rel.shidx = shidx as u16;
-                    }
-                    sym.push(Symbol {
-                        name: label.name.clone(),
-                        offset: len as u32 - *soff,
-                        size: bts.len() as u32,
-                        sindex: shidx as u16,
-                        visibility: label.visibility(),
-                        stype: label.stype,
-                        is_extern: false,
-                    });
-                    rel.push(rel_n);
-                    bts.extend(bts_n);
-                }
-                (sym, rel, bts)
-            }));
-            lbls = Vec::new();
-            semaphore.release();
-        }
-        if !lbls.is_empty() {
-            let len = wrt.len();
-            let soff = Arc::clone(&s_offset);
-            handles.push(thread::spawn(move || {
-                let (mut bts, mut rel, mut sym) = (Vec::new(), Vec::new(), Vec::new());
-                for label in lbls {
-                    let (bts_n, mut rel_n) =
-                        comp::compile_label((&label.inst, label.align, label.bits()), 0);
-                    for rel in &mut rel_n {
-                        rel.offset += len as u32;
-                        rel.shidx = shidx as u16;
-                    }
-                    sym.push(Symbol {
-                        name: label.name.clone(),
-                        offset: len as u32 - *soff,
-                        size: bts.len() as u32,
-                        sindex: shidx as u16,
-                        visibility: label.visibility(),
-                        stype: label.stype,
-                        is_extern: false,
-                    });
-                    rel.push(rel_n);
-                    bts.extend(bts_n);
-                }
-                (sym, rel, bts)
-            }));
-        }
-        for handle in handles {
-            let (s, r, w) = handle.join().expect("Failed to wait");
-            wrt.extend(w);
-            for r in r {
-                rel.extend(r);
-            }
-            sym.extend(s);
-        }
-    }
-
-    #[cfg(not(feature = "mthread"))]
-    for (idx, section) in sections.iter().enumerate() {
-        sym.push(Symbol {
-            name: section.name.clone(),
-            offset: section.offset,
-            size: section.size,
-            sindex: idx as u16,
-            visibility: Visibility::Local,
-            stype: SymbolType::Section,
-            is_extern: false,
-        });
-    }
-    #[cfg(feature = "mthread")]
-    for (idx, section) in sections.clone().iter().enumerate() {
         sym.push(Symbol {
             name: section.name.clone(),
             offset: section.offset,
@@ -316,12 +213,12 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
         "elf32" | "elf64" => {
             sym.extend(comp::extern_trf(&ast.externs));
             let is_64bit = tgt == "elf64";
-            let elf = crate::obj::Elf::new(sections, opath, &wrt, &rel, &sym, is_64bit)?;
+            let elf = crate::obj::Elf::new(&sections, opath, &wrt, &rel, &sym, is_64bit)?;
             wrt = elf.compile(is_64bit);
         }
         _ => return Err(Error::msg(format!("Unknown format: \"{tgt}\""))),
     }
-
+    drop(sym);
     Ok(wrt)
 }
 

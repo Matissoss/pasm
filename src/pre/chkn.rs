@@ -3,19 +3,32 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-#![allow(unused)]
+use std::{
+    fmt::{Debug, Formatter},
+    mem::MaybeUninit,
+};
 
 use crate::conf::Shared;
 
 use crate::shr::{
-    smallvec::SmallVec,
+    ast::{Instruction, Operand},
     booltable::BoolTable8 as Flags8,
-    ins::Mnemonic,
-    reg::{Purpose as RPurpose, Register},
-    size::Size,
     error::RASMError as Error,
-    ast::{Instruction, Operand}
+    ins::Mnemonic,
+    reg::Register,
+    size::Size,
+    smallvec::SmallVec,
 };
+
+pub const SR: AType = AType::Register(Register::CS, false);
+pub const CR: AType = AType::Register(Register::CR0, false);
+pub const DR: AType = AType::Register(Register::DR0, false);
+
+pub const CL: AType = AType::Register(Register::CL, true);
+pub const AL: AType = AType::Register(Register::AL, true);
+pub const AX: AType = AType::Register(Register::AX, true);
+pub const EAX: AType = AType::Register(Register::EAX, true);
+pub const DX: AType = AType::Register(Register::DX, true);
 
 pub const RA: AType = AType::Register(Register::__ANY, false);
 pub const R8: AType = AType::Register(Register::AL, false);
@@ -42,6 +55,8 @@ pub const STRING: AType = AType::Immediate(Size::Unknown, true);
 
 #[derive(Debug, Clone, Copy)]
 pub enum AType {
+    None,
+
     //                fixed register
     Register(Register, bool),
     //     size|address size  (registers used)
@@ -57,13 +72,20 @@ trait ToType {
 impl ToType for Operand {
     fn atypen(&self) -> AType {
         match self {
-            Self::SegReg(r) | Self::CtrReg(r) | Self::DbgReg(r) | Self::Reg(r) => AType::Register(*r, false),
-            Self::Mem(m) => AType::Memory(m.size().unwrap_or(Size::Unknown), m.addrsize().unwrap_or(Size::Unknown)),
-            Self::SymbolRef(s) => if s.is_deref() {
-                AType::Memory(s.size().unwrap_or(Size::Unknown), Size::Any)
-            } else {
-                AType::Immediate(Size::Dword, false)
-            },
+            Self::SegReg(r) | Self::CtrReg(r) | Self::DbgReg(r) | Self::Reg(r) => {
+                AType::Register(*r, false)
+            }
+            Self::Mem(m) => AType::Memory(
+                m.size().unwrap_or(Size::Unknown),
+                m.addrsize().unwrap_or(Size::Unknown),
+            ),
+            Self::SymbolRef(s) => {
+                if s.is_deref() {
+                    AType::Memory(s.size().unwrap_or(Size::Unknown), Size::Any)
+                } else {
+                    AType::Immediate(Size::Dword, false)
+                }
+            }
             Self::Imm(i) => AType::Immediate(i.size(), false),
             Self::String(_) => AType::Immediate(Size::Unknown, true),
         }
@@ -81,17 +103,17 @@ impl PartialEq for AType {
                         lr.size() == rr.size()
                     } else {
                         lr.purpose() == rr.purpose() && lr.size() == rr.size()
-                    } 
+                    }
                 }
             }
             (AType::Memory(lsz, laddr), AType::Memory(rsz, raddr)) => {
-                lsz == rsz && laddr == raddr
+                lsz == rsz && (laddr == raddr || (laddr.is_any() || raddr.is_any()))
             }
             (AType::Immediate(lsz, ls), AType::Immediate(rsz, rs)) => {
                 if ls && rs {
                     true
                 } else {
-                    rsz < lsz
+                    rsz <= lsz
                 }
             }
             _ => false,
@@ -152,10 +174,17 @@ impl From<AType> for Key {
 //      if immediate:
 //          0bXXXX_XXXX
 //              - XXXX_XXXX: reserved
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 #[repr(transparent)]
 pub struct Key {
     key: u16,
+}
+
+impl Debug for Key {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self.dec())?;
+        Ok(())
+    }
 }
 
 const REG_TYPE: u16 = 0b01;
@@ -163,12 +192,16 @@ const MEM_TYPE: u16 = 0b10;
 const IMM_TYPE: u16 = 0b11;
 
 impl Key {
+    const fn blank() -> Self {
+        Self { key: 0 }
+    }
     pub const fn enc(at: AType) -> Self {
         let mut toret = Self { key: 0 };
         toret.set_opt(match at {
             AType::Memory(_, _) => MEM_TYPE,
             AType::Register(_, _) => REG_TYPE,
             AType::Immediate(_, _) => IMM_TYPE,
+            AType::None => 0,
         });
         if let AType::Register(r, b) = at {
             toret.set_sz(r.size());
@@ -248,7 +281,7 @@ impl Key {
     }
     const fn get_addrsz(&self) -> Option<Size> {
         if MEM_TYPE == self.get_opt() {
-            Some(match self.key | (0b111 << 5) {
+            Some(match self.key & (0b111 << 5) {
                 0b000 => Size::Any,
                 0b001 => Size::Word,
                 0b010 => Size::Dword,
@@ -339,28 +372,29 @@ impl OperandSet {
         self.flags.get(OPR_NEEDED).unwrap_or(false)
     }
     pub fn has(&self, rhs: AType) -> bool {
-        let (sz, tp) = match rhs {
-            AType::Register(r, _) => {
+        let tp = match rhs {
+            AType::Register(_, _) => {
                 if self.has_reg() {
-                    (r.size(), REG_TYPE)
+                    REG_TYPE
                 } else {
                     return false;
                 }
             }
-            AType::Immediate(i, _) => {
+            AType::Immediate(_, _) => {
                 if self.has_imm() {
-                    (i, IMM_TYPE)
+                    IMM_TYPE
                 } else {
                     return false;
                 }
             }
-            AType::Memory(m, _) => {
+            AType::Memory(_, _) => {
                 if self.has_mem() {
-                    (m, MEM_TYPE)
+                    MEM_TYPE
                 } else {
                     return false;
                 }
             }
+            AType::None => return false,
         };
         let mut idx = 0;
         let mut off = 0;
@@ -370,10 +404,9 @@ impl OperandSet {
             if crt == 0 {
                 break;
             } else if crt == tp {
-                let lix = ((idx + 1) << 2);
+                let lix = idx << 2;
                 let and = 0b1111 << lix;
                 lsz = (self.ptable_data & and) >> lix;
-                lsz += 1;
                 break;
             }
             off += (self.ptable_data & (0b1111 << (idx << 2))) >> (idx << 2);
@@ -431,6 +464,7 @@ impl OperandSet {
                     flags.set(HAS_IMM, true);
                     IMM_TYPE
                 }
+                AType::None => 0b00,
             };
             if pvtype == 0 {
                 pvtype = crtype;
@@ -465,28 +499,40 @@ impl OperandSet {
 
 pub struct CheckAPI<const OPERAND_COUNT: usize> {
     allowed: SmallVec<OperandSet, OPERAND_COUNT>,
-    // TODO:
-    // forbidden: [],
-    // addtional: [Mnemonic]
-    
-    // lower three bits are checkmode
+
+    // less commonly used, so behind a pointer
+    forbidden: MaybeUninit<Shared<[[Key; OPERAND_COUNT]]>>,
+    additional: MaybeUninit<Shared<[Mnemonic]>>,
+
+    // first bit is if has additional mnemonics
+    // second bit is if has forbidden operand combo
+    // lower 2 bits are check mode
     flags: u8,
 }
 
 #[repr(u8)]
 pub enum CheckMode {
-    NONE    = 0b00,
-    AVX     = 0b01,
-    X86     = 0b10,
-    NOSIZE  = 0b11,
+    NONE = 0b00,   // don't check for size diff
+    AVX = 0b01,    // don't check for size diff
+    X86 = 0b10,    // check for size
+    NOSIZE = 0b11, // don't check for size diff
 }
 
 impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             allowed: SmallVec::new(),
-            flags: 0,
+            flags: CheckMode::X86 as u8,
+            additional: unsafe { MaybeUninit::uninit().assume_init() },
+            forbidden: unsafe { MaybeUninit::uninit().assume_init() },
         }
+    }
+    const fn set_forb_flag(&mut self) {
+        self.flags |= 0b0100_0000;
+    }
+    pub const fn has_forb(&self) -> bool {
+        self.flags & 0b0100_0000 == 0b0100_0000
     }
     pub const fn get_mode(&self) -> CheckMode {
         unsafe { std::mem::transmute::<u8, CheckMode>(self.flags & 0b11) }
@@ -495,7 +541,38 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
         self.flags |= mode as u8;
         self
     }
-
+    pub const fn set_addt_flag(&mut self) {
+        self.flags |= 0b1000_0000;
+    }
+    pub const fn has_addt(&self) -> bool {
+        self.flags & 0b1000_0000 == 0b1000_0000
+    }
+    pub fn set_forb(mut self, forb: &[[AType; OPERAND_COUNT]]) -> Self {
+        self.set_forb_flag();
+        let mut vec: Vec<[Key; OPERAND_COUNT]> = Vec::with_capacity(forb.len());
+        let mut smv: SmallVec<Key, OPERAND_COUNT> = SmallVec::new();
+        for f in forb {
+            for t in f {
+                smv.push(Key::enc(*t));
+            }
+            while smv.len() < OPERAND_COUNT {
+                smv.push(Key::blank());
+            }
+            let mut slc = [Key::blank(); OPERAND_COUNT];
+            for (slp, k) in smv.iter().enumerate() {
+                slc[slp] = *k;
+            }
+            vec.push(slc);
+            smv.clear();
+        }
+        self.forbidden = MaybeUninit::new(Shared::from(vec));
+        self
+    }
+    pub fn set_addt(mut self, addt: &[Mnemonic]) -> Self {
+        self.set_addt_flag();
+        self.additional = MaybeUninit::new(addt.into());
+        self
+    }
     pub fn pushop(mut self, types: &[AType], needed: bool) -> Self {
         self.allowed.push(OperandSet::new(needed, types));
         self
@@ -503,43 +580,119 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
     pub fn getops(&self, idx: usize) -> Option<&OperandSet> {
         self.allowed.get(idx)
     }
-    pub fn check_op(&self, idx: usize, at: AType) -> Result<(), Error> {
-        let ops = if let Some(ops) = self.allowed.get(idx) {
-            ops
-        } else {
-            return Err(Error::msg("Internal: Operand out of bounds"));
-        };
-        if ops.has(at) {
-            Ok(())
-        } else {
-            Err(Error::msg("Tried to use invalid operand type"))
+    pub fn check_addt(&self, ins: &Instruction) -> Result<(), Error> {
+        if let Some(found) = ins.addt {
+            if self.has_addt() {
+                let mut f = false;
+                for allowed in &**unsafe { self.additional.assume_init_ref() } {
+                    if allowed == &found {
+                        f = true;
+                        break;
+                    }
+                }
+                if !f {
+                    return Err(Error::no_tip(Some(ins.line), Some("Tried to use prefix mnemonic, but used instruction does not allow for this one")));
+                }
+            } else {
+                return Err(Error::no_tip(
+                    Some(ins.line),
+                    Some("Tried to use prefix mnemonic, but used instruction does not permit it"),
+                ));
+            }
         }
+        Ok(())
+    }
+    pub fn check_forb(&self, ins: &Instruction) -> Result<(), Error> {
+        if !self.has_forb() {
+            return Ok(());
+        }
+        let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
+        for o in ins.oprs.iter() {
+            smv.push(o.atypen());
+        }
+
+        let mut at = 0;
+        for f in unsafe { self.forbidden.assume_init_ref() }.iter() {
+            for (i, k) in f.iter().enumerate() {
+                if let Some(k) = k.dec() {
+                    if Some(&k) == smv.get(i) {
+                        at += 1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            if at == smv.len() {
+                return Err(Error::no_tip(
+                    Some(ins.line),
+                    Some("Tried to use forbidden operand combination!"),
+                ));
+            }
+        }
+
+        Ok(())
     }
     pub fn check(&self, ins: &Instruction) -> Result<(), Error> {
+        self.check_addt(ins)?;
         for (i, o) in self.allowed.iter().enumerate() {
             if let Some(s) = ins.get_opr(i) {
                 if !o.has(s.atypen()) {
-                    return Err(Error::no_tip(Some(ins.line), Some(format!("Invalid operand type at index {i}"))));
+                    return Err(Error::no_tip(
+                        Some(ins.line),
+                        Some(format!("Invalid operand type at index {i}")),
+                    ));
                 }
             } else {
                 if o.is_optional() {
                     break;
                 } else {
-                    return Err(Error::no_tip(Some(ins.line), Some(format!("Internal error: expected operand set at index {i}, found none"))));
+                    return Err(Error::no_tip(
+                        Some(ins.line),
+                        Some(format!(
+                            "Internal error: expected operand set at index {i}, found none"
+                        )),
+                    ));
+                }
+            }
+        }
+        match self.get_mode() {
+            CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
+            CheckMode::X86 => {
+                let mut sz = Size::Unknown;
+                for o in ins.oprs.iter() {
+                    if sz == Size::Unknown {
+                        if let Some(r) = o.get_reg() {
+                            if r.is_dbg_reg() || r.is_ctrl_reg() || r.is_sgmnt() {
+                                continue;
+                            }
+                        }
+                        sz = o.size();
+                        continue;
+                    }
+                    if o.is_imm() && sz < o.size() {
+                        return Err(Error::no_tip(
+                            Some(ins.line),
+                            Some("Tried to use immediate that is too large for other operands!"),
+                        ));
+                    }
+                    if let Some(r) = o.get_reg() {
+                        if sz != r.size() && !r.is_dbg_reg() && !r.is_ctrl_reg() && !r.is_sgmnt() {
+                            return Err(Error::no_tip(
+                                Some(ins.line),
+                                Some("Invalid operand size was used in this instruction!"),
+                            ));
+                        }
+                    }
                 }
             }
         }
         if ins.oprs.len() < OPERAND_COUNT {
             return Err(Error::no_tip(
-                    Some(ins.line), 
+                    Some(ins.line),
                     Some(format!("Provided too little operands for instruction: found {}, expected {OPERAND_COUNT} max", ins.oprs.len())))
             );
-        }
-        for (i, o) in ins.oprs.iter().enumerate() {
-            if let Err(mut e) = self.check_op(i, o.atypen()) {
-                e.set_line(ins.line);
-                return Err(e);
-            }
         }
         Ok(())
     }
@@ -573,18 +726,31 @@ mod chkn_test {
             &[
                 AType::Register(Register::AL, false),
                 AType::Register(Register::BX, false),
-                AType::Memory(Size::Dword, Size::Qword),
+                M16,
+                I8,
             ],
         );
-        assert_eq!(o.keys, 
+        assert_eq!(
+            o.keys,
             Shared::from([
                 Key::enc(AType::Register(Register::AL, false)),
                 Key::enc(AType::Register(Register::BX, false)),
-                Key::enc(AType::Memory(Size::Dword, Size::Qword))
+                Key::enc(M16),
+                Key::enc(I8),
             ])
         );
-        assert_eq!(o.ptable_meta, 0b0000_0000_0000_1001);
-        assert_eq!(o.ptable_data, 0b0001_0010);
+        assert_eq!(o.ptable_meta, 0b0000_0000_0011_1001);
+        assert_eq!(o.ptable_data, 0b0001_0001_0010);
         assert_eq!(o.has(AType::Register(Register::BX, false)), true);
+        assert_eq!(o.has(M16), true);
+        println!("{:?}", o.keys);
+        assert_eq!(o.has(I8), true);
+    }
+    #[test]
+    fn chk_test() {
+        let t = Key::enc(Operand::Reg(Register::RAX).atypen())
+            .dec()
+            .unwrap();
+        assert_eq!(t, AType::Register(Register::RAX, false));
     }
 }

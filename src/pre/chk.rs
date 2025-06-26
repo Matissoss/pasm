@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::pre::chkn;
+
 use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
@@ -20,13 +22,13 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
 
     for section in &file.sections {
         for label in &section.content {
-            let chk_ins: fn(&Instruction) -> Option<RASMError> = match label.bits() {
+            let chk_ins: fn(&Instruction) -> Result<(), RASMError> = match label.bits() {
                 64 => check_ins64bit,
                 _ => check_ins32bit,
             };
             let mut errs = Vec::new();
             for inst in &label.inst {
-                if let Some(mut err) = chk_ins(inst) {
+                if let Err(mut err) = chk_ins(inst) {
                     err.set_line(inst.line);
                     errs.push(err);
                 }
@@ -44,10 +46,10 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     }
 }
 
-fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
+fn check_ins32bit(ins: &Instruction) -> Result<(), RASMError> {
     use Mnm::*;
     if gen_rex(ins, false).is_some() {
-        return Some(RASMError::no_tip(
+        return Err(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction needs rex prefix, which is forbidden in protected/compat. mode (bits 32)"),
         ));
@@ -216,12 +218,19 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
-        Mnm::DIV | Mnm::IDIV | Mnm::MUL => ot_chk(
-            ins,
-            &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed)],
-            &[],
-            &[],
-        ),
+        Mnm::DIV | Mnm::IDIV | Mnm::MUL => chkn::CheckAPI::<1>::new()
+            .pushop(
+                &[
+                    chkn::R8,
+                    chkn::R16,
+                    chkn::R32,
+                    chkn::M8,
+                    chkn::M16,
+                    chkn::M32,
+                ],
+                true,
+            )
+            .check(ins),
         Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
             ins,
             &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed)],
@@ -433,7 +442,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => Some(RASMError::no_tip(
+        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => Err(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction unsupported in 32-bit mode"),
         )),
@@ -441,7 +450,7 @@ fn check_ins32bit(ins: &Instruction) -> Option<RASMError> {
     }
 }
 
-fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
+fn check_ins64bit(ins: &Instruction) -> Result<(), RASMError> {
     use Mnm::*;
     match ins.mnem {
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -475,15 +484,20 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
         | Mnm::CMOVNBE
         | Mnm::CMOVNLE
         | Mnm::CMOVNGE
-        | Mnm::CMOVNAE => ot_chk(
-            ins,
-            &[
-                (&[R16, R32, R64], Optional::Needed),
-                (&[R16, R32, R64, M16, M32, M64], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
+        | Mnm::CMOVNAE => chkn::CheckAPI::<2>::new()
+            .pushop(&[chkn::R16, chkn::R32, chkn::R64], true)
+            .pushop(
+                &[
+                    chkn::R16,
+                    chkn::R32,
+                    chkn::R64,
+                    chkn::M16,
+                    chkn::M32,
+                    chkn::M64,
+                ],
+                true,
+            )
+            .check(ins),
         Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
         Mnm::PUSH => ot_chk(
@@ -498,6 +512,44 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             &[],
             &[],
         ),
+        Mnm::MOV => {
+            use chkn::*;
+            CheckAPI::new()
+                .pushop(&[R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64], true)
+                .pushop(
+                    &[
+                        R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64, I8, I16, I32, I64,
+                    ],
+                    true,
+                )
+                .set_forb(&[
+                    [MA, MA],
+                    [R32, SR],
+                    [M32, SR],
+                    [M8, SR],
+                    [R8, SR],
+                    [SR, R32],
+                    [SR, R8],
+                    [SR, IA],
+                    [SR, M8],
+                    [CR, IA],
+                    [CR, R8],
+                    [CR, R16],
+                    [CR, R32],
+                    [R16, CR],
+                    [DR, IA],
+                    [DR, R8],
+                    [DR, R16],
+                    [DR, R32],
+                    [R16, DR],
+                    [R8, DR],
+                    [DR, MA],
+                    [MA, DR],
+                    [R8, DR],
+                ])
+                .check(ins)
+        }
+        /*
         Mnm::MOV => ot_chk(
             ins,
             &[
@@ -513,23 +565,6 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
                 ),
             ],
             &[
-                (MA, MA),
-                (R32, SR),
-                (M32, SR),
-                (M8, SR),
-                (R8, SR),
-                (SR, R32),
-                (SR, R8),
-                (SR, IA),
-                (SR, M32),
-                (SR, M8),
-                (CR, IA),
-                (CR, R8),
-                (CR, R16),
-                (CR, R32),
-                (R16, CR),
-                (DR, IA),
-                (DR, R8),
                 (DR, R16),
                 (DR, R32),
                 (R16, DR),
@@ -542,15 +577,16 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
             ],
             &[],
         ),
-        XCHG => ot_chk(
-            ins,
-            &[
-                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
-                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
-            ],
-            &[(MA, MA)],
-            &[LOCK],
-        ),
+        */
+        XCHG => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .pushop(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .set_forb(&[[MA, MA]])
+                .set_addt(&[LOCK])
+                .check(ins)
+        }
         Mnm::CMP => ot_chk(
             ins,
             &[
@@ -806,7 +842,7 @@ fn check_ins64bit(ins: &Instruction) -> Option<RASMError> {
     }
 }
 
-pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
+pub fn shr_chk(ins: &Instruction) -> Result<(), RASMError> {
     use Mnm::*;
     use Register::*;
     match ins.mnem {
@@ -2609,7 +2645,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
             &[],
         ),
 
-        _ => Some(RASMError::no_tip(
+        _ => Err(RASMError::no_tip(
             Some(ins.line),
             Some("Tried to use currently unsupported instruction."),
         )),
@@ -2618,6 +2654,7 @@ pub fn shr_chk(ins: &Instruction) -> Option<RASMError> {
 
 // Utils
 
+// Legacy check API
 #[derive(PartialEq)]
 enum Optional {
     Needed,
@@ -2629,12 +2666,12 @@ fn avx_ot_chk_wthout(
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
-) -> Option<RASMError> {
+) -> Result<(), RASMError> {
     if let Some(err) = addt_chk(ins, addt) {
-        return Some(err);
+        return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Some(RASMError::no_tip(
+        return Err(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
         ));
@@ -2642,11 +2679,11 @@ fn avx_ot_chk_wthout(
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
-                return Some(err);
+                return Err(err);
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Some(RASMError::no_tip(
+                return Err(RASMError::no_tip(
                     Some(ins.line),
                     Some(format!("Needed operand not found at index {}", idx)),
                 ));
@@ -2657,25 +2694,25 @@ fn avx_ot_chk_wthout(
     }
     if ops.len() == 2 {
         if let Some(err) = size_chk(ins) {
-            return Some(err);
+            return Err(err);
         }
     }
     if let Some(err) = avx_forb_chk(ins, forb) {
-        return Some(err);
+        return Err(err);
     }
-    None
+    Ok(())
 }
 fn avx_ot_chk(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
-) -> Option<RASMError> {
+) -> Result<(), RASMError> {
     if let Some(err) = addt_chk(ins, addt) {
-        return Some(err);
+        return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Some(RASMError::no_tip(
+        return Err(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
         ));
@@ -2683,11 +2720,11 @@ fn avx_ot_chk(
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
-                return Some(err);
+                return Err(err);
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Some(RASMError::no_tip(
+                return Err(RASMError::no_tip(
                     Some(ins.line),
                     Some(format!("Needed operand not found at index {}", idx)),
                 ));
@@ -2698,13 +2735,13 @@ fn avx_ot_chk(
     }
     if ops.len() == 2 {
         if let Some(err) = avx_size_chk(ins) {
-            return Some(err);
+            return Err(err);
         }
     }
     if let Some(err) = avx_forb_chk(ins, forb) {
-        return Some(err);
+        return Err(err);
     }
-    None
+    Ok(())
 }
 
 fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<RASMError> {
@@ -2743,12 +2780,12 @@ fn ot_chk(
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType)],
     addt: &[Mnm],
-) -> Option<RASMError> {
+) -> Result<(), RASMError> {
     if let Some(err) = addt_chk(ins, addt) {
-        return Some(err);
+        return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Some(RASMError::no_tip(
+        return Err(RASMError::no_tip(
             Some(ins.line),
             Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
         ));
@@ -2756,11 +2793,11 @@ fn ot_chk(
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
             if let Some(err) = type_check(op, allowed.0, idx) {
-                return Some(err);
+                return Err(err);
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Some(RASMError::no_tip(
+                return Err(RASMError::no_tip(
                     Some(ins.line),
                     Some(format!("Needed operand not found at index {}", idx)),
                 ));
@@ -2781,14 +2818,14 @@ fn ot_chk(
                 }
             }
             if !b {
-                return Some(err);
+                return Err(err);
             }
         }
     }
     if let Some(err) = forb_chk(ins, forb) {
-        return Some(err);
+        return Err(err);
     }
-    None
+    Ok(())
 }
 
 fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {

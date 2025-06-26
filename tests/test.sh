@@ -1,15 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
 NASM_BIN="nasm"
 PASM_BIN="pasm"
-BIN=.tmp/$PASM_BIN
 TESTING_PROFILE="testing"
 NASM_FLAGS="-Wno-prefix-seg -Wno-prefix-hle -Wno-label-orphan -Wno-prefix-lock"
-RASM_FLAGS="-t"
-NASM_FILE_RES=.tmp/nasm-tmp.bin
-RASM_FILE_RES=.tmp/rasm-tmp.bin
+NASM_FILE_RES="./.tmp/nasm-tmp.bin"
+PASM_FILE_RES="./.tmp/pasm-tmp.bin"
 SXD_BIN="sxd"
 SXD_FLAGS="-c -C"
+BIN=./.tmp/$PASM_BIN
 
 _=$($NASM_BIN -h)
 
@@ -48,7 +47,7 @@ for file in ./nasm/*.asm; do
 	NASM_FILE=$file
 	PASM_FILE=${file/nasm/rasm}
 
-	./.tmp/rasm -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
+	$BIN -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
 	$NASM_BIN $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS
 	
 	PASM_RES=$(sxd -1=$PASM_FILE_RES)

@@ -3,20 +3,25 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::{iter::Iterator, mem::MaybeUninit, fmt::{Debug, Formatter}};
+use std::{
+    fmt::{Debug, Formatter},
+    iter::Iterator,
+    mem::MaybeUninit,
+};
 
 pub struct SmallVec<T, const N: usize> {
     len: usize,
     pub content: [MaybeUninit<T>; N],
 }
 
-impl<T, const N: usize> Clone for SmallVec<T, N> where T: Clone{
+impl<T, const N: usize> Clone for SmallVec<T, N>
+where
+    T: Clone,
+{
     fn clone(&self) -> Self {
-        let mut idx = 0;
         let mut b = [const { MaybeUninit::uninit() }; N];
-        for c in &self.content {
+        for (idx, c) in self.content.iter().enumerate() {
             b[idx] = unsafe { MaybeUninit::new(c.assume_init_ref().clone()) };
-            idx += 1;
         }
         Self {
             len: self.len,
@@ -25,7 +30,10 @@ impl<T, const N: usize> Clone for SmallVec<T, N> where T: Clone{
     }
 }
 
-impl<T, const N: usize> Debug for SmallVec<T, N> where T: Debug {
+impl<T, const N: usize> Debug for SmallVec<T, N>
+where
+    T: Debug,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.write_str("[")?;
         for (i, e) in self.iter().enumerate() {
@@ -39,7 +47,10 @@ impl<T, const N: usize> Debug for SmallVec<T, N> where T: Debug {
     }
 }
 
-impl<T, const N: usize> PartialEq for SmallVec<T, N> where T: PartialEq {
+impl<T, const N: usize> PartialEq for SmallVec<T, N>
+where
+    T: PartialEq,
+{
     fn eq(&self, rhs: &Self) -> bool {
         if self.len() != rhs.len() {
             return false;
@@ -54,6 +65,10 @@ impl<T, const N: usize> PartialEq for SmallVec<T, N> where T: PartialEq {
 }
 
 impl<T, const N: usize> SmallVec<T, N> {
+    // zeroing is too expensive (for large types)
+    pub const fn clear(&mut self) {
+        self.len = 0;
+    }
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {

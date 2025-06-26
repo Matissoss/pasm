@@ -5,7 +5,7 @@ This assembler is in beta.
 Use at your own risk.
 -------------------------------
 USAGE:
-rasmx86_64 [FLAG(s)]
+pasm [FLAG(s)]
 -------------------------------
 [FLAG(s)]:
 	-h			 	; prints this message

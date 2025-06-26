@@ -57,8 +57,7 @@
     - [x] Limit lifetimes, where they are unnecessary (use owned values)
     - [x] Replace `String`s with `Arc<str>`/`Rc<str>`.
     - [x] Allow for usage of multi threads to compile labels/sections
-    - [ ] Revamp `AType` and `src/pre/chk.rs` in favor of `CheckAPI` (like is with `GenAPI`)
-    - [ ] Fully migrate to `CheckAPI`
+    - [x] Revamp `AType` and `src/pre/chk.rs` in favor of `CheckAPI` (like is with `GenAPI`)
     - [ ] Revamp errors (better readability) with explainations
     - [ ] Create `src/docs/errors.md`
 - [ ] moving into beta-avx phase...

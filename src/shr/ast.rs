@@ -15,8 +15,8 @@ use crate::shr::{
     reg::{Purpose as RPurpose, Register},
     section::Section,
     size::Size,
-    symbol::{SymbolRef, SymbolType, Visibility},
     smallvec::SmallVec,
+    symbol::{SymbolRef, SymbolType, Visibility},
 };
 use crate::RString;
 
@@ -134,6 +134,17 @@ impl TryFrom<Token> for Operand {
 }
 
 impl Operand {
+    pub fn get_reg(&self) -> Option<&Register> {
+        match self {
+            Operand::Reg(r) | Operand::SegReg(r) | Operand::CtrReg(r) | Operand::DbgReg(r) => {
+                Some(r)
+            }
+            _ => None,
+        }
+    }
+    pub fn is_imm(&self) -> bool {
+        matches!(self, Operand::Imm(_) | Operand::String(_))
+    }
     pub fn is_mem(&self) -> bool {
         matches!(self, Operand::Mem(_))
     }

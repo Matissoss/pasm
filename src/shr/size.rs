@@ -21,6 +21,12 @@ pub enum Size {
     Any,
 }
 
+impl Size {
+    pub fn is_any(&self) -> bool {
+        *self as u8 == Self::Any as u8
+    }
+}
+
 impl From<Size> for u8 {
     fn from(size: Size) -> u8 {
         match size {

@@ -3,6 +3,12 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+/*
+ * NOTE:
+ *  This file is only here for legacy purposes.
+ *  Use AType from chkn instead!
+ */
+
 use crate::shr::{
     reg::{Purpose as RegisterPurpose, Register},
     size::Size,
@@ -38,6 +44,7 @@ pub const M32: AType = AType::Memory(Size::Dword);
 pub const M16: AType = AType::Memory(Size::Word);
 pub const M8: AType = AType::Memory(Size::Byte);
 
+// legacy
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AType {
     Immediate(Size),                 // immediate

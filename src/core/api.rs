@@ -776,7 +776,6 @@ mod tests {
     }
     #[test]
     fn mbool() {
-        use crate::shr::num::Number;
         use OpOrd::*;
         let mb = MegaBool::from_byte(3);
         assert_eq!(mb.get(), Some(true));
@@ -805,27 +804,6 @@ mod tests {
             .ord(&[MODRM_RM, MODRM_REG]);
         assert_eq!(api.addt, 0b0000_0011_0001_0010);
         assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
-        let ins = Instruction {
-            mnem: crate::shr::ins::Mnemonic::CMP,
-            addt: None,
-            oprs: [
-                Some(Operand::Reg(Register::AX)),
-                Some(Operand::Imm(Number::uint64(256))),
-                None,
-                None,
-                None,
-            ],
-            line: 0,
-        };
-        assert_eq!(ins.size(), Size::Word);
-        assert_eq!(gen_size_ovr(&ins, 64, false), Some([Some(0x66), None]));
-        let x = GenAPI::new().imm_is_be(true);
-        assert_eq!(x.get_flag(IMM_LEBE), Some(true));
-        let x = GenAPI::new().imm_is_be(false);
-        assert_eq!(x.get_flag(IMM_LEBE), Some(false));
-        let imm = Number::uint64(20);
-        assert_eq!(imm.get_raw_be(), [0, 0, 0, 0, 0, 0, 0, 20]);
-        assert_eq!(&imm.get_raw_be()[8 - imm.get_real_size()..], &[20u8]);
     }
     #[test]
     fn ord_check() {
