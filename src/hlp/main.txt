@@ -1,4 +1,4 @@
-pasm     	    25.06-betao
+pasm     	    25.06-beta
 -------------------------------
 DISCLAIMER:
 This assembler is in beta.
