@@ -36,7 +36,6 @@ use crate::{
     shr::{
         ast::{Instruction, Operand},
         booltable::BoolTable16,
-        error::RASMError,
         ins::Mnemonic,
         mem::Mem,
         reg::Register,
@@ -223,32 +222,6 @@ impl GenAPI {
         } else {
             None
         }
-    }
-    #[allow(clippy::nonminimal_bool)]
-    pub fn validate(&self) -> Option<RASMError> {
-        let imm_flag0 = self.flags.get(OBY_CONST).unwrap();
-        let imm_flag1 = self.flags.get(TBY_CONST).unwrap();
-        let imm_flag2 = self.flags.get(IMM_ATIDX).unwrap();
-
-        if (imm_flag0 && imm_flag1) || (imm_flag1 && imm_flag2) || (imm_flag0 && imm_flag2) {
-            return Some(RASMError::no_tip(
-                None,
-                Some("GenAPI flag error: OBY_CONST, TBY_CONST or IMM_ATIDX flags were set (only one can be at time)!")
-            ));
-        }
-
-        let pfx_flag0 = self.flags.get(REX_PFX).unwrap();
-        let pfx_flag1 = self.flags.get(VEX_PFX).unwrap();
-        let pfx_flag2 = self.flags.get(EVEX_PFX).unwrap();
-
-        if (pfx_flag0 && pfx_flag1) || (pfx_flag1 && pfx_flag2) || (pfx_flag0 && pfx_flag2) {
-            return Some(RASMError::no_tip(
-                None,
-                Some("GenAPI flag error: EVEX_PFX, VEX_PFX or REX_PFX flags were set (only one can be at time)!")
-            ));
-        }
-
-        None
     }
     pub fn debug_assemble<'a>(
         &'a self,
@@ -440,10 +413,6 @@ impl GenAPI {
                 v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
                 extend_imm(&mut v, size as u8);
                 base.extend(v);
-            } else {
-                RASMError::warn(format!(
-                    "Tried to use immediate at index {idx} - didn't find one."
-                ));
             }
         } else if self.flags.get(OBY_CONST).unwrap() {
             let size = (self.addt & 0xFF00) >> 8;
@@ -453,13 +422,6 @@ impl GenAPI {
         }
 
         (base, rels)
-    }
-    pub fn try_assemble(&self, ins: &Instruction, bits: u8) -> Result<Vec<u8>, RASMError> {
-        if let Some(err) = self.validate() {
-            Err(err)
-        } else {
-            Ok(self.assemble(ins, bits).0)
-        }
     }
     pub const fn modrm_reg_is_dst(&self) -> bool {
         self.ord.modrm_reg_is_dst()

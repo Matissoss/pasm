@@ -24,7 +24,6 @@ pub mod pre_core;
 pub mod shr;
 
 use core::comp;
-use shr::error;
 
 // pasm helper utilities
 pub mod cli;
@@ -77,8 +76,9 @@ fn main() {
     let ast = libr::par_file(&infile);
 
     if let Err(errs) = ast {
-        for e in errs {
-            error::print_error(e, &infile);
+        for mut e in errs {
+            e.set_file(infile.to_path_buf());
+            eprintln!("{e}");
         }
         std::process::exit(1);
     }

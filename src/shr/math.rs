@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RASMError as Error, num::Number};
+use crate::shr::{error::RError as Error, num::Number};
 
 pub struct MathematicalEvaluation;
 
@@ -285,10 +285,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 if mode == Some(Mode::Gt) {
                     mode = Some(Mode::Rsh);
                 } else if mode == Some(Mode::Rsh) {
-                    return Err(Error::no_tip(
-                        None,
-                        Some("Tried to use unknown operator <<<"),
-                    ));
+                    return Err(Error::new("tried to use unknown operator >>>", 102));
                 } else {
                     mode = Some(Mode::Gt);
                 }
@@ -298,10 +295,7 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 if mode == Some(Mode::Lt) {
                     mode = Some(Mode::Lsh);
                 } else if mode == Some(Mode::Lsh) {
-                    return Err(Error::no_tip(
-                        None,
-                        Some("Tried to use unknown operator <<<"),
-                    ));
+                    return Err(Error::new("tried to use unknown operator <<<", 102));
                 } else {
                     mode = Some(Mode::Lt);
                 }
@@ -367,15 +361,12 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                         if let Some(t) = elements.pop() {
                             tmp_mat = Some(t);
                         } else {
-                            return Err(Error::no_tip(
-                                None,
-                                Some("Expected lhs and rhs, only found sign."),
-                            ));
+                            return Err(Error::new("operation which you tried to use requires lhs and rhs, but you only provided operation symbol", 103));
                         }
                     }
                 }
                 if mode.is_none() {
-                    return Err(Error::no_tip(None, Some("Expected mode, found none")));
+                    return Err(Error::new("you provided 2 numbers, but you did not provide mathematical operation beetwen them", 104));
                 }
                 let lhs = {
                     if let Some(n) = tmp_mat {
@@ -394,13 +385,10 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                 continue;
             }
             Token::Unknown(s) => {
-                return Err(Error::no_tip(
-                    None,
-                    Some(format!(
-                        "Expected number, found {{unknown}} string \"{}\"",
-                        &s
-                    )),
-                ))
+                return Err(Error::new(
+                    format!("expected number, but found unknown string: \"{s}\""),
+                    105,
+                ));
             }
             _ => idx += 1,
         }
@@ -422,12 +410,9 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
         if let Some(tmp_n) = tmp_num {
             Ok(MathElement::Number(tmp_n))
         } else {
-            Err(Error::no_tip(
-                None,
-                Some(format!(
-                    "Internal Error (should not happen): Tried to pop elements, while it was empty :(\nINFO: {:?} ; {:?} ; {:?}",
-                    mode, elements, tmp_num
-                )),
+            Err(Error::new(
+                "internal error: tried to pop elements vec, while it was empty",
+                500,
             ))
         }
     }

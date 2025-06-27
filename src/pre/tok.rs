@@ -6,7 +6,7 @@
 use crate::{
     conf::*,
     shr::{
-        error::RASMError, ins::Mnemonic, kwd::Keyword, math, num::Number, reg::Register,
+        error::RError, ins::Mnemonic, kwd::Keyword, math, num::Number, reg::Register,
         smallvec::SmallVec, symbol::SymbolRef,
     },
 };
@@ -24,7 +24,7 @@ pub enum Token {
     Comma,
 
     Unknown(RString),
-    Error(Box<RASMError>),
+    Error(Box<RError>),
     //       pfx   content
     Closure(char, RString),
 
@@ -34,10 +34,9 @@ pub enum Token {
     None,
 }
 
-pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
+pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
     let mut tokens: SmallVec<Token, SMALLVEC_TOKENS_LEN> = SmallVec::new();
 
-    let mut tmp_buf: Vec<char> = Vec::with_capacity(24);
     let mut inside_closure: Option<char> = None;
     let mut closure_pfx: Option<char> = None;
     let mut delimeter_count: usize = 0;
@@ -223,6 +222,13 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
     } else if !tmp_toks.is_empty() {
         tokens.push(Token::make_modifier(tmp_toks.into_iter()));
     }
+    if delimeter_count != 0 {
+        let er = RError::new(
+            format!("unclosed delimeter `(` (`{delimeter_count}` unclosed delimeters)"),
+            000,
+        );
+        tokens.push(Token::Error(Box::new(er)));
+    }
     tokens
 }
 
@@ -294,7 +300,6 @@ impl ToString for Token {
             Self::Label(lbl) => lbl.to_string(),
             Self::SymbolRef(lbl) => format!("{}{}", PREFIX_REF, lbl.to_string()),
             Self::String(str) => str.to_string(),
-            Self::Error(_) => "".to_string(),
             Self::Unknown(val) => val.to_string(),
             Self::Comma => ','.to_string(),
             Self::Closure(pfx, ctt) => format!("{pfx}({ctt})"),
@@ -305,6 +310,7 @@ impl ToString for Token {
                 }
                 string
             }
+            Self::Error(e) => format!("{e}"),
             Self::None => String::new(),
         }
     }

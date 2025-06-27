@@ -58,8 +58,8 @@
     - [x] Replace `String`s with `Arc<str>`/`Rc<str>`.
     - [x] Allow for usage of multi threads to compile labels/sections
     - [x] Revamp `AType` and `src/pre/chk.rs` in favor of `CheckAPI` (like is with `GenAPI`)
-    - [ ] Revamp errors (better readability) with explainations
-    - [ ] Create `src/docs/errors.md`
+    - [x] Revamp errors (better readability) with explainations
+    - [x] Create `src/docs/error-spec.md`
 - [ ] moving into beta-avx phase...
 
 ## beta-avx

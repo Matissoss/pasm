@@ -65,8 +65,12 @@ where
 }
 
 impl<T, const N: usize> SmallVec<T, N> {
-    // zeroing is too expensive (for large types)
-    pub const fn clear(&mut self) {
+    pub fn clear(&mut self) {
+        if std::mem::needs_drop::<T>() {
+            for i in 0..self.len() {
+                unsafe { std::ptr::drop_in_place(self.content[i].as_mut_ptr()) }
+            }
+        }
         self.len = 0;
     }
     #[allow(clippy::new_without_default)]

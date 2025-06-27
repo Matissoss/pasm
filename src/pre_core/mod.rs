@@ -3,12 +3,12 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::AST, error::RASMError};
+use crate::shr::{ast::AST, error::RError as Error};
 
 pub mod math;
 
 // here we run code before assembling phase is started
-pub fn post_process(ast: &mut AST) -> Result<(), RASMError> {
+pub fn post_process(ast: &mut AST) -> Result<(), Error> {
     math::post_process(ast)?;
     Ok(())
 }

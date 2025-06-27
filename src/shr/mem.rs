@@ -6,7 +6,7 @@
 use crate::shr::{
     atype::AType,
     booltable::BoolTable8,
-    error::RASMError,
+    error::RError as Error,
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
@@ -64,8 +64,8 @@ impl Mem {
             flags: BoolTable8::new(),
         }
     }
-    pub fn new(str: &str, sz: Size) -> Result<Self, RASMError> {
-        match mem_par_new(mem_tok_new(str)) {
+    pub fn new(str: &str, sz: Size) -> Result<Self, Error> {
+        match mem_par(mem_tok(str)) {
             Ok(mut o) => {
                 mem_chk(&mut o);
                 o.set_size(sz);
@@ -413,8 +413,6 @@ impl Mem {
     }
 }
 
-type Error = RASMError;
-
 #[derive(PartialEq)]
 enum Token {
     Register(Register),
@@ -451,7 +449,7 @@ fn mem_chk(mem: &mut Mem) {
     }
 }
 
-fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
+fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
     let mut mem = Mem::blank();
 
     let mut unspec_reg: Option<Register> = None;
@@ -474,9 +472,9 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
                 } else if index.is_none() {
                     index = Some(r);
                 } else {
-                    return Err(Error::no_tip(
-                        None,
-                        Some("Memory declaration has too many (3+) registers!"),
+                    return Err(Error::new(
+                        "memory declaration has more than 2 registers",
+                        11,
                     ));
                 }
             }
@@ -499,18 +497,18 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
                     if let Ok(sz) = Size::try_from(n as u16) {
                         match sz {
                             Size::Byte | Size::Word | Size::Dword | Size::Qword => {}
-                            _ => return Err(Error::no_tip(
-                                None,
-                                Some(
-                                    "Memory declaration's scale is larger than 8 (maximum scale)!",
-                                ),
-                            )),
+                            _ => {
+                                return Err(Error::new(
+                                    "you tried to use scale that is larger than 8 in memory",
+                                    11,
+                                ))
+                            }
                         }
                         scale = Some(sz);
                     } else {
-                        return Err(Error::no_tip(
-                            None,
-                            Some("Memory declaration has scale, but it isn't either 1, 2, 4 or 8!"),
+                        return Err(Error::new(
+                            "you tried to provide scale, but it was not 1, 2, 4 or 8",
+                            11,
                         ));
                     }
                     mul_modf = false;
@@ -523,9 +521,9 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
     }
     if let (Some(base), Some(index)) = (base, index) {
         if base.size() != index.size() {
-            return Err(Error::no_tip(
-                None,
-                Some("Base and index registers in memory declaration have different sizes."),
+            return Err(Error::new(
+                "base and index registers in SIB memory declaration have different sizes",
+                11,
             ));
         } else {
             mem.set_addrsize(base.size());
@@ -539,10 +537,10 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
             Size::Dword => Some(Register::EBP),
             Size::Word => Some(Register::BP),
             _ => {
-                return Err(Error::no_tip(
-                    None,
-                    Some("Index has size that doesn't match 16/32/64 bits!"),
-                ))
+                return Err(Error::new(
+                    "index register has size that is not 16, 32 or 64 bits",
+                    11,
+                ));
             }
         };
         let _ = mem.set_base(base.unwrap());
@@ -572,7 +570,7 @@ fn mem_par_new(toks: Vec<Token>) -> Result<Mem, Error> {
     Ok(mem)
 }
 
-fn mem_tok_new(str: &str) -> Vec<Token> {
+fn mem_tok(str: &str) -> Vec<Token> {
     let mut tokens = Vec::with_capacity(8);
     let bytes: &[u8] = str.as_bytes();
     let mut tmp_buf: Vec<u8> = Vec::with_capacity(16);
@@ -621,10 +619,7 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
         if prefix == &b'%' {
             if let Ok(reg) = Register::from_str(&utf8_buf[1..]) {
                 if reg.purpose() != RPurpose::General {
-                    Some(Token::Error(Error::no_tip(
-                        None,
-                        Some("Tried to use register which purpose isn't general (like *ax, *bx, etc.)")
-                    )))
+                    Some(Token::Error(Error::new("you tried to use register that is not general purposed in memory declaration", 11)))
                 } else {
                     Some(Token::Register(reg))
                 }

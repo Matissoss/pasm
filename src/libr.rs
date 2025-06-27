@@ -7,7 +7,7 @@ use std::{fs, io::Write, path::Path};
 
 use crate::*;
 
-use shr::{ast::AST, error::RASMError as Error, reloc, symbol::*};
+use shr::{ast::AST, error::RError as Error, reloc, symbol::*};
 
 pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
@@ -16,9 +16,10 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     let file = fs::read_to_string(inpath);
     let pathstr = inpath.to_string_lossy();
     if file.is_err() {
-        return Err(vec![Error::msg(format!(
-            "Couldn't open file \"{pathstr}\""
-        ))]);
+        return Err(vec![Error::new(
+            format!("could not read a file named \"{pathstr}\""),
+            13,
+        )]);
     }
     #[cfg(feature = "vtime")]
     utils::vtimed_print("read   ", start);
@@ -36,8 +37,12 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     let mut toks = Vec::with_capacity(lcount);
 
     #[cfg(not(feature = "mthread"))]
-    for l in lines {
-        toks.push(pre::tok::tokl(&l));
+    {
+        let mut chars = Vec::new();
+        for l in lines {
+            toks.push(pre::tok::tokl(&mut chars, &l));
+            chars.clear();
+        }
     }
 
     #[cfg(feature = "mthread")]
@@ -55,8 +60,10 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
             }
             handles.push(std::thread::spawn(move || {
                 let mut toks = Vec::with_capacity(lcount);
+                let mut chars = Vec::new();
                 for l in lns {
-                    toks.push(pre::tok::tokl(&l))
+                    toks.push(pre::tok::tokl(&mut chars, &l));
+                    chars.clear();
                 }
                 toks
             }));
@@ -65,9 +72,11 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
         }
         if !lns.is_empty() {
             handles.push(std::thread::spawn(move || {
+                let mut chars = Vec::new();
                 let mut toks = Vec::with_capacity(lcount);
                 for l in lns {
-                    toks.push(pre::tok::tokl(&l))
+                    toks.push(pre::tok::tokl(&mut chars, &l));
+                    chars.clear();
                 }
                 toks
             }));
@@ -110,8 +119,9 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     if let Some(errs) = res {
         for (lname, errs) in errs {
             println!("-- {pathstr}:{lname} --");
-            for e in errs {
-                shr::error::print_error(e, inpath)
+            for mut e in errs {
+                e.set_file(inpath.to_path_buf());
+                eprintln!("{e}");
             }
         }
         std::process::exit(1);
@@ -143,10 +153,11 @@ pub fn assemble(ast: AST, opath: &Path, tgt: &str) -> Result<(), Error> {
         .truncate(true)
         .write(true)
         .open(opath);
-    if let Err(e) = file {
-        return Err(Error::msg(format!(
-            "Failed to open file with write permissions:\n\t{e}"
-        )));
+    if file.is_err() {
+        return Err(Error::new(
+            "failed to open output file with write permissions",
+            13,
+        ));
     }
 
     #[cfg(feature = "vtime")]
@@ -216,17 +227,20 @@ fn assemble_file(ast: AST, opath: &Path, tgt: &str) -> Result<Vec<u8>, Error> {
             let elf = crate::obj::Elf::new(&sections, opath, &wrt, &rel, &sym, is_64bit)?;
             wrt = elf.compile(is_64bit);
         }
-        _ => return Err(Error::msg(format!("Unknown format: \"{tgt}\""))),
+        _ => {
+            return Err(Error::new(
+                format!("you tried to use unknown/unsupported format \"{tgt}\""),
+                13,
+            ))
+        }
     }
     drop(sym);
     Ok(wrt)
 }
 
 pub fn write(writer: &mut impl Write, con: &[u8]) -> Result<(), Error> {
-    if let Err(e) = writer.write_all(con) {
-        return Err(Error::msg(format!(
-            "Failed to write content to buffer:\n\t{e}"
-        )));
+    if writer.write_all(con).is_err() {
+        return Err(Error::new("failed to write content to buffer", 13));
     }
     Ok(())
 }

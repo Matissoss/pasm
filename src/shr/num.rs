@@ -5,7 +5,7 @@
 
 use crate::shr::{
     atype::{AType, ToAType},
-    error::RASMError,
+    error::RError as Error,
     size::Size,
 };
 use std::str::FromStr;
@@ -45,7 +45,7 @@ impl Number {
         self.get_raw() as i32
     }
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(str: &str) -> Result<Self, RASMError> {
+    pub fn from_str(str: &str) -> Result<Self, Error> {
         num_from_str(str)
     }
     pub fn size(&self) -> Size {
@@ -143,7 +143,7 @@ impl Number {
     }
 }
 
-fn num_from_str(str: &str) -> Result<Number, RASMError> {
+fn num_from_str(str: &str) -> Result<Number, Error> {
     let sign = str.starts_with("-");
     let plus_sign = str.starts_with("+");
     let sign_str = if sign {
@@ -188,29 +188,35 @@ fn num_from_str(str: &str) -> Result<Number, RASMError> {
                             } else if c == &'\'' {
                                 Ok(Number::uint64('\\' as u64))
                             } else {
-                                Err(RASMError::no_tip(
-                                    None,
-                                    Some(format!("Invalid escape character: {c}")),
+                                Err(Error::new(
+                                    format!("you tried to use unknown escape character '\\{c}'"),
+                                    106,
                                 ))
                             }
                         } else {
-                            Err(RASMError::no_tip(None, Some("Unclosed '' delimeter")))
+                            Err(Error::new(
+                                "found unclosed '' delimeter inside character declaration",
+                                0,
+                            ))
                         }
                     }
                     Some(c) => Ok(Number::uint64(*c as u64)),
-                    None => Err(RASMError::no_tip(None, Some("Unclosed '' delimeter"))),
+                    None => Err(Error::new(
+                        "found unclosed '' delimeter inside character declaration",
+                        0,
+                    )),
                 }
             } else {
-                Err(RASMError::no_tip(
-                    None,
-                    Some(format!("Couldn't parse \"{str}\" into number")),
+                Err(Error::new(
+                    format!("you provided string \"{str}\", which could not be parsed into number"),
+                    105,
                 ))
             }
         }
     }
 }
 
-fn num(val: u64, sign: bool, ntype: NType) -> Result<Number, RASMError> {
+fn num(val: u64, sign: bool, ntype: NType) -> Result<Number, Error> {
     if ntype == NType::Float {
         return Ok(Number::float(val as f32));
     } else if ntype == NType::Double {
@@ -221,13 +227,7 @@ fn num(val: u64, sign: bool, ntype: NType) -> Result<Number, RASMError> {
         let body = val & 0x7FFF_FFFF_FFFF_FFFF;
         // if sign is set
         if body != val {
-            Err(RASMError::no_tip(
-                None,
-                Some(format!(
-                    "Tried to use too large number to be signed (consider removing sign): {}",
-                    body
-                )),
-            ))
+            Err(Error::new("you tried to use number which already occupies sign bit (consider removing sign and making it unsigned)", 1))
         } else {
             // sign extended u64
             Ok(Number::int64(-(val as i64)))
@@ -237,7 +237,7 @@ fn num(val: u64, sign: bool, ntype: NType) -> Result<Number, RASMError> {
     }
 }
 
-fn num_from_bin(v: &[char], sign: bool) -> Result<Number, RASMError> {
+fn num_from_bin(v: &[char], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -247,10 +247,7 @@ fn num_from_bin(v: &[char], sign: bool) -> Result<Number, RASMError> {
             if let Some(u) = u8_from_bin(*c) {
                 n += u as u64 * (1 << idx);
             } else {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some("Invalid character was found inside binary number declaration!"),
-                ));
+                return Err(Error::new("you tried to make binary number, but you used character that isn't 0 or 1 or _", 2));
             }
         }
         idx += 1;
@@ -264,7 +261,7 @@ fn u8_from_bin(c: char) -> Option<u8> {
         _ => None,
     }
 }
-fn num_from_hex(v: &[char], sign: bool) -> Result<Number, RASMError> {
+fn num_from_hex(v: &[char], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -274,10 +271,7 @@ fn num_from_hex(v: &[char], sign: bool) -> Result<Number, RASMError> {
             if let Some(u) = u8_from_hex(*c) {
                 n += u as u64 * (16u64.pow(idx));
             } else {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some("Invalid character was found inside hex number declaration!"),
-                ));
+                return Err(Error::new("you tried to make hex number, but you used character that isn't hexadecimal or _", 2));
             }
         }
         idx += 1;
@@ -296,7 +290,7 @@ fn u8_from_hex(c: char) -> Option<u8> {
         _ => None,
     }
 }
-fn num_from_oct(v: &[char], sign: bool) -> Result<Number, RASMError> {
+fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -306,10 +300,7 @@ fn num_from_oct(v: &[char], sign: bool) -> Result<Number, RASMError> {
             if let Some(u) = u8_from_oct(*c) {
                 n += u as u64 * (8u64.pow(idx));
             } else {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some("Invalid character was found inside octal number declaration!"),
-                ));
+                return Err(Error::new("you tried to make octal number, but you used character that isn't octal (0 to 7) or _", 2));
             }
         }
         idx += 1;

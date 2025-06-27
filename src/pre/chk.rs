@@ -9,7 +9,7 @@ use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
     atype::*,
-    error::RASMError,
+    error::RError as Error,
     ins::Mnemonic as Mnm,
     reg::{Purpose as RPurpose, Register},
     size::Size,
@@ -17,12 +17,12 @@ use crate::shr::{
 
 use AType::*;
 
-pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
-    let mut errors: Vec<(String, Vec<RASMError>)> = Vec::new();
+pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
+    let mut errors: Vec<(String, Vec<Error>)> = Vec::new();
 
     for section in &file.sections {
         for label in &section.content {
-            let chk_ins: fn(&Instruction) -> Result<(), RASMError> = match label.bits() {
+            let chk_ins: fn(&Instruction) -> Result<(), Error> = match label.bits() {
                 64 => check_ins64bit,
                 _ => check_ins32bit,
             };
@@ -46,13 +46,15 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<RASMError>)>> {
     }
 }
 
-fn check_ins32bit(ins: &Instruction) -> Result<(), RASMError> {
+fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     use Mnm::*;
     if gen_rex(ins, false).is_some() {
-        return Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Instruction needs rex prefix, which is forbidden in protected/compat. mode (bits 32)"),
-        ));
+        let mut er = Error::new(
+            "you tried to use instruction that requires REX prefix, but bits != 64",
+            10,
+        );
+        er.set_line(ins.line);
+        return Err(er);
     }
     match ins.mnem {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -442,15 +444,19 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), RASMError> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Instruction unsupported in 32-bit mode"),
-        )),
+        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => {
+            let mut er = Error::new(
+                "you tried to use instruction that is invalid when bits != 64",
+                10,
+            );
+            er.set_line(ins.line);
+            Err(er)
+        }
         _ => shr_chk(ins),
     }
 }
 
-fn check_ins64bit(ins: &Instruction) -> Result<(), RASMError> {
+fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnm::*;
     match ins.mnem {
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -549,35 +555,6 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), RASMError> {
                 ])
                 .check(ins)
         }
-        /*
-        Mnm::MOV => ot_chk(
-            ins,
-            &[
-                (
-                    &[R8, R16, R32, R64, M8, M16, M32, M64, SR, CR, DR],
-                    Optional::Needed,
-                ),
-                (
-                    &[
-                        R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32, I64, SR, CR, DR,
-                    ],
-                    Optional::Needed,
-                ),
-            ],
-            &[
-                (DR, R16),
-                (DR, R32),
-                (R16, DR),
-                (R8, DR),
-                (DR, MA),
-                (MA, DR),
-                (R8, DR),
-                (DR, MA),
-                (MA, DR),
-            ],
-            &[],
-        ),
-        */
         XCHG => {
             use chkn::*;
             CheckAPI::<2>::new()
@@ -842,7 +819,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), RASMError> {
     }
 }
 
-pub fn shr_chk(ins: &Instruction) -> Result<(), RASMError> {
+pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
     use Mnm::*;
     use Register::*;
     match ins.mnem {
@@ -2645,10 +2622,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), RASMError> {
             &[],
         ),
 
-        _ => Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Tried to use currently unsupported instruction."),
-        )),
+        _ => {
+            let mut er = Error::new(
+                "internal error: instruction does not have entry in check layer",
+                500,
+            );
+            er.set_line(ins.line);
+            Err(er)
+        }
     }
 }
 
@@ -2666,15 +2647,17 @@ fn avx_ot_chk_wthout(
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
-) -> Result<(), RASMError> {
+) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
-        ));
+        let mut er = Error::new(
+            "this mnemonic does not accept any operand, but you tried to use one",
+            9,
+        );
+        er.set_line(ins.line);
+        return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
@@ -2683,10 +2666,12 @@ fn avx_ot_chk_wthout(
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Err(RASMError::no_tip(
-                    Some(ins.line),
-                    Some(format!("Needed operand not found at index {}", idx)),
-                ));
+                let mut er = Error::new(
+                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                    9,
+                );
+                er.set_line(ins.line);
+                return Err(er);
             } else {
                 break;
             }
@@ -2707,15 +2692,17 @@ fn avx_ot_chk(
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
-) -> Result<(), RASMError> {
+) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
-        ));
+        let mut er = Error::new(
+            "this mnemonic does not accept any operand, but you tried to use one",
+            9,
+        );
+        er.set_line(ins.line);
+        return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
@@ -2724,10 +2711,12 @@ fn avx_ot_chk(
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Err(RASMError::no_tip(
-                    Some(ins.line),
-                    Some(format!("Needed operand not found at index {}", idx)),
-                ));
+                let mut er = Error::new(
+                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                    9,
+                );
+                er.set_line(ins.line);
+                return Err(er);
             } else {
                 break;
             }
@@ -2744,7 +2733,7 @@ fn avx_ot_chk(
     Ok(())
 }
 
-fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<RASMError> {
+fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<Error> {
     let dst_t = if let Some(dst) = ins.dst() {
         dst.atype()
     } else {
@@ -2762,14 +2751,12 @@ fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<RAS
     };
     for f in forb {
         if (dst_t, src_t, ssrc_t) == *f {
-            return Some(RASMError::no_tip(
-                Some(ins.line),
-                Some(format!(
-                    "Destination, AVX Source and Source operand have forbidden combination: ({}, {})",
-                    f.0.to_string(),
-                    f.1.to_string()
-                )),
-            ));
+            let mut er = Error::new(
+                "you provided instruction, which has forbidden operand combination",
+                7,
+            );
+            er.set_line(ins.line);
+            return Some(er);
         }
     }
     None
@@ -2780,15 +2767,17 @@ fn ot_chk(
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType)],
     addt: &[Mnm],
-) -> Result<(), RASMError> {
+) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
     if ops.is_empty() && !ins.oprs.is_empty() {
-        return Err(RASMError::no_tip(
-            Some(ins.line),
-            Some("Instruction doesn't accept any operand, but you tried to use one anyways"),
-        ));
+        let mut er = Error::new(
+            "this mnemonic does not accept any operand, but you tried to use one",
+            9,
+        );
+        er.set_line(ins.line);
+        return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
         if let Some(op) = ins.get_opr(idx) {
@@ -2797,10 +2786,12 @@ fn ot_chk(
             }
         } else {
             if allowed.1 == Optional::Needed {
-                return Err(RASMError::no_tip(
-                    Some(ins.line),
-                    Some(format!("Needed operand not found at index {}", idx)),
-                ));
+                let mut er = Error::new(
+                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                    9,
+                );
+                er.set_line(ins.line);
+                return Err(er);
             } else {
                 break;
             }
@@ -2828,7 +2819,7 @@ fn ot_chk(
     Ok(())
 }
 
-fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
+fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<Error> {
     let dst_t = if let Some(dst) = ins.dst() {
         dst.atype()
     } else {
@@ -2841,62 +2832,37 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<RASMError> {
     };
     for f in forb {
         if (dst_t, src_t) == *f {
-            return Some(RASMError::no_tip(
-                Some(ins.line),
-                Some(format!(
-                    "Destination and Source operand have forbidden combination: ({}, {})",
-                    f.0.to_string(),
-                    f.1.to_string()
-                )),
-            ));
+            let mut er = Error::new(
+                "you provided instruction, which has forbidden operand combination",
+                7,
+            );
+            er.set_line(ins.line);
+            return Some(er);
         }
     }
     None
 }
 
-fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<RASMError> {
+fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<Error> {
     if let Some(m) = operand.get_mem() {
         if m.addrsize() == Some(Size::Word) {
-            return Some(RASMError::no_tip(
-                None,
-                Some("You cannot address with 16-bit registers; consider using 32-bit/64-bit (depending on bits).")
-            ));
+            let er = Error::new("currently it is forbidden to use 16-bit address size", 500);
+            return Some(er);
         }
     }
     if find(accepted, operand.atype()) || find_ext(accepted, operand.ext_atype()) {
         None
     } else {
-        let err = RASMError::with_tip(
-            None,
-            Some(format!(
-                "{} operand of type {} doesn't match any of expected types: {}",
-                match idx {
-                    0 => "Destination".to_string(),
-                    1 => "Source".to_string(),
-                    _ => idx.to_string(),
-                },
-                operand.atype().to_string(),
-                atype_arr_string(accepted)
-            )),
-            Some(format!(
-                "Consider changing {} operand to expected type or removing instruction",
-                match idx {
-                    0 => "destination".to_string(),
-                    1 => "source".to_string(),
-                    _ => idx.to_string(),
-                }
-            )),
-        );
-
         if let Operand::Imm(imm) = operand {
             if accepted.contains(&AType::Immediate(imm.size())) {
                 return None;
             }
         }
-        Some(err)
+        let er = Error::new(format!("operand at index {idx} has invalid type"), 8);
+        Some(er)
     }
 }
-fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
+fn avx_size_chk(ins: &Instruction) -> Option<Error> {
     let dst = ins.dst().unwrap();
     let src = ins.src().unwrap();
 
@@ -2913,51 +2879,35 @@ fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use immediate that is too large for destination operand"),
-                        Some(format!("Consider changing immediate to fit inside {s0}",)),
-                    ))
+                    let mut er = Error::new("you tried to use immediate which is too large", 8);
+                    er.set_line(ins.line);
+                    Some(er)
                 } else {
                     None
                 }
             }
         }
-        (AType::Memory(s0), AType::Memory(s1)) => {
-            if s1 == s0 {
-                None
-            } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to be {s0}",)),
-                    ))
-                } else {
-                    None
-                }
-            }
+        (AType::Memory(_), AType::Memory(_)) => {
+            let mut er = Error::new("combination of memory and memory is forbidden", 8);
+            er.set_line(ins.line);
+            Some(er)
         }
         (AType::Register(_, s0), AType::Register(_, s1)) => {
             if let Some(ssrc) = ins.src2() {
                 if s1 == s0 && ssrc.size() == s0 {
                     None
                 } else {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to be {s0}",)),
-                    ))
+                    let mut er = Error::new("dst operand has invalid type", 8);
+                    er.set_line(ins.line);
+                    Some(er)
                 }
             } else if s1 == s0 {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to be {s0}",)),
-                    ))
+                    let mut er = Error::new("dst operand has invalid type", 8);
+                    er.set_line(ins.line);
+                    Some(er)
                 } else {
                     None
                 }
@@ -2967,7 +2917,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<RASMError> {
         _ => None,
     }
 }
-fn size_chk(ins: &Instruction) -> Option<RASMError> {
+fn size_chk(ins: &Instruction) -> Option<Error> {
     let dst = ins.dst().unwrap();
     let src = ins.src().unwrap();
 
@@ -2984,30 +2934,18 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use immediate that is too large for destination operand"),
-                        Some(format!("Consider changing immediate to fit inside {s0}",)),
-                    ))
+                    let mut er = Error::new("you tried to use immediate which is too large", 8);
+                    er.set_line(ins.line);
+                    Some(er)
                 } else {
                     None
                 }
             }
         }
-        (AType::Memory(s0), AType::Memory(s1)) => {
-            if s1 == s0 {
-                None
-            } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to fit inside {s0}",)),
-                    ))
-                } else {
-                    None
-                }
-            }
+        (AType::Memory(_), AType::Memory(_)) => {
+            let mut er = Error::new("combination of memory and memory is forbidden", 8);
+            er.set_line(ins.line);
+            Some(er)
         }
         (AType::Register(g0, s0), AType::Register(g1, s1)) => {
             if s1 == s0
@@ -3027,11 +2965,9 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
                 None
             } else {
                 if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    Some(RASMError::with_tip(
-                        Some(ins.line),
-                        Some("Tried to use operand that cannot be used for destination operand"),
-                        Some(format!("Consider changing operand to be {s0}",)),
-                    ))
+                    let mut er = Error::new("dst operand has invalid type", 8);
+                    er.set_line(ins.line);
+                    Some(er)
                 } else {
                     None
                 }
@@ -3042,13 +2978,12 @@ fn size_chk(ins: &Instruction) -> Option<RASMError> {
     }
 }
 
-fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<RASMError> {
+fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<Error> {
     if let Some(addt) = &ins.addt {
         if !find_bool(accpt_addt, addt) {
-            return Some(RASMError::no_tip(
-                Some(ins.line),
-                Some("Tried to use forbidden additional mnemonic"),
-            ));
+            let mut er = Error::new("usage of forbidden additional mnemonic", 6);
+            er.set_line(ins.line);
+            return Some(er);
         }
     }
     None

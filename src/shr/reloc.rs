@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RASMError, symbol::Symbol};
+use crate::shr::{error::RError as Error, symbol::Symbol};
 
 impl RelType {
     pub fn to_elf64_rtype(&self) -> u64 {
@@ -81,19 +81,20 @@ pub fn relocate_addresses(
     buf: &mut [u8],
     rels: Vec<Relocation>,
     symbols: &[Symbol],
-) -> Result<(), RASMError> {
+) -> Result<(), Error> {
     for rel in rels {
         relocate(buf, rel, symbols)?;
     }
     Ok(())
 }
 
-pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(), RASMError> {
+pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(), Error> {
     let symbol = if let Some(symbol) = symbols.iter().find(|e| e.name == rel.symbol) {
         symbol
     } else {
-        return Err(RASMError::msg(
-            "Tried to do relocation with non-existent symbol",
+        return Err(Error::new(
+            "you tried to use relocation on undeclared symbol",
+            4,
         ));
     };
     let addr = rel.lea(symbol.offset);
@@ -104,16 +105,22 @@ pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(
         _ => u32::MAX,
     };
     if addr > rs {
-        return Err(RASMError::msg(format!(
-            "Tried to perform {}-bit relocation on too large address",
-            rs << 3
-        )));
+        return Err(Error::new(
+            format!(
+                "tried to perform {}-bit relocation on smaller slice",
+                rs << 3
+            ),
+            5,
+        ));
     }
     let addr = addr.to_le_bytes();
     let buf_offset = rel.offset as usize;
 
     if buf.len() + rel.size() < buf_offset {
-        return Err(RASMError::msg("Tried to access field outside of buffer"));
+        return Err(Error::new(
+            "internal error: tried to write outside of buffer",
+            500,
+        ));
     }
     let mut idx = 0;
     while idx < rel.size() {

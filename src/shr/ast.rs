@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use crate::pre::tok::Token;
 use crate::shr::{
     atype::{AType, ToAType},
-    error::RASMError,
+    error::RError as Error,
     ins::Mnemonic,
     mem::Mem,
     num::Number,
@@ -45,7 +45,6 @@ pub enum ASTNode {
     Ins(Instruction),
     Attributes(RString),
     Bits(u8),
-    Entry(RString),
     Label(RString),
     Extern(RString),
     Include(PathBuf),
@@ -111,7 +110,7 @@ pub enum IVariant {
 // implementations
 
 impl TryFrom<Token> for Operand {
-    type Error = RASMError;
+    type Error = Error;
     fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
         match tok {
             Token::Register(reg) => {
@@ -128,7 +127,13 @@ impl TryFrom<Token> for Operand {
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
-            _ => Err(Self::Error::no_tip(None, Some("Failed to create operand!"))),
+            _ => Err(Error::new(
+                format!(
+                    "failed to create operand from \"{}\" token",
+                    tok.to_string()
+                ),
+                3,
+            )),
         }
     }
 }
@@ -433,25 +438,16 @@ impl AST {
             }
         }
     }
-    pub fn extend(&mut self, rhs: Self) -> Result<(), RASMError> {
+    pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
             if self.sections.contains(&l) {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some(format!("Multiple files contains label {}", l.name)),
-                ));
+                return Err(Error::new("multiple files contain same sections", 12));
             }
             self.sections.push(l);
         }
         for l in rhs.includes {
             if self.includes.contains(&l) {
-                return Err(RASMError::no_tip(
-                    None,
-                    Some(format!(
-                        "Multiple files contains include {}",
-                        l.to_string_lossy()
-                    )),
-                ));
+                continue;
             }
             self.includes.push(l);
         }

@@ -6,19 +6,18 @@
 const EMPTY_STRING: &str = "";
 use crate::shr::{
     ast::{ASTNode, Instruction, Label, AST},
-    error::RASMError,
+    error::RError as Error,
     section::Section,
     symbol::SymbolType,
 };
 
 use crate::RString;
 
-type Error = RASMError;
-type LexTree = Vec<Result<(ASTNode, usize), RASMError>>;
+type LexTree = Vec<Result<(ASTNode, usize), Error>>;
 
-pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
+pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
     let empty: RString = EMPTY_STRING.into();
-    let mut errors: Vec<RASMError> = Vec::new();
+    let mut errors: Vec<Error> = Vec::new();
     let mut ast = AST::default();
     let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
     let mut inside_label: (bool, RString) = (false, RString::from(""));
@@ -32,40 +31,40 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
             Ok(node) => match node.0 {
                 ASTNode::Write => {
                     if inside_label.0 {
-                        errors.push(Error::no_tip(
-                            Some(node.1),
-                            Some("Align keyword can only be used inside sections."),
-                        ));
+                        let mut er =
+                            Error::new("write directive can only be used inside sections", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     } else {
                         inside_section.attributes.set_write(true);
                     }
                 }
                 ASTNode::Exec => {
                     if inside_label.0 {
-                        errors.push(Error::no_tip(
-                            Some(node.1),
-                            Some("Align keyword can only be used inside sections."),
-                        ));
+                        let mut er =
+                            Error::new("exec directive can only be used inside sections", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     } else {
                         inside_section.attributes.set_exec(true);
                     }
                 }
                 ASTNode::Alloc => {
                     if inside_label.0 {
-                        errors.push(Error::no_tip(
-                            Some(node.1),
-                            Some("Align keyword can only be used inside sections."),
-                        ));
+                        let mut er =
+                            Error::new("alloc directive can only be used inside sections", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     } else {
                         inside_section.attributes.set_alloc(true);
                     }
                 }
                 ASTNode::Align(a) => {
                     if inside_label.0 {
-                        errors.push(Error::no_tip(
-                            Some(node.1),
-                            Some("Align keyword can only be used inside sections."),
-                        ));
+                        let mut er =
+                            Error::new("align directive can only be used inside sections", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     } else {
                         inside_section.align = a;
                     }
@@ -142,11 +141,9 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                 }
                 ASTNode::Ins(ins) => {
                     if !inside_label.0 {
-                        errors.push(RASMError::with_tip(
-                                    Some(node.1),
-                                    Some("This instruction was outside of label!"),
-                                    Some("RASM doesn't support instructions outside of label. Consider adding it to label like: _misc or something like this")
-                                ));
+                        let mut er = Error::new("instructions can only be used inside labels", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     } else {
                         instructions.push(ins);
                     }
@@ -155,46 +152,30 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<RASMError>> {
                     if (inside_label.0, &inside_label.1) == (false, &empty) {
                         ast.externs.push(extrn);
                     } else {
-                        errors.push(RASMError::no_tip(
-                            Some(node.1),
-                            Some("Externs can be only declared outside of labels, not inside of"),
-                        ));
-                    }
-                }
-                ASTNode::Entry(entry) => {
-                    if (inside_label.0, &inside_label.1) == (false, &empty) {
-                        if ast.entry.is_none() {
-                            ast.entry = Some(entry);
-                        } else {
-                            errors.push(RASMError::no_tip(
-                                Some(node.1),
-                                Some("Entry point declared twice"),
-                            ));
-                        }
-                    } else {
-                        errors.push(RASMError::no_tip(
-                            Some(node.1),
-                            Some("Entries can be only declared outside of labels, not inside of"),
-                        ));
+                        let mut er =
+                            Error::new("extern directive can only be used outside of labels", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     }
                 }
                 ASTNode::Bits(bits_new) => {
                     if (inside_label.0, &inside_label.1) == (false, &empty) {
                         match bits_new {
                             16 | 32 | 64 => inside_section.bits = bits_new,
-                            n => errors.push(RASMError::no_tip(
-                                Some(node.1),
-                                Some(format!(
-                                    "Invalid bits specifier; expected 16, 32, 64, found {}",
-                                    n
-                                )),
-                            )),
+                            _ => {
+                                let mut er = Error::new(
+                                    "bits directive can only accept values: 16, 32 or 64",
+                                    8,
+                                );
+                                er.set_line(node.1);
+                                errors.push(er);
+                            }
                         }
                     } else {
-                        errors.push(RASMError::no_tip(
-                            Some(node.1),
-                            Some("Bits can be only declared outside of labels, not inside of"),
-                        ));
+                        let mut er =
+                            Error::new("bits directive can only be used outside of labels", 8);
+                        er.set_line(node.1);
+                        errors.push(er);
                     }
                 }
             },
@@ -266,7 +247,7 @@ fn collect_label(
     Ok(())
 }
 
-fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
+fn parse_attr(attr: String) -> Result<TmpLabelAttr, Error> {
     if attr.is_empty() {
         return Ok(TmpLabelAttr::default());
     }
@@ -281,7 +262,10 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
                     } else if val == "local" {
                         attrs.global = false;
                     } else {
-                        return Err(RASMError::no_tip(None, Some("Tried to assign label visibility attribute; expected either \"global\" or \"local\", found unknown")));
+                        return Err(Error::new(
+                            "unexpected visibility attribute value: expected global or local",
+                            8,
+                        ));
                     }
                 }
                 "type" => match val {
@@ -290,37 +274,42 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, RASMError> {
                     "sect" => attrs.stype = SymbolType::Section,
                     "file" => attrs.stype = SymbolType::File,
                     "none" => attrs.stype = SymbolType::NoType,
-                    _ => {
-                        return Err(RASMError::msg(format!(
-                            "Tried to use unknown type in attributes: \"{val}\""
-                        )))
-                    }
+                    _ => return Err(Error::new(
+                        "unexpected type attribute value: expected func, objc, sect, file or none",
+                        8,
+                    )),
                 },
                 "align" => {
                     if let Ok(n) = val.parse::<u16>() {
                         attrs.align = n;
                     } else {
-                        return Err(RASMError::no_tip(None, Some("Tried to assign label align attribute; expected a unsigned 16-bit integer, found unknown")));
+                        return Err(Error::new(
+                            "unexpected align attribute value: expected 16-bit unsigned integer",
+                            8,
+                        ));
                     }
                 }
                 "bits" => {
                     if let Ok(n) = val.parse::<u8>() {
                         attrs.bits = n;
                     } else {
-                        return Err(RASMError::no_tip(None, Some("Tried to assign label bits attribute; expected a unsigned 8-bit integer, found unknown")));
+                        return Err(Error::new(
+                            "unexpected bits attribute value: expected 8-bit unsigned integer",
+                            8,
+                        ));
                     }
                 }
                 _ => {
-                    return Err(RASMError::no_tip(
-                        None,
-                        Some(format!("Unknown attribute: {key}")),
+                    return Err(Error::new(
+                        format!("tried to use unknown attribute \"{key}\""),
+                        8,
                     ))
                 }
             }
         } else {
-            return Err(RASMError::no_tip(
-                None,
-                Some(format!("Unknown attribute: {a}")),
+            return Err(Error::new(
+                format!("tried to use unknown attribute \"{a}\""),
+                8,
             ));
         }
     }

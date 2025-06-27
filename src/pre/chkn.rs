@@ -13,9 +13,9 @@ use crate::conf::Shared;
 use crate::shr::{
     ast::{Instruction, Operand},
     booltable::BoolTable8 as Flags8,
-    error::RASMError as Error,
+    error::RError as Error,
     ins::Mnemonic,
-    reg::Register,
+    reg::{Purpose, Register},
     size::Size,
     smallvec::SmallVec,
 };
@@ -63,6 +63,44 @@ pub enum AType {
     Memory(Size, Size),
     //              is_string
     Immediate(Size, bool),
+}
+
+impl std::fmt::Display for AType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Register(r, true) => write!(f, "{}", r.to_string())?,
+            Self::Register(r, false) => match (r.size(), r.purpose()) {
+                (Size::Byte, _) => write!(f, "r8")?,
+                (Size::Word, Purpose::General) => write!(f, "r16")?,
+                (Size::Word, Purpose::Sgmnt) => write!(f, "sreg")?,
+                (Size::Dword, Purpose::General) => write!(f, "r32")?,
+                (Size::Dword, Purpose::Dbg) => write!(f, "dr")?,
+                (Size::Dword, Purpose::Ctrl) => write!(f, "cr")?,
+                (Size::Qword, Purpose::General) => write!(f, "r64")?,
+                (Size::Qword, Purpose::Mmx) => write!(f, "mm")?,
+                (Size::Xword, _) => write!(f, "xmm")?,
+                (Size::Yword, _) => write!(f, "ymm")?,
+                _ => write!(f, "")?,
+            },
+            Self::Immediate(s, false) => match s {
+                Size::Byte => write!(f, "imm8")?,
+                Size::Word => write!(f, "imm16")?,
+                Size::Dword => write!(f, "imm32")?,
+                Size::Qword => write!(f, "imm64")?,
+                _ => write!(f, "immANY")?,
+            },
+            Self::Immediate(_, true) => write!(f, "string")?,
+            Self::Memory(sz, addrsz) => match addrsz {
+                Size::Any => write!(f, "m{}", (<Size as Into<u8>>::into(*sz) as u16) << 3)?,
+                Size::Word => write!(f, "m{}&16", (<Size as Into<u8>>::into(*sz) as u16) << 3)?,
+                Size::Dword => write!(f, "m{}&32", (<Size as Into<u8>>::into(*sz) as u16) << 3)?,
+                Size::Qword => write!(f, "m{}&64", (<Size as Into<u8>>::into(*sz) as u16) << 3)?,
+                _ => write!(f, "")?,
+            },
+            Self::None => write!(f, "")?,
+        };
+        Ok(())
+    }
 }
 
 trait ToType {
@@ -591,13 +629,17 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
                     }
                 }
                 if !f {
-                    return Err(Error::no_tip(Some(ins.line), Some("Tried to use prefix mnemonic, but used instruction does not allow for this one")));
+                    let mut er = Error::new("you tried to use prefix mnemonic, but primary mnemonic does not allow for this one", 6);
+                    er.set_line(ins.line);
+                    return Err(er);
                 }
             } else {
-                return Err(Error::no_tip(
-                    Some(ins.line),
-                    Some("Tried to use prefix mnemonic, but used instruction does not permit it"),
-                ));
+                let mut er = Error::new(
+                    "you tried to use prefix mnemonic, but primary mnemonic does not allow for one",
+                    6,
+                );
+                er.set_line(ins.line);
+                return Err(er);
             }
         }
         Ok(())
@@ -625,10 +667,9 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
                 }
             }
             if at == smv.len() {
-                return Err(Error::no_tip(
-                    Some(ins.line),
-                    Some("Tried to use forbidden operand combination!"),
-                ));
+                let mut er = Error::new("you tried to use forbidden operand combination", 7);
+                er.set_line(ins.line);
+                return Err(er);
             }
         }
 
@@ -639,21 +680,20 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
         for (i, o) in self.allowed.iter().enumerate() {
             if let Some(s) = ins.get_opr(i) {
                 if !o.has(s.atypen()) {
-                    return Err(Error::no_tip(
-                        Some(ins.line),
-                        Some(format!("Invalid operand type at index {i}")),
-                    ));
+                    let mut er = Error::new(
+                        format!("invalid operand at index {i} of type {}", s.atypen()),
+                        8,
+                    );
+                    er.set_line(ins.line);
+                    return Err(er);
                 }
             } else {
                 if o.is_optional() {
                     break;
                 } else {
-                    return Err(Error::no_tip(
-                        Some(ins.line),
-                        Some(format!(
-                            "Internal error: expected operand set at index {i}, found none"
-                        )),
-                    ));
+                    let mut er = Error::new("you didn't provide valid amount of operands", 9);
+                    er.set_line(ins.line);
+                    return Err(er);
                 }
             }
         }
@@ -672,27 +712,25 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
                         continue;
                     }
                     if o.is_imm() && sz < o.size() {
-                        return Err(Error::no_tip(
-                            Some(ins.line),
-                            Some("Tried to use immediate that is too large for other operands!"),
-                        ));
+                        let mut er = Error::new(
+                            "you provided immediate which size was larger than other operands",
+                            8,
+                        );
+                        er.set_line(ins.line);
+                        return Err(er);
                     }
                     if let Some(r) = o.get_reg() {
                         if sz != r.size() && !r.is_dbg_reg() && !r.is_ctrl_reg() && !r.is_sgmnt() {
-                            return Err(Error::no_tip(
-                                Some(ins.line),
-                                Some("Invalid operand size was used in this instruction!"),
-                            ));
+                            let mut er = Error::new(
+                                "you tried to use invalid operand size in this instruction",
+                                8,
+                            );
+                            er.set_line(ins.line);
+                            return Err(er);
                         }
                     }
                 }
             }
-        }
-        if ins.oprs.len() < OPERAND_COUNT {
-            return Err(Error::no_tip(
-                    Some(ins.line),
-                    Some(format!("Provided too little operands for instruction: found {}, expected {OPERAND_COUNT} max", ins.oprs.len())))
-            );
         }
         Ok(())
     }

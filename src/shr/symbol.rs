@@ -4,9 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::conf::PREFIX_VAL;
-use crate::shr::{
-    booltable::BoolTable8, error::RASMError, num::Number, reloc::RelType, size::Size,
-};
+use crate::shr::{booltable::BoolTable8, error::RError, num::Number, reloc::RelType, size::Size};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -60,7 +58,7 @@ pub struct SymbolRef {
     guardians: BoolTable8,
 }
 
-type Error = RASMError;
+type Error = RError;
 
 enum Token {
     String(String),
@@ -174,8 +172,9 @@ impl SymbolRef {
         }
 
         if name.is_empty() {
-            return Err(Error::msg(
-                "Tried to use reference a symbol, but you didn't provided name",
+            return Err(RError::new(
+                "tried to reference a symbol, but forgot to provide its name",
+                101,
             ));
         }
 

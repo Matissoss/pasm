@@ -3,20 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-#[cfg(feature = "mthread")]
-pub type RString = std::sync::Arc<str>;
-#[cfg(not(feature = "mthread"))]
-pub type RString = std::rc::Rc<str>;
-
-#[cfg(feature = "mthread")]
-pub type SharedElf<T> = std::sync::Arc<T>;
-#[cfg(not(feature = "mthread"))]
-pub type SharedElf<T> = T;
-
-#[cfg(feature = "mthread")]
-pub type SharedArr<T> = std::sync::Arc<[T]>;
-#[cfg(not(feature = "mthread"))]
-pub type SharedArr<T> = std::rc::Rc<[T]>;
+pub type RString = Shared<str>;
+pub type SharedArr<T> = Shared<[T]>;
 
 #[cfg(feature = "mthread")]
 pub type Shared<T> = std::sync::Arc<T>;
@@ -33,9 +21,9 @@ pub const CORE_LB_GROUP: usize = 2;
 // TOK_LN_GROUP groups (TOK_LN_GROUP) lines to make tokenizer
 // faster in multithreading.
 // -----------
-// default = 256
+// default = 512
 #[cfg(feature = "mthread")]
-pub const TOK_LN_GROUP: usize = 256;
+pub const TOK_LN_GROUP: usize = 512;
 
 // default = 8
 #[cfg(feature = "mthread")]

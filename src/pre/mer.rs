@@ -8,7 +8,7 @@ use crate::{
     pre::tok::Token,
     shr::{
         ast::{ASTNode, Instruction, Operand},
-        error::RASMError,
+        error::RError as Error,
         ins::Mnemonic,
         kwd::Keyword,
         mem::Mem,
@@ -20,15 +20,16 @@ use std::path::PathBuf;
 
 pub fn mer(
     file: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>,
-) -> Vec<Result<(ASTNode, usize), RASMError>> {
-    let mut ast_tree: Vec<Result<(ASTNode, usize), RASMError>> = Vec::new();
-    for (line_count, mut line) in file.into_iter().enumerate() {
+) -> Vec<Result<(ASTNode, usize), Error>> {
+    let mut ast_tree: Vec<Result<(ASTNode, usize), Error>> = Vec::new();
+    for (mut line_count, mut line) in file.into_iter().enumerate() {
+        line_count += 1;
         if line.is_empty() {
             continue;
         }
 
         let mut node: Option<ASTNode> = None;
-        let mut error: Option<RASMError> = None;
+        let mut error: Option<Error> = None;
         match line.first() {
             Some(Token::Label(lbl)) => node = Some(ASTNode::Label(lbl.clone())),
             Some(Token::Closure('#', s)) => node = Some(ASTNode::Attributes(s.clone())),
@@ -38,17 +39,14 @@ pub fn mer(
                     if let Ok(n) = u16::try_from(uint32) {
                         node = Some(ASTNode::Align(n));
                     } else {
-                        ast_tree.push(Err(RASMError::no_tip(
-                            Some(line_count),
-                            Some(format!("Couldn't fit number {} in 86-bits", uint32)),
-                        )));
+                        let mut er = Error::new("you tried to use align directive, but you did not provide a 16-bit valid number", 8);
+                        er.set_line(line_count);
+                        ast_tree.push(Err(er));
                     }
                 } else {
-                    error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after align keyword, expected string, found nothing"),
-                            Some("Consider adding something after align keyword")
-                        ));
+                    let mut er = Error::new("you tried to use align directive, but you did not provide a 16-bit valid number", 8);
+                    er.set_line(line_count);
+                    error = Some(er);
                 }
             }
             Some(Token::Keyword(Keyword::Bits)) => {
@@ -57,28 +55,26 @@ pub fn mer(
                     if let Ok(n) = u8::try_from(uint32) {
                         node = Some(ASTNode::Bits(n));
                     } else {
-                        ast_tree.push(Err(RASMError::no_tip(
-                            Some(line_count),
-                            Some(format!("Couldn't fit number {} in 8-bits", uint32)),
-                        )));
+                        let mut er = Error::new("you tried to use bits directive, but you did not provide a 8-bit valid number", 8);
+                        er.set_line(line_count);
+                        ast_tree.push(Err(er));
                     }
                 } else {
-                    error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after bits keyword, expected string, found nothing"),
-                            Some("Consider adding something after bits keyword")
-                        ));
+                    let mut er = Error::new("you tried to use bits directive, but you did not provide a 8-bit valid number", 8);
+                    er.set_line(line_count);
+                    error = Some(er);
                 }
             }
             Some(Token::Keyword(Keyword::Section)) => {
                 if let Some(Token::String(str) | Token::Unknown(str)) = line.pop() {
                     node = Some(ASTNode::Section(str.clone()));
                 } else {
-                    error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after section keyword, expected string, found nothing"),
-                            Some("Consider adding something after section keyword")
-                        ));
+                    let mut er = Error::new(
+                        "you tried to use section directive, but you did not provide string",
+                        8,
+                    );
+                    er.set_line(line_count);
+                    error = Some(er);
                 }
             }
             Some(Token::Keyword(Keyword::Write)) => {
@@ -89,17 +85,6 @@ pub fn mer(
             }
             Some(Token::Keyword(Keyword::Exec)) => {
                 node = Some(ASTNode::Exec);
-            }
-            Some(Token::Keyword(Keyword::Entry)) => {
-                if let Some(Token::String(entr) | Token::Unknown(entr)) = line.pop() {
-                    node = Some(ASTNode::Entry(entr.clone()));
-                } else {
-                    error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after entry keyword, expected string, found nothing"),
-                            Some("Consider adding something after entry keyword")
-                        ));
-                }
             }
             Some(Token::Keyword(Keyword::Include)) => match make_include(line) {
                 Ok(i) => node = Some(ASTNode::Include(i)),
@@ -112,11 +97,12 @@ pub fn mer(
                 if let Some(Token::String(etrn) | Token::Unknown(etrn)) = line.get(1) {
                     node = Some(ASTNode::Extern(etrn.clone()));
                 } else {
-                    error = Some(RASMError::with_tip(
-                            Some(line_count),
-                            Some("Unexpected end of line after extern keyword, expected string, found nothing"),
-                            Some("Consider adding something after extern keyword")
-                        ));
+                    let mut er = Error::new(
+                        "you tried to use extern directive, but you did not provide string",
+                        8,
+                    );
+                    er.set_line(line_count);
+                    error = Some(er);
                 }
             }
             Some(Token::Keyword(Keyword::Math)) => match make_eval(line) {
@@ -136,16 +122,10 @@ pub fn mer(
                     error = Some(e);
                 }
             },
-            Some(Token::Unknown(s)) => ast_tree.push(Err(RASMError::no_tip(
-                Some(line_count),
-                Some(format!("Tried to start line with unknown mnemonic `{s}`")),
-            ))),
             _ => {
-                ast_tree.push(Err(RASMError::with_tip(
-                    Some(line_count),
-                    Some("Unexpected start of line"),
-                    Some("Consider starting line with instruction, !global, section declaration or label declaration")
-                )));
+                let mut er = Error::new("unexpected start of line", 8);
+                er.set_line(line_count);
+                ast_tree.push(Err(er));
             }
         }
 
@@ -158,75 +138,70 @@ pub fn mer(
     ast_tree
 }
 
-fn make_include(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<PathBuf, RASMError> {
+fn make_include(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<PathBuf, Error> {
     if let Some(Token::Unknown(s) | Token::String(s)) = line.get(1) {
         Ok(PathBuf::from(s.to_string()))
     } else {
-        Err(RASMError::no_tip(
-            None,
-            Some("Tried to use include, but without file name"),
+        Err(Error::new(
+            "you tried to use include directive, but you forgot to provide file name (string)",
+            8,
         ))
     }
 }
 
-fn make_eval(mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<(RString, u64), RASMError> {
+fn make_eval(mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<(RString, u64), Error> {
     if line.is_empty() {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make mathematical evaluation from nothing"),
+        return Err(Error::new(
+            "you tried to use math directive, but you didn't provide anything beside directive",
+            8,
         ));
     }
     if line.len() > 3 {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make mathematical evaluation from too many tokens"),
+        return Err(Error::new(
+            "you tried to use math directive, but you provided more than 3 tokens",
+            8,
         ));
     }
     // we assert that first (index 0) element is math keyword
     if line.get(1).is_none() || line.get(2).is_none() {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make mathematical const without name/content"),
+        return Err(Error::new(
+            "you tried to use math directive, but you forgot to provide name and/or content",
+            8,
         ));
     }
     let eval = match line.pop().unwrap() {
         Token::Immediate(n) => n.get_as_u64(),
         _ => {
-            return Err(RASMError::no_tip(
-                None,
-                Some("Tried to make value from nothing"),
-            ))
+            return Err(Error::new("you tried to use math directive, but you provided unexpected token instead of immediate/math closure", 8))
         }
     };
-    let name = if let Token::Unknown(name) = line.pop().unwrap() {
+    let name = if let Token::Unknown(name) | Token::String(name) = line.pop().unwrap() {
         name.clone()
     } else {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make mathematical const's name with incompatible token"),
+        return Err(Error::new(
+            "you tried to use math directive, but you provided invalid token for name",
+            8,
         ));
     };
     Ok((name, eval))
 }
 
 const OPS: SmallVec<Operand, 5> = SmallVec::new();
-fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, RASMError> {
+fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, Error> {
     if line.is_empty() {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make instruction from nothing"),
-        ));
+        return Err(Error::new("you tried to make instruction from nothing", 8));
     }
     let mut mnems: SmallVec<Mnemonic, 2> = SmallVec::new();
-    let mut tmp_buf: SmallVec<Token, 8> = SmallVec::new();
+    let mut tmp_buf: SmallVec<Token, 4> = SmallVec::new();
     let mut iter = line.into_iter().into_iter();
     while let Some(t) = iter.next() {
         if let Token::Mnemonic(m) = t {
             if mnems.can_push() {
                 mnems.push(m);
             } else {
-                return Err(RASMError::msg(
-                    "Tried to make instruction with 2+ mnemonics",
+                return Err(Error::new(
+                    "you tried to make instruction with 2+ mnemonics",
+                    8,
                 ));
             }
         } else {
@@ -242,9 +217,9 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
         if t == Token::Comma {
             if !tmp_buf.is_empty() {
                 if !ops.can_push() {
-                    return Err(RASMError::no_tip(
-                        None,
-                        Some("More than max operands in instruction (5) were used!"),
+                    return Err(Error::new(
+                        "you tried to make instruction with too many operands (5+)",
+                        8,
                     ));
                 }
                 ops.push(make_op(tmp_buf)?);
@@ -258,9 +233,9 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
         ops.push(make_op(tmp_buf)?);
     }
     if mnems.is_empty() {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make instruction with no mnemonics"),
+        return Err(Error::new(
+            "you tried to make instruction without mnemonic",
+            8,
         ));
     }
 
@@ -278,12 +253,9 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, R
     })
 }
 
-fn make_op(line: SmallVec<Token, 8>) -> Result<Operand, RASMError> {
+fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
     if line.is_empty() {
-        return Err(RASMError::no_tip(
-            None,
-            Some("Tried to make operand from nothing"),
-        ));
+        return Err(Error::new("you tried to make operand from nothing", 8));
     }
 
     if line.len() == 1 {
@@ -303,14 +275,12 @@ fn make_op(line: SmallVec<Token, 8>) -> Result<Operand, RASMError> {
                 let (sref, sz) = match (m.first(), m.get(1)) {
                     (Some(Token::SymbolRef(s)), Some(Token::Keyword(s1))) => (s, s1),
                     (Some(Token::SymbolRef(s)), None) => (s, &Keyword::Any),
-                    _ => return Err(RASMError::msg("Unexpected combination of deref keyword with modifier")),
+                    _ => return Err(Error::new("you tried to make operand from modifier with deref directive", 8)),
                 };
                 let sz = if let Ok(sz) = Size::try_from(*sz) {
                     sz
                 } else {
-                    return Err(RASMError::msg(
-                        "Expected size directive after symbolref, found unknown keyword",
-                    ));
+                    return Err(Error::new("expected size directive after symbol reference", 8))
                 };
                 let mut sref = sref.clone();
                 sref.deref(true);
@@ -324,40 +294,32 @@ fn make_op(line: SmallVec<Token, 8>) -> Result<Operand, RASMError> {
             |(Token::Keyword(ref k), Token::Modifier(ref m)) => {
                 let size = match Size::try_from(*k){
                     Ok(s) => s,
-                    Err(_) => return Err(RASMError::no_tip(
-                        None,
-                        Some(format!("Couldn't parse size specifier `{}`", k.to_string())),
-                    ))
+                    Err(_) => return Err(Error::new(
+                        "expected size specifier, found unknown directive", 8)),
                 };
                 let seg_reg = if let Some(Token::Register(r)) = m.first() {
                     if r.is_sgmnt() {
                         r
                     } else {
-                        return Err(RASMError::msg("Expected segment-purposed register, found non-segment register"));
+                        return Err(Error::new("expected sreg, found other register", 8))
                     }
                 } else {
-                    return Err(RASMError::msg("Expected segment-purposed register, found {unknown}"));
+                    return Err(Error::new("expected sreg, found {unknown}", 8))
                 };
                 let mut mem = if let Some(Token::Closure(' ', s)) = m.get(1) {
                     Mem::new(s, size)?
                 } else {
-                    return Err(RASMError::no_tip(None, Some("Expected memory address as second (idx 1) modifier")));
+                    return Err(Error::new("expected memory address at index 1", 8))
                 };
                 mem.set_segment(*seg_reg);
                 return Ok(Operand::Mem(mem));
             }
-            _ => return Err(RASMError::no_tip(
-                None,
-                Some("Tried to make unexpected operand from two tokens; expected memory address (or segment) along with size specifier".to_string()),
-            ))
+            _ => return Err(Error::new("you tried to make operand from two tokens, but ones you provided could not be parsed into one", 8))
         }
     }
 
-    Err(RASMError::no_tip(
-        None,
-        Some(format!(
-            "Tried to make operand from too large set of tokens ({})",
-            line.len()
-        )),
+    Err(Error::new(
+        "you tried to make operand from more than 2 tokens",
+        8,
     ))
 }

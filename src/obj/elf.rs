@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use crate::shr::{
-    error::RASMError as Error,
+    error::RError as Error,
     reloc::{RelType, Relocation},
     section::Section,
     symbol::{Symbol, SymbolType},
@@ -298,10 +298,10 @@ fn make_elf<'a>(
                 is_64bit,
             );
         } else {
-            return Err(Error::msg(format!(
-                "Could not find symbol \"{}\" which you tried to use. Consider using extern directive",
-                reloc.symbol
-            )));
+            return Err(Error::new(
+                format!("usage of undefined symbol \"{}\"", reloc.symbol),
+                4,
+            ));
         }
     }
     Ok(elf)
