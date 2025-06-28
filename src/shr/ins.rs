@@ -463,7 +463,7 @@ pub enum Mnemonic {
     JCXZ, JECXZ, JRCXZ,
 
     // AVX-512 (with AVX-10)
-    EADDPH,
+    EADDPH, EADDSH,
 
     // this has no real purpose, but why not?
     __LAST

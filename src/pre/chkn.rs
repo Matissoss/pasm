@@ -275,7 +275,7 @@ impl Key {
             toret.set_zz((b as u16) << 1);
             if b {
                 // X
-                toret.key |= (r.needs_rex() as u16) << 7;
+                toret.key |= (r.get_ext_bits()[1] as u16) << 7;
                 // YYYY
                 toret.key |= (r.purpose() as u16) << 3;
                 // ZZZ

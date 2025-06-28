@@ -21,17 +21,17 @@ fn needs_rex(ins: &Instruction) -> bool {
     };
     match (ins.dst(), ins.src()) {
         (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) => {
-            if r.needs_rex() || r1.needs_rex() {
+            if r.get_ext_bits()[1] || r1.get_ext_bits()[1] {
                 return true;
             }
         }
         (Some(Operand::Reg(r)), _) => {
-            if r.needs_rex() {
+            if r.get_ext_bits()[1] {
                 return true;
             }
         }
         (_, Some(Operand::Reg(r))) => {
-            if r.needs_rex() {
+            if r.get_ext_bits()[1] {
                 return true;
             }
         }
@@ -132,7 +132,7 @@ fn needs_rex(ins: &Instruction) -> bool {
             if let (Some(Operand::CtrReg(r) | Operand::DbgReg(r)), _)
             | (_, Some(Operand::CtrReg(r) | Operand::DbgReg(r))) = (ins.dst(), ins.src())
             {
-                return r.needs_rex();
+                return r.get_ext_bits()[1];
             }
             false
         }
@@ -162,12 +162,12 @@ fn needs_rex(ins: &Instruction) -> bool {
         Mnm::SAR | Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::LEA => true,
         _ => {
             if let Some(Operand::Reg(dst)) = ins.dst() {
-                if dst.needs_rex() {
+                if dst.get_ext_bits()[1] {
                     return true;
                 }
             }
             if let Some(Operand::Reg(src)) = ins.src() {
-                if src.needs_rex() {
+                if src.get_ext_bits()[1] {
                     return true;
                 }
             }
@@ -178,7 +178,9 @@ fn needs_rex(ins: &Instruction) -> bool {
 
 fn get_wb(op: Option<&Operand>) -> bool {
     match op {
-        Some(Operand::Reg(reg) | Operand::CtrReg(reg) | Operand::DbgReg(reg)) => reg.needs_rex(),
+        Some(Operand::Reg(reg) | Operand::CtrReg(reg) | Operand::DbgReg(reg)) => {
+            reg.get_ext_bits()[1]
+        }
         _ => false,
     }
 }
@@ -228,7 +230,7 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
         _ => {}
     }
     if let Some(Operand::Reg(reg)) = ins.dst() {
-        if reg.needs_rex() {
+        if reg.get_ext_bits()[1] {
             if modrm_reg_is_dst {
                 r = true;
             } else {

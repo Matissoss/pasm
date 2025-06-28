@@ -172,7 +172,7 @@ impl GenAPI {
     pub const fn evex(mut self, vex_details: VexDetails) -> Self {
         self.flags.set(EVEX_PFX, true);
         self.prefix =
-            { (vex_details.vex_we as u8) << 7 | vex_details.map_select << 2 | pp(vex_details.pp) };
+            (vex_details.vex_we as u8) << 7 | vex_details.map_select << 2 | pp(vex_details.pp);
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
@@ -414,7 +414,7 @@ impl GenAPI {
             // rvrm
             else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
                 let mut v = Vec::new();
-                v.push((r.needs_rex() as u8) << 7 | r.to_byte() << 4);
+                v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
                 extend_imm(&mut v, size as u8);
                 base.extend(v);
             }

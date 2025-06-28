@@ -2648,6 +2648,16 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        EADDSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(

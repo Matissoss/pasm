@@ -250,7 +250,7 @@ impl Instruction {
         }
         for o in self.oprs.iter() {
             if let Operand::Reg(r) = o {
-                if r.needs_evex() {
+                if r.get_ext_bits()[0] {
                     return true;
                 }
             }

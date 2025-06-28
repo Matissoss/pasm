@@ -215,7 +215,7 @@ impl Mem {
     // fails, if addrsize != base.size()
     pub fn set_base(&mut self, base: Register) -> bool {
         let bb = base.to_byte();
-        let rx = base.needs_rex() as u8;
+        let rx = base.get_ext_bits()[1] as u8;
 
         // check
         if self.addrsize().unwrap_or(Size::Unknown) != base.size() {
@@ -236,7 +236,7 @@ impl Mem {
     // fails, if addrsize != base.size()
     pub fn set_index(&mut self, index: Register) -> bool {
         let bb = index.to_byte();
-        let rx = index.needs_rex() as u8;
+        let rx = index.get_ext_bits()[1] as u8;
 
         // check
         if self.addrsize().unwrap_or(Size::Unknown) != index.size() {

@@ -4419,6 +4419,11 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .evex(VexDetails::new().map_select(MAP5).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Ins::EADDSH => GenAPI::new()
+            .opcode(&[0x58])
+            .evex(VexDetails::new().map_select(MAP5).vex_we(false).pp(0xF3))
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         _ => panic!("haha"),
     }
 }

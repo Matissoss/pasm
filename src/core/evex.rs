@@ -21,26 +21,33 @@ pub const MAP5: u8 = 0b101;
 pub const MAP6: u8 = 0b110;
 
 pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
-    let [_modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
+    let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 
-    let (evex_r0, evex_r1) = ee_bits(modrm_reg);
+    let [[evex_r0, evex_r1], [_, _]] = ee_bits(modrm_reg);
+    let [[evex_b0, evex_b], [_, mut evex_x1]] = ee_bits(modrm_rm);
+    let [[evex_vd, _], [_, _]] = ee_bits(evex_vvvv);
+
+    if evex_b0 {
+        evex_x1 = true;
+    }
 
     [
         EVEX,
-        (!evex_r0 as u8) << 7
-            | 1 << 6
-            | 1 << 5
-            | (!evex_r1 as u8) << 4
+        (!evex_r1 as u8) << 7
+            | (!evex_x1 as u8) << 6
+            | (!evex_b as u8) << 5
+            | (!evex_r0 as u8) << 4
             | ctx.get_map_select().unwrap() & 0b111,
         (ctx.get_vex_we().unwrap() as u8) << 7
             | gen_evex4v(evex_vvvv) << 3
             | 1 << 2
             | ctx.get_pp().unwrap(),
+        // this byte is certainly NOT RIGHT, because of rc, b, sae, etc.
         (ins.get_z() as u8) << 7
             | ((ins.size() == Size::Zword) as u8) << 6
             | ((ins.size() == Size::Yword) as u8) << 5
             | (ins.get_bcst() as u8) << 4
-            | 1 << 3
+            | (!evex_vd as u8) << 3
             | ins.get_mask().unwrap().to_byte(),
     ]
 }
@@ -53,7 +60,7 @@ const fn andn(num: u8, bits: u8) -> u8 {
 fn gen_evex4v(op: Option<&Operand>) -> u8 {
     if let Some(o) = op {
         match o {
-            Operand::Reg(r) => andn((r.needs_rex() as u8) << 3 | r.to_byte(), 0b0000_1111),
+            Operand::Reg(r) => andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111),
             _ => 0b1111,
         }
     } else {
@@ -62,20 +69,24 @@ fn gen_evex4v(op: Option<&Operand>) -> u8 {
 }
 
 // extended bits
-fn ee_bits(op: Option<&Operand>) -> (bool, bool) {
+fn ee_bits(op: Option<&Operand>) -> [[bool; 2]; 2] {
     if let Some(op) = op {
         match op {
-            Operand::Reg(r) => (r.needs_evex(), r.needs_rex()),
+            Operand::Reg(r) => [r.get_ext_bits(), [false; 2]],
             Operand::Mem(m) => {
-                if let Some(idx) = m.index() {
-                    (idx.needs_evex(), idx.needs_rex())
-                } else {
-                    (false, false)
+                let mut base = [false; 2];
+                if let Some(i) = m.base() {
+                    base = i.get_ext_bits();
                 }
+                let mut idx = [false; 2];
+                if let Some(i) = m.index() {
+                    idx = i.get_ext_bits();
+                }
+                [base, idx]
             }
-            _ => (false, false),
+            _ => [[false; 2]; 2],
         }
     } else {
-        (false, false)
+        [[false; 2]; 2]
     }
 }

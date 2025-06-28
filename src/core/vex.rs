@@ -58,7 +58,7 @@ fn needs_vex3(op: Option<&Operand>) -> (bool, bool) {
     if let Some(op) = op {
         match op {
             Operand::Reg(r) => {
-                if r.needs_rex() {
+                if r.get_ext_bits()[1] {
                     return (true, false);
                 }
             }
@@ -83,7 +83,7 @@ const fn andn(num: u8, bits: u8) -> u8 {
 fn gen_vex4v(op: Option<&Operand>) -> u8 {
     if let Some(o) = op {
         match o {
-            Operand::Reg(r) => andn((r.needs_rex() as u8) << 3 | r.to_byte(), 0b0000_1111),
+            Operand::Reg(r) => andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111),
             _ => 0b1111,
         }
     } else {
