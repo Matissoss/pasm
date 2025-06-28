@@ -37,6 +37,8 @@ pub const R32: AType = AType::Register(Register::EAX, false);
 pub const R64: AType = AType::Register(Register::RAX, false);
 pub const XMM: AType = AType::Register(Register::XMM0, false);
 pub const YMM: AType = AType::Register(Register::YMM0, false);
+pub const ZMM: AType = AType::Register(Register::ZMM0, false);
+pub const K: AType = AType::Register(Register::K0, false);
 
 pub const MA: AType = AType::Memory(Size::Any, Size::Any);
 pub const M8: AType = AType::Memory(Size::Byte, Size::Any);
@@ -45,6 +47,7 @@ pub const M32: AType = AType::Memory(Size::Dword, Size::Any);
 pub const M64: AType = AType::Memory(Size::Qword, Size::Any);
 pub const M128: AType = AType::Memory(Size::Xword, Size::Any);
 pub const M256: AType = AType::Memory(Size::Yword, Size::Any);
+pub const M512: AType = AType::Memory(Size::Zword, Size::Any);
 
 pub const IA: AType = AType::Immediate(Size::Any, false);
 pub const I8: AType = AType::Immediate(Size::Byte, false);
@@ -180,11 +183,12 @@ impl From<AType> for Key {
 //          0100 - Qword
 //          0101 - Xword
 //          0111 - Yword
-//          1000..1111 - reserved
+//          1000 - Zword
+//          1001..1111 - reserved
 // ZZ - depends on operand type:
 //      if register:
 //          - Z1: is register fixed (we know its value)
-//          - Z2: reserved
+//          - Z2: if register is fixed, then needs evex, otherwise reserved
 //      if memory:
 //          - Z1 and Z2: reserved
 //      if immediate:
@@ -286,12 +290,18 @@ impl Key {
                 let is_fixed = self.get_zz() & 0b10 == 0b10;
                 let rcd = if is_fixed { self.key & 0b0000_0111 } else { 0 };
                 if is_fixed {
-                    let ext = (self.key & 0b1 << 7) == 0b1 << 7;
-                    let en = Register::mksek(ext, rsz as u16, rpr as u16, rcd);
+                    let ext = (self.key & 0b11 << 7) >> 7;
+                    let en = Register::mksek(
+                        ext & 0b10 == 0b10,
+                        ext & 0b01 == 0b01,
+                        rsz as u16,
+                        rpr as u16,
+                        rcd,
+                    );
                     let de = Register::de(en);
                     Some(AType::Register(de, true))
                 } else {
-                    let en = Register::mksek(false, rsz as u16, rpr as u16, 0b000);
+                    let en = Register::mksek(false, false, rsz as u16, rpr as u16, 0b000);
                     Some(AType::Register(Register::de(en), false))
                 }
             }
@@ -351,6 +361,7 @@ impl Key {
             Size::Qword => 0b0100,
             Size::Xword => 0b0101,
             Size::Yword => 0b0111,
+            Size::Zword => 0b1000,
         } << 2
             << 8;
     }
@@ -363,6 +374,7 @@ impl Key {
             0b0100 => Size::Qword,
             0b0101 => Size::Xword,
             0b0111 => Size::Yword,
+            0b1000 => Size::Zword,
             _ => Size::Unknown,
         }
     }

@@ -3,8 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::{cmp::Ordering, str::FromStr};
-
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Keyword {
     Word,
@@ -15,6 +13,9 @@ pub enum Keyword {
     Dword,
     Xword,
     Yword,
+    Zword,
+    Bcst,
+
     Extern,
     Include,
 
@@ -31,129 +32,329 @@ pub enum Keyword {
 
     Rel32,
     Abs32,
+    Abs64,
+
     Rel16,
     Rel8,
 
     Define,
 }
 
-// keyword is equal
-#[inline(always)]
-fn kwd_ie(
-    str: &[u8],
-    cmp: &'static [u8],
-    start: usize,
-    end: usize,
-    kwd: Keyword,
-) -> Result<Keyword, ()> {
-    for idx in start..end {
-        let res = str[idx].cmp(&cmp[idx]);
-        if res != Ordering::Equal {
-            return Err(());
+impl std::str::FromStr for Keyword {
+    type Err = ();
+    fn from_str(kwd_str: &str) -> Result<Self, <Self as std::str::FromStr>::Err> {
+        if let Some(k) = kwd_fromstr(kwd_str) {
+            Ok(k)
+        } else {
+            Err(())
         }
     }
-    Ok(kwd)
 }
 
-impl FromStr for Keyword {
-    type Err = ();
-    fn from_str(kwd_str: &str) -> Result<Self, <Self as FromStr>::Err> {
-        let kwd_raw = kwd_str.as_bytes();
-        let kwd = kwd_raw;
-        match kwd_raw.len() {
-            3 => match kwd_raw[0] {
-                b'a' => match kwd_raw[1] {
-                    b'n' => match kwd_raw[2] {
-                        // experimental
-                        b'y' => Ok(Self::Any),
-                        _ => Err(()),
-                    },
-                    b'b' => match kwd_raw[2] {
-                        b's' => Ok(Self::Abs32),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                b'r' => match kwd_raw[1] {
-                    b'e' => match kwd_raw[2] {
-                        b'f' => Ok(Self::Ref),
-                        b'l' => Ok(Self::Rel32),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
+#[inline(always)]
+fn s<T>(t: T) -> Option<T> {
+    Some(t)
+}
 
-            4 => match kwd_raw[0] as char {
-                'e' => kwd_ie(kwd, b"exec", 1, 3, Keyword::Exec),
-                'b' => match kwd_raw[1] as char {
-                    'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
-                    'i' => kwd_ie(kwd, b"bits", 2, 3, Keyword::Bits),
-                    _ => Err(()),
+const N: Option<Keyword> = None;
+
+pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
+    use Keyword::*;
+    let r = str.as_bytes();
+    match r.len() {
+        3 => match r[0] {
+            b'a' => match r[1] {
+                b'n' => match r[2] {
+                    b'y' => s(Any),
+                    _ => N,
                 },
-                'w' => kwd_ie(kwd, b"word", 1, 3, Keyword::Word),
-                _ => Err(()),
+                _ => N,
             },
-            5 => match kwd_raw[0] as char {
-                'r' => match kwd_raw[1] as char {
-                    'e' => match kwd_raw[2] as char {
-                        'l' => match kwd_raw[3] as char {
-                            '3' => match kwd_raw[4] as char {
-                                '2' => Ok(Self::Rel32),
-                                _ => Err(()),
-                            },
-                            '1' => match kwd_raw[4] as char {
-                                '6' => Ok(Self::Rel16),
-                                _ => Err(()),
-                            },
-                            _ => Err(()),
+            b'r' => match r[1] {
+                b'e' => match r[2] {
+                    b'f' => s(Ref),
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        4 => match r[0] {
+            b'e' => match r[1] {
+                b'x' => match r[2] {
+                    b'e' => match r[3] {
+                        b'c' => s(Exec),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'r' => match r[1] {
+                b'e' => match r[2] {
+                    b'l' => match r[3] {
+                        b'8' => s(Rel8),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'w' => match r[1] {
+                b'o' => match r[2] {
+                    b'r' => match r[3] {
+                        b'd' => s(Word),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'b' => match r[1] {
+                b'c' => match r[2] {
+                    b's' => match r[3] {
+                        b't' => s(Bcst),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                b'i' => match r[2] {
+                    b't' => match r[3] {
+                        b's' => s(Bits),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                b'y' => match r[2] {
+                    b't' => match r[3] {
+                        b'e' => s(Byte),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        5 => match r[0] {
+            b'q' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => s(Qword),
+                            _ => N,
                         },
-                        _ => Err(()),
+                        _ => N,
                     },
-                    _ => Err(()),
+                    _ => N,
                 },
-                'a' => match kwd_raw[1] as char {
-                    'b' => match kwd_raw[2] as char {
-                        's' => match kwd_raw[3] as char {
-                            '3' => match kwd_raw[4] as char {
-                                '2' => Ok(Self::Abs32),
-                                _ => Err(()),
-                            },
-                            _ => Err(()),
+                _ => N,
+            },
+            b'r' => match r[1] {
+                b'e' => match r[2] {
+                    b'l' => match r[3] {
+                        b'1' => match r[4] {
+                            b'6' => s(Rel16),
+                            _ => N,
                         },
-                        _ => Err(()),
+                        b'3' => match r[4] {
+                            b'2' => s(Rel32),
+                            _ => N,
+                        },
+                        _ => N,
                     },
-                    'l' => match kwd_raw[2] as char {
-                        'i' => kwd_ie(kwd, b"align", 3, 4, Keyword::Align),
-                        'l' => kwd_ie(kwd, b"alloc", 3, 4, Keyword::Alloc),
-                        _ => Err(()),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'w' => match r[1] {
+                b'r' => match r[2] {
+                    b'i' => match r[3] {
+                        b't' => match r[4] {
+                            b'e' => s(Write),
+                            _ => N,
+                        },
+                        _ => N,
                     },
-                    _ => Err(()),
+                    _ => N,
                 },
-                'w' => kwd_ie(kwd, b"write", 1, 4, Keyword::Write),
-                'x' => kwd_ie(kwd, b"xword", 1, 4, Keyword::Xword),
-                'y' => kwd_ie(kwd, b"yword", 1, 4, Keyword::Yword),
-                'q' => kwd_ie(kwd, b"qword", 1, 4, Keyword::Qword),
-                'd' => match kwd_raw[1] {
-                    b'w' => kwd_ie(kwd, b"dword", 1, 4, Keyword::Dword),
-                    b'e' => kwd_ie(kwd, b"deref", 1, 4, Keyword::Deref),
-                    _ => Err(()),
+                _ => N,
+            },
+            b'x' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => s(Xword),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
                 },
-                _ => Err(()),
+                _ => N,
             },
-            6 => match kwd_raw[0] as char {
-                'e' => kwd_ie(kwd, b"extern", 1, 5, Keyword::Extern),
-                'd' => kwd_ie(kwd, b"define", 1, 5, Keyword::Define),
-                _ => Err(()),
+            b'y' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => s(Yword),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
             },
-            7 => match kwd_raw[0] as char {
-                'i' => kwd_ie(kwd, b"include", 1, 6, Keyword::Include),
-                's' => kwd_ie(kwd, b"section", 1, 6, Keyword::Section),
-                _ => Err(()),
+            b'z' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => s(Zword),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
             },
-            _ => Err(()),
-        }
+            b'a' => match r[1] {
+                b'b' => match r[2] {
+                    b's' => match r[3] {
+                        b'3' => match r[4] {
+                            b'2' => s(Abs32),
+                            _ => N,
+                        },
+                        b'6' => match r[4] {
+                            b'4' => s(Abs64),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                b'l' => match r[2] {
+                    b'i' => match r[3] {
+                        b'g' => match r[4] {
+                            b'n' => s(Align),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    b'l' => match r[3] {
+                        b'o' => match r[4] {
+                            b'c' => s(Alloc),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'd' => match r[1] {
+                b'e' => match r[2] {
+                    b'r' => match r[3] {
+                        b'e' => match r[4] {
+                            b'f' => s(Deref),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => s(Dword),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        6 => match r[0] {
+            b'd' => match r[1] {
+                b'e' => match r[2] {
+                    b'f' => match r[3] {
+                        b'i' => match r[4] {
+                            b'n' => match r[5] {
+                                b'e' => s(Define),
+                                _ => N,
+                            },
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'e' => match r[1] {
+                b'x' => match r[2] {
+                    b't' => match r[3] {
+                        b'e' => match r[4] {
+                            b'r' => match r[5] {
+                                b'n' => s(Extern),
+                                _ => N,
+                            },
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        7 => match r[0] {
+            b'i' => match r[1] {
+                b'n' => match r[2] {
+                    b'c' => match r[3] {
+                        b'l' => match r[4] {
+                            b'u' => match r[5] {
+                                b'd' => match r[6] {
+                                    b'e' => s(Include),
+                                    _ => N,
+                                },
+                                _ => N,
+                            },
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b's' => match r[1] {
+                b'e' => match r[2] {
+                    b'c' => match r[3] {
+                        b't' => match r[4] {
+                            b'i' => match r[5] {
+                                b'o' => match r[6] {
+                                    b'n' => s(Section),
+                                    _ => N,
+                                },
+                                _ => N,
+                            },
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        _ => N,
     }
 }
 

@@ -57,6 +57,13 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         );
         er.set_line(ins.line);
         return Err(er);
+    } else if ins.needs_evex() {
+        let mut er = Error::new(
+            "you tried to use instruction that requires EVEX prefix, but bits != 64",
+            10,
+        );
+        er.set_line(ins.line);
+        return Err(er);
     }
     match ins.mnem {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),

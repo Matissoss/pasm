@@ -191,6 +191,19 @@ impl ToAType for Operand {
 }
 
 impl Instruction {
+    pub fn needs_evex(&self) -> bool {
+        if self.size() == Size::Zword {
+            return true;
+        }
+        for o in self.oprs.iter() {
+            if let Operand::Reg(r) = o {
+                if r.needs_evex() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
     pub fn which_variant(&self) -> IVariant {
         match self.dst() {
             Some(Operand::Reg(r)) => match r.size() {
@@ -270,40 +283,20 @@ impl Instruction {
         false
     }
     pub fn uses_cr(&self) -> bool {
-        let dst = if let Some(dst) = self.dst() {
-            dst
-        } else {
-            return false;
-        };
-
-        if let Operand::CtrReg(_) = dst {
-            return true;
+        for o in self.oprs.iter() {
+            if let Operand::CtrReg(_) = o {
+                return true;
+            }
         }
-        let src = if let Some(src) = self.src() {
-            src
-        } else {
-            return false;
-        };
-
-        matches!(src, Operand::CtrReg(_))
+        false
     }
     pub fn uses_dr(&self) -> bool {
-        let dst = if let Some(dst) = self.dst() {
-            dst
-        } else {
-            return false;
-        };
-
-        if let Operand::DbgReg(_) = dst {
-            return true;
+        for o in self.oprs.iter() {
+            if let Operand::DbgReg(_) = o {
+                return true;
+            }
         }
-        let src = if let Some(src) = self.src() {
-            src
-        } else {
-            return false;
-        };
-
-        matches!(src, Operand::DbgReg(_))
+        false
     }
     #[inline]
     pub fn dst(&self) -> Option<&Operand> {
@@ -326,29 +319,15 @@ impl Instruction {
         self.oprs.get(2)
     }
     #[inline]
-    // operand existence
-    pub fn op_ex(&self) -> (bool, bool) {
-        match (self.dst(), self.src()) {
-            (Some(_), None) => (true, false),
-            (Some(_), Some(_)) => (true, true),
-            (None, Some(_)) => (false, true),
-            (None, None) => (false, false),
-        }
-    }
-    #[inline]
     pub fn get_opr(&self, idx: usize) -> Option<&Operand> {
         self.oprs.get(idx)
     }
     #[inline]
     pub fn get_mem_idx(&self) -> Option<usize> {
-        if let Some(Operand::Mem(_)) = self.dst() {
-            return Some(0);
-        }
-        if let Some(Operand::Mem(_)) = self.src() {
-            return Some(1);
-        }
-        if let Some(Operand::Mem(_)) = self.src2() {
-            return Some(2);
+        for (i, o) in self.oprs.iter().enumerate() {
+            if o.is_mem() {
+                return Some(i);
+            }
         }
         None
     }
@@ -368,12 +347,9 @@ impl Instruction {
     }
     #[inline]
     pub fn get_mem(&self) -> Option<&Mem> {
-        if let Some(idx) = self.get_mem_idx() {
-            if let Some(Operand::Mem(m)) = self.get_opr(idx) {
-                Some(m)
-            } else {
-                None
-            }
+        let idx = self.get_mem_idx()?;
+        if let Operand::Mem(m) = self.get_opr(idx)? {
+            Some(m)
         } else {
             None
         }

@@ -4,7 +4,7 @@
 
 - Do you want to use `rasm` assembler?
 
-If yes, see [syntax-std.md](syntax-std.md) for casual and [syntax-avx.md](syntax-avx.md) for AVX-512.
+If yes, see [syntax-std.md](syntax-std.md) for casual and [syntax-avx512.md](syntax-avx512.md) for AVX-512.
 
 - Do you want to extend `rasm`?
 
@@ -21,7 +21,7 @@ See:
 
 - for users
     - [x] `syntax-std.md` (related to `beta`)
-    - [ ] `syntax-avx.md` (related to `beta-avx`)
+    - [ ] `syntax-avx512.md` (related to `beta-avx`)
     - [ ] `macro.md` (related to `beta-macro`)
 - for developers
     - [x] `extending-rasm.md` (short explaination of RASM's API and how to use it)

@@ -7,7 +7,7 @@ use crate::shr::{
     atype::{AType, ToAType},
     size::Size,
 };
-use std::{cmp::Ordering, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Debug, Eq, Clone, Copy)]
 pub enum Purpose {
@@ -16,9 +16,11 @@ pub enum Purpose {
     IPtr,  // ip/rip/eip
     Dbg,   // drX
     Ctrl,  // crX
+    Mask,  // k0-7
     Mmx,   // mmX
     F128,  // xmmX
     F256,  // ymmX
+    F512,  // zmmX
     Sgmnt, // segment registers (cs, ss, ds, es, ...)
 }
 
@@ -106,13 +108,36 @@ pub enum Register {
     XMM8 , XMM9 , XMM10, XMM11,
     XMM12, XMM13, XMM14, XMM15,
 
-    // CURRENTLY UNSUPPORTED:
     //  AVX
     YMM0, YMM1, YMM2, YMM3,
     YMM4, YMM5, YMM6, YMM7,
     
     YMM8 , YMM9 , YMM10, YMM11,
     YMM12, YMM13, YMM14, YMM15,
+    
+    // AVX512
+    XMM16, XMM17, XMM18, XMM19,
+    XMM20, XMM21, XMM22, XMM23,
+    XMM24, XMM25, XMM26, XMM27,
+    XMM28, XMM29, XMM30, XMM31,
+    
+    YMM16, YMM17, YMM18, YMM19,
+    YMM20, YMM21, YMM22, YMM23,
+    YMM24, YMM25, YMM26, YMM27,
+    YMM28, YMM29, YMM30, YMM31,
+
+    ZMM0 , ZMM1 , ZMM2 , ZMM3 ,
+    ZMM4 , ZMM5 , ZMM6 , ZMM7 ,
+    ZMM8 , ZMM9 , ZMM10, ZMM11,
+    ZMM12, ZMM13, ZMM14, ZMM15,
+    ZMM16, ZMM17, ZMM18, ZMM19,
+    ZMM20, ZMM21, ZMM22, ZMM23,
+    ZMM24, ZMM25, ZMM26, ZMM27,
+    ZMM28, ZMM29, ZMM30, ZMM31,
+
+    // AVX-512 masks
+    K0, K1, K2, K3,
+    K4, K5, K6, K7,
 
     // Any register
     __ANY,
@@ -126,304 +151,6 @@ impl PartialEq for Register {
             true
         } else {
             su8 == ru8
-        }
-    }
-}
-
-#[inline(always)]
-fn reg_ie(
-    str: &[u8],
-    cmp: &'static [u8],
-    start: usize,
-    end: usize,
-    reg: Register,
-) -> Result<Register, ()> {
-    for idx in start..end {
-        let res = str[idx].cmp(&cmp[idx]);
-        if res != Ordering::Equal {
-            return Err(());
-        }
-    }
-    Ok(reg)
-}
-
-impl FromStr for Register {
-    type Err = ();
-    fn from_str(str: &str) -> Result<Self, <Self as FromStr>::Err> {
-        let byte_str = str.as_bytes();
-        let str = byte_str;
-        match byte_str.len() {
-            1 => Err(()),
-            2 => match byte_str[1] as char {
-                'i' => match byte_str[0] as char {
-                    's' => Ok(Register::SI),
-                    'd' => Ok(Register::DI),
-                    _ => Err(()),
-                },
-                'l' => match byte_str[0] as char {
-                    'a' => Ok(Register::AL),
-                    'b' => Ok(Register::BL),
-                    'c' => Ok(Register::CL),
-                    'd' => Ok(Register::DL),
-                    _ => Err(()),
-                },
-                'x' => match byte_str[0] as char {
-                    'a' => Ok(Register::AX),
-                    'b' => Ok(Register::BX),
-                    'c' => Ok(Register::CX),
-                    'd' => Ok(Register::DX),
-                    _ => Err(()),
-                },
-                'h' => match byte_str[0] as char {
-                    'a' => Ok(Register::AH),
-                    'b' => Ok(Register::BH),
-                    'c' => Ok(Register::CH),
-                    'd' => Ok(Register::DH),
-                    _ => Err(()),
-                },
-                'p' => match byte_str[0] as char {
-                    'i' => Ok(Register::IP),
-                    'b' => Ok(Register::BP),
-                    's' => Ok(Register::SP),
-                    _ => Err(()),
-                },
-                's' => match byte_str[0] as char {
-                    'c' => Ok(Register::CS),
-                    'd' => Ok(Register::DS),
-                    'e' => Ok(Register::ES),
-                    's' => Ok(Register::SS),
-                    'f' => Ok(Register::FS),
-                    'g' => Ok(Register::GS),
-                    _ => Err(()),
-                },
-                '8' => Ok(Register::R8),
-                '9' => Ok(Register::R9),
-                _ => Err(()),
-            },
-            // prev = 2; byte_str.len()
-            3 => {
-                match byte_str[0] as char {
-                    'm' => match byte_str[2] as char {
-                        '0' => reg_ie(byte_str, b"mm0", 1, 1, Register::MM0),
-                        '1' => reg_ie(byte_str, b"mm1", 1, 1, Register::MM1),
-                        '2' => reg_ie(byte_str, b"mm2", 1, 1, Register::MM2),
-                        '3' => reg_ie(byte_str, b"mm3", 1, 1, Register::MM3),
-                        '4' => reg_ie(byte_str, b"mm4", 1, 1, Register::MM4),
-                        '5' => reg_ie(byte_str, b"mm5", 1, 1, Register::MM5),
-                        '6' => reg_ie(byte_str, b"mm6", 1, 1, Register::MM6),
-                        '7' => reg_ie(byte_str, b"mm7", 1, 1, Register::MM7),
-                        _ => Err(()),
-                    },
-                    'r' => match byte_str[1] as char {
-                        'a' => reg_ie(byte_str, b"rax", 2, 2, Register::RAX),
-                        'b' => match byte_str[2] as char {
-                            'x' => Ok(Register::RBX),
-                            'p' => Ok(Register::RBP),
-                            _ => Err(()),
-                        },
-                        'c' => reg_ie(byte_str, b"rcx", 2, 2, Register::RCX),
-                        'd' => match byte_str[2] as char {
-                            'x' => Ok(Register::RDX),
-                            'i' => Ok(Register::RDI),
-                            _ => Err(()),
-                        },
-                        's' => match byte_str[2] as char {
-                            'p' => Ok(Register::RSP),
-                            'i' => Ok(Register::RSI),
-                            _ => Err(()),
-                        },
-                        '1' => match byte_str[2] as char {
-                            '0' => Ok(Register::R10),
-                            '1' => Ok(Register::R11),
-                            '2' => Ok(Register::R12),
-                            '3' => Ok(Register::R13),
-                            '4' => Ok(Register::R14),
-                            '5' => Ok(Register::R15),
-                            _ => Err(()),
-                        },
-                        '8' => match byte_str[2] as char {
-                            'b' => Ok(Register::R8B),
-                            'w' => Ok(Register::R8W),
-                            'd' => Ok(Register::R8D),
-                            _ => Err(()),
-                        },
-                        '9' => match byte_str[2] as char {
-                            'b' => Ok(Register::R9B),
-                            'w' => Ok(Register::R9W),
-                            'd' => Ok(Register::R9D),
-                            _ => Err(()),
-                        },
-                        'i' => reg_ie(byte_str, b"rip", 2, 2, Register::RIP),
-                        _ => Err(()),
-                    },
-                    // prev = 'r'; byte_str[0]
-                    'e' => match byte_str[1] as char {
-                        'a' => reg_ie(byte_str, b"eax", 2, 2, Register::EAX),
-                        'b' => match byte_str[2] as char {
-                            'p' => Ok(Register::EBP),
-                            'x' => Ok(Register::EBX),
-                            _ => Err(()),
-                        },
-                        'c' => reg_ie(byte_str, b"ecx", 2, 2, Register::ECX),
-                        'd' => match byte_str[2] as char {
-                            'i' => Ok(Register::EDI),
-                            'x' => Ok(Register::EDX),
-                            _ => Err(()),
-                        },
-                        's' => match byte_str[2] as char {
-                            'i' => Ok(Register::ESI),
-                            'p' => Ok(Register::ESP),
-                            _ => Err(()),
-                        },
-                        'i' => reg_ie(str, b"eip", 2, 2, Register::EIP),
-                        _ => Err(()),
-                    },
-                    // prev = 'e'; byte_str[0]
-                    's' => match byte_str[1] as char {
-                        'p' => reg_ie(str, b"spl", 2, 2, Register::SPL),
-                        'i' => reg_ie(str, b"sil", 2, 2, Register::SIL),
-                        _ => Err(()),
-                    },
-                    'b' => reg_ie(str, b"bpl", 1, 2, Register::BPL),
-                    'c' => match byte_str[2] as char {
-                        '0' => reg_ie(str, b"cr0", 1, 1, Register::CR0),
-                        '1' => reg_ie(str, b"cr1", 1, 1, Register::CR1),
-                        '2' => reg_ie(str, b"cr2", 1, 1, Register::CR2),
-                        '3' => reg_ie(str, b"cr3", 1, 1, Register::CR3),
-                        '4' => reg_ie(str, b"cr4", 1, 1, Register::CR4),
-                        '5' => reg_ie(str, b"cr5", 1, 1, Register::CR5),
-                        '6' => reg_ie(str, b"cr6", 1, 1, Register::CR6),
-                        '7' => reg_ie(str, b"cr7", 1, 1, Register::CR7),
-                        '8' => reg_ie(str, b"cr8", 1, 1, Register::CR8),
-                        '9' => reg_ie(str, b"cr9", 1, 1, Register::CR9),
-                        _ => Err(()),
-                    },
-                    'd' => match byte_str[2] as char {
-                        'i' => reg_ie(str, b"dil", 1, 1, Register::DIL),
-                        '0' => reg_ie(str, b"dr0", 1, 1, Register::DR0),
-                        '1' => reg_ie(str, b"dr1", 1, 1, Register::DR1),
-                        '2' => reg_ie(str, b"dr2", 1, 1, Register::DR2),
-                        '3' => reg_ie(str, b"dr3", 1, 1, Register::DR3),
-                        '4' => reg_ie(str, b"dr4", 1, 1, Register::DR4),
-                        '5' => reg_ie(str, b"dr5", 1, 1, Register::DR5),
-                        '6' => reg_ie(str, b"dr6", 1, 1, Register::DR6),
-                        '7' => reg_ie(str, b"dr7", 1, 1, Register::DR7),
-                        '8' => reg_ie(str, b"dr8", 1, 1, Register::DR8),
-                        '9' => reg_ie(str, b"dr9", 1, 1, Register::DR9),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                }
-            }
-            // prev = 3; byte_str.len()
-            4 => match byte_str[0] as char {
-                'c' => match byte_str[3] as char {
-                    '0' => reg_ie(str, b"cr10", 1, 2, Register::CR10),
-                    '1' => reg_ie(str, b"cr11", 1, 2, Register::CR11),
-                    '2' => reg_ie(str, b"cr12", 1, 2, Register::CR12),
-                    '3' => reg_ie(str, b"cr13", 1, 2, Register::CR13),
-                    '4' => reg_ie(str, b"cr14", 1, 2, Register::CR14),
-                    '5' => reg_ie(str, b"cr15", 1, 2, Register::CR15),
-                    _ => Err(()),
-                },
-                'd' => match byte_str[3] as char {
-                    '0' => reg_ie(str, b"dr10", 1, 2, Register::DR10),
-                    '1' => reg_ie(str, b"dr11", 1, 2, Register::DR11),
-                    '2' => reg_ie(str, b"dr12", 1, 2, Register::DR12),
-                    '3' => reg_ie(str, b"dr13", 1, 2, Register::DR13),
-                    '4' => reg_ie(str, b"dr14", 1, 2, Register::DR14),
-                    '5' => reg_ie(str, b"dr15", 1, 2, Register::DR15),
-                    _ => Err(()),
-                },
-                'r' => match byte_str[2] as char {
-                    '0' => match byte_str[3] as char {
-                        'd' => reg_ie(str, b"r10d", 1, 1, Register::R10D),
-                        'b' => reg_ie(str, b"r10b", 1, 1, Register::R10B),
-                        'w' => reg_ie(str, b"r10w", 1, 1, Register::R10W),
-                        _ => Err(()),
-                    },
-                    '1' => match byte_str[3] as char {
-                        'd' => reg_ie(str, b"r11d", 1, 1, Register::R11D),
-                        'b' => reg_ie(str, b"r11b", 1, 1, Register::R11B),
-                        'w' => reg_ie(str, b"r11w", 1, 1, Register::R11W),
-                        _ => Err(()),
-                    },
-                    '2' => match byte_str[3] as char {
-                        'd' => reg_ie(str, b"r12d", 1, 1, Register::R12D),
-                        'b' => reg_ie(str, b"r12b", 1, 1, Register::R12B),
-                        'w' => reg_ie(str, b"r12w", 1, 1, Register::R12W),
-                        _ => Err(()),
-                    },
-                    '3' => match byte_str[3] as char {
-                        'd' => reg_ie(str, b"r13d", 1, 1, Register::R13D),
-                        'b' => reg_ie(str, b"r13b", 1, 1, Register::R13B),
-                        'w' => reg_ie(str, b"r13w", 1, 1, Register::R13W),
-                        _ => Err(()),
-                    },
-                    '4' => match byte_str[3] as char {
-                        'b' => reg_ie(str, b"r14b", 1, 1, Register::R14B),
-                        'w' => reg_ie(str, b"r14w", 1, 1, Register::R14W),
-                        'd' => reg_ie(str, b"r14d", 1, 1, Register::R14D),
-                        _ => Err(()),
-                    },
-                    '5' => match byte_str[3] as char {
-                        'b' => reg_ie(str, b"r15b", 1, 1, Register::R15B),
-                        'w' => reg_ie(str, b"r15w", 1, 1, Register::R15W),
-                        'd' => reg_ie(str, b"r15d", 1, 1, Register::R15D),
-                        _ => Err(()),
-                    },
-                    _ => Err(()),
-                },
-                'x' => match byte_str[3] as char {
-                    '0' => reg_ie(str, b"xmm0", 1, 2, Register::XMM0),
-                    '1' => reg_ie(str, b"xmm1", 1, 2, Register::XMM1),
-                    '2' => reg_ie(str, b"xmm2", 1, 2, Register::XMM2),
-                    '3' => reg_ie(str, b"xmm3", 1, 2, Register::XMM3),
-                    '4' => reg_ie(str, b"xmm4", 1, 2, Register::XMM4),
-                    '5' => reg_ie(str, b"xmm5", 1, 2, Register::XMM5),
-                    '6' => reg_ie(str, b"xmm6", 1, 2, Register::XMM6),
-                    '7' => reg_ie(str, b"xmm7", 1, 2, Register::XMM7),
-                    '8' => reg_ie(str, b"xmm8", 1, 2, Register::XMM8),
-                    '9' => reg_ie(str, b"xmm9", 1, 2, Register::XMM9),
-                    _ => Err(()),
-                },
-                'y' => match byte_str[3] as char {
-                    '0' => reg_ie(str, b"ymm0", 1, 2, Register::YMM0),
-                    '1' => reg_ie(str, b"ymm1", 1, 2, Register::YMM1),
-                    '2' => reg_ie(str, b"ymm2", 1, 2, Register::YMM2),
-                    '3' => reg_ie(str, b"ymm3", 1, 2, Register::YMM3),
-                    '4' => reg_ie(str, b"ymm4", 1, 2, Register::YMM4),
-                    '5' => reg_ie(str, b"ymm5", 1, 2, Register::YMM5),
-                    '6' => reg_ie(str, b"ymm6", 1, 2, Register::YMM6),
-                    '7' => reg_ie(str, b"ymm7", 1, 2, Register::YMM7),
-                    '8' => reg_ie(str, b"ymm8", 1, 2, Register::YMM8),
-                    '9' => reg_ie(str, b"ymm9", 1, 2, Register::YMM9),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            5 => match byte_str[0] as char {
-                'x' => match byte_str[4] as char {
-                    '0' => reg_ie(str, b"xmm10", 1, 3, Register::XMM10),
-                    '1' => reg_ie(str, b"xmm11", 1, 3, Register::XMM11),
-                    '2' => reg_ie(str, b"xmm12", 1, 3, Register::XMM12),
-                    '3' => reg_ie(str, b"xmm13", 1, 3, Register::XMM13),
-                    '4' => reg_ie(str, b"xmm14", 1, 3, Register::XMM14),
-                    '5' => reg_ie(str, b"xmm15", 1, 3, Register::XMM15),
-                    _ => Err(()),
-                },
-                'y' => match byte_str[4] as char {
-                    '0' => reg_ie(str, b"ymm10", 1, 3, Register::YMM10),
-                    '1' => reg_ie(str, b"ymm11", 1, 3, Register::YMM11),
-                    '2' => reg_ie(str, b"ymm12", 1, 3, Register::YMM12),
-                    '3' => reg_ie(str, b"ymm13", 1, 3, Register::YMM13),
-                    '4' => reg_ie(str, b"ymm14", 1, 3, Register::YMM14),
-                    '5' => reg_ie(str, b"ymm15", 1, 3, Register::YMM15),
-                    _ => Err(()),
-                },
-                _ => Err(()),
-            },
-            _ => Err(()),
         }
     }
 }
@@ -472,6 +199,9 @@ impl Register {
             Self::R8D | Self::R9D | Self::R10D| Self::R11D|
             Self::R12D| Self::R13D| Self::R14D| Self::R15D => Size::Dword,
 
+
+            Self::K0  | Self::K1  | Self::K2  | Self::K3  |
+            Self::K4  | Self::K5  | Self::K6  | Self::K7  |
             Self::RAX | Self::RBX | Self::RCX | Self::RDX |
             Self::RSP | Self::RBP | Self::RSI | Self::RDI |
             Self::R8  | Self::R9  | Self::R10 | Self::R11 |
@@ -483,13 +213,50 @@ impl Register {
             Self::XMM0 | Self::XMM1 | Self::XMM2 | Self::XMM3 |
             Self::XMM4 | Self::XMM5 | Self::XMM6 | Self::XMM7 |
             Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
-            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15 => Size::Xword,
+            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15|
+            Self::XMM16| Self::XMM17| Self::XMM18| Self::XMM19|
+            Self::XMM20| Self::XMM21| Self::XMM22| Self::XMM23|
+            Self::XMM24| Self::XMM25| Self::XMM26| Self::XMM27|
+            Self::XMM28| Self::XMM29| Self::XMM30| Self::XMM31 => Size::Xword,
 
             Self::YMM0 | Self::YMM1 | Self::YMM2 | Self::YMM3 |
             Self::YMM4 | Self::YMM5 | Self::YMM6 | Self::YMM7 |
             Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
-            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15 => Size::Yword,
+            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15|
+            Self::YMM16| Self::YMM17| Self::YMM18| Self::YMM19|
+            Self::YMM20| Self::YMM21| Self::YMM22| Self::YMM23|
+            Self::YMM24| Self::YMM25| Self::YMM26| Self::YMM27|
+            Self::YMM28| Self::YMM29| Self::YMM30| Self::YMM31 => Size::Yword,
+            Self::ZMM0 | Self::ZMM1 | Self::ZMM2 | Self::ZMM3 |
+            Self::ZMM4 | Self::ZMM5 | Self::ZMM6 | Self::ZMM7 |
+            Self::ZMM8 | Self::ZMM9 | Self::ZMM10| Self::ZMM11|
+            Self::ZMM12| Self::ZMM13| Self::ZMM14| Self::ZMM15|
+            Self::ZMM16| Self::ZMM17| Self::ZMM18| Self::ZMM19|
+            Self::ZMM20| Self::ZMM21| Self::ZMM22| Self::ZMM23|
+            Self::ZMM24| Self::ZMM25| Self::ZMM26| Self::ZMM27|
+            Self::ZMM28| Self::ZMM29| Self::ZMM30| Self::ZMM31 => Size::Zword,
         }
+    }
+    #[rustfmt::skip]
+    pub const fn needs_evex(&self) -> bool {
+        matches!(self,
+            Self::XMM16 | Self::XMM18 | Self::XMM19 | Self::XMM20 |
+            Self::XMM21 | Self::XMM22 | Self::XMM23 | Self::XMM24 |
+            Self::XMM25 | Self::XMM26 | Self::XMM27 | Self::XMM28 |
+            Self::XMM29 | Self::XMM30 | Self::XMM31 |
+            Self::YMM16 | Self::YMM18 | Self::YMM19 | Self::YMM20 |
+            Self::YMM21 | Self::YMM22 | Self::YMM23 | Self::YMM24 |
+            Self::YMM25 | Self::YMM26 | Self::YMM27 | Self::YMM28 |
+            Self::YMM29 | Self::YMM30 | Self::YMM31 |
+            Self::ZMM0  | Self::ZMM1  | Self::ZMM2  | Self::ZMM3  |
+            Self::ZMM4  | Self::ZMM5  | Self::ZMM6  | Self::ZMM7  |
+            Self::ZMM8  | Self::ZMM9  | Self::ZMM10 | Self::ZMM11 |
+            Self::ZMM12 | Self::ZMM13 | Self::ZMM14 | Self::ZMM15 |
+            Self::ZMM16 | Self::ZMM18 | Self::ZMM19 | Self::ZMM20 |
+            Self::ZMM21 | Self::ZMM22 | Self::ZMM23 | Self::ZMM24 |
+            Self::ZMM25 | Self::ZMM26 | Self::ZMM27 | Self::ZMM28 |
+            Self::ZMM29 | Self::ZMM30 | Self::ZMM31
+        )
     }
     #[rustfmt::skip]
     pub const fn needs_rex(&self) -> bool {
@@ -506,67 +273,83 @@ impl Register {
             Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
             Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15|
             Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
+            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15|
             Self::SIL  | Self::DIL  | Self::BPL  | Self::SPL  |
             Self::CR8  | Self::CR9  | Self::CR10 | Self::CR11 |
             Self::CR12 | Self::CR13 | Self::CR14 | Self::CR15 |
             Self::DR8  | Self::DR9  | Self::DR10 | Self::DR11 |
-            Self::DR12 | Self::DR13 | Self::DR14 | Self::DR15 |
-            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15
+            Self::DR12 | Self::DR13 | Self::DR14 | Self::DR15
         )
     }
     #[rustfmt::skip]
     pub const fn to_byte(&self) -> u8 {
         match &self {
             Self::__ANY => 0b000,
-            Self::ES   | Self::MM0 |
-            Self::R8   | Self::R8B | Self::R8W  | Self::R8D   |
-            Self::XMM8 | Self::YMM8| Self::AL   | Self::AX    |
-            Self::EAX  | Self::CR0 | Self::CR8  | Self::DR0   |
-            Self::DR8  | Self::RAX | Self::XMM0 | Self::YMM0   => 0b000,
+            Self::ZMM0 | Self::ZMM8  | Self::K0   |
+            Self::ES   | Self::MM0   | Self::XMM16| Self::XMM24 |
+            Self::YMM16| Self::YMM24 | Self::ZMM16| Self::ZMM24 |
+            Self::R8   | Self::R8B   | Self::R8W  | Self::R8D   |
+            Self::XMM8 | Self::YMM8  | Self::AL   | Self::AX    |
+            Self::EAX  | Self::CR0   | Self::CR8  | Self::DR0   |
+            Self::DR8  | Self::RAX   | Self::XMM0 | Self::YMM0   => 0b000,
 
-            Self::CS   | Self::MM1 |
-            Self::R9   | Self::R9B | Self::R9W  | Self::R9D   |
-            Self::CL   | Self::CX  | Self::ECX  | Self::RCX   |
-            Self::XMM1 | Self::YMM1| Self::XMM9 | Self::CR1   |
-            Self::YMM9 | Self::CR9 | Self::DR1  | Self::DR9    => 0b001,
+            Self::ZMM1 | Self::ZMM9  | Self::K1   |
+            Self::CS   | Self::MM1   | Self::XMM17| Self::XMM25 |
+            Self::YMM17| Self::YMM25 | Self::ZMM17| Self::ZMM25 |
+            Self::R9   | Self::R9B   | Self::R9W  | Self::R9D   |
+            Self::CL   | Self::CX    | Self::ECX  | Self::RCX   |
+            Self::XMM1 | Self::YMM1  | Self::XMM9 | Self::CR1   |
+            Self::YMM9 | Self::CR9   | Self::DR1  | Self::DR9    => 0b001,
 
-            Self::SS   | Self::MM2 |
-            Self::R10  | Self::R10B| Self::R10W | Self::R10D  |
-            Self::DL   | Self::DX  | Self::EDX  | Self::XMM2  |
-            Self::RDX  | Self::CR2 | Self::CR10 | Self::DR2   |
-            Self::DR10 | Self::YMM2| Self::XMM10| Self::YMM10  => 0b010,
+            Self::ZMM2 | Self::ZMM10| Self::K2   |
+            Self::SS   | Self::MM2  | Self::XMM18| Self::XMM26 |
+            Self::YMM18| Self::YMM26| Self::ZMM18| Self::ZMM26 |
+            Self::R10  | Self::R10B | Self::R10W | Self::R10D  |
+            Self::DL   | Self::DX   | Self::EDX  | Self::XMM2  |
+            Self::RDX  | Self::CR2  | Self::CR10 | Self::DR2   |
+            Self::DR10 | Self::YMM2 | Self::XMM10| Self::YMM10  => 0b010,
 
-            Self::DS   | Self::MM3 |
-            Self::R11  | Self::R11B| Self::R11W | Self::R11D |
-            Self::BL   | Self::BX  | Self::EBX  | Self::XMM3 |
-            Self::RBX  | Self::CR3 | Self::CR11 | Self::DR3  |
-            Self::DR11 | Self::YMM3| Self::XMM11| Self::YMM11 => 0b011,
+            Self::ZMM3 | Self::ZMM11| Self::K3   |
+            Self::DS   | Self::MM3  | Self::XMM19| Self::XMM27|
+            Self::YMM19| Self::YMM27| Self::ZMM19| Self::ZMM27|
+            Self::R11  | Self::R11B | Self::R11W | Self::R11D |
+            Self::BL   | Self::BX   | Self::EBX  | Self::XMM3 |
+            Self::RBX  | Self::CR3  | Self::CR11 | Self::DR3  |
+            Self::DR11 | Self::YMM3 | Self::XMM11| Self::YMM11 => 0b011,
 
-            Self::FS  | Self::MM4  |
-            Self::R12 | Self::R12B | Self::R12W | Self::R12D |
-            Self::AH  | Self::SP   | Self::ESP  | Self::XMM4 |
-            Self::SPL | Self::RSP  | Self::CR4  | Self::CR12 |
-            Self::DR4 | Self::DR12 | Self::YMM4 | Self::XMM12|
+            Self::ZMM4 | Self::ZMM12| Self::K4   |
+            Self::FS   | Self::MM4  | Self::XMM20| Self::XMM28|
+            Self::YMM20| Self::YMM28| Self::ZMM20| Self::ZMM28|
+            Self::R12  | Self::R12B | Self::R12W | Self::R12D |
+            Self::AH   | Self::SP   | Self::ESP  | Self::XMM4 |
+            Self::SPL  | Self::RSP  | Self::CR4  | Self::CR12 |
+            Self::DR4  | Self::DR12 | Self::YMM4 | Self::XMM12|
             Self::YMM12                                       => 0b100,
 
-            Self::GS  | Self::MM5  |
-            Self::R13 | Self::R13B | Self::R13W | Self::R13D |
-            Self::CH  | Self::BP   | Self::EBP  | Self::XMM5 |
-            Self::BPL | Self::RBP  | Self::CR5  | Self::CR13 |
-            Self::DR5 | Self::DR13 | Self::YMM5 | Self::XMM13|
+            Self::ZMM5 | Self::ZMM13| Self::K5   |
+            Self::GS   | Self::MM5  | Self::XMM21| Self::XMM29|
+            Self::YMM21| Self::YMM29| Self::ZMM21| Self::ZMM29|
+            Self::R13  | Self::R13B | Self::R13W | Self::R13D |
+            Self::CH   | Self::BP   | Self::EBP  | Self::XMM5 |
+            Self::BPL  | Self::RBP  | Self::CR5  | Self::CR13 |
+            Self::DR5  | Self::DR13 | Self::YMM5 | Self::XMM13|
             Self::YMM13                                       => 0b101,
 
+            Self::ZMM6  | Self::ZMM14| Self::K6   |
             Self::R14   | Self::R14B | Self::R14W | Self::R14D |
+            Self::YMM22 | Self::YMM30| Self::ZMM22| Self::ZMM30|
             Self::DH    | Self::SI   | Self::ESI  | Self::XMM6 |
             Self::SIL   | Self::RSI  | Self::CR6  | Self::CR14 |
             Self::DR6   | Self::DR14 | Self::YMM6 | Self::XMM14|
-            Self::YMM14 | Self::MM6                 => 0b110,
+            Self::YMM14 | Self::MM6  | Self::XMM22| Self::XMM30 => 0b110,
 
+            Self::ZMM7  | Self::ZMM15| Self::K7   |
             Self::R15   | Self::R15B | Self::R15W | Self::R15D |
+            Self::YMM23 | Self::YMM31| Self::ZMM23| Self::ZMM31|
             Self::BH    | Self::DI   | Self::EDI  | Self::XMM7 |
             Self::DIL   | Self::RDI  | Self::CR7  | Self::CR15 |
             Self::DR7   | Self::DR15 | Self::YMM7 | Self::XMM15|
-            Self::YMM15 | Self::MM7                  => 0b111,
+            Self::YMM15 | Self::MM7  | Self::XMM23| Self::XMM31 => 0b111,
 
             Self::IP | Self::EIP | Self::RIP => 0b000
         }
@@ -578,7 +361,6 @@ impl Register {
     pub const fn purpose(&self) -> Purpose{
         match self {
             Self::__ANY => Purpose::__ANY,
-
             Self::AX  | Self::AL  | Self::EAX  | Self::RAX |
             Self::DX  | Self::DL  | Self::EDX  | Self::RDX |
             Self::CX  | Self::CL  | Self::ECX  | Self::RCX |
@@ -596,46 +378,57 @@ impl Register {
             Self::R13B| Self::R13W| Self::R13D | Self::R13 |
             Self::R14B| Self::R14W| Self::R14D | Self::R14 |
             Self::R15B| Self::R15W| Self::R15D | Self::R15 => Purpose::General,
-
             Self::CS  | Self::DS  | Self::ES   | Self::SS  |
             Self::FS  | Self::GS  => Purpose::Sgmnt,
-
             Self::CR0 | Self::CR1 | Self::CR2  | Self::CR3  |
             Self::CR4 | Self::CR5 | Self::CR6  | Self::CR7  |
             Self::CR8 | Self::CR9 | Self::CR10 | Self::CR11 |
             Self::CR12| Self::CR13| Self::CR14 | Self::CR15 => Purpose::Ctrl,
-
             Self::DR0 | Self::DR1 | Self::DR2  | Self::DR3  |
             Self::DR4 | Self::DR5 | Self::DR6  | Self::DR7  |
             Self::DR8 | Self::DR9 | Self::DR10 | Self::DR11 |
             Self::DR12| Self::DR13| Self::DR14 | Self::DR15 => Purpose::Dbg,
-
             Self::IP  | Self::EIP | Self::RIP => Purpose::IPtr,
-
-            Self::XMM0 | Self::XMM1 | Self::XMM2 | Self::XMM3  |
-            Self::XMM4 | Self::XMM5 | Self::XMM6 | Self::XMM7  |
-            Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11 |
-            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15 => Purpose::F128,
-
-            Self::YMM0 | Self::YMM1 | Self::YMM2 | Self::YMM3  |
-            Self::YMM4 | Self::YMM5 | Self::YMM6 | Self::YMM7  |
-            Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11 |
-            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15 => Purpose::F256,
-
+            Self::XMM0 | Self::XMM1 | Self::XMM2 | Self::XMM3 |
+            Self::XMM4 | Self::XMM5 | Self::XMM6 | Self::XMM7 |
+            Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
+            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15|
+            Self::XMM16| Self::XMM17| Self::XMM18| Self::XMM19|
+            Self::XMM20| Self::XMM21| Self::XMM22| Self::XMM23|
+            Self::XMM24| Self::XMM25| Self::XMM26| Self::XMM27|
+            Self::XMM28| Self::XMM29| Self::XMM30| Self::XMM31 => Purpose::F128,
+            Self::YMM0 | Self::YMM1 | Self::YMM2 | Self::YMM3 |
+            Self::YMM4 | Self::YMM5 | Self::YMM6 | Self::YMM7 |
+            Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
+            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15|
+            Self::YMM16| Self::YMM17| Self::YMM18| Self::YMM19|
+            Self::YMM20| Self::YMM21| Self::YMM22| Self::YMM23|
+            Self::YMM24| Self::YMM25| Self::YMM26| Self::YMM27|
+            Self::YMM28| Self::YMM29| Self::YMM30| Self::YMM31 => Purpose::F256,
+            Self::ZMM0 | Self::ZMM1 | Self::ZMM2 | Self::ZMM3 |
+            Self::ZMM4 | Self::ZMM5 | Self::ZMM6 | Self::ZMM7 |
+            Self::ZMM8 | Self::ZMM9 | Self::ZMM10| Self::ZMM11|
+            Self::ZMM12| Self::ZMM13| Self::ZMM14| Self::ZMM15|
+            Self::ZMM16| Self::ZMM17| Self::ZMM18| Self::ZMM19|
+            Self::ZMM20| Self::ZMM21| Self::ZMM22| Self::ZMM23|
+            Self::ZMM24| Self::ZMM25| Self::ZMM26| Self::ZMM27|
+            Self::ZMM28| Self::ZMM29| Self::ZMM30| Self::ZMM31 => Purpose::F512,
             Self::MM0 | Self::MM1 | Self::MM2 | Self::MM3  |
             Self::MM4 | Self::MM5 | Self::MM6 | Self::MM7  => Purpose::Mmx,
+            Self::K0 | Self::K1 | Self::K2 | Self::K3  |
+            Self::K4 | Self::K5 | Self::K6 | Self::K7  => Purpose::Mask,
         }
     }
     // For mksek(), se() and de():
     // 0b000_XX_YYYY_ZZZZ_AAA
-    // X0 - reserved
+    // X0 - evex extension
     // X1 - extended register
     //
     // YYYY - size
     // ZZZZ - purpose
     // AAA  - register code
-    pub const fn mksek(ext: bool, sz: u16, prp: u16, cd: u16) -> u16 {
-        (ext as u16) << 11 | sz << 7 | prp << 3 | cd
+    pub const fn mksek(eext: bool, ext: bool, sz: u16, prp: u16, cd: u16) -> u16 {
+        (eext as u16) << 12 | (ext as u16) << 11 | sz << 7 | prp << 3 | cd
     }
     pub const fn se(&self) -> u16 {
         let mut tret = 0;
@@ -645,6 +438,7 @@ impl Register {
         tret |= (self.purpose() as u16) << 3;
         tret |= (self.size() as u16) << 7;
         tret |= (self.needs_rex() as u16) << 11;
+        tret |= (self.needs_evex() as u16) << 12;
 
         tret
     }
@@ -656,7 +450,7 @@ impl Register {
         let purp = data & 0b1111_000;
         let purp = unsafe { std::mem::transmute::<u8, Purpose>((purp >> 3) as u8) };
         let size = unsafe { std::mem::transmute::<u8, Size>(((data & 0b1111 << 7) >> 7) as u8) };
-        let extr = (data & 0b01 << 11) >> 11;
+        let extr = (data & 0b11 << 11) >> 11;
 
         match purp {
             Purpose::__ANY => Self::__ANY,
@@ -666,62 +460,140 @@ impl Register {
                 Size::Qword => Register::RIP,
                 _ => Register::__ANY,
             },
-            Purpose::Sgmnt => match (extr & 0b01 == 0b01, code) {
-                (false, 0b000) => Self::ES,
-                (false, 0b001) => Self::CS,
-                (false, 0b010) => Self::SS,
-                (false, 0b011) => Self::DS,
-                (false, 0b100) => Self::FS,
-                (false, 0b101) => Self::GS,
+            Purpose::Sgmnt => match code {
+                0b000 => Self::ES,
+                0b001 => Self::CS,
+                0b010 => Self::SS,
+                0b011 => Self::DS,
+                0b100 => Self::FS,
+                0b101 => Self::GS,
                 _ => Self::__ANY,
             },
-            Purpose::Mmx => match (extr & 0b01 == 0b01, code) {
-                (false, 0b000) => Self::MM0,
-                (false, 0b001) => Self::MM1,
-                (false, 0b010) => Self::MM2,
-                (false, 0b011) => Self::MM3,
-                (false, 0b100) => Self::MM4,
-                (false, 0b101) => Self::MM5,
-                (false, 0b110) => Self::MM6,
-                (false, 0b111) => Self::MM7,
+            Purpose::Mask => match code {
+                0b000 => Self::K0,
+                0b001 => Self::K1,
+                0b010 => Self::K2,
+                0b011 => Self::K3,
+                0b100 => Self::K4,
+                0b101 => Self::K5,
+                0b110 => Self::K6,
+                0b111 => Self::K7,
                 _ => Self::__ANY,
             },
-            Purpose::F256 => match (extr & 0b01 == 0b01, code) {
-                (false, 0b000) => Self::YMM0,
-                (false, 0b001) => Self::YMM1,
-                (false, 0b010) => Self::YMM2,
-                (false, 0b011) => Self::YMM3,
-                (false, 0b100) => Self::YMM4,
-                (false, 0b101) => Self::YMM5,
-                (false, 0b110) => Self::YMM6,
-                (false, 0b111) => Self::YMM7,
-                (true, 0b000) => Self::YMM8,
-                (true, 0b001) => Self::YMM9,
-                (true, 0b010) => Self::YMM10,
-                (true, 0b011) => Self::YMM11,
-                (true, 0b100) => Self::YMM12,
-                (true, 0b101) => Self::YMM13,
-                (true, 0b110) => Self::YMM14,
-                (true, 0b111) => Self::YMM15,
+            Purpose::Mmx => match code {
+                0b000 => Self::MM0,
+                0b001 => Self::MM1,
+                0b010 => Self::MM2,
+                0b011 => Self::MM3,
+                0b100 => Self::MM4,
+                0b101 => Self::MM5,
+                0b110 => Self::MM6,
+                0b111 => Self::MM7,
                 _ => Self::__ANY,
             },
-            Purpose::F128 => match (extr & 0b01 == 0b01, code) {
-                (false, 0b000) => Self::XMM0,
-                (false, 0b001) => Self::XMM1,
-                (false, 0b010) => Self::XMM2,
-                (false, 0b011) => Self::XMM3,
-                (false, 0b100) => Self::XMM4,
-                (false, 0b101) => Self::XMM5,
-                (false, 0b110) => Self::XMM6,
-                (false, 0b111) => Self::XMM7,
-                (true, 0b000) => Self::XMM8,
-                (true, 0b001) => Self::XMM9,
-                (true, 0b010) => Self::XMM10,
-                (true, 0b011) => Self::XMM11,
-                (true, 0b100) => Self::XMM12,
-                (true, 0b101) => Self::XMM13,
-                (true, 0b110) => Self::XMM14,
-                (true, 0b111) => Self::XMM15,
+            Purpose::F256 => match (extr & 0b11, code) {
+                (0b00, 0b000) => Self::YMM0,
+                (0b00, 0b001) => Self::YMM1,
+                (0b00, 0b010) => Self::YMM2,
+                (0b00, 0b011) => Self::YMM3,
+                (0b00, 0b100) => Self::YMM4,
+                (0b00, 0b101) => Self::YMM5,
+                (0b00, 0b110) => Self::YMM6,
+                (0b00, 0b111) => Self::YMM7,
+                (0b01, 0b000) => Self::YMM8,
+                (0b01, 0b001) => Self::YMM9,
+                (0b01, 0b010) => Self::YMM10,
+                (0b01, 0b011) => Self::YMM11,
+                (0b01, 0b100) => Self::YMM12,
+                (0b01, 0b101) => Self::YMM13,
+                (0b01, 0b110) => Self::YMM14,
+                (0b01, 0b111) => Self::YMM15,
+                (0b10, 0b000) => Self::YMM16,
+                (0b10, 0b001) => Self::YMM17,
+                (0b10, 0b010) => Self::YMM18,
+                (0b10, 0b011) => Self::YMM19,
+                (0b10, 0b100) => Self::YMM20,
+                (0b10, 0b101) => Self::YMM21,
+                (0b10, 0b110) => Self::YMM22,
+                (0b10, 0b111) => Self::YMM23,
+                (0b11, 0b000) => Self::YMM24,
+                (0b11, 0b001) => Self::YMM25,
+                (0b11, 0b010) => Self::YMM26,
+                (0b11, 0b011) => Self::YMM27,
+                (0b11, 0b100) => Self::YMM28,
+                (0b11, 0b101) => Self::YMM29,
+                (0b11, 0b110) => Self::YMM30,
+                (0b11, 0b111) => Self::YMM31,
+                _ => Self::__ANY,
+            },
+            Purpose::F512 => match (extr & 0b11, code) {
+                (0b00, 0b000) => Self::ZMM0,
+                (0b00, 0b001) => Self::ZMM1,
+                (0b00, 0b010) => Self::ZMM2,
+                (0b00, 0b011) => Self::ZMM3,
+                (0b00, 0b100) => Self::ZMM4,
+                (0b00, 0b101) => Self::ZMM5,
+                (0b00, 0b110) => Self::ZMM6,
+                (0b00, 0b111) => Self::ZMM7,
+                (0b01, 0b000) => Self::ZMM8,
+                (0b01, 0b001) => Self::ZMM9,
+                (0b01, 0b010) => Self::ZMM10,
+                (0b01, 0b011) => Self::ZMM11,
+                (0b01, 0b100) => Self::ZMM12,
+                (0b01, 0b101) => Self::ZMM13,
+                (0b01, 0b110) => Self::ZMM14,
+                (0b01, 0b111) => Self::ZMM15,
+                (0b10, 0b000) => Self::ZMM16,
+                (0b10, 0b001) => Self::ZMM17,
+                (0b10, 0b010) => Self::ZMM18,
+                (0b10, 0b011) => Self::ZMM19,
+                (0b10, 0b100) => Self::ZMM20,
+                (0b10, 0b101) => Self::ZMM21,
+                (0b10, 0b110) => Self::ZMM22,
+                (0b10, 0b111) => Self::ZMM23,
+                (0b11, 0b000) => Self::ZMM24,
+                (0b11, 0b001) => Self::ZMM25,
+                (0b11, 0b010) => Self::ZMM26,
+                (0b11, 0b011) => Self::ZMM27,
+                (0b11, 0b100) => Self::ZMM28,
+                (0b11, 0b101) => Self::ZMM29,
+                (0b11, 0b110) => Self::ZMM30,
+                (0b11, 0b111) => Self::ZMM31,
+                _ => Self::__ANY,
+            },
+            Purpose::F128 => match (extr & 0b11, code) {
+                (0b00, 0b000) => Self::XMM0,
+                (0b00, 0b001) => Self::XMM1,
+                (0b00, 0b010) => Self::XMM2,
+                (0b00, 0b011) => Self::XMM3,
+                (0b00, 0b100) => Self::XMM4,
+                (0b00, 0b101) => Self::XMM5,
+                (0b00, 0b110) => Self::XMM6,
+                (0b00, 0b111) => Self::XMM7,
+                (0b01, 0b000) => Self::XMM8,
+                (0b01, 0b001) => Self::XMM9,
+                (0b01, 0b010) => Self::XMM10,
+                (0b01, 0b011) => Self::XMM11,
+                (0b01, 0b100) => Self::XMM12,
+                (0b01, 0b101) => Self::XMM13,
+                (0b01, 0b110) => Self::XMM14,
+                (0b01, 0b111) => Self::XMM15,
+                (0b10, 0b000) => Self::XMM16,
+                (0b10, 0b001) => Self::XMM17,
+                (0b10, 0b010) => Self::XMM18,
+                (0b10, 0b011) => Self::XMM19,
+                (0b10, 0b100) => Self::XMM20,
+                (0b10, 0b101) => Self::XMM21,
+                (0b10, 0b110) => Self::XMM22,
+                (0b10, 0b111) => Self::XMM23,
+                (0b11, 0b000) => Self::XMM24,
+                (0b11, 0b001) => Self::XMM25,
+                (0b11, 0b010) => Self::XMM26,
+                (0b11, 0b011) => Self::XMM27,
+                (0b11, 0b100) => Self::XMM28,
+                (0b11, 0b101) => Self::XMM29,
+                (0b11, 0b110) => Self::XMM30,
+                (0b11, 0b111) => Self::XMM31,
                 _ => Self::__ANY,
             },
             Purpose::Ctrl => match (extr & 0b01 == 0b01, code) {
@@ -858,6 +730,8 @@ impl ToString for Purpose {
             Self::Dbg => "dr".to_string(),
             Self::Ctrl => "cr".to_string(),
             Self::__ANY => "any".to_string(),
+            Self::F512 => "zmm".to_string(),
+            Self::Mask => "k".to_string(),
         }
     }
 }
@@ -866,5 +740,507 @@ impl ToString for Purpose {
 impl ToString for Register {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
+    }
+}
+
+impl FromStr for Register {
+    type Err = ();
+    fn from_str(str: &str) -> Result<Register, ()> {
+        if let Some(r) = reg_fromstr(str) {
+            Ok(r)
+        } else {
+            Err(())
+        }
+    }
+}
+
+#[inline(always)]
+fn s<T>(t: T) -> Option<T> {
+    Some(t)
+}
+
+const N: Option<Register> = None;
+
+pub fn reg_fromstr(str: &str) -> Option<Register> {
+    use Register::*;
+    let r = str.as_bytes();
+    match r.len() {
+        2 => match r[0] {
+            b'e' => match r[1] {
+                b's' => s(ES),
+                _ => N,
+            },
+            b'f' => match r[1] {
+                b's' => s(FS),
+                _ => N,
+            },
+            b'g' => match r[1] {
+                b's' => s(GS),
+                _ => N,
+            },
+            b'i' => match r[1] {
+                b'p' => s(IP),
+                _ => N,
+            },
+            b'a' => match r[1] {
+                b'h' => s(AH),
+                b'l' => s(AL),
+                b'x' => s(AX),
+                _ => N,
+            },
+            b'b' => match r[1] {
+                b'h' => s(BH),
+                b'l' => s(BL),
+                b'p' => s(BP),
+                b'x' => s(BX),
+                _ => N,
+            },
+            b'c' => match r[1] {
+                b'h' => s(CH),
+                b'l' => s(CL),
+                b's' => s(CS),
+                b'x' => s(CX),
+                _ => N,
+            },
+            b'd' => match r[1] {
+                b'h' => s(DH),
+                b'i' => s(DI),
+                b'l' => s(DL),
+                b's' => s(DS),
+                b'x' => s(DX),
+                _ => N,
+            },
+            b'k' => match r[1] {
+                b'0' => s(K0),
+                b'1' => s(K1),
+                b'2' => s(K2),
+                b'3' => s(K3),
+                b'4' => s(K4),
+                b'5' => s(K5),
+                b'6' => s(K6),
+                b'7' => s(K7),
+                _ => N,
+            },
+            b'r' => match r[1] {
+                b'8' => s(R8),
+                b'9' => s(R9),
+                _ => N,
+            },
+            b's' => match r[1] {
+                b'i' => s(SI),
+                b'p' => s(SP),
+                b's' => s(SS),
+                _ => N,
+            },
+            _ => N,
+        },
+        3 => match r[0] {
+            b'b' => match r[1] {
+                b'p' => match r[2] {
+                    b'l' => s(BPL),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'c' => match r[1] {
+                b'r' => match r[2] {
+                    b'0' => s(CR0),
+                    b'1' => s(CR1),
+                    b'2' => s(CR2),
+                    b'3' => s(CR3),
+                    b'4' => s(CR4),
+                    b'5' => s(CR5),
+                    b'6' => s(CR6),
+                    b'7' => s(CR7),
+                    b'8' => s(CR8),
+                    b'9' => s(CR9),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'm' => match r[1] {
+                b'm' => match r[2] {
+                    b'0' => s(MM0),
+                    b'1' => s(MM1),
+                    b'2' => s(MM2),
+                    b'3' => s(MM3),
+                    b'4' => s(MM4),
+                    b'5' => s(MM5),
+                    b'6' => s(MM6),
+                    b'7' => s(MM7),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'd' => match r[1] {
+                b'i' => match r[2] {
+                    b'l' => s(DIL),
+                    _ => N,
+                },
+                b'r' => match r[2] {
+                    b'0' => s(DR0),
+                    b'1' => s(DR1),
+                    b'2' => s(DR2),
+                    b'3' => s(DR3),
+                    b'4' => s(DR4),
+                    b'5' => s(DR5),
+                    b'6' => s(DR6),
+                    b'7' => s(DR7),
+                    b'8' => s(DR8),
+                    b'9' => s(DR9),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'e' => match r[1] {
+                b'a' => match r[2] {
+                    b'x' => s(EAX),
+                    _ => N,
+                },
+                b'c' => match r[2] {
+                    b'x' => s(ECX),
+                    _ => N,
+                },
+                b'i' => match r[2] {
+                    b'p' => s(EIP),
+                    _ => N,
+                },
+                b'b' => match r[2] {
+                    b'p' => s(EBP),
+                    b'x' => s(EBX),
+                    _ => N,
+                },
+                b'd' => match r[2] {
+                    b'i' => s(EDI),
+                    b'x' => s(EDX),
+                    _ => N,
+                },
+                b's' => match r[2] {
+                    b'i' => s(ESI),
+                    b'p' => s(ESP),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'r' => match r[1] {
+                b'a' => match r[2] {
+                    b'x' => s(RAX),
+                    _ => N,
+                },
+                b'c' => match r[2] {
+                    b'x' => s(RCX),
+                    _ => N,
+                },
+                b'i' => match r[2] {
+                    b'p' => s(RIP),
+                    _ => N,
+                },
+                b'1' => match r[2] {
+                    b'0' => s(R10),
+                    b'1' => s(R11),
+                    b'2' => s(R12),
+                    b'3' => s(R13),
+                    b'4' => s(R14),
+                    b'5' => s(R15),
+                    _ => N,
+                },
+                b'8' => match r[2] {
+                    b'b' => s(R8B),
+                    b'd' => s(R8D),
+                    b'w' => s(R8W),
+                    _ => N,
+                },
+                b'9' => match r[2] {
+                    b'b' => s(R9B),
+                    b'd' => s(R9D),
+                    b'w' => s(R9W),
+                    _ => N,
+                },
+                b'b' => match r[2] {
+                    b'p' => s(RBP),
+                    b'x' => s(RBX),
+                    _ => N,
+                },
+                b'd' => match r[2] {
+                    b'i' => s(RDI),
+                    b'x' => s(RDX),
+                    _ => N,
+                },
+                b's' => match r[2] {
+                    b'i' => s(RSI),
+                    b'p' => s(RSP),
+                    _ => N,
+                },
+                _ => N,
+            },
+            b's' => match r[1] {
+                b'i' => match r[2] {
+                    b'l' => s(SIL),
+                    _ => N,
+                },
+                b'p' => match r[2] {
+                    b'l' => s(SPL),
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        4 => match r[0] {
+            b'c' => match r[1] {
+                b'r' => match r[2] {
+                    b'1' => match r[3] {
+                        b'0' => s(CR10),
+                        b'1' => s(CR11),
+                        b'2' => s(CR12),
+                        b'3' => s(CR13),
+                        b'4' => s(CR14),
+                        b'5' => s(CR15),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'd' => match r[1] {
+                b'r' => match r[2] {
+                    b'1' => match r[3] {
+                        b'0' => s(DR10),
+                        b'1' => s(DR11),
+                        b'2' => s(DR12),
+                        b'3' => s(DR13),
+                        b'4' => s(DR14),
+                        b'5' => s(DR15),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'r' => match r[1] {
+                b'1' => match r[2] {
+                    b'0' => match r[3] {
+                        b'b' => s(R10B),
+                        b'd' => s(R10D),
+                        b'w' => s(R10W),
+                        _ => N,
+                    },
+                    b'1' => match r[3] {
+                        b'b' => s(R11B),
+                        b'd' => s(R11D),
+                        b'w' => s(R11W),
+                        _ => N,
+                    },
+                    b'2' => match r[3] {
+                        b'b' => s(R12B),
+                        b'd' => s(R12D),
+                        b'w' => s(R12W),
+                        _ => N,
+                    },
+                    b'3' => match r[3] {
+                        b'b' => s(R13B),
+                        b'd' => s(R13D),
+                        b'w' => s(R13W),
+                        _ => N,
+                    },
+                    b'4' => match r[3] {
+                        b'b' => s(R14B),
+                        b'd' => s(R14D),
+                        b'w' => s(R14W),
+                        _ => N,
+                    },
+                    b'5' => match r[3] {
+                        b'b' => s(R15B),
+                        b'd' => s(R15D),
+                        b'w' => s(R15W),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'x' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'0' => s(XMM0),
+                        b'1' => s(XMM1),
+                        b'2' => s(XMM2),
+                        b'3' => s(XMM3),
+                        b'4' => s(XMM4),
+                        b'5' => s(XMM5),
+                        b'6' => s(XMM6),
+                        b'7' => s(XMM7),
+                        b'8' => s(XMM8),
+                        b'9' => s(XMM9),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'y' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'0' => s(YMM0),
+                        b'1' => s(YMM1),
+                        b'2' => s(YMM2),
+                        b'3' => s(YMM3),
+                        b'4' => s(YMM4),
+                        b'5' => s(YMM5),
+                        b'6' => s(YMM6),
+                        b'7' => s(YMM7),
+                        b'8' => s(YMM8),
+                        b'9' => s(YMM9),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'z' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'0' => s(ZMM0),
+                        b'1' => s(ZMM1),
+                        b'2' => s(ZMM2),
+                        b'3' => s(ZMM3),
+                        b'4' => s(ZMM4),
+                        b'5' => s(ZMM5),
+                        b'6' => s(ZMM6),
+                        b'7' => s(ZMM7),
+                        b'8' => s(ZMM8),
+                        b'9' => s(ZMM9),
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        5 => match r[0] {
+            b'x' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'1' => match r[4] {
+                            b'0' => s(XMM10),
+                            b'1' => s(XMM11),
+                            b'2' => s(XMM12),
+                            b'3' => s(XMM13),
+                            b'4' => s(XMM14),
+                            b'5' => s(XMM15),
+                            b'6' => s(XMM16),
+                            b'7' => s(XMM17),
+                            b'8' => s(XMM18),
+                            b'9' => s(XMM19),
+                            _ => N,
+                        },
+                        b'2' => match r[4] {
+                            b'0' => s(XMM20),
+                            b'1' => s(XMM21),
+                            b'2' => s(XMM22),
+                            b'3' => s(XMM23),
+                            b'4' => s(XMM24),
+                            b'5' => s(XMM25),
+                            b'6' => s(XMM26),
+                            b'7' => s(XMM27),
+                            b'8' => s(XMM28),
+                            b'9' => s(XMM29),
+                            _ => N,
+                        },
+                        b'3' => match r[4] {
+                            b'0' => s(XMM30),
+                            b'1' => s(XMM31),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'y' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'1' => match r[4] {
+                            b'0' => s(YMM10),
+                            b'1' => s(YMM11),
+                            b'2' => s(YMM12),
+                            b'3' => s(YMM13),
+                            b'4' => s(YMM14),
+                            b'5' => s(YMM15),
+                            b'6' => s(YMM16),
+                            b'7' => s(YMM17),
+                            b'8' => s(YMM18),
+                            b'9' => s(YMM19),
+                            _ => N,
+                        },
+                        b'2' => match r[4] {
+                            b'0' => s(YMM20),
+                            b'1' => s(YMM21),
+                            b'2' => s(YMM22),
+                            b'3' => s(YMM23),
+                            b'4' => s(YMM24),
+                            b'5' => s(YMM25),
+                            b'6' => s(YMM26),
+                            b'7' => s(YMM27),
+                            b'8' => s(YMM28),
+                            b'9' => s(YMM29),
+                            _ => N,
+                        },
+                        b'3' => match r[4] {
+                            b'0' => s(YMM30),
+                            b'1' => s(YMM31),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            b'z' => match r[1] {
+                b'm' => match r[2] {
+                    b'm' => match r[3] {
+                        b'1' => match r[4] {
+                            b'0' => s(ZMM10),
+                            b'1' => s(ZMM11),
+                            b'2' => s(ZMM12),
+                            b'3' => s(ZMM13),
+                            b'4' => s(ZMM14),
+                            b'5' => s(ZMM15),
+                            b'6' => s(ZMM16),
+                            b'7' => s(ZMM17),
+                            b'8' => s(ZMM18),
+                            b'9' => s(ZMM19),
+                            _ => N,
+                        },
+                        b'2' => match r[4] {
+                            b'0' => s(ZMM20),
+                            b'1' => s(ZMM21),
+                            b'2' => s(ZMM22),
+                            b'3' => s(ZMM23),
+                            b'4' => s(ZMM24),
+                            b'5' => s(ZMM25),
+                            b'6' => s(ZMM26),
+                            b'7' => s(ZMM27),
+                            b'8' => s(ZMM28),
+                            b'9' => s(ZMM29),
+                            _ => N,
+                        },
+                        b'3' => match r[4] {
+                            b'0' => s(ZMM30),
+                            b'1' => s(ZMM31),
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
+            _ => N,
+        },
+        _ => N,
     }
 }

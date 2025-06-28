@@ -10,3 +10,6 @@ pub mod api;
 
 // core for AVX
 pub mod vex;
+
+// core for AVX-512
+pub mod evex;

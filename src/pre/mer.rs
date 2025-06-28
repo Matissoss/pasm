@@ -298,6 +298,28 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
                 sref.set_size(sz);
                 return Ok(Operand::SymbolRef(*sref));
             }
+            (Token::Closure(' ', m), Token::Modifier(mods)) |
+            (Token::Modifier(mods), Token::Closure(' ', m)) => {
+                if mods.len() == 2 {
+                    let sz = if let Token::Keyword(modk) = mods[0] {
+                        match Size::try_from(modk){
+                            Ok(s) => s,
+                            Err(_) => return Err(Error::new(
+                                "expected size specifier, found unknown directive", 8)),
+                        }
+                    } else {
+                        return Err(Error::new("expected size directive at index 0 of modifier", 8));
+                    };
+                    if let Token::Keyword(Keyword::Bcst) = mods[1] {} else {
+                        return Err(Error::new("expected bcst directive at index 1 of modifier", 8));
+                    }
+                    let mut m = Mem::new(&m, sz)?;
+                    m.set_bcst(true);
+                    return Ok(Operand::Mem(m));
+                } else {
+                    return Err(Error::new("expected modifier of size directive and bcst keyword", 8));
+                }
+            }
              (Token::Closure(' ', m), Token::Keyword(ref k))
             |(Token::Keyword(ref k), Token::Closure(' ', m)) =>
                 return Ok(Operand::Mem(Mem::new(&m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),

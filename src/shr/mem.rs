@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 pub const RIP_ADDRESSING: u8 = 0x0;
 pub const OBY_OFFSET: u8 = 0x1;
+pub const IS_BCST: u8 = 0x2;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -75,6 +76,9 @@ impl Mem {
         }
     }
     // type
+    pub fn is_bcst(&self) -> bool {
+        self.get_flag(IS_BCST).unwrap_or(false)
+    }
     pub fn is_riprel(&self) -> bool {
         self.get_flag(RIP_ADDRESSING).unwrap_or(false)
     }
@@ -95,6 +99,10 @@ impl Mem {
             0b110 => Some(Register::GS),
             _ => None,
         }
+    }
+
+    pub const fn set_bcst(&mut self, b: bool) {
+        self.flags.set(IS_BCST, b);
     }
 
     pub fn set_segment(&mut self, rg: Register) -> bool {

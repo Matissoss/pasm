@@ -86,6 +86,16 @@ Goal: implement most of AVX based (E)VEX instructions
     - [ ] avx-ext-d
     - [ ] avx-ext-e
     - [ ] avx-ext-f
+- [ ] implement EEVEX (enchanced EVEX) support (for Intel APX)
+- ISA implementantation (divided in 8 parts):
+    - [ ] intel-apx-0
+    - [ ] intel-apx-1
+    - [ ] intel-apx-2
+    - [ ] intel-apx-3
+    - [ ] intel-apx-4
+    - [ ] intel-apx-5
+    - [ ] intel-apx-6
+    - [ ] intel-apx-7
 - [ ] Move to beta-min
 
 ## beta-min
