@@ -32,7 +32,7 @@ pub const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
 // - [...]: reserved
 
 use crate::{
-    core::{disp, modrm, rex, sib, vex},
+    core::{disp, evex, modrm, rex, sib, vex},
     shr::{
         ast::{Instruction, Operand},
         booltable::BoolTable16,
@@ -106,7 +106,7 @@ pub struct GenAPI {
 
     // depending on flags:
     // - IMM_ATIDX, OBY_CONST, TBY_CONST - immediate + metadata,
-    // - VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
+    // - (E)VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
     // otherwise unused
     addt: u16,
 }
@@ -165,12 +165,15 @@ impl GenAPI {
         self.flags.set(CAN_H66O, h66);
         self
     }
-    pub const fn evex(mut self, evex: bool) -> Self {
-        self.flags.set(EVEX_PFX, evex);
-        self
-    }
     pub const fn rex(mut self, rex: bool) -> Self {
         self.flags.set(REX_PFX, rex);
+        self
+    }
+    pub const fn evex(mut self, vex_details: VexDetails) -> Self {
+        self.flags.set(EVEX_PFX, true);
+        self.prefix =
+            { (vex_details.vex_we as u8) << 7 | vex_details.map_select << 2 | pp(vex_details.pp) };
+        self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
     pub const fn vex(mut self, vex_details: VexDetails) -> Self {
@@ -253,6 +256,7 @@ impl GenAPI {
         } else {
             (ins.size(), false)
         };
+
         let mut base = {
             let mut base = Vec::new();
 
@@ -310,7 +314,7 @@ impl GenAPI {
                 }
             }
             if evex_flag_set {
-                panic!("EVEX prefix is not availiable!");
+                base.extend(evex::evex(self, ins));
             }
             base
         };
@@ -451,33 +455,33 @@ impl GenAPI {
         self.flags.set(STRICT_PFX, true);
         self
     }
-    // fails if VEX flag is not set
+    // fails if (E)VEX flag is not set
     pub const fn get_pp(&self) -> Option<u8> {
-        if self.flags.get(VEX_PFX).unwrap() {
+        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
             Some(self.prefix & 0b11)
         } else {
             None
         }
     }
-    // fails if VEX flag is not set
+    // fails if (E)VEX flag is not set
     pub const fn get_map_select(&self) -> Option<u8> {
-        if self.flags.get(VEX_PFX).unwrap() {
+        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
             Some((self.prefix & 0b0111_1100) >> 2)
         } else {
             None
         }
     }
-    // fails if VEX flag is not set
+    // fails if (E)VEX flag is not set
     pub const fn get_vex_we(&self) -> Option<bool> {
-        if self.flags.get(VEX_PFX).unwrap() {
+        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
             Some(self.prefix & 0b1000_0000 == 0b1000_0000)
         } else {
             None
         }
     }
-    // fails if VEX flag is not set
+    // fails if (E)VEX flag is not set
     pub const fn get_vex_vlength(&self) -> Option<MegaBool> {
-        if self.flags.get(VEX_PFX).unwrap() {
+        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
             Some(MegaBool::from_byte(((self.addt & 0xFF00) >> 8) as u8))
         } else {
             None
@@ -729,6 +733,23 @@ impl Opcode {
     }
 }
 
+const fn pp(v: u8) -> u8 {
+    match v {
+        0x66 => 0b01,
+        0xF3 => 0b10,
+        0xF2 => 0b11,
+        _ => 0,
+    }
+}
+const fn map_select(v: u8) -> u8 {
+    match v {
+        0x0F => 0b00001,
+        0x38 => 0b00010,
+        0x3A => 0b00011,
+        _ => 0b00000,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -751,7 +772,7 @@ mod tests {
                 .vlength(Some(true)),
         );
         assert_eq!(api.get_vex_vlength(), Some(MegaBool::set(Some(true))));
-        assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
+        assert!(api.get_vex_vlength().unwrap().get().unwrap_or(false));
         let api = GenAPI::new()
             .opcode(&[0x19])
             .modrm(true, None, None)
@@ -765,7 +786,7 @@ mod tests {
             )
             .ord(&[MODRM_RM, MODRM_REG]);
         assert_eq!(api.addt, 0b0000_0011_0001_0010);
-        assert_eq!(api.get_vex_vlength().unwrap().get().unwrap_or(false), true);
+        assert!(api.get_vex_vlength().unwrap().get().unwrap_or(false));
     }
     #[test]
     fn ord_check() {
@@ -779,22 +800,5 @@ mod tests {
         assert!(ord.get(1) == Some(MODRM_REG));
         assert!(ord.get(2) == Some(VEX_VVVV));
         assert!(ord.deserialize()[0..3] == [MODRM_RM, MODRM_REG, VEX_VVVV]);
-    }
-}
-
-const fn pp(v: u8) -> u8 {
-    match v {
-        0x66 => 0b01,
-        0xF3 => 0b10,
-        0xF2 => 0b11,
-        _ => 0,
-    }
-}
-const fn map_select(v: u8) -> u8 {
-    match v {
-        0x0F => 0b00001,
-        0x38 => 0b00010,
-        0x3A => 0b00011,
-        _ => 0b00000,
     }
 }

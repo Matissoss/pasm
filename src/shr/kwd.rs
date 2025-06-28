@@ -13,8 +13,13 @@ pub enum Keyword {
     Dword,
     Xword,
     Yword,
+
+    // AVX-512
     Zword,
     Bcst,
+    Er,
+    Sae,
+    Z,
 
     Extern,
     Include,
@@ -62,7 +67,25 @@ pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
     use Keyword::*;
     let r = str.as_bytes();
     match r.len() {
+        1 => match r[0] {
+            b'z' => s(Z),
+            _ => N,
+        },
+        2 => match r[0] {
+            b'e' => match r[1] {
+                b'r' => s(Er),
+                _ => N,
+            },
+            _ => N,
+        },
         3 => match r[0] {
+            b's' => match r[1] {
+                b'a' => match r[2] {
+                    b'e' => s(Sae),
+                    _ => N,
+                },
+                _ => N,
+            },
             b'a' => match r[1] {
                 b'n' => match r[2] {
                     b'y' => s(Any),

@@ -67,11 +67,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 
             (Some('"'), c) => tmp_buf.push(c),
 
-            (None, ':') => {
-                tokens.push(Token::Label(String::from_iter(tmp_buf.iter()).into()));
-                tmp_buf.clear();
-            }
-            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_REF | PREFIX_VAL), ':') => {
+            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_REF | PREFIX_VAL) | None, ':') => {
                 delimeter_count = 0;
                 if !tmp_buf.is_empty() {
                     tmp_toks.push(Token::make_from(
@@ -242,8 +238,17 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 }
 
 impl Token {
-    fn make_modifier(toks: Vec<Self>) -> Self {
+    fn make_modifier(mut toks: Vec<Self>) -> Self {
         match toks.len() {
+            1 => {
+                return Token::Label(
+                    if let Token::String(s) | Token::Unknown(s) = toks.pop().unwrap() {
+                        s
+                    } else {
+                        RString::from("")
+                    },
+                )
+            }
             2 => {
                 let name = &toks[0];
                 let relof = &toks[1];
@@ -320,6 +325,13 @@ impl Token {
     }
     fn make_from(prefix: Option<char>, val: String) -> Self {
         match prefix {
+            Some(PREFIX_REF) => Token::SymbolRef(Box::new(SymbolRef::new(
+                val.into(),
+                None,
+                false,
+                None,
+                None,
+            ))),
             Some(PREFIX_REG) => match Register::from_str(&val) {
                 Ok(reg) => Self::Register(reg),
                 Err(_) => Self::Unknown(val.into()),
@@ -336,12 +348,13 @@ impl Token {
                     Self::Unknown(val.into())
                 }
             }
-            _ =>
-            {
+            _ => {
                 #[cfg(not(feature = "refresh"))]
                 if let Ok(mnm) = Mnemonic::from_str(&val) {
-                    Self::Mnemonic(mnm)
-                } else if let Ok(reg) = Register::from_str(&val) {
+                    return Self::Mnemonic(mnm);
+                }
+
+                if let Ok(reg) = Register::from_str(&val) {
                     Self::Register(reg)
                 } else if let Ok(num) = Number::from_str(&val) {
                     Self::Immediate(num)

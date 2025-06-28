@@ -6,6 +6,7 @@
 use crate::{
     cli::CLI,
     core::api::*,
+    core::evex::MAP5,
     shr::{
         ast::{IVariant, Instruction, Operand},
         ins::Mnemonic as Ins,
@@ -4412,6 +4413,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Ins::LOCK => GenAPI::new().opcode(&[0xF0]),
         Ins::REPNE | Ins::REPNZ => GenAPI::new().opcode(&[0xF2]),
         Ins::REP | Ins::REPE | Ins::REPZ => GenAPI::new().opcode(&[0xF3]),
+
+        Ins::EADDPH => GenAPI::new()
+            .opcode(&[0x58])
+            .evex(VexDetails::new().map_select(MAP5).vex_we(false))
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         _ => panic!("haha"),
     }
 }
@@ -4954,10 +4961,18 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
             let opc = match dstm {
                 Size::Byte => 0x80,
                 Size::Qword | Size::Word | Size::Dword => {
-                    if srci == Size::Byte {
-                        0x83
+                    if let Operand::Imm(n) = src {
+                        if n.get_as_i32() < 128 && n.get_as_i32() > -128 {
+                            0x83
+                        } else {
+                            0x81
+                        }
                     } else {
-                        0x81
+                        if srci == Size::Byte {
+                            0x83
+                        } else {
+                            0x81
+                        }
                     }
                 }
                 _ => invalid(11),

@@ -2631,6 +2631,24 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
+        //  ###   #   #  #   #    #  #####
+        // #   #  #   #   # #     #  #   #
+        // #####   # #     #      #  #   #
+        // #   #   # #    # #     #  #   #
+        // #   #    #    #   #    #  #####
+        //
+        // (AVX-10 + AVX-512)
+        EADDPH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+
         _ => {
             let mut er = Error::new(
                 "internal error: instruction does not have entry in check layer",
@@ -2657,6 +2675,30 @@ fn avx_ot_chk_wthout(
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
+    if ins.get_mask().is_some() {
+        return Err(Error::new(
+            "you tried to use mask on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_z() {
+        return Err(Error::new(
+            "you tried to use {z} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_er() {
+        return Err(Error::new(
+            "you tried to use {er} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_sae() {
+        return Err(Error::new(
+            "you tried to use {sae} on mnemonic that does not support it",
+            15,
+        ));
+    }
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
@@ -2702,6 +2744,30 @@ fn avx_ot_chk(
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
+    if ins.get_mask().is_some() {
+        return Err(Error::new(
+            "you tried to use mask on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_z() {
+        return Err(Error::new(
+            "you tried to use {z} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_er() {
+        return Err(Error::new(
+            "you tried to use {er} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_sae() {
+        return Err(Error::new(
+            "you tried to use {sae} on mnemonic that does not support it",
+            15,
+        ));
+    }
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
@@ -2771,12 +2837,38 @@ fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<Err
     None
 }
 
+// this function should not be used with AVX-512 (or anything EVEX-related), use CheckAPI instead!
 fn ot_chk(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
+    if ins.get_mask().is_some() {
+        return Err(Error::new(
+            "you tried to use mask on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_z() {
+        return Err(Error::new(
+            "you tried to use {z} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_er() {
+        return Err(Error::new(
+            "you tried to use {er} on mnemonic that does not support it",
+            15,
+        ));
+    }
+    if ins.get_sae() {
+        return Err(Error::new(
+            "you tried to use {sae} on mnemonic that does not support it",
+            15,
+        ));
+    }
+
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }

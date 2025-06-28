@@ -34,6 +34,11 @@ emnemonic:sae/er:z ; [...]
 
 To use them with masks we have modifer of 4 elements: `mnemonic:mask:z:sae/er`.
 
+If mask is not provided, but it is required, then `pasm` defaults to `k0`.
+
+> [!WARN]
+> `pasm` does not check for `{sae}`, `{er}` and `{z}` (if they are allowed to be used), but it does check if `{er}` and `{sae}` are on in same moment (if they are, error is thrown).
+
 ## using mbcst
 
 Use modifier: `.size:bcst`

@@ -15,6 +15,9 @@ pub struct RError {
     fl: MaybeUninit<PathBuf>,
     // file line - if 0 then not set
     ln: usize,
+
+    // additional context
+    actx: usize,
     // message
     msg: RString,
     // layout:
@@ -55,20 +58,48 @@ impl Display for RError {
         f.write_str("\n")?;
         if let Some(file) = self.get_file() {
             if let Some(ln) = self.get_line() {
-                f.write_str(&" ".repeat(ln.to_string().len() + 2))?;
+                f.write_str(&" ".repeat(ln.to_string().len() + 1))?;
+                f.write_str("--> ")?;
             }
             f.write_str(&format!("{}", file.to_string_lossy()))?;
             if let Some(ln) = self.get_line() {
                 f.write_str(&format!(":{ln}"))?;
             }
             f.write_str("\n")?;
+            let content = std::fs::read_to_string(file).expect("Internal Error: couldnt read file");
+            let content: Vec<&str> = content.lines().collect();
+
+            let linepad = if let (Some(ln), Some(actx)) = (self.get_line(), self.get_actx()) {
+                ln.to_string().len().max(actx.to_string().len()) + 2
+            } else if let Some(ln) = self.get_line() {
+                ln.to_string().len() + 2
+            } else {
+                0
+            };
+
             if let Some(mut ln) = self.get_line() {
                 ln -= 1;
-                let content =
-                    std::fs::read_to_string(file).expect("Internal Error: couldnt read file");
-                let content: Vec<&str> = content.lines().collect();
-                let line = ln.to_string();
-                let linepad = line.len() + 2;
+                if ln != 0 {
+                    if let Some(line) = content.get(ln - 1) {
+                        f.write_str(&format!("{}| {}", " ".repeat(linepad), line))?;
+                    } else {
+                        f.write_str(&format!("{}|", " ".repeat(linepad)))?;
+                    }
+                } else {
+                    f.write_str(&format!("{}|", " ".repeat(linepad)))?;
+                }
+                if let Some(line) = content.get(ln) {
+                    f.write_str(&format!("\n{} >| {}", ln + 1, line))?;
+                }
+                if let Some(line) = content.get(ln + 1) {
+                    f.write_str(&format!("\n{}| {}", " ".repeat(linepad), line))?;
+                } else {
+                    f.write_str(&format!("\n{}|", " ".repeat(linepad)))?;
+                }
+            }
+            if let Some(mut ln) = self.get_actx() {
+                f.write_str("\nadditional context:\n")?;
+                ln -= 1;
                 if ln != 0 {
                     if let Some(line) = content.get(ln - 1) {
                         f.write_str(&format!("{}| {}", " ".repeat(linepad), line))?;
@@ -105,12 +136,24 @@ impl PartialEq for RError {
 }
 
 impl RError {
+    pub fn new_wline_actx(msg: impl ToString, ecd: u16, line: usize, atcx: usize) -> Self {
+        let mut s = Self::new(msg, ecd);
+        s.set_line(line);
+        s.actx = atcx;
+        s
+    }
+    pub fn new_wline(msg: impl ToString, ecd: u16, line: usize) -> Self {
+        let mut s = Self::new(msg, ecd);
+        s.set_line(line);
+        s
+    }
     pub fn new(msg: impl ToString, ecd: u16) -> Self {
         Self {
             fl: MaybeUninit::uninit(),
             ln: 0,
             msg: msg.to_string().into(),
             meta: ecd & 0x3FFF,
+            actx: 0,
         }
     }
     pub fn msg(&self) -> &RString {
@@ -128,6 +171,13 @@ impl RError {
             Some(unsafe { self.fl.assume_init_ref() })
         } else {
             None
+        }
+    }
+    pub fn get_actx(&self) -> Option<usize> {
+        if self.actx == 0 {
+            None
+        } else {
+            Some(self.actx)
         }
     }
     pub fn get_line(&self) -> Option<usize> {

@@ -21,6 +21,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
     let mut ast = AST::default();
     let mut tmp_attributes: Vec<RString> = Vec::with_capacity(4);
     let mut inside_label: (bool, RString) = (false, RString::from(""));
+    let mut inside_label_line: usize = 0;
     let mut instructions: Vec<Instruction> = Vec::new();
     let mut section_idx: u16 = 0;
     let mut inside_section = Section::default();
@@ -85,6 +86,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
                             inside_label.1,
                             inside_section.bits,
                             section_idx,
+                            inside_label_line,
                         ) {
                             errors.push(err);
                         }
@@ -109,6 +111,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
                             inside_label.1,
                             inside_section.bits,
                             section_idx,
+                            inside_label_line,
                         ) {
                             errors.push(err);
                         }
@@ -138,12 +141,14 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
                             inside_label.1,
                             inside_section.bits,
                             section_idx,
+                            inside_label_line,
                         ) {
                             errors.push(err);
                         }
                         instructions = Vec::new();
                         tmp_attributes.clear();
                     }
+                    inside_label_line = node.1;
                     inside_label = (true, lbl)
                 }
                 ASTNode::Ins(ins) => {
@@ -197,6 +202,7 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
             inside_label.1,
             inside_section.bits,
             section_idx,
+            inside_label_line,
         ) {
             errors.push(err);
         }
@@ -233,6 +239,7 @@ fn collect_label(
     name: RString,
     defbits: u8,
     secidx: u16,
+    line: usize,
 ) -> Result<(), Error> {
     let (bits, align, global, stype) = match parse_attr(attrs.to_string()) {
         Ok(t) => (t.bits, t.align, t.global, t.stype),
@@ -250,6 +257,7 @@ fn collect_label(
         shidx: secidx,
         align,
         stype,
+        line,
     });
     Ok(())
 }

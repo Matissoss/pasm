@@ -48,7 +48,7 @@ fn main() {
     switch_panichandler();
     let cli = &*CLI;
 
-    if cli.has_arg("-h") {
+    if cli.has_arg("-h") || cli.has_arg("--help") {
         Help::main_help();
         process::exit(0)
     }

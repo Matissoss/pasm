@@ -104,6 +104,8 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
+    ast.validate().map_err(|e| vec![e])?;
+
     pre_core::post_process(&mut ast).map_err(|e| vec![e])?;
 
     #[cfg(feature = "vtime")]

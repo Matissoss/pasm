@@ -141,7 +141,7 @@ _start:
 
 #### description
 
-This error is provoked, when instruction requires REX prefix (or is not allowed if `bits != 64`), when bits parameter is not set to 64.
+This error is provoked, when instruction requires REX or EVEX prefix, when bits parameter is not set to 64.
 
 #### example
 
@@ -202,6 +202,30 @@ This error is provoked if something wents wrong, while reading/writing a file.
 #### description
 
 This error is provoked if invalid target (format) is used.
+
+### e015
+
+#### description
+
+This error is provoked when using "avx-512 mnemonic modifier" on instruction that does not support that.
+
+#### example
+
+```
+add:k2 ; e[015]
+```
+
+### e016
+
+#### description
+
+This error is provoked, when mask is being used, but instruction does not support that. This error is provoked by checks with `CheckAPI`.
+
+#### example
+
+```
+mov:k2 ; e[016]
+```
 
 ### e101
 

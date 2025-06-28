@@ -39,6 +39,14 @@ pub struct Instruction {
     pub line: usize,
     pub addt: Option<Mnemonic>,
     pub mnem: Mnemonic,
+
+    // layout: 0b0SAE_XYYY:
+    // S - uses {sae}
+    // A - uses {z}
+    // E - uses {er}
+    // X - has mask
+    // YYY - mask code
+    pub meta: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +69,7 @@ pub enum ASTNode {
 #[derive(PartialEq, Debug, Clone, Default)]
 pub struct Label {
     pub name: RString,
+    pub line: usize,
     pub inst: Vec<Instruction>,
     pub shidx: u16,
     pub align: u16,
@@ -71,8 +80,6 @@ pub struct Label {
     // YYYY: is reserved
     // ZZZ: bits: 0b000 - 16; 0b001 - 32; 0b010 - 64
     pub meta: u8,
-    //pub visibility: Visibility,
-    //pub bits: u8,
 }
 
 impl Label {
@@ -189,8 +196,54 @@ impl ToAType for Operand {
         }
     }
 }
-
 impl Instruction {
+    pub fn get_bcst(&self) -> bool {
+        if let Some(m) = self.get_mem() {
+            return m.is_bcst();
+        }
+        false
+    }
+    pub const fn get_er(&self) -> bool {
+        self.meta & 0b0001_0000 == 0b0001_0000
+    }
+    pub const fn set_er(&mut self) {
+        self.meta |= 0b0001_0000;
+    }
+    pub const fn set_z(&mut self) {
+        self.meta |= 0b0010_0000;
+    }
+    pub const fn get_z(&self) -> bool {
+        self.meta & 0b0010_0000 == 0b0010_0000
+    }
+    pub const fn set_sae(&mut self) {
+        self.meta |= 0b0100_0000;
+    }
+    pub const fn get_sae(&self) -> bool {
+        self.meta & 0b0100_0000 == 0b0100_0000
+    }
+    pub const fn get_mask(&self) -> Option<Register> {
+        let has_mask = self.meta & 0b1000;
+        if has_mask == 0b1000 {
+            Some(match self.meta & 0b111 {
+                0b000 => Register::K0,
+                0b001 => Register::K1,
+                0b010 => Register::K2,
+                0b011 => Register::K3,
+                0b100 => Register::K4,
+                0b101 => Register::K5,
+                0b110 => Register::K6,
+                0b111 => Register::K7,
+                _ => Register::__ANY,
+            })
+        } else {
+            None
+        }
+    }
+    pub const fn set_mask(&mut self, m: u16) {
+        self.meta |= m & 0b111;
+        self.meta |= 0b1000;
+    }
+
     pub fn needs_evex(&self) -> bool {
         if self.size() == Size::Zword {
             return true;
@@ -370,12 +423,66 @@ impl Instruction {
 }
 
 impl AST {
+    pub fn validate(&self) -> Result<(), Error> {
+        for (i0, s0) in self.sections.iter().enumerate() {
+            for (i1, s1) in self.sections.iter().enumerate() {
+                if i0 == i1 {
+                    continue;
+                }
+
+                if s0.name == s1.name {
+                    return Err(Error::new(
+                        format!("this file contains multiple sections named \"{}\"", s0.name),
+                        12,
+                    ));
+                }
+            }
+            for (i0, l0) in s0.content.iter().enumerate() {
+                for (i1, l1) in s0.content.iter().enumerate() {
+                    if i0 == i1 {
+                        continue;
+                    }
+                    if l0.name == l1.name {
+                        return Err(Error::new_wline_actx(format!("section {} contains two labels with name \"{}\". Declaration at line {}, redeclaration at line {}",  s0.name, l1.name,l0.line,l1.line), 12, l0.line, l1.line));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
-            if self.sections.contains(&l) {
-                return Err(Error::new("multiple files contain same sections", 12));
-            }
+            let attr = l.attributes;
+            let align = l.align;
+            let bits = l.bits;
+            let name = l.name.clone();
             self.sections.push(l);
+            for s in 0..self.sections.len() - 1 {
+                if self.sections[s].name == name {
+                    if !(self.sections[s].bits == bits
+                        && self.sections[s].align == align
+                        && self.sections[s].attributes == attr)
+                    {
+                        return Err(
+                            Error::new(
+                                format!("if you changed one of \"{}\" to match the other one, then we could merge content of these sections", 
+                                    self.sections[s].name), 12)
+                        );
+                    }
+                    // section we pushed
+                    let l = self.sections.pop().unwrap();
+                    // concat two sections
+                    for label in l.content {
+                        for self_l in &self.sections[s].content {
+                            if self_l.name == label.name {
+                                return Err(Error::new(format!("failed to concat two sections as they contain same label of name \"{}\"", label.name), 12));
+                            }
+                        }
+                        self.sections[s].content.push(label);
+                    }
+                    break;
+                }
+            }
         }
         for l in rhs.includes {
             if self.includes.contains(&l) {

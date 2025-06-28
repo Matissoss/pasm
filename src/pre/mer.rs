@@ -112,6 +112,64 @@ pub fn mer(
                     error = Some(e)
                 }
             },
+            Some(Token::Modifier(m)) => match m.len() {
+                2..=4 => {
+                    let mut er = false;
+                    let mut sae = false;
+                    let mut zero = false;
+                    let mut mask = None;
+
+                    for m in &m[1..] {
+                        match m {
+                            Token::Register(r) => {
+                                if !r.is_mask() {
+                                    error = Some(Error::new_wline("expected mask register at mnemonic modifer index 1, found other-purposed register", 8, line_count));
+                                    break;
+                                }
+                                mask = Some(r.to_byte());
+                            }
+                            Token::Keyword(Keyword::Er) => er = true,
+                            Token::Keyword(Keyword::Z) => zero = true,
+                            Token::Keyword(Keyword::Sae) => sae = true,
+                            _ => {
+                                error = Some(Error::new_wline(
+                                    "unknown token found in mnemonic modifier",
+                                    8,
+                                    line_count,
+                                ));
+                                break;
+                            }
+                        }
+                    }
+                    match make_ins(line) {
+                        Ok(mut i) => {
+                            if sae {
+                                i.set_sae();
+                            }
+                            if zero {
+                                i.set_z();
+                            }
+                            if er {
+                                i.set_er();
+                            }
+                            if let Some(mask) = mask {
+                                i.set_mask(mask as u16);
+                            }
+                            i.line = line_count;
+                            node = Some(ASTNode::Ins(i));
+                        }
+                        Err(mut e) => {
+                            e.set_line(line_count);
+                            error = Some(e);
+                        }
+                    }
+                }
+                _ => ast_tree.push(Err(Error::new_wline(
+                    "unexpected start of line",
+                    8,
+                    line_count,
+                ))),
+            },
             Some(Token::Mnemonic(_)) => match make_ins(line) {
                 Ok(mut i) => {
                     i.line = line_count;
@@ -122,11 +180,11 @@ pub fn mer(
                     error = Some(e);
                 }
             },
-            _ => {
-                let mut er = Error::new("unexpected start of line", 8);
-                er.set_line(line_count);
-                ast_tree.push(Err(er));
-            }
+            _ => ast_tree.push(Err(Error::new_wline(
+                "unexpected start of line",
+                8,
+                line_count,
+            ))),
         }
 
         if let Some(node_t) = node {
@@ -204,6 +262,20 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, E
                     8,
                 ));
             }
+        } else if let Token::Modifier(ref a) = t {
+            if let Some(Token::Mnemonic(m)) = a.first() {
+                if mnems.can_push() {
+                    mnems.push(*m);
+                } else {
+                    return Err(Error::new(
+                        "you tried to make instruction with 2+ mnemonics",
+                        8,
+                    ));
+                }
+            } else {
+                tmp_buf.push(t);
+                break;
+            }
         } else {
             if t != Token::Comma {
                 tmp_buf.push(t);
@@ -250,6 +322,7 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, E
         addt,
         oprs: ops,
         line: 0,
+        meta: 0,
     })
 }
 

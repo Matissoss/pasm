@@ -354,6 +354,9 @@ impl Register {
             Self::IP | Self::EIP | Self::RIP => 0b000
         }
     }
+    pub fn is_mask(&self) -> bool {
+        self.purpose() == Purpose::Mask
+    }
     pub fn is_sgmnt(&self) -> bool {
         self.purpose() == Purpose::Sgmnt
     }
