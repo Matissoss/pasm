@@ -6,8 +6,17 @@
 use crate::{
     conf::*,
     shr::{
-        error::RError, ins::Mnemonic, kwd::Keyword, math, num::Number, reg::Register,
-        smallvec::SmallVec, symbol::SymbolRef,
+        ast::Operand,
+        error::RError,
+        error::RError as Error,
+        ins::Mnemonic,
+        kwd::Keyword,
+        math,
+        num::Number,
+        reg::{Purpose as RPurpose, Register},
+        reloc::RelType,
+        smallvec::SmallVec,
+        symbol::SymbolRef,
     },
 };
 use std::str::FromStr;
@@ -62,7 +71,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                 tokens.push(Token::Label(String::from_iter(tmp_buf.iter()).into()));
                 tmp_buf.clear();
             }
-            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_VAL), ':') => {
+            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_REF | PREFIX_VAL), ':') => {
                 delimeter_count = 0;
                 if !tmp_buf.is_empty() {
                     tmp_toks.push(Token::make_from(
@@ -234,6 +243,69 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 
 impl Token {
     fn make_modifier(toks: Vec<Self>) -> Self {
+        match toks.len() {
+            2 => {
+                let name = &toks[0];
+                let relof = &toks[1];
+                let sname = if let Token::String(s) | Token::Unknown(s) = name {
+                    s
+                } else {
+                    return Token::Modifier(toks.into());
+                };
+                let reltype = if let Ok(rtype) = RelType::try_from(relof) {
+                    rtype
+                } else {
+                    return Token::Modifier(toks.into());
+                };
+                return Token::SymbolRef(Box::new(SymbolRef::new(
+                    sname.clone(),
+                    None,
+                    false,
+                    None,
+                    Some(reltype),
+                )));
+            }
+            3 => {
+                let name = &toks[0];
+                let relt = &toks[1];
+                let mut offs = &toks[2];
+                let sname = if let Token::String(s) | Token::Unknown(s) = name {
+                    s.clone()
+                } else if let Token::SymbolRef(s) = name {
+                    s.symbol.clone()
+                } else {
+                    return Token::Modifier(toks.into());
+                };
+                let mut reltype = RelType::REL32;
+                if let Ok(rtype) = RelType::try_from(relt) {
+                    reltype = rtype;
+                } else {
+                    offs = relt;
+                }
+                let offset;
+                if let Token::Immediate(n) = offs {
+                    offset = n.get_as_i32();
+                } else {
+                    if let Token::Closure(p, v) = offs {
+                        if let Token::Immediate(n) = Self::make_closure(*p, v.clone()) {
+                            offset = n.get_as_i32();
+                        } else {
+                            return Token::Modifier(toks.into());
+                        }
+                    } else {
+                        return Token::Modifier(toks.into());
+                    }
+                }
+                return Token::SymbolRef(Box::new(SymbolRef::new(
+                    sname.clone(),
+                    if offset == 0 { None } else { Some(offset) },
+                    false,
+                    None,
+                    Some(reltype),
+                )));
+            }
+            _ => {}
+        }
         Token::Modifier(toks.into())
     }
     fn make_closure(prefix: char, val: RString) -> Self {
@@ -241,10 +313,6 @@ impl Token {
         match prefix {
             PREFIX_VAL => match MathEval::from_str(&val) {
                 Ok(m) => Token::Immediate(Number::uint64(MathEval::eval(m).unwrap_or(0))),
-                Err(e) => Token::Error(Box::new(e)),
-            },
-            PREFIX_REF => match SymbolRef::try_new(&val) {
-                Ok(s) => Token::SymbolRef(Box::new(s)),
                 Err(e) => Token::Error(Box::new(e)),
             },
             _ => Self::Closure(prefix, val),
@@ -268,20 +336,63 @@ impl Token {
                     Self::Unknown(val.into())
                 }
             }
-            Some(PREFIX_REF) => match SymbolRef::try_new(&val) {
-                Ok(s) => Self::SymbolRef(Box::new(s)),
-                Err(e) => Self::Error(Box::new(e)),
-            },
-            _ => {
+            _ =>
+            {
                 #[cfg(not(feature = "refresh"))]
                 if let Ok(mnm) = Mnemonic::from_str(&val) {
                     Self::Mnemonic(mnm)
+                } else if let Ok(reg) = Register::from_str(&val) {
+                    Self::Register(reg)
+                } else if let Ok(num) = Number::from_str(&val) {
+                    Self::Immediate(num)
+                } else if let Ok(dir) = Keyword::from_str(&val) {
+                    Self::Keyword(dir)
                 } else {
                     Self::Unknown(val.into())
                 }
-                #[cfg(feature = "refresh")]
-                Self::Unknown(val.into())
             }
+        }
+    }
+}
+
+impl TryFrom<&Token> for RelType {
+    type Error = ();
+    fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
+        match tok {
+            Token::Keyword(Keyword::Rel32) => Ok(Self::REL32),
+            Token::Keyword(Keyword::Rel16) => Ok(Self::REL16),
+            Token::Keyword(Keyword::Rel8) => Ok(Self::REL8),
+            Token::Keyword(Keyword::Abs32) => Ok(Self::ABS32),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<Token> for Operand {
+    type Error = Error;
+    fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
+        match tok {
+            Token::Register(reg) => {
+                if reg.is_ctrl_reg() {
+                    Ok(Self::CtrReg(reg))
+                } else if reg.is_dbg_reg() {
+                    Ok(Self::DbgReg(reg))
+                } else if reg.purpose() == RPurpose::Sgmnt {
+                    Ok(Self::SegReg(reg))
+                } else {
+                    Ok(Self::Reg(reg))
+                }
+            }
+            Token::String(val) => Ok(Self::String(val)),
+            Token::Immediate(nm) => Ok(Self::Imm(nm)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
+            _ => Err(Error::new(
+                format!(
+                    "failed to create operand from \"{}\" token",
+                    tok.to_string()
+                ),
+                3,
+            )),
         }
     }
 }
@@ -305,8 +416,11 @@ impl ToString for Token {
             Self::Closure(pfx, ctt) => format!("{pfx}({ctt})"),
             Self::Modifier(content) => {
                 let mut string = String::new();
-                for c in content.iter() {
-                    string.push_str(&format!("{}:", c.to_string()));
+                for (i, c) in content.iter().enumerate() {
+                    if i != 0 {
+                        string.push(':');
+                    }
+                    string.push_str(&c.to_string());
                 }
                 string
             }

@@ -45,13 +45,13 @@ Registers are prefixed with `%` and their naming is same as in every other x86-6
 
 Memory addressing is almost same as in Intel syntax, but with difference that we use `()` instead of `[]`. 
 
-Operands used inside memory must be also prefixed. Note that you have to use size directive after memory addressing.
+Operands used inside memory must be also prefixed. You must use size directive either before or after memory addressing.
 
 ```
 (%rax) .qword
 (%rax + %rcx) .xword
 (%rax + %rcx * $4) .dword
-(%rax + $10) .byte
+.byte (%rax + $10)
 ```
 
 You can also refer to segments, but then you will need to use modifier `%segment:memory_address`. It may sound complicated, but it is not.
@@ -70,15 +70,22 @@ Symbol referenced are prefixed with `@`.
 @_start
 ```
 
-If you want to use "extended" version of them (specify addend, relocation type (rel/abs)) then you want to use `@(symbol:reltype:addend)` closure.
+If you want to use "extended" version of them (specify addend, relocation type (rel/abs)) then you want to use `@symbol:reltype:addend` modifier.
 
 Immediate there can be prefixed or not.
 
 ```
-@(symbol:rel:10)
-@(symbol:-10)
-@(symbol:rel)
-@(symbol)
+@symbol:rel:10
+@symbol:rel:-10 ; you have to provide relocation type before offset
+@symbol:rel
+@symbol
+```
+
+If you want to dereference address (use `RIP`-relative) then you want to use `.deref @symbol:reltype:addend .size` or `.size @symbol:reltype:addend` modifier
+
+```
+.deref @symbol:rel32:10 .dword ; more verbose option
+.dword @symbol:rel32:10 ; shorter version
 ```
 
 ## labels
@@ -173,10 +180,10 @@ $(10 << 20) ; LSH 10 20
 $(10 >> 20) ; RSH 20 10
 ```
 
-You can use `.math` directive to declare mathematical symbol and reference with `@` (it is inlined).
+You can use `.define` directive to declare constant symbol and reference with `@` (it is inlined).
 
 ```
-.math PI $3.14
+.define PI $3.14
 
 ; [...]
 _start:
@@ -184,7 +191,9 @@ _start:
 ```
 
 > [!NOTE]
-> `rasm`'s constevals don't use classical mathematic expression solver (like RPN), but custom one.
+> `pasm`'s constevals don't use classical mathematic expression solver (like RPN), but custom one.
+> this means that `1 << 2 + 1` is not `(1 << 2) + 1`, but rather `1 << 3`. If you want to "isolate" calculations then put them in `()`
+> like `$((1 << 2) + 1)`
 
 ### attributes
 
@@ -206,7 +215,7 @@ Here is a list of availiable directives (also known as keywords) with their expl
 - `.alloc` - used in ELF targets
 - `.write` - used in ELF targets
 - `.exec` - used in ELF targets
-- `.math <MATHSYMBOL> $<IMMEDIATE>`
+- `.define <NAME> $<IMMEDIATE>`
 
 Here is list of size directives:
 

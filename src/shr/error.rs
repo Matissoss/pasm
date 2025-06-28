@@ -42,19 +42,22 @@ impl Display for RError {
     // error format (rust-like error format):
     //
     // {EXCEPTION_TYPE}[{ERROR_CODE}]: {MSG}
-    // -> {FILE:LINE}
+    //   {FILE:LINE}
     //   | {LINE} - 1
-    // L | {LINE} - 0
+    // L>| {LINE} - 0
     //   | {LINE} + 1
     // help: go to `{SOURCE_CODE_REPO}/docs/error-spec.md#e[{ERROR_CODE}]` for more info
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         use crate::color::*;
         f.write_str(&ColString::new("error").set_color(Color::RED).to_string())?;
-        f.write_str(&format!("({}): ", self.meta & 0x3FFF))?;
+        f.write_str(&format!("[{:03}]: ", self.meta & 0x3FFF))?;
         f.write_str(&self.msg)?;
         f.write_str("\n")?;
         if let Some(file) = self.get_file() {
-            f.write_str(&format!("-> {}", file.to_string_lossy()))?;
+            if let Some(ln) = self.get_line() {
+                f.write_str(&" ".repeat(ln.to_string().len() + 2))?;
+            }
+            f.write_str(&format!("{}", file.to_string_lossy()))?;
             if let Some(ln) = self.get_line() {
                 f.write_str(&format!(":{ln}"))?;
             }

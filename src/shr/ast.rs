@@ -5,7 +5,8 @@
 
 use std::path::PathBuf;
 
-use crate::pre::tok::Token;
+use std::collections::HashMap;
+
 use crate::shr::{
     atype::{AType, ToAType},
     error::RError as Error,
@@ -48,7 +49,7 @@ pub enum ASTNode {
     Label(RString),
     Extern(RString),
     Include(PathBuf),
-    MathEval(RString, u64),
+    Define(RString, u64),
 
     Section(RString),
     Align(u16),
@@ -94,7 +95,7 @@ pub struct AST {
     pub bits: Option<u8>,
     pub entry: Option<RString>,
     pub includes: Vec<PathBuf>,
-    pub math: Vec<(RString, u64)>,
+    pub defined: HashMap<RString, u64>,
     pub file: PathBuf,
 }
 
@@ -105,37 +106,6 @@ pub enum IVariant {
     MMX,
     XMM, // SSE/AVX
     YMM, // AVX
-}
-
-// implementations
-
-impl TryFrom<Token> for Operand {
-    type Error = Error;
-    fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
-        match tok {
-            Token::Register(reg) => {
-                if reg.is_ctrl_reg() {
-                    Ok(Self::CtrReg(reg))
-                } else if reg.is_dbg_reg() {
-                    Ok(Self::DbgReg(reg))
-                } else if reg.purpose() == RPurpose::Sgmnt {
-                    Ok(Self::SegReg(reg))
-                } else {
-                    Ok(Self::Reg(reg))
-                }
-            }
-            Token::String(val) => Ok(Self::String(val)),
-            Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
-            _ => Err(Error::new(
-                format!(
-                    "failed to create operand from \"{}\" token",
-                    tok.to_string()
-                ),
-                3,
-            )),
-        }
-    }
 }
 
 impl Operand {
@@ -424,20 +394,6 @@ impl Instruction {
 }
 
 impl AST {
-    pub fn fix_entry(&mut self) {
-        if let Some(entry) = &self.entry {
-            for index in 0..self.sections.len() {
-                for label in &mut self.sections[index].content {
-                    if &label.name == entry {
-                        let (flabel, llabel) = self.sections[index].content.split_at_mut(index);
-                        llabel[0].meta = (Visibility::Global as u8) << 7;
-                        std::mem::swap(&mut flabel[0], &mut llabel[0]);
-                        return;
-                    }
-                }
-            }
-        }
-    }
     pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
             if self.sections.contains(&l) {
@@ -451,7 +407,7 @@ impl AST {
             }
             self.includes.push(l);
         }
-        self.math.extend(rhs.math);
+        self.defined.extend(rhs.defined);
         Ok(())
     }
 }

@@ -11,20 +11,9 @@ use crate::shr::{
 };
 
 pub fn post_process(ast: &mut AST) -> Result<(), Error> {
-    let mut math_symbols = HashMap::new();
-    for m in &mut ast.math {
-        if math_symbols.contains_key(&m.0) {
-            return Err(Error::new(
-                format!("symbol with same name \"{}\" was declared twice", &m.0),
-                4,
-            ));
-        } else {
-            math_symbols.insert(&m.0, m.1);
-        }
-    }
     for sec in &mut ast.sections {
         for l in &mut sec.content {
-            replace_mathevals(l, &math_symbols)?;
+            replace_mathevals(l, &ast.defined)?;
         }
     }
     Ok(())
@@ -32,7 +21,7 @@ pub fn post_process(ast: &mut AST) -> Result<(), Error> {
 
 pub fn replace_mathevals(
     label: &mut Label,
-    mth: &HashMap<&crate::RString, u64>,
+    mth: &HashMap<crate::RString, u64>,
 ) -> Result<(), Error> {
     for i in &mut label.inst {
         for o in i.oprs.iter_mut() {

@@ -105,8 +105,8 @@ pub fn mer(
                     error = Some(er);
                 }
             }
-            Some(Token::Keyword(Keyword::Math)) => match make_eval(line) {
-                Ok(n) => node = Some(ASTNode::MathEval(n.0, n.1)),
+            Some(Token::Keyword(Keyword::Define)) => match make_eval(line) {
+                Ok(n) => node = Some(ASTNode::Define(n.0, n.1)),
                 Err(mut e) => {
                     e.set_line(line_count);
                     error = Some(e)
@@ -263,13 +263,24 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
     }
 
     if line.len() == 2 {
-        match (&line.get_unchecked(0), &line.get_unchecked(1)){
-            (Token::Keyword(Keyword::Deref|Keyword::Ref),
+        match (line.get_unchecked(0).clone(), line.get_unchecked(1).clone()){
+            (Token::Keyword(Keyword::Ref),
              Token::SymbolRef(s)
             ) => {
                 let mut s = s.clone();
-                s.deref(line.get_unchecked(0) == &Token::Keyword(Keyword::Deref));
+                s.deref(false);
                 return Ok(Operand::SymbolRef(*s.clone()));
+            },
+            (Token::Keyword(Keyword::Deref), Token::SymbolRef(_)) => return Err(Error::new("you cannot create dereference to a symbol without providing size directive", 8)),
+            (Token::Keyword(sz), Token::SymbolRef(mut s)) | (Token::SymbolRef(mut s), Token::Keyword(sz)) => {
+                let size = match Size::try_from(sz){
+                    Ok(s) => s,
+                    Err(_) => return Err(Error::new(
+                        "expected size specifier, found unknown directive", 8)),
+                };
+                s.set_size(size);
+                s.deref(true);
+                return Ok(Operand::SymbolRef(*s));
             }
             (Token::Keyword(Keyword::Deref), Token::Modifier(m)) => {
                 let (sref, sz) = match (m.first(), m.get(1)) {
@@ -289,7 +300,7 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
             }
              (Token::Closure(' ', m), Token::Keyword(ref k))
             |(Token::Keyword(ref k), Token::Closure(' ', m)) =>
-                return Ok(Operand::Mem(Mem::new(m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),
+                return Ok(Operand::Mem(Mem::new(&m, Size::try_from(*k).unwrap_or(Size::Unknown))?)),
              (Token::Modifier(ref m), Token::Keyword(ref k))
             |(Token::Keyword(ref k), Token::Modifier(ref m)) => {
                 let size = match Size::try_from(*k){
@@ -318,8 +329,24 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
         }
     }
 
+    if line.len() == 3 {
+        match (line.first().unwrap(), line.get(1).unwrap().clone(), line.get(2).unwrap()) {
+            (Token::Keyword(Keyword::Deref), Token::SymbolRef(mut s), Token::Keyword(sz)) |
+            (Token::Keyword(sz), Token::SymbolRef(mut s), Token::Keyword(Keyword::Deref)) => {
+                let sz = match Size::try_from(*sz) {
+                    Ok(s) => s,
+                    Err(_) => return Err(Error::new("you tried to use symbol dereference, but you did not provide valid size directive", 8))
+                };
+                s.set_size(sz);
+                s.deref(true);
+                return Ok(Operand::SymbolRef(*s));
+            }
+            _ => return Err(Error::new("you tried to make operand from three tokens, but ones you provided could not be parsed into one", 8))
+        }
+    }
+
     Err(Error::new(
-        "you tried to make operand from more than 2 tokens",
+        "you tried to make operand from more than 3 tokens",
         8,
     ))
 }

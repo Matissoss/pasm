@@ -103,7 +103,7 @@ impl std::fmt::Display for AType {
     }
 }
 
-trait ToType {
+pub trait ToType {
     fn atypen(&self) -> AType;
 }
 
@@ -681,7 +681,7 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
             if let Some(s) = ins.get_opr(i) {
                 if !o.has(s.atypen()) {
                     let mut er = Error::new(
-                        format!("invalid operand at index {i} of type {}", s.atypen()),
+                        format!("operand at index {i} has invalid type: {}", s.atypen()),
                         8,
                     );
                     er.set_line(ins.line);

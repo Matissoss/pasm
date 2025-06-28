@@ -121,7 +121,14 @@ pub fn ast(list: LexTree) -> Result<AST, Vec<Error>> {
                     }
                 }
                 ASTNode::Include(p) => ast.includes.push(p),
-                ASTNode::MathEval(name, value) => ast.math.push((name, value)),
+                ASTNode::Define(name, value) => {
+                    if ast.defined.insert(name.clone(), value).is_some() {
+                        let mut err =
+                            Error::new(format!("you tried to redeclare symbol \"{name}\""), 4);
+                        err.set_line(node.1);
+                        errors.push(err);
+                    }
+                }
                 ASTNode::Label(lbl) => {
                     if !instructions.is_empty() {
                         if let Err(err) = collect_label(

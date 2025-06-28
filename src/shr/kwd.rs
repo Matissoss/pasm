@@ -15,8 +15,6 @@ pub enum Keyword {
     Dword,
     Xword,
     Yword,
-    Entry,
-    Global,
     Extern,
     Include,
 
@@ -31,7 +29,12 @@ pub enum Keyword {
     Deref,
     Ref,
 
-    Math,
+    Rel32,
+    Abs32,
+    Rel16,
+    Rel8,
+
+    Define,
 }
 
 // keyword is equal
@@ -58,16 +61,32 @@ impl FromStr for Keyword {
         let kwd_raw = kwd_str.as_bytes();
         let kwd = kwd_raw;
         match kwd_raw.len() {
-            // experimental
             3 => match kwd_raw[0] {
-                b'a' => kwd_ie(kwd, b"any", 1, 2, Keyword::Any),
-                b'r' => kwd_ie(kwd, b"ref", 1, 2, Keyword::Ref),
+                b'a' => match kwd_raw[1] {
+                    b'n' => match kwd_raw[2] {
+                        // experimental
+                        b'y' => Ok(Self::Any),
+                        _ => Err(()),
+                    },
+                    b'b' => match kwd_raw[2] {
+                        b's' => Ok(Self::Abs32),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
+                b'r' => match kwd_raw[1] {
+                    b'e' => match kwd_raw[2] {
+                        b'f' => Ok(Self::Ref),
+                        b'l' => Ok(Self::Rel32),
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
                 _ => Err(()),
             },
 
             4 => match kwd_raw[0] as char {
                 'e' => kwd_ie(kwd, b"exec", 1, 3, Keyword::Exec),
-                'm' => kwd_ie(kwd, b"math", 1, 3, Keyword::Math),
                 'b' => match kwd_raw[1] as char {
                     'y' => kwd_ie(kwd, b"byte", 2, 3, Keyword::Byte),
                     'i' => kwd_ie(kwd, b"bits", 2, 3, Keyword::Bits),
@@ -77,7 +96,34 @@ impl FromStr for Keyword {
                 _ => Err(()),
             },
             5 => match kwd_raw[0] as char {
+                'r' => match kwd_raw[1] as char {
+                    'e' => match kwd_raw[2] as char {
+                        'l' => match kwd_raw[3] as char {
+                            '3' => match kwd_raw[4] as char {
+                                '2' => Ok(Self::Rel32),
+                                _ => Err(()),
+                            },
+                            '1' => match kwd_raw[4] as char {
+                                '6' => Ok(Self::Rel16),
+                                _ => Err(()),
+                            },
+                            _ => Err(()),
+                        },
+                        _ => Err(()),
+                    },
+                    _ => Err(()),
+                },
                 'a' => match kwd_raw[1] as char {
+                    'b' => match kwd_raw[2] as char {
+                        's' => match kwd_raw[3] as char {
+                            '3' => match kwd_raw[4] as char {
+                                '2' => Ok(Self::Abs32),
+                                _ => Err(()),
+                            },
+                            _ => Err(()),
+                        },
+                        _ => Err(()),
+                    },
                     'l' => match kwd_raw[2] as char {
                         'i' => kwd_ie(kwd, b"align", 3, 4, Keyword::Align),
                         'l' => kwd_ie(kwd, b"alloc", 3, 4, Keyword::Alloc),
@@ -94,12 +140,11 @@ impl FromStr for Keyword {
                     b'e' => kwd_ie(kwd, b"deref", 1, 4, Keyword::Deref),
                     _ => Err(()),
                 },
-                'e' => kwd_ie(kwd, b"entry", 1, 4, Keyword::Entry),
                 _ => Err(()),
             },
             6 => match kwd_raw[0] as char {
-                'g' => kwd_ie(kwd, b"global", 1, 5, Keyword::Global),
                 'e' => kwd_ie(kwd, b"extern", 1, 5, Keyword::Extern),
+                'd' => kwd_ie(kwd, b"define", 1, 5, Keyword::Define),
                 _ => Err(()),
             },
             7 => match kwd_raw[0] as char {

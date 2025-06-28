@@ -5,6 +5,8 @@
 
 use crate::pre::chkn;
 
+use chkn::ToType;
+
 use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
@@ -2858,7 +2860,17 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<Error
                 return None;
             }
         }
-        let er = Error::new(format!("operand at index {idx} has invalid type"), 8);
+        let er = Error::new(
+            if operand.size() == Size::Qword {
+                format!("operand at index {idx} has invalid type of {}. consider setting bits parameter to 64 as this could fix the issue.", operand.atypen())
+            } else {
+                format!(
+                    "operand at index {idx} has invalid type of {}",
+                    operand.atypen()
+                )
+            },
+            8,
+        );
         Some(er)
     }
 }

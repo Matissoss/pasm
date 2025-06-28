@@ -95,19 +95,9 @@ Goal: support for smaller x86-64 ISA extensions
 - [ ] x87 ISA
 - [ ] CET_SS (Shadow Stack)
 - [ ] GFNI
-- [ ] AMX-TILE
-- [ ] Xeon Phi
 - [ ] BMI*
 - [ ] missing x86-64 instructions
 - [ ] move to beta-macro
-
-## beta-macro
-
-Goal: support for compile-time code generation
-
-- [ ] Define macro syntax
-- [ ] Implement support for macro in parser
-- [ ] Plug macros into compilation
 - [ ] move to rc
 
 ## rc

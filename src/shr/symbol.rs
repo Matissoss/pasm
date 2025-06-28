@@ -3,8 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::conf::PREFIX_VAL;
-use crate::shr::{booltable::BoolTable8, error::RError, num::Number, reloc::RelType, size::Size};
+use crate::shr::{booltable::BoolTable8, reloc::RelType, size::Size};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -58,29 +57,6 @@ pub struct SymbolRef {
     guardians: BoolTable8,
 }
 
-type Error = RError;
-
-enum Token {
-    String(String),
-    RelType(RelType),
-    Number(Number),
-}
-
-fn new_tok(str: String) -> Token {
-    if let Ok(num) = Number::from_str(&str) {
-        Token::Number(num)
-    } else {
-        match str.as_ref() {
-            "abs" => Token::RelType(RelType::ABS32),
-            "rel" | "rel32" => Token::RelType(RelType::REL32),
-            "rel16" => Token::RelType(RelType::REL16),
-            "rel8" => Token::RelType(RelType::REL8),
-            _ => Token::String(str),
-        }
-    }
-}
-
-const PREFIX_VAL_U8: u8 = PREFIX_VAL as u8;
 impl SymbolRef {
     pub fn deref(&mut self, bool: bool) {
         self.guardians.set(IS_DEREF, bool)
@@ -131,60 +107,6 @@ impl SymbolRef {
         } else {
             None
         }
-    }
-    // syntax:
-    //
-    // @(name:reltype:+/-addend)
-    //
-    pub fn try_new(str: &str) -> Result<Self, Error> {
-        let bytes = str.as_bytes();
-        let (mut name, mut rtype, mut addend) = (String::new(), RelType::REL32, 0);
-        let mut tmp_buf = Vec::new();
-        for b in bytes {
-            match *b {
-                PREFIX_VAL_U8 | b'(' | b')' => continue,
-                b':' => {
-                    if !tmp_buf.is_empty() {
-                        let string = String::from_utf8(tmp_buf).unwrap_or_default();
-                        match new_tok(string) {
-                            Token::Number(n) => addend = n.get_as_i32(),
-                            Token::String(s) => name = s,
-                            Token::RelType(r) => rtype = r,
-                        }
-                        tmp_buf = Vec::new();
-                    }
-                    if *b == b'+' || *b == b'-' {
-                        tmp_buf.push(*b);
-                    }
-                    continue;
-                }
-                b' ' | b'\t' => continue,
-                _ => tmp_buf.push(*b),
-            }
-        }
-        if !tmp_buf.is_empty() {
-            let string = String::from_utf8(tmp_buf).unwrap_or_default();
-            match new_tok(string) {
-                Token::Number(n) => addend = n.get_as_i32(),
-                Token::String(s) => name = s,
-                Token::RelType(r) => rtype = r,
-            }
-        }
-
-        if name.is_empty() {
-            return Err(RError::new(
-                "tried to reference a symbol, but forgot to provide its name",
-                101,
-            ));
-        }
-
-        Ok(Self::new(
-            name.into(),
-            Some(addend),
-            false,
-            None,
-            Some(rtype),
-        ))
     }
 }
 

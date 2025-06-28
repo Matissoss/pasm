@@ -139,7 +139,6 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
             ast.extend(par_file(&include)?).map_err(|e| vec![e])?;
         }
     }
-    ast.fix_entry();
     Ok(ast)
 }
 

@@ -2,8 +2,6 @@
     <h1>error-spec.md</h1>
 </div>
 
-## normal errors (e000-e400)
-
 ### e000
 
 #### description
@@ -43,17 +41,26 @@ This error is provoked by using invalid character in binary, octal or hexadecima
 
 This error is provoked, when you provided one token for operand, but it couldn't be converted into operand.
 
+#### example
+
+```
+_start:
+    .dword ; e[003]. directive .dword cannot be converted into operand
+```
+
 ### e004
 
 #### description
 
-This error is occured, when an undefined symbol (or symbol with same name) is being used.
+This error is occured, when an undefined symbol is being used or symbol is redeclared multiple times.
 
 #### example
 
 ```
 _start:
     jmp @_start1 ; e[004]
+_start: ; e[004]
+    ; [...]
 ```
 
 ### e005
@@ -144,13 +151,6 @@ _start:
     mov %r8d, $10 ; e[010]
     mov %rax, $10 ; e[010]
     stosq ; e[010]
-```
-
-#### example
-
-```
-_start:
-    mov %rax ; e[009]
 ```
 
 ### e011
