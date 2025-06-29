@@ -2,46 +2,39 @@
     <h1>syntax-avx512.md</h1>
 </div>
 
-## before we start
+## abbreviations
 
-When I mention EVEX then I mean AVX-512.
+`AVX-512` = `AVX-512` and/or `AVX-10`
 
 ## mnemonics
 
-Mnemonics that use EVEX are prefixed with letter `E` (not `V` like other AVX mnemonics).
+Mnemonics that are derived from AVX-512 and are encoded using `EVEX` prefix are prefixed with `E` and not `V` like other AVX mnemonics.
 
-The reason for this is "logical": if we assert that `V` prefix means `VEX`, then `E` means `EVEX`. 
-
-Another reason is that it is explicit: you exactly know, if our assembler will encode EVEX or VEX.
+Here are two reasons:
+- Explicitness: you exactly know if assembler will encode `EVEX` or `VEX`
+- "Logical": we can assert that `V` means usage of `VEX` prefix and `E` of `EVEX` prefix.
 
 ## using masks
 
-Masks have same naming as in every other assembler: `k0-7`.
-
-To use mask you will need to use modifier on mnemonic:
+Masks have same naming as in Intel documentations: `k0-7`; You will have to utilize mnemonic modifier.
 
 ```
-emnemonic:k0 ; [...]
+emnemonic:mask ; [...]
 ```
 
-## using {sae}, `{er}` and {z}
+## `{sae}`, `{er}`, `{z}`
 
-To use `{sae}` (suppress all exceptions), `{er}` and `{z}` you will have to use another modifier on mnemonic:
+You will have to use mnemonic modifier:
 
 ```
-emnemonic:sae/er:z ; [...]
+emnemonic:z:er:k0
+emnemonic:z:sae:k0
 ```
-
-To use them with masks we have modifer of 4 elements: `mnemonic:mask:z:sae/er`.
-
-If mask is not provided, but it is required, then `pasm` defaults to `k0`.
-
-> [!WARN]
-> `pasm` does not check for `{sae}`, `{er}` and `{z}` (if they are allowed to be used), but it does check if `{er}` and `{sae}` are on in same moment (if they are, error is thrown).
 
 ## using mbcst
 
-Use modifier: `.size:bcst`
+Use modifier `.size:bcst`.
+
 
 ```
 .qword:bcst (%rax + %rcx)

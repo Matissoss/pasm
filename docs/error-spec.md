@@ -79,7 +79,7 @@ some_label:
     byte $0
 #(align=257)
 _start:
-    jmp @(_start1:rel8) ; e[005]
+    jmp @_start1:rel8 ; e[005]
 ```
 
 ### e006

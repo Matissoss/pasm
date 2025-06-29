@@ -180,7 +180,7 @@ $(10 << 20) ; LSH 10 20
 $(10 >> 20) ; RSH 20 10
 ```
 
-You can use `.define` directive to declare constant symbol and reference with `@` (it is inlined).
+You can use `.define` directive to declare constant symbol and reference with `@` (it is currently inlined, SOON it will be also availiable as ELF symbol).
 
 ```
 .define PI $3.14

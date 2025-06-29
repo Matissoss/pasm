@@ -22,7 +22,6 @@ See:
 - for users
     - [x] `syntax-std.md` (related to `beta`)
     - [ ] `syntax-avx512.md` (related to `beta-avx`)
-    - [ ] `macro.md` (related to `beta-macro`)
 - for developers
     - [x] `extending-rasm.md` (short explaination of RASM's API and how to use it)
     - [x] `encoding-x86.md` (related to `beta`)

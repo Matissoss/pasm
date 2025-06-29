@@ -42,7 +42,7 @@ build_dev(){
 	for target in "${!_RUST_TARGETS[@]}"; do
 		rtt=${_RUST_TARGETS[$target]}
 		echo "compiling for ${rtt}..."
-		path="${_PASM_BIN}-${_EXPT_TARGETS[$target]}"
+		path="${_PASM_BIN}${_EXPT_TARGETS[$target]}"
 		cargo build -q --release --target ${rtt}
 		mv "target/${rtt}/release/${_PASM_BIN}" "build/${_PASM_BIN}"
 		cd build
