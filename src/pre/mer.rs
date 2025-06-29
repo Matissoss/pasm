@@ -335,6 +335,7 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
         return Operand::try_from(line.get_unchecked(0).clone());
     }
 
+    println!("{:?}", line);
     if line.len() == 2 {
         match (line.get_unchecked(0).clone(), line.get_unchecked(1).clone()){
             (Token::Keyword(Keyword::Ref),

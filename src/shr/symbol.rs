@@ -101,6 +101,14 @@ impl SymbolRef {
             None
         }
     }
+    pub fn set_reltype(&mut self, reltype: RelType) {
+        self.guardians.set(RELT_GUARDIAN, true);
+        self.reltype = reltype;
+    }
+    pub fn set_addend(&mut self, addend: i32) {
+        self.guardians.set(ADED_GUARDIAN, true);
+        self.addend = addend;
+    }
     pub fn addend(&self) -> Option<i32> {
         if self.guardians.get(ADED_GUARDIAN).unwrap() {
             Some(self.addend)

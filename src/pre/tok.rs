@@ -120,7 +120,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                     delimeter_count -= 1;
                 }
             }
-            (Some(':'), ' ') => {
+            (Some(':'), ' ' | ',') => {
                 if delimeter_count == 0 {
                     if !tmp_buf.is_empty() {
                         tmp_toks.push(Token::make_from(
@@ -138,7 +138,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 
             (Some(CLOSURE_START), ',') => tmp_buf.push(c),
 
-            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_VAL), ',') => {
+            (Some(PREFIX_REG | PREFIX_REF | PREFIX_KWD | PREFIX_VAL), ',') => {
                 if !tmp_buf.is_empty() {
                     tokens.push(Token::make_from(
                         inside_closure,
@@ -217,7 +217,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                 closure_pfx,
                 String::from_iter(tmp_buf.iter()),
             ));
-            tokens.push(Token::make_modifier(tmp_toks.into_iter()))
+            tokens.push(Token::make_modifier(tmp_toks.into_iter()));
         } else {
             tokens.push(Token::make_from(
                 inside_closure,
@@ -249,66 +249,40 @@ impl Token {
                     },
                 )
             }
-            2 => {
-                let name = &toks[0];
-                let relof = &toks[1];
-                let sname = if let Token::String(s) | Token::Unknown(s) = name {
-                    s
-                } else {
-                    return Token::Modifier(toks.into());
-                };
-                let reltype = if let Ok(rtype) = RelType::try_from(relof) {
-                    rtype
-                } else {
-                    return Token::Modifier(toks.into());
-                };
-                return Token::SymbolRef(Box::new(SymbolRef::new(
-                    sname.clone(),
-                    None,
-                    false,
-                    None,
-                    Some(reltype),
-                )));
-            }
-            3 => {
-                let name = &toks[0];
-                let relt = &toks[1];
-                let mut offs = &toks[2];
-                let sname = if let Token::String(s) | Token::Unknown(s) = name {
-                    s.clone()
-                } else if let Token::SymbolRef(s) = name {
-                    s.symbol.clone()
-                } else {
-                    return Token::Modifier(toks.into());
-                };
-                let mut reltype = RelType::REL32;
-                if let Ok(rtype) = RelType::try_from(relt) {
-                    reltype = rtype;
-                } else {
-                    offs = relt;
-                }
-                let offset;
-                if let Token::Immediate(n) = offs {
-                    offset = n.get_as_i32();
-                } else {
-                    if let Token::Closure(p, v) = offs {
-                        if let Token::Immediate(n) = Self::make_closure(*p, v.clone()) {
-                            offset = n.get_as_i32();
-                        } else {
-                            return Token::Modifier(toks.into());
-                        }
+            2 => match &toks[..2] {
+                [Token::SymbolRef(symb), Token::Keyword(k)] => {
+                    let rt = if let Ok(rt) = RelType::try_from(&Token::Keyword(*k)) {
+                        rt
                     } else {
                         return Token::Modifier(toks.into());
-                    }
+                    };
+                    let mut s = *symb.clone();
+                    s.set_reltype(rt);
+                    return Token::SymbolRef(Box::new(s));
                 }
-                return Token::SymbolRef(Box::new(SymbolRef::new(
-                    sname.clone(),
-                    if offset == 0 { None } else { Some(offset) },
-                    false,
-                    None,
-                    Some(reltype),
-                )));
-            }
+                [Token::SymbolRef(symb), Token::Immediate(n)] => {
+                    let mut s = *symb.clone();
+                    s.set_addend(n.get_as_i32());
+                    return Token::SymbolRef(Box::new(s));
+                }
+                _ => return Token::Modifier(toks.into()),
+            },
+            3 => match &toks[..3] {
+                [Token::SymbolRef(symb), Token::Immediate(n), Token::Keyword(k)]
+                | [Token::SymbolRef(symb), Token::Keyword(k), Token::Immediate(n)] => {
+                    let rt = if let Ok(rt) = RelType::try_from(&Token::Keyword(*k)) {
+                        rt
+                    } else {
+                        return Token::Modifier(toks.into());
+                    };
+                    let offset = n.get_as_i32();
+                    let mut symb = symb.clone();
+                    symb.set_addend(offset);
+                    symb.set_reltype(rt);
+                    return Token::SymbolRef(Box::new(*symb));
+                }
+                _ => return Token::Modifier(toks.into()),
+            },
             _ => {}
         }
         Token::Modifier(toks.into())

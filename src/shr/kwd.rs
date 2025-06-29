@@ -96,6 +96,7 @@ pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
             b'r' => match r[1] {
                 b'e' => match r[2] {
                     b'f' => s(Ref),
+                    b'l' => s(Rel32),
                     _ => N,
                 },
                 _ => N,

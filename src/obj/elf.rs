@@ -282,14 +282,15 @@ fn make_elf<'a>(
     elf.push_symbols(symbols);
     for reloc in relocs {
         if let Some(symbol) = find_index(reloc, symbols) {
+            let mut idx = elf.get_local_symbol_count();
+            if symbols[symbol].is_global() {
+                idx += symbol;
+            } else {
+                idx -= symbol + 1;
+            }
             elf.push_reloc(
                 &TmpRelocation {
-                    symbol: symbol as u32
-                        + if symbols[symbol].is_global() {
-                            elf.get_local_symbol_count() as u32
-                        } else {
-                            2
-                        },
+                    symbol: idx as u32,
                     offset: reloc.offset,
                     addend: reloc.addend,
                     reltype: reloc.reltype,

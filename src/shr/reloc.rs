@@ -70,7 +70,12 @@ impl Relocation {
         let offset: i64 = self.offset.into();
         if self.is_rel() {
             // S + A - P
-            (offset + addend - <u32 as Into<i64>>::into(addr)) as u32
+            //
+            // very important thing (because i forgor earlier):
+            // S = Symbol, A = Addend, P = Offset
+            //             BUT NOT
+            // S = Offset, A = Addend, P = Symbol
+            (<u32 as Into<i64>>::into(addr) + addend - offset) as u32
         } else {
             (offset + addend).abs_diff(0) as u32
         }
@@ -158,9 +163,9 @@ mod tests {
             reltype: RelType::REL32,
             shidx: 0,
         };
-        assert_eq!(relocation.lea(0x01), 1);
+        assert_eq!(relocation.lea(0x01), (-1i32) as u32);
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
-        assert_eq!(bytes, [0x00, 0x71, 0x01, 0x00, 0x00, 0x00, 0x81, 0x91]);
+        assert_eq!(bytes, [0x00, 0x71, 0xFF, 0xFF, 0xFF, 0xFF, 0x81, 0x91]);
         let relocation = Relocation {
             symbol: "Symbol".to_string().into(),
             offset: 0x03,
@@ -169,6 +174,6 @@ mod tests {
             shidx: 0,
         };
         assert_eq!(relocate(&mut bytes, relocation, &[symbol]), Ok(()));
-        assert_eq!(bytes, [0x00, 0x71, 0x01, 0x01, 0x00, 0x00, 0x00, 0x91]);
+        assert_eq!(bytes, [0x00, 0x71, 0xFF, 0xFD, 0xFF, 0xFF, 0xFF, 0x91]);
     }
 }

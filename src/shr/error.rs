@@ -52,6 +52,7 @@ impl Display for RError {
     // help: go to `{SOURCE_CODE_REPO}/docs/error-spec.md#e[{ERROR_CODE}]` for more info
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         use crate::color::*;
+        f.write_str("\n")?;
         f.write_str(&ColString::new("error").set_color(Color::RED).to_string())?;
         f.write_str(&format!("[{:03}]: ", self.meta & 0x3FFF))?;
         f.write_str(&self.msg)?;
@@ -124,6 +125,7 @@ impl Display for RError {
             ColString::new("help").set_color(Color::GREEN),
             self.meta & 0x3FFF
         ))?;
+        f.write_str("\n")?;
 
         Ok(())
     }

@@ -331,15 +331,7 @@ impl GenAPI {
             } else {
                 let symb = ins.get_symbs()[0];
                 if let Some((s, _)) = symb {
-                    let addend = if let Some(addend) = s.addend() {
-                        addend
-                    } else {
-                        if s.reltype().unwrap_or_default().is_rel() {
-                            -(s.reltype().unwrap_or_default().size() as i32)
-                        } else {
-                            0
-                        }
-                    };
+                    let addend = s.addend().unwrap_or_default();
                     rels[0] = Some(Relocation {
                         symbol: s.symbol.clone(),
                         offset: base.len() as u32,
@@ -392,15 +384,7 @@ impl GenAPI {
                     base.extend(bts);
                 }
             } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
-                let addend = if let Some(addend) = s.addend() {
-                    addend
-                } else {
-                    if s.reltype().unwrap_or_default().is_rel() {
-                        -(s.reltype().unwrap_or_default().size() as i32)
-                    } else {
-                        0
-                    }
-                };
+                let addend = s.addend().unwrap_or_default();
                 rels[1] = Some(Relocation {
                     symbol: s.symbol.clone(),
                     offset: base.len() as u32,
@@ -423,6 +407,12 @@ impl GenAPI {
             let mut imm = vec![((self.addt & 0x00FF) as u8)];
             extend_imm(&mut imm, size as u8);
             base.extend(imm);
+        }
+
+        for r in rels.iter_mut().flatten() {
+            if r.is_rel() {
+                r.addend -= base.len() as i32 - 1;
+            }
         }
 
         (base, rels)
