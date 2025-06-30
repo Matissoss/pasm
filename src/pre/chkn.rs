@@ -45,7 +45,9 @@ pub const M8: AType = AType::Memory(Size::Byte, Size::Any, false);
 pub const M16: AType = AType::Memory(Size::Word, Size::Any, false);
 pub const MBCST16: AType = AType::Memory(Size::Word, Size::Any, true);
 pub const M32: AType = AType::Memory(Size::Dword, Size::Any, false);
+pub const MBCST32: AType = AType::Memory(Size::Dword, Size::Any, true);
 pub const M64: AType = AType::Memory(Size::Qword, Size::Any, false);
+pub const MBCST64: AType = AType::Memory(Size::Qword, Size::Any, true);
 pub const M128: AType = AType::Memory(Size::Xword, Size::Any, false);
 pub const M256: AType = AType::Memory(Size::Yword, Size::Any, false);
 pub const M512: AType = AType::Memory(Size::Zword, Size::Any, false);
@@ -773,6 +775,13 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
             CheckMode::X86 => {
                 let mut sz = Size::Unknown;
                 for o in ins.oprs.iter() {
+                    if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, true) =
+                        o.atypen()
+                    {
+                        continue;
+                    } else if o.atypen() == K {
+                        continue;
+                    }
                     if sz == Size::Unknown {
                         if let Some(r) = o.get_reg() {
                             if r.is_dbg_reg() || r.is_ctrl_reg() || r.is_sgmnt() {

@@ -49,7 +49,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
     let mut inside_closure: Option<char> = None;
     let mut closure_pfx: Option<char> = None;
     let mut delimeter_count: usize = 0;
-    let mut tmp_toks: SmallVec<Token, 4> = SmallVec::new();
+    let mut tmp_toks: SmallVec<Token, 8> = SmallVec::new();
 
     for b in line.as_bytes() {
         let c = *b as char;

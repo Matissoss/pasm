@@ -7,15 +7,16 @@ use crate::core::api::*;
 
 use crate::shr::{
     ast::{Instruction, Operand},
+    reg::Register,
     size::Size,
 };
 
-pub const EVEX: u8 = 0x62;
+const EVEX: u8 = 0x62;
 
 // opcode maps
 pub const MAP1: u8 = 0b000; // 0x0F
-pub const MAP2: u8 = 0b001; // 0x0F 0x38
-pub const MAP3: u8 = 0b010; // 0x0F 0x3A
+pub const MAP38: u8 = 0b010; // 0x0F 0x38
+pub const MAP3A: u8 = 0b011; // 0x0F 0x3A
 pub const MAP4: u8 = 0b100;
 pub const MAP5: u8 = 0b101;
 pub const MAP6: u8 = 0b110;
@@ -31,6 +32,15 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
         evex_x1 = true;
     }
 
+    let evex3 = {
+        (ins.get_z() as u8) << 7
+            | ((ins.size() == Size::Zword) as u8) << 6
+            | ((ins.size() == Size::Yword) as u8) << 5
+            | ((ins.get_sae() | ins.get_bcst()) as u8) << 4
+            | (!evex_vd as u8) << 3
+            | ins.get_mask().unwrap_or(Register::K0).to_byte()
+    };
+
     [
         EVEX,
         (!evex_r1 as u8) << 7
@@ -42,13 +52,7 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
             | gen_evex4v(evex_vvvv) << 3
             | 1 << 2
             | ctx.get_pp().unwrap(),
-        // this byte is certainly NOT RIGHT, because of rc, b, sae, etc.
-        (ins.get_z() as u8) << 7
-            | ((ins.size() == Size::Zword) as u8) << 6
-            | ((ins.size() == Size::Yword) as u8) << 5
-            | (ins.get_bcst() as u8) << 4
-            | (!evex_vd as u8) << 3
-            | ins.get_mask().unwrap().to_byte(),
+        evex3,
     ]
 }
 

@@ -68,9 +68,9 @@ Goal: implement most of AVX based (E)VEX instructions
 
 - [x] Prepare `pasm`'s syntax for AVX-512
 - [x] Prepare backend for AVX-512 (add `IS_BCST` flag to Mem, add support for masks, etc. in parser)
-- [ ] implement EVEX support
+- [x] implement EVEX support
 - ISA implementation (divided in 16 parts; add all instructions starting with `v`):
-    - [ ] avx-ext-0
+    - [x] avx-ext-0
     - [ ] avx-ext-1
     - [ ] avx-ext-2
     - [ ] avx-ext-3

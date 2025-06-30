@@ -6,7 +6,7 @@
 use crate::{
     cli::*,
     core::api::*,
-    core::evex::MAP5,
+    core::evex::*,
     shr::{
         ast::{IVariant, Instruction, Operand},
         ins::Mnemonic as Ins,
@@ -4424,6 +4424,100 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .evex(VexDetails::new().map_select(MAP5).vex_we(false).pp(0xF3))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Ins::EALIGNQ => GenAPI::new()
+            .opcode(&[0x03])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP3A).vex_we(true))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None)
+            .imm_atindex(3, 1),
+        Ins::EALIGND => GenAPI::new()
+            .opcode(&[0x03])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP3A))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None)
+            .imm_atindex(3, 1),
+        Ins::VBCSTNESH2PS => GenAPI::new()
+            .opcode(&[0xB1])
+            .vex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::VBCSTNEBF162PS => GenAPI::new()
+            .opcode(&[0xB1])
+            .vex(VexDetails::new().pp(0xF3).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBLENDMPS => GenAPI::new()
+            .opcode(&[0x65])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBLENDMPD => GenAPI::new()
+            .opcode(&[0x65])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTSD => GenAPI::new()
+            .opcode(&[0x19])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTF32X2 => GenAPI::new()
+            .opcode(&[0x19])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTSS => GenAPI::new()
+            .opcode(&[0x18])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTF32X4 => GenAPI::new()
+            .opcode(&[0x1A])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTF64X2 => GenAPI::new()
+            .opcode(&[0x1A])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTF32X8 => GenAPI::new()
+            .opcode(&[0x1B])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::EBROADCASTF64X4 => GenAPI::new()
+            .opcode(&[0x1B])
+            .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::ECMPPH => GenAPI::new()
+            .opcode(&[0xC2])
+            .evex(VexDetails::new().map_select(MAP3A))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None)
+            .imm_atindex(3, 1),
+        Ins::ECMPSH => GenAPI::new()
+            .opcode(&[0xC2])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP3A))
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .modrm(true, None, None)
+            .imm_atindex(3, 1),
+        Ins::ECOMISH => GenAPI::new()
+            .opcode(&[0x2F])
+            .evex(VexDetails::new().map_select(MAP5))
+            .ord(&[MODRM_REG, MODRM_RM])
+            .modrm(true, None, None),
+        Ins::ECOMPRESSPD | Ins::ECOMPRESSPS => GenAPI::new()
+            .opcode(&[0x8A])
+            .evex(
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0x66)
+                    .vex_we(ins.mnem == Ins::ECOMPRESSPD),
+            )
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG]),
         _ => panic!("haha"),
     }
 }

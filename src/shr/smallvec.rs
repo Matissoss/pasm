@@ -38,7 +38,7 @@ where
         f.write_str("[")?;
         for (i, e) in self.iter().enumerate() {
             e.fmt(f)?;
-            if i != self.len() {
+            if i + 1 != self.len() {
                 f.write_str(", ")?;
             }
         }
