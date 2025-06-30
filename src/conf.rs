@@ -90,3 +90,8 @@ pub const PREFIX_REF: char = '@';
 //  ---------------------------------------
 //  default = '.'
 pub const PREFIX_KWD: char = '.';
+
+// metadata for help
+
+pub const BIN: &str = "pasm";
+pub const VER: &str = "25.06-beta0";

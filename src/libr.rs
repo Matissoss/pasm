@@ -9,7 +9,7 @@ use crate::*;
 
 use shr::{ast::AST, error::RError as Error, reloc, symbol::*};
 
-pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
+pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
@@ -138,7 +138,7 @@ pub fn par_file(inpath: &Path) -> Result<AST, Vec<Error>> {
             v
         };
         for include in pths {
-            ast.extend(par_file(&include)?).map_err(|e| vec![e])?;
+            ast.extend(pasm_parse_src(&include)?).map_err(|e| vec![e])?;
         }
     }
     Ok(ast)

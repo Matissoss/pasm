@@ -11,7 +11,7 @@
 #![allow(clippy::unusual_byte_groupings)]
 
 //  global imports go here
-use std::{path::PathBuf, process};
+use std::process;
 
 // local imports go here
 
@@ -34,9 +34,7 @@ pub mod utils;
 
 pub use shr::rpanic::switch_panichandler;
 
-use cli::CLI;
-
-use help::Help;
+use cli::*;
 
 // feature dependent
 #[cfg(feature = "time")]
@@ -48,32 +46,36 @@ fn main() {
     switch_panichandler();
     let cli = &*CLI;
 
-    if cli.has_arg("-h") || cli.has_arg("--help") {
-        Help::main_help();
+    if cli_version(cli) {
+        println!("{}", help::version());
+        process::exit(0)
+    }
+    if cli_help(cli) {
+        println!("{}", help::help());
         process::exit(0)
     }
     #[cfg(feature = "iinfo")]
-    if cli.has_arg("supported-instructions") {
+    if cli_supported_instructions(cli) {
         print_supported_instructions();
         return;
     }
     #[cfg(feature = "iinfo")]
-    if cli.has_arg("supported-instructions-raw") {
+    if cli_supported_instructions_raw(cli) {
         print_supported_instructions_raw();
         return;
     }
 
-    let infile: PathBuf = if let Some(path) = cli.get_kv_arg("-i") {
-        PathBuf::from(path)
+    let infile = if let Some(s) = cli_infile(cli) {
+        s
     } else {
-        println!("error: you forgot to provide -i=[PATH] flag");
+        eprintln!("error: you forgot to provide -i=[PATH] flag");
         std::process::exit(1);
     };
 
     #[cfg(feature = "time")]
     let start = time::SystemTime::now();
 
-    let ast = libr::par_file(&infile);
+    let ast = libr::pasm_parse_src(infile);
 
     if let Err(errs) = ast {
         for mut e in errs {
@@ -84,7 +86,7 @@ fn main() {
     }
     let ast = ast.unwrap();
 
-    if cli.has_arg("check") {
+    if cli_check(cli) {
         #[cfg(feature = "time")]
         {
             let end = time::SystemTime::now();
@@ -100,42 +102,39 @@ fn main() {
         return;
     }
 
-    let outfile: PathBuf = if let Some(path) = cli.get_kv_arg("-o") {
-        PathBuf::from(path)
-    } else {
-        println!("error: you forgot to provide -o=[PATH] flag");
+    let outfile = cli_outfile(cli)
+        .clone()
+        .unwrap_or(std::path::PathBuf::from("a.out"));
+
+    let f = cli_target(cli).unwrap_or("bin");
+    if let Err(e) = libr::assemble(ast, &outfile, f) {
+        eprintln!("{e}");
         std::process::exit(1);
     };
-
-    if let Some(form) = cli.get_kv_arg("-f") {
-        if let Err(e) = libr::assemble(ast, &outfile, form) {
-            eprintln!("{e}");
-            std::process::exit(1);
-        };
-        #[cfg(all(feature = "time", feature = "vtime"))]
-        {
-            let end = time::SystemTime::now();
-            println!(
-                "overall took {:08.16}s",
-                match end.duration_since(start) {
-                    Ok(t) => t.as_secs_f32(),
-                    Err(e) => e.duration().as_secs_f32(),
-                }
-            )
-        }
-        #[cfg(all(feature = "time", not(feature = "vtime")))]
-        {
-            let end = time::SystemTime::now();
-            println!(
-                "Assembling {} took {:08.16}s and ended without errors!",
-                infile.to_string_lossy(),
-                match end.duration_since(start) {
-                    Ok(t) => t.as_secs_f32(),
-                    Err(e) => e.duration().as_secs_f32(),
-                }
-            )
-        }
+    #[cfg(all(feature = "time", feature = "vtime"))]
+    {
+        let end = time::SystemTime::now();
+        println!(
+            "overall took {:08.16}s",
+            match end.duration_since(start) {
+                Ok(t) => t.as_secs_f32(),
+                Err(e) => e.duration().as_secs_f32(),
+            }
+        )
     }
+    #[cfg(all(feature = "time", not(feature = "vtime")))]
+    {
+        let end = time::SystemTime::now();
+        println!(
+            "Assembling {} took {:08.16}s and ended without errors!",
+            infile.to_string_lossy(),
+            match end.duration_since(start) {
+                Ok(t) => t.as_secs_f32(),
+                Err(e) => e.duration().as_secs_f32(),
+            }
+        )
+    }
+    process::exit(0);
 }
 
 #[cfg(feature = "iinfo")]

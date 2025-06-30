@@ -22,8 +22,10 @@ pub fn split_str_owned(s: &str, chr: char) -> Vec<String> {
     let chrb = chr as u8;
     for b in s.as_bytes() {
         if b == &chrb {
-            strs.push(String::from_utf8_lossy(&tmp_buf).to_string());
-            tmp_buf.clear();
+            strs.push(
+                String::from_utf8(tmp_buf).expect("pasm source code should be encoded in UTF-8"),
+            );
+            tmp_buf = Vec::new();
         } else {
             tmp_buf.push(*b);
         }

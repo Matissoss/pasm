@@ -227,6 +227,12 @@ This error is provoked, when mask is being used, but instruction does not suppor
 mov:k2 ; e[016]
 ```
 
+### e017
+
+#### description
+
+This error is provoked, when an unknown CLI flag is being used.
+
 ### e101
 
 #### description

@@ -3,92 +3,95 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::color::{ColString, Color, Modifier};
-use std::{env, process, sync::LazyLock};
+use std::{env, sync::LazyLock};
 
-pub static CLI: LazyLock<Cli> = LazyLock::new(|| Cli::new(env::args().collect::<Vec<String>>()));
+pub static CLI: LazyLock<Cli> = LazyLock::new(|| cli_new(env::args().collect::<Vec<String>>()));
 
-const VERBOSE: (&str, &str) = ("--verbose", "-v");
-const DEBUG: (&str, &str) = ("--debug", "-d");
-const NOCOL: (&str, &str) = ("--nocolor", "-n");
+use crate::shr::booltable::BoolTable16 as Flags;
+use std::path::PathBuf;
 
+const HELP: u8 = 0x0;
+const DBG: u8 = 0x1;
+const NOCOL: u8 = 0x2;
+const SUPPORTED_INS: u8 = 0x3;
+const SUPPORTEDINSR: u8 = 0x4;
+const VER: u8 = 0x5;
+const NO_ASSEMBLE: u8 = 0x6;
+
+#[derive(Default)]
 pub struct Cli {
-    pub args: Vec<String>,
-    // additional flags
-    pub debug: bool,
-    pub verbose: bool,
-    pub nocolor: bool,
+    target: Option<String>,   // -f flag
+    infile: Option<PathBuf>,  // -i flag
+    outfile: Option<PathBuf>, // -o flag
+    flags: Flags,             // -/--flag
 }
 
-impl Cli {
-    pub fn new(args: Vec<String>) -> Self {
-        let (mut debug, mut verbose, mut nocolor) = (false, false, false);
-        let mut argset = Vec::new();
-        for arg in args {
-            if arg == DEBUG.0 || arg == DEBUG.1 {
-                debug = true;
-            } else if arg == VERBOSE.0 || arg == VERBOSE.1 {
-                verbose = true;
-            } else if arg == NOCOL.0 || arg == NOCOL.1 {
-                nocolor = true
-            }
-            argset.push(arg.to_string());
-        }
-        Cli {
-            args: argset,
-            debug,
-            verbose,
-            nocolor,
-        }
-    }
-    pub fn has_arg(&self, vl: &str) -> bool {
-        for a in &self.args {
-            if let Some((a, _)) = a.split_once('=') {
-                if a == vl {
-                    return true;
+pub fn cli_infile(cli: &Cli) -> &Option<PathBuf> {
+    &cli.infile
+}
+pub fn cli_outfile(cli: &Cli) -> &Option<PathBuf> {
+    &cli.outfile
+}
+pub fn cli_nocolor(cli: &Cli) -> bool {
+    cli.flags.get(NOCOL).unwrap()
+}
+pub fn cli_help(cli: &Cli) -> bool {
+    cli.flags.get(HELP).unwrap()
+}
+pub fn cli_target(cli: &Cli) -> Option<&str> {
+    cli.target.as_deref()
+}
+pub fn cli_version(cli: &Cli) -> bool {
+    cli.flags.get(VER).unwrap()
+}
+pub fn cli_check(cli: &Cli) -> bool {
+    cli.flags.get(NO_ASSEMBLE).unwrap()
+}
+pub fn cli_debug(cli: &Cli) -> bool {
+    cli.flags.get(DBG).unwrap()
+}
+pub fn cli_supported_instructions_raw(cli: &Cli) -> bool {
+    cli.flags.get(SUPPORTEDINSR).unwrap()
+}
+pub fn cli_supported_instructions(cli: &Cli) -> bool {
+    cli.flags.get(SUPPORTED_INS).unwrap()
+}
+
+pub fn cli_new(args: Vec<String>) -> Cli {
+    let mut cli = Cli::default();
+    for a in &args[1..] {
+        let (key, val) = match a.split_once('=') {
+            Some((key, val)) => (key, Some(val)),
+            None => (a.as_str(), None),
+        };
+        match key {
+            "-h" | "--help" => cli.flags.set(HELP, true),
+            "-d" | "--debug" => cli.flags.set(DBG, true),
+            "-i" | "--input" => {
+                cli.infile = match val {
+                    Some(v) => Some(v.into()),
+                    None => None,
                 }
-            } else {
-                if a == vl {
-                    return true;
+            }
+            "-o" | "--output" => {
+                cli.outfile = match val {
+                    Some(v) => Some(v.into()),
+                    None => None,
                 }
             }
-        }
-        false
-    }
-    pub fn get_kv_arg(&self, vl: &str) -> Option<&str> {
-        for a in &self.args {
-            if let Some((a, v)) = a.split_once('=') {
-                if a == vl {
-                    return Some(v);
+            "-f" => {
+                cli.target = match val {
+                    Some(v) => Some(v.into()),
+                    None => None,
                 }
             }
+            "-v" | "--version" => cli.flags.set(VER, true),
+            "-c" | "--check" => cli.flags.set(NO_ASSEMBLE, true),
+            "-s" | "--supported-instructions" => cli.flags.set(SUPPORTED_INS, true),
+            "-S" | "--supported-instructions-raw" => cli.flags.set(SUPPORTEDINSR, true),
+            "-n" | "--nocolor" => cli.flags.set(NOCOL, true),
+            _ => continue,
         }
-        None
     }
-    pub fn get_arg(&self, searched: &str) -> Option<&String> {
-        self.args.iter().find(|s| *s == searched)
-    }
-    #[inline(always)]
-    pub fn exit(&self, path: &str, function: &str, cause: &str, exit_code: i32) -> ! {
-        eprintln!(
-            "[{}{}{}] ({} {}): {}",
-            ColString::new(path)
-                .set_color(Color::PURPLE)
-                .set_modf(Modifier::Bold),
-            ColString::new(':')
-                .set_color(Color::PURPLE)
-                .set_modf(Modifier::Bold),
-            ColString::new(function)
-                .set_color(Color::PURPLE)
-                .set_modf(Modifier::Bold),
-            ColString::new("EXIT")
-                .set_color(Color::RED)
-                .set_modf(Modifier::Bold),
-            ColString::new(exit_code)
-                .set_color(Color::RED)
-                .set_modf(Modifier::Bold),
-            cause
-        );
-        process::exit(exit_code);
-    }
+    cli
 }

@@ -190,3 +190,14 @@ impl RError {
         }
     }
 }
+
+#[cfg(test)]
+mod t {
+    #[test]
+    fn t() {
+        use super::RError as Error;
+        let er = Error::new("h", 1);
+        assert_eq!(er.get_file(), None);
+        assert_eq!(er.get_line(), None);
+    }
+}

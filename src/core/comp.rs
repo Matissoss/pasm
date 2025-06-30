@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
-    cli::CLI,
+    cli::*,
     core::api::*,
     core::evex::MAP5,
     shr::{
@@ -50,7 +50,7 @@ pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
 }
 
 pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>, Vec<Relocation>) {
-    let fn_ptr = if CLI.debug {
+    let fn_ptr = if cli_debug(&CLI) {
         GenAPI::debug_assemble
     } else {
         GenAPI::assemble

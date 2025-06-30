@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::CLI;
+use crate::cli::*;
 
 use std::fmt::{Display, Error as FmtError, Formatter};
 
@@ -61,7 +61,7 @@ impl ColString {
 
 impl Display for ColString {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), FmtError> {
-        if CLI.nocolor {
+        if cli_nocolor(&CLI) {
             write!(frm, "{}", self.val)
         } else {
             write!(
