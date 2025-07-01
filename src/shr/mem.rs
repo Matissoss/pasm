@@ -17,6 +17,8 @@ use std::str::FromStr;
 pub const RIP_ADDRESSING: u8 = 0x0;
 pub const OBY_OFFSET: u8 = 0x1;
 pub const IS_BCST: u8 = 0x2;
+pub const HAS_BASE: u8 = 0x3;
+pub const HAS_INDEX: u8 = 0x4;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -24,10 +26,9 @@ pub struct Mem {
     // layout:
     // - 1st-4th: offset
     // - 5th: regs:
-    //   XX_YYY_ZZZ:
-    //      XX: sentinels for base and index (first for base, second for index)
-    //      YYY: value of base register
-    //      ZZZ: value of index register
+    //   XXXX_YYYY:
+    //      XXXX: value of base register
+    //      YYYY: value of index register
     // - 6th: metadata_1:
     //   XXXX_YYYA,
     //      XXXX - size (byte, word, dword, qword, xword, yword, zword, any)
@@ -45,8 +46,8 @@ pub struct Mem {
     //          0b101 - FS
     //          0b110 - GS
     //          0b111 - reserved
-    //      C - base uses REX
-    //      D - index uses REX
+    //      C - base ext_bits[0]
+    //      D - index ext_bits[0]
     //  - 8th: flags
     offset: i32,
     regs: u8,
@@ -83,10 +84,7 @@ impl Mem {
         self.get_flag(RIP_ADDRESSING).unwrap_or(false)
     }
     pub fn is_sib(&self) -> bool {
-        self.index().is_some()
-            && self.scale().is_some()
-            && self.base().is_some()
-            && !self.is_riprel()
+        self.index().is_some() && self.base().is_some() && !self.is_riprel()
     }
     pub const fn get_segment(&self) -> Option<Register> {
         match (self.metadata_2 & 0b0001_1100) >> 2 {
@@ -125,38 +123,39 @@ impl Mem {
 
     // getters
     pub fn atype(&self) -> AType {
-        let sz = self.size().unwrap_or(Size::Unknown);
+        let sz = self.size();
         AType::Memory(sz)
     }
 
     // returns size of base or index
-    pub fn addrsize(&self) -> Option<Size> {
-        Self::compressed_size((self.metadata_2 & 0b1110_0000) >> 5)
+    pub fn addrsize(&self) -> Size {
+        Size::de((self.metadata_2 & 0b1110_0000) >> 5)
     }
     pub fn needs_rex(&self) -> (bool, bool) {
         (self.base_rex(), self.index_rex())
     }
     // returns size of memory address
-    pub fn size(&self) -> Option<Size> {
-        Self::compressed_size((self.metadata_1 & 0b1111_0000) >> 4)
+    pub fn size(&self) -> Size {
+        Size::de((self.metadata_1 & 0b1111_0000) >> 4)
     }
     pub fn base_rex(&self) -> bool {
-        self.metadata_2 & 0b0000_0010 == 0b0000_0010
+        self.regs & 0b1000_0000 == 0b1000_0000
     }
     pub fn index_rex(&self) -> bool {
-        self.metadata_2 & 0b0000_0001 == 0b0000_0001
+        self.regs & 0b0000_1000 == 0b0000_1000
     }
     pub fn base(&self) -> Option<Register> {
         if self.get_flag(RIP_ADDRESSING).unwrap_or(false) {
             return Some(Register::RIP);
         }
-        if self.regs & 0b1000_0000 == 0b1000_0000 {
-            let val = (self.regs & 0b0011_1000) >> 3;
-            Self::compressed_reg(
-                self.addrsize().unwrap_or(Size::Unknown),
+        if self.flags.get(HAS_BASE).unwrap() {
+            Some(Register::de(Register::mksek(
+                false,
                 self.base_rex(),
-                val,
-            )
+                self.addrsize() as u16,
+                RPurpose::General as u16,
+                ((self.regs & 0b0111_0000) >> 4) as u16,
+            )))
         } else {
             None
         }
@@ -165,13 +164,14 @@ impl Mem {
         if self.get_flag(RIP_ADDRESSING).unwrap_or(false) {
             return None;
         }
-        if self.regs & 0b0100_0000 == 0b0100_0000 {
-            let val = self.regs & 0b0000_0111;
-            Self::compressed_reg(
-                self.addrsize().unwrap_or(Size::Unknown),
-                self.index_rex(),
-                val,
-            )
+        if self.flags.get(HAS_INDEX).unwrap() {
+            Some(Register::de(Register::mksek(
+                false,
+                self.base_rex(),
+                self.addrsize() as u16,
+                RPurpose::General as u16,
+                (self.regs & 0b000_0111) as u16,
+            )))
         } else {
             None
         }
@@ -196,8 +196,8 @@ impl Mem {
             None
         }
     }
-    pub fn scale(&self) -> Option<Size> {
-        Self::compressed_size((self.metadata_1 & 0b0000_1110) >> 1)
+    pub fn scale(&self) -> Size {
+        Size::de((self.metadata_1 & 0b0000_1110) >> 1)
     }
     pub fn get_flag(&self, idx: u8) -> Option<bool> {
         self.flags.get(idx)
@@ -205,7 +205,7 @@ impl Mem {
 
     // setters
     pub fn set_addrsize(&mut self, addrsize: Size) {
-        let sz = Self::compressed_size_rev(addrsize).unwrap_or(0b000) & 0b111;
+        let sz = Size::se(&addrsize) & 0b111;
         // clear addr size
         let mask = !0b1110_0000;
         // set addr_size
@@ -218,18 +218,15 @@ impl Mem {
         let rx = base.get_ext_bits()[1] as u8;
 
         // check
-        if self.addrsize().unwrap_or(Size::Unknown) != base.size() {
+        if self.addrsize() != base.size() {
             return false;
         }
         // set guardian
-        self.regs = (self.regs & !0b1000_0000) | 0b1000_0000;
+        self.flags.set(HAS_BASE, true);
 
-        // set rex
-        let mask = !0b0000_0010;
-        self.metadata_2 = (self.metadata_2 & mask) | rx << 1;
         // set base
-        let mask = !0b0011_1000;
-        self.regs = (self.regs & mask) | bb << 3;
+        let mask = !0b1111_0000;
+        self.regs = (self.regs & mask) | rx << 7 | bb << 4;
         true
     }
     // false if it fails
@@ -239,18 +236,15 @@ impl Mem {
         let rx = index.get_ext_bits()[1] as u8;
 
         // check
-        if self.addrsize().unwrap_or(Size::Unknown) != index.size() {
+        if self.addrsize() != index.size() {
             return false;
         }
         // set guardian
-        self.regs = (self.regs & !0b0100_0000) | 0b0100_0000;
+        self.flags.set(HAS_INDEX, true);
 
-        // set rex
-        let mask = !0b0000_0001;
-        self.metadata_2 = (self.metadata_2 & mask) | rx;
         // set index
-        let mask = !0b0000_0111;
-        self.regs = (self.regs & mask) | bb;
+        let mask = !0b0000_1111;
+        self.regs = (self.regs & mask) | rx << 3 | bb;
         true
     }
     pub fn set_offset(&mut self, offset: i32) {
@@ -264,12 +258,12 @@ impl Mem {
         self.metadata_1 &= !0b0000_0001;
     }
     pub fn set_size(&mut self, sz: Size) {
-        let sz = Self::compressed_size_rev(sz).unwrap_or(0b1111);
+        let sz = Size::se(&sz) & 0b111;
         let mask = !0b1111_0000;
         self.metadata_1 = (self.metadata_1 & mask) | sz << 4
     }
     pub fn set_scale(&mut self, sz: Size) {
-        let sz = Self::compressed_size_rev(sz).unwrap_or(0b111);
+        let sz = Size::se(&sz) & 0b111;
         let mask = !0b0000_1110;
         self.metadata_1 = (self.metadata_1 & mask) | (sz << 1);
     }
@@ -278,146 +272,6 @@ impl Mem {
     }
     pub fn clear_flag(&mut self, idx: u8) {
         self.flags.set(idx, false)
-    }
-
-    // misc
-    fn compressed_reg(sz: Size, rex: bool, reg: u8) -> Option<Register> {
-        use Register::*;
-        match sz {
-            Size::Byte => {
-                if rex {
-                    match reg {
-                        0b000 => Some(R8B),
-                        0b001 => Some(R9B),
-                        0b010 => Some(R10B),
-                        0b011 => Some(R11B),
-                        0b100 => Some(R12B),
-                        0b101 => Some(R13B),
-                        0b110 => Some(R14B),
-                        0b111 => Some(R15B),
-                        _ => None,
-                    }
-                } else {
-                    match reg {
-                        0b000 => Some(AL),
-                        0b001 => Some(CL),
-                        0b010 => Some(DL),
-                        0b011 => Some(BL),
-                        0b100 => Some(AH),
-                        0b101 => Some(CH),
-                        0b110 => Some(DH),
-                        0b111 => Some(BH),
-                        _ => None,
-                    }
-                }
-            }
-            Size::Word => {
-                if rex {
-                    match reg {
-                        0b000 => Some(R8W),
-                        0b001 => Some(R9W),
-                        0b010 => Some(R10W),
-                        0b011 => Some(R11W),
-                        0b100 => Some(R12W),
-                        0b101 => Some(R13W),
-                        0b110 => Some(R14W),
-                        0b111 => Some(R15W),
-                        _ => None,
-                    }
-                } else {
-                    match reg {
-                        0b000 => Some(AX),
-                        0b001 => Some(CX),
-                        0b010 => Some(DX),
-                        0b011 => Some(BX),
-                        0b100 => Some(SP),
-                        0b101 => Some(BP),
-                        0b110 => Some(SI),
-                        0b111 => Some(DI),
-                        _ => None,
-                    }
-                }
-            }
-            Size::Dword => {
-                if rex {
-                    match reg {
-                        0b000 => Some(R8D),
-                        0b001 => Some(R9D),
-                        0b010 => Some(R10D),
-                        0b011 => Some(R11D),
-                        0b100 => Some(R12D),
-                        0b101 => Some(R13D),
-                        0b110 => Some(R14D),
-                        0b111 => Some(R15D),
-                        _ => None,
-                    }
-                } else {
-                    match reg {
-                        0b000 => Some(EAX),
-                        0b001 => Some(ECX),
-                        0b010 => Some(EDX),
-                        0b011 => Some(EBX),
-                        0b100 => Some(ESP),
-                        0b101 => Some(EBP),
-                        0b110 => Some(ESI),
-                        0b111 => Some(EDI),
-                        _ => None,
-                    }
-                }
-            }
-            Size::Qword => {
-                if rex {
-                    match reg {
-                        0b000 => Some(R8),
-                        0b001 => Some(R9),
-                        0b010 => Some(R10),
-                        0b011 => Some(R11),
-                        0b100 => Some(R12),
-                        0b101 => Some(R13),
-                        0b110 => Some(R14),
-                        0b111 => Some(R15),
-                        _ => None,
-                    }
-                } else {
-                    match reg {
-                        0b000 => Some(RAX),
-                        0b001 => Some(RCX),
-                        0b010 => Some(RDX),
-                        0b011 => Some(RBX),
-                        0b100 => Some(RSP),
-                        0b101 => Some(RBP),
-                        0b110 => Some(RSI),
-                        0b111 => Some(RDI),
-                        _ => None,
-                    }
-                }
-            }
-            _ => None,
-        }
-    }
-    fn compressed_size_rev(sz: Size) -> Option<u8> {
-        match sz {
-            Size::Byte => Some(0b0000),
-            Size::Word => Some(0b0001),
-            Size::Dword => Some(0b0010),
-            Size::Qword => Some(0b0011),
-            Size::Xword => Some(0b0100),
-            Size::Yword => Some(0b0101),
-            Size::Any => Some(0b1111),
-            _ => None,
-        }
-    }
-    fn compressed_size(sz: u8) -> Option<Size> {
-        match sz {
-            0b0000 => Some(Size::Byte),
-            0b0001 => Some(Size::Word),
-            0b0010 => Some(Size::Dword),
-            0b0011 => Some(Size::Qword),
-            0b0100 => Some(Size::Xword),
-            0b0101 => Some(Size::Yword),
-            0b1111 => Some(Size::Any),
-            _ => None,
-        }
     }
 }
 
@@ -437,7 +291,6 @@ enum Token {
 fn mem_chk(mem: &mut Mem) {
     let base = mem.base();
     let index = mem.index();
-    let scale = mem.scale();
     let offset = mem.offset();
 
     if let (None, Some(_)) = (base, index) {
@@ -449,9 +302,6 @@ fn mem_chk(mem: &mut Mem) {
         };
     }
 
-    if let (Some(_), Some(_), None) = (base, index, scale) {
-        mem.set_scale(Size::Byte);
-    }
     if let (None, None, Some(_)) = (base, index, offset) {
         mem.set_flag(RIP_ADDRESSING);
     }
@@ -665,11 +515,9 @@ impl ToString for Mem {
         if let Some(reg) = self.index() {
             str.push('%');
             str.push_str(&reg.to_string());
-        }
-        if let (Some(scale), Some(_)) = (self.scale(), self.index()) {
             str.push_str(" * ");
             str.push('$');
-            str.push_str(&(<Size as Into<u8>>::into(scale).to_string()));
+            str.push_str(&(<Size as Into<u8>>::into(self.scale()).to_string()));
         }
         if let Some(offset) = self.offset() {
             let is_neg = offset.is_negative();
@@ -695,9 +543,9 @@ mod new_test {
         assert!(size_of::<Mem>() == 8);
         let mut mem = Mem::blank();
         mem.set_addrsize(Size::Qword);
-        assert_eq!(mem.addrsize(), Some(Size::Qword));
+        assert_eq!(mem.addrsize(), Size::Qword);
         mem.set_addrsize(Size::Dword);
-        assert_eq!(mem.addrsize(), Some(Size::Dword));
+        assert_eq!(mem.addrsize(), Size::Dword);
         mem.set_offset(0x01);
         assert_eq!(mem.offset(), Some(0x01));
         mem.clear_offset();
@@ -708,7 +556,7 @@ mod new_test {
         assert_eq!(mem.index(), Some(Register::EAX));
         assert_eq!(mem.base(), Some(Register::EAX));
         mem.set_scale(Size::Byte);
-        assert_eq!(mem.scale(), Some(Size::Byte));
+        assert_eq!(mem.scale(), Size::Byte);
         let mut mem = Mem::blank();
         mem.set_addrsize(Size::Qword);
         mem.set_index(Register::RCX);
@@ -729,7 +577,7 @@ mod new_test {
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.index(), Some(Register::RCX));
-        assert_eq!(mem.scale(), Some(Size::Byte));
+        assert_eq!(mem.scale(), Size::Byte);
         let str = "%rax + $20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
@@ -742,7 +590,7 @@ mod new_test {
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.index(), Some(Register::RCX));
-        assert_eq!(mem.scale(), Some(Size::Dword));
+        assert_eq!(mem.scale(), Size::Dword);
         assert_eq!(mem.offset(), Some(20));
         let str = "%rcx*$4";
         let mem = Mem::new(str, Size::Qword);
@@ -750,14 +598,14 @@ mod new_test {
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
         assert_eq!(mem.index(), Some(Register::RCX));
-        assert_eq!(mem.scale(), Some(Size::Dword));
+        assert_eq!(mem.scale(), Size::Dword);
         let str = "%rcx * $4 + $20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
         assert_eq!(mem.index(), Some(Register::RCX));
-        assert_eq!(mem.scale(), Some(Size::Dword));
+        assert_eq!(mem.scale(), Size::Dword);
         assert_eq!(mem.offset(), Some(20));
         let str = "-0xFF";
         let mem = Mem::new(str, Size::Qword);
@@ -768,6 +616,6 @@ mod new_test {
         let mem = Mem::new("%eax + %ebx", Size::Qword).unwrap();
         assert_eq!(mem.base(), Some(Register::EAX));
         assert_eq!(mem.index(), Some(Register::EBX));
-        assert_eq!(mem.scale(), Some(Size::Byte));
+        assert_eq!(mem.scale(), Size::Byte);
     }
 }

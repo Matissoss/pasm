@@ -142,7 +142,7 @@ impl Operand {
             Self::Reg(r) => r.size(),
             Self::CtrReg(r) => r.size(),
             Self::DbgReg(r) => r.size(),
-            Self::Mem(m) => m.size().unwrap_or(Size::Unknown),
+            Self::Mem(m) => m.size(),
             Self::SymbolRef(s) => {
                 if let Some(sz) = s.size() {
                     sz
@@ -284,7 +284,7 @@ impl Instruction {
                 }
                 _ => IVariant::STD,
             },
-            Some(Operand::Mem(m)) => match m.size().unwrap_or(Size::Unknown) {
+            Some(Operand::Mem(m)) => match m.size() {
                 Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => match self.src() {
@@ -443,7 +443,11 @@ impl AST {
                         continue;
                     }
                     if l0.name == l1.name {
-                        return Err(Error::new_wline_actx(format!("section {} contains two labels with name \"{}\". Declaration at line {}, redeclaration at line {}",  s0.name, l1.name,l0.line,l1.line), 12, l0.line, l1.line));
+                        return Err(Error::new_wline_actx(format!("section {} contains two labels with name \"{}\". Declaration at line {}, redeclaration at line {}",  
+                        s0.name, l1.name, l0.line,l1.line),
+                            12, l0.line, l1.line,
+                            self.file.to_string_lossy().to_string().into()
+                        ));
                     }
                 }
             }

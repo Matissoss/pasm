@@ -49,16 +49,16 @@ pub const LINE_WIDTH: usize = 25;
 pub const FAST_MODE: bool = false;
 
 // CLOSURE_START and CLOSURE_END defines character that will begin/end closures
-// means that: destination = %rsi - $4
 // -------------------------------------
 // default : CLOSURE_START = '(', CLOSURE_END = ')'
 pub const CLOSURE_START: char = '(';
 pub const CLOSURE_END: char = ')';
 
-// COMMENT_S or in other words: comment start
-// ------------------------------------------
-// default = ';'
-pub const COMMENT_S: char = ';';
+// subexpressions like in Intel documents:
+// {subexpr}
+// default: SUBEXPR_START = '{'; SUBEXPR_CLOSE = '}';
+pub const SUBEXPR_START: char = '{';
+pub const SUBEXPR_CLOSE: char = '}';
 
 //  ---------------------------------------------------------------------------
 //                              PREFIXES WARNING:

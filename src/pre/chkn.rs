@@ -141,11 +141,7 @@ impl ToType for Operand {
             Self::SegReg(r) | Self::CtrReg(r) | Self::DbgReg(r) | Self::Reg(r) => {
                 AType::Register(*r, false)
             }
-            Self::Mem(m) => AType::Memory(
-                m.size().unwrap_or(Size::Unknown),
-                m.addrsize().unwrap_or(Size::Unknown),
-                m.is_bcst(),
-            ),
+            Self::Mem(m) => AType::Memory(m.size(), m.addrsize(), m.is_bcst()),
             Self::SymbolRef(s) => {
                 if s.is_deref() {
                     AType::Memory(s.size().unwrap_or(Size::Unknown), Size::Any, false)
@@ -165,12 +161,10 @@ impl PartialEq for AType {
             (AType::Register(lr, lf), AType::Register(rr, rf)) => {
                 if lf || rf {
                     lr == rr
+                } else if lr.is_any() || rr.is_any() {
+                    lr.size() == rr.size()
                 } else {
-                    if lr.is_any() || rr.is_any() {
-                        lr.size() == rr.size()
-                    } else {
-                        lr.purpose() == rr.purpose() && lr.size() == rr.size()
-                    }
+                    lr.purpose() == rr.purpose() && lr.size() == rr.size()
                 }
             }
             (AType::Memory(lsz, laddr, lbcst), AType::Memory(rsz, raddr, rbcst)) => {
@@ -760,14 +754,12 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
                     er.set_line(ins.line);
                     return Err(er);
                 }
+            } else if o.is_optional() {
+                break;
             } else {
-                if o.is_optional() {
-                    break;
-                } else {
-                    let mut er = Error::new("you didn't provide valid amount of operands", 9);
-                    er.set_line(ins.line);
-                    return Err(er);
-                }
+                let mut er = Error::new("you didn't provide valid amount of operands", 9);
+                er.set_line(ins.line);
+                return Err(er);
             }
         }
         match self.get_mode() {

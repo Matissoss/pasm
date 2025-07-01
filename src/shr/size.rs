@@ -26,6 +26,31 @@ impl Size {
     pub fn is_any(&self) -> bool {
         *self as u8 == Self::Any as u8
     }
+    pub const fn se(&self) -> u8 {
+        match self {
+            Self::Unknown | Self::Any => 0b0000,
+            Self::Byte => 0b0001,
+            Self::Word => 0b0010,
+            Self::Dword => 0b0011,
+            Self::Qword => 0b0100,
+            Self::Xword => 0b0101,
+            Self::Yword => 0b0110,
+            Self::Zword => 0b0111,
+        }
+    }
+    pub const fn de(key: u8) -> Self {
+        match key {
+            0b0000 => Size::Any,
+            0b0001 => Size::Byte,
+            0b0010 => Size::Word,
+            0b0011 => Size::Dword,
+            0b0100 => Size::Qword,
+            0b0101 => Size::Xword,
+            0b0110 => Size::Yword,
+            0b0111 => Size::Zword,
+            _ => Size::Unknown,
+        }
+    }
 }
 
 impl From<Size> for u8 {

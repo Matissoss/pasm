@@ -20,12 +20,10 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
         if let Some((_, sz)) = m.offset_x86() {
             if m.is_riprel() {
                 0b00
+            } else if sz == 1 {
+                0b01
             } else {
-                if sz == 1 {
-                    0b01
-                } else {
-                    0b10
-                }
+                0b10
             }
         } else {
             0b00

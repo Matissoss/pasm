@@ -20,8 +20,14 @@ where
 {
     fn clone(&self) -> Self {
         let mut b = [const { MaybeUninit::uninit() }; N];
-        for (idx, c) in self.content.iter().enumerate() {
-            b[idx] = unsafe { MaybeUninit::new(c.assume_init_ref().clone()) };
+        let mut idx = 0;
+        for c in self.iter() {
+            b[idx] = MaybeUninit::new(c.clone());
+            idx += 1;
+        }
+        while idx != self.len() {
+            b[idx] = MaybeUninit::uninit();
+            idx += 1;
         }
         Self {
             len: self.len,
@@ -84,7 +90,7 @@ impl<T, const N: usize> SmallVec<T, N> {
         unsafe { self.content[idx].assume_init_ref() }
     }
     #[inline]
-    pub const fn push(&mut self, t: T) {
+    pub fn push(&mut self, t: T) {
         self.content[self.len] = MaybeUninit::new(t);
         self.len += 1;
     }

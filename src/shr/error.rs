@@ -3,42 +3,22 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::shr::location::Location;
 use crate::RString;
+
 use std::{fmt::Display, path::PathBuf};
 
-use std::mem::MaybeUninit;
-
 // new error type
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RError {
     // file path
-    fl: MaybeUninit<PathBuf>,
-    // file line - if 0 then not set
-    ln: usize,
+    location: Location,
+    context: Box<Location>,
 
-    // additional context
-    actx: usize,
     // message
     msg: RString,
-    // layout:
-    //  0bXX_Y[Y]..
-    //  - X0: reserved
-    //  - X1: if 1 then fl is some
-    //  - Y[Y]: error code
-    meta: u16,
-}
 
-impl Clone for RError {
-    fn clone(&self) -> Self {
-        let mut s = Self::new(self.msg.clone(), self.meta);
-        if let Some(f) = self.get_file() {
-            s.set_file(f.clone());
-        }
-        if let Some(f) = self.get_line() {
-            s.set_line(f);
-        }
-        s
-    }
+    error_code: u16,
 }
 
 impl Display for RError {
@@ -52,80 +32,81 @@ impl Display for RError {
     // help: go to `{SOURCE_CODE_REPO}/docs/error-spec.md#e[{ERROR_CODE}]` for more info
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         use crate::color::*;
-        f.write_str("\n")?;
-        f.write_str(&ColString::new("error").set_color(Color::RED).to_string())?;
-        f.write_str(&format!("[{:03}]: ", self.meta & 0x3FFF))?;
-        f.write_str(&self.msg)?;
-        f.write_str("\n")?;
+        write!(
+            f,
+            "\n{}[{:03}]: {}\n",
+            ColString::new("error").set_color(Color::RED),
+            self.error_code,
+            self.msg,
+        )?;
+
         if let Some(file) = self.get_file() {
-            if let Some(ln) = self.get_line() {
-                f.write_str(&" ".repeat(ln.to_string().len() + 1))?;
-                f.write_str("--> ")?;
-            }
-            f.write_str(&format!("{}", file.to_string_lossy()))?;
-            if let Some(ln) = self.get_line() {
-                f.write_str(&format!(":{ln}"))?;
-            }
-            f.write_str("\n")?;
-            let content = std::fs::read_to_string(file).expect("Internal Error: couldnt read file");
-            let content: Vec<&str> = content.lines().collect();
-
-            let linepad = if let (Some(ln), Some(actx)) = (self.get_line(), self.get_actx()) {
-                ln.to_string().len().max(actx.to_string().len()) + 2
-            } else if let Some(ln) = self.get_line() {
-                ln.to_string().len() + 2
-            } else {
-                0
-            };
-
-            if let Some(mut ln) = self.get_line() {
-                ln -= 1;
-                if ln != 0 {
-                    if let Some(line) = content.get(ln - 1) {
-                        f.write_str(&format!("{}| {}", " ".repeat(linepad), line))?;
+            write!(f, "--> in {file}")?;
+            if let Some(line) = self.get_line() {
+                write!(
+                    f,
+                    " at {line}{}",
+                    if let Some(c) = self.location.get_char() {
+                        format!(":{c}")
                     } else {
-                        f.write_str(&format!("{}|", " ".repeat(linepad)))?;
+                        "".to_string()
                     }
-                } else {
-                    f.write_str(&format!("{}|", " ".repeat(linepad)))?;
-                }
-                if let Some(line) = content.get(ln) {
-                    f.write_str(&format!("\n{} >| {}", ln + 1, line))?;
-                }
-                if let Some(line) = content.get(ln + 1) {
-                    f.write_str(&format!("\n{}| {}", " ".repeat(linepad), line))?;
-                } else {
-                    f.write_str(&format!("\n{}|", " ".repeat(linepad)))?;
-                }
+                )?;
             }
-            if let Some(mut ln) = self.get_actx() {
-                f.write_str("\nadditional context:\n")?;
-                ln -= 1;
-                if ln != 0 {
-                    if let Some(line) = content.get(ln - 1) {
-                        f.write_str(&format!("{}| {}", " ".repeat(linepad), line))?;
-                    } else {
-                        f.write_str(&format!("{}|", " ".repeat(linepad)))?;
+
+            let file = std::fs::read_to_string(&*file).expect("should exist");
+            let src_file = file.lines().collect::<Vec<&str>>();
+
+            if let Some(line_num) = self.get_line() {
+                let line_padding = line_num.to_string().len() + 2;
+
+                let start = line_num - 1;
+                let destination = line_num;
+                let mut context = 0;
+
+                while context < 3 {
+                    if let Some(l) = src_file.get(start + context) {
+                        if start + context == destination {
+                            write!(f, "{} >| {}", destination, l)?;
+                        } else {
+                            write!(f, "{}| {}", " ".repeat(line_padding), l)?;
+                        }
                     }
-                } else {
-                    f.write_str(&format!("{}|", " ".repeat(linepad)))?;
+                    context += 1;
                 }
-                if let Some(line) = content.get(ln) {
-                    f.write_str(&format!("\n{} >| {}", ln + 1, line))?;
-                }
-                if let Some(line) = content.get(ln + 1) {
-                    f.write_str(&format!("\n{}| {}", " ".repeat(linepad), line))?;
-                } else {
-                    f.write_str(&format!("\n{}|", " ".repeat(linepad)))?;
+
+                let uctx = &*self.context;
+                if let Some(ctx_file) = uctx.get_file() {
+                    let ctx_file = std::fs::read_to_string(&*ctx_file).expect("should exist");
+                    let ctx_file = ctx_file.lines().collect::<Vec<&str>>();
+                    if let Some(ctx_line) = uctx.get_line() {
+                        write!(f, "\nadditional context:\n")?;
+                        let line_padding = ctx_line.to_string().len() + 2;
+                        let start = ctx_line - 1;
+                        let destination = line_num;
+                        let mut context = 0;
+
+                        while context < 3 {
+                            if let Some(l) = ctx_file.get(start + context) {
+                                if start + context == destination {
+                                    write!(f, "{} >| {}", destination, l)?;
+                                } else {
+                                    write!(f, "{}| {}", " ".repeat(line_padding), l)?;
+                                }
+                            }
+                            context += 1;
+                        }
+                    }
                 }
             }
         }
-        f.write_str(&format!(
-            "\n{}: go to `pasm/docs/error-spec.md#e{:03}` for more information.",
+
+        write!(
+            f,
+            "\n{}: go to `pasm/docs/error-spec.md#e{:03}` for more information.\n",
             ColString::new("help").set_color(Color::GREEN),
-            self.meta & 0x3FFF
-        ))?;
-        f.write_str("\n")?;
+            self.error_code
+        )?;
 
         Ok(())
     }
@@ -133,15 +114,23 @@ impl Display for RError {
 
 impl PartialEq for RError {
     fn eq(&self, rhs: &Self) -> bool {
-        self.meta & 0x3FFF == rhs.meta & 0x3FFF
+        self.error_code == rhs.error_code
     }
 }
 
 impl RError {
-    pub fn new_wline_actx(msg: impl ToString, ecd: u16, line: usize, atcx: usize) -> Self {
+    pub fn new_wline_actx(
+        msg: impl ToString,
+        ecd: u16,
+        line: usize,
+        actx: usize,
+        file: RString,
+    ) -> Self {
         let mut s = Self::new(msg, ecd);
         s.set_line(line);
-        s.actx = atcx;
+        s.context.file = file.clone();
+        s.location.file = file;
+        s.context.line = actx;
         s
     }
     pub fn new_wline(msg: impl ToString, ecd: u16, line: usize) -> Self {
@@ -151,43 +140,27 @@ impl RError {
     }
     pub fn new(msg: impl ToString, ecd: u16) -> Self {
         Self {
-            fl: MaybeUninit::uninit(),
-            ln: 0,
+            context: Box::new(Location::default()),
+            location: Location::default(),
             msg: msg.to_string().into(),
-            meta: ecd & 0x3FFF,
-            actx: 0,
+            error_code: ecd,
         }
     }
     pub fn msg(&self) -> &RString {
         &self.msg
     }
     pub fn set_line(&mut self, line: usize) {
-        self.ln = line;
+        self.location.set_line(line);
     }
     pub fn set_file(&mut self, fl: PathBuf) {
-        self.fl = MaybeUninit::new(fl);
-        self.meta |= 1 << 14;
+        self.location
+            .set_file(fl.to_string_lossy().to_string().into());
     }
-    pub fn get_file(&self) -> Option<&PathBuf> {
-        if self.meta & 1 << 14 == 1 << 14 {
-            Some(unsafe { self.fl.assume_init_ref() })
-        } else {
-            None
-        }
-    }
-    pub fn get_actx(&self) -> Option<usize> {
-        if self.actx == 0 {
-            None
-        } else {
-            Some(self.actx)
-        }
+    pub fn get_file(&self) -> Option<RString> {
+        self.location.get_file()
     }
     pub fn get_line(&self) -> Option<usize> {
-        if self.ln == 0 {
-            None
-        } else {
-            Some(self.ln)
-        }
+        self.location.get_line()
     }
 }
 

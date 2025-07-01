@@ -357,12 +357,10 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
                         tmp_num = Some(*n);
                         idx += 1;
                         continue;
+                    } else if let Some(t) = elements.pop() {
+                        tmp_mat = Some(t);
                     } else {
-                        if let Some(t) = elements.pop() {
-                            tmp_mat = Some(t);
-                        } else {
-                            return Err(Error::new("operation which you tried to use requires lhs and rhs, but you only provided operation symbol", 103));
-                        }
+                        return Err(Error::new("operation which you tried to use requires lhs and rhs, but you only provided operation symbol", 103));
                     }
                 }
                 if mode.is_none() {
@@ -406,15 +404,13 @@ fn par(tok: Vec<Token>) -> Result<MathElement, Error> {
     }
     if let Some(s) = elements.pop() {
         Ok(s)
+    } else if let Some(tmp_n) = tmp_num {
+        Ok(MathElement::Number(tmp_n))
     } else {
-        if let Some(tmp_n) = tmp_num {
-            Ok(MathElement::Number(tmp_n))
-        } else {
-            Err(Error::new(
-                "internal error: tried to pop elements vec, while it was empty",
-                500,
-            ))
-        }
+        Err(Error::new(
+            "internal error: tried to pop elements vec, while it was empty",
+            500,
+        ))
     }
 }
 

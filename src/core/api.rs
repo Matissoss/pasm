@@ -20,16 +20,7 @@ pub const FIXED_SIZE: u8 = 0xC;
 #[allow(unused)]
 pub const EXT_FLGS1: u8 = 0xD;
 #[allow(unused)]
-pub const EXT_FLGS2: u8 = 0xE; // addt is BoolTable16
-
-//
-// Extended flags combo (not used):
-// - EXT_FLGS1 : addt2 is BoolTable8 (+8 flags)
-// - EXT_FLGS2 : addt is BoolTable16 (+16 flags)
-// - EXT_FLGS1 + EXT_FLGS2: reserved
-// - EXT_FLGSx + !CAN_SEGM: reserved
-// - EXT_FLGSx + !CAN_H67O: reserved
-// - [...]: reserved
+pub const EXT_FLGS2: u8 = 0xE;
 
 use crate::{
     core::{disp, evex, modrm, rex, sib, vex},
@@ -72,6 +63,8 @@ pub enum OpOrd {
     VEX_VVVV = 0b10, // vex source (second source operand)
     TSRC = 0b11,     // third source
 }
+
+pub const EVEX_VVVV: u8 = OpOrd::VEX_VVVV as u8;
 
 #[repr(transparent)]
 struct Opcode {
@@ -225,19 +218,6 @@ impl GenAPI {
         } else {
             None
         }
-    }
-    pub fn debug_assemble<'a>(
-        &'a self,
-        ins: &'a Instruction,
-        bits: u8,
-    ) -> (Vec<u8>, [Option<Relocation>; 2]) {
-        let res = self.assemble(ins, bits);
-        print!("LINE {:8}:", ins.line + 1);
-        for b in &res.0 {
-            print!(" {:02x}", b);
-        }
-        println!();
-        res
     }
     // you can have max 2 relocations returned, because of variants like:
     // mov .deref @symbol, @other_symbol
@@ -524,7 +504,7 @@ fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<[Option<u8>; 
         _ => {}
     };
     if let Some(m) = ins.get_mem() {
-        match (m.addrsize().unwrap_or(Size::Unknown), bits) {
+        match (m.addrsize(), bits) {
             (Size::Dword, 16) => arr[1] = Some(0x67),
             (Size::Dword, 64) => arr[1] = Some(0x67),
             _ => {}

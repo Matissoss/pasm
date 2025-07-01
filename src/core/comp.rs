@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 use crate::{
-    cli::*,
     core::api::*,
     core::evex::*,
     shr::{
@@ -50,11 +49,7 @@ pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
 }
 
 pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>, Vec<Relocation>) {
-    let fn_ptr = if cli_debug(&CLI) {
-        GenAPI::debug_assemble
-    } else {
-        GenAPI::assemble
-    };
+    let fn_ptr = GenAPI::assemble;
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     let lbl_bits = lbl.2;
@@ -4570,25 +4565,21 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
                         0
                     };
                     api = api.opcode(&[(0x90 + s)]);
+                } else if let Some(Operand::Reg(Register::EAX | Register::RAX)) = ins.src() {
+                    api = api.opcode(&[(0x90 + r.to_byte())]);
                 } else {
-                    if let Some(Operand::Reg(Register::EAX | Register::RAX)) = ins.src() {
-                        api = api.opcode(&[(0x90 + r.to_byte())]);
-                    } else {
-                        api = api.opcode(&[0x87]);
-                        api = api.modrm(true, None, None);
-                        api = api.ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
-                    }
+                    api = api.opcode(&[0x87]);
+                    api = api.modrm(true, None, None);
+                    api = api.ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
                 }
+            } else if let Some(Operand::Reg(_)) = ins.src() {
+                api = api.opcode(&[0x87]);
+                api = api.modrm(true, None, None);
+                api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
             } else {
-                if let Some(Operand::Reg(_)) = ins.src() {
-                    api = api.opcode(&[0x87]);
-                    api = api.modrm(true, None, None);
-                    api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
-                } else {
-                    api = api.opcode(&[0x87]);
-                    api = api.modrm(true, None, None);
-                    api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
-                }
+                api = api.opcode(&[0x87]);
+                api = api.modrm(true, None, None);
+                api = api.ord(&[MODRM_RM, MODRM_REG, VEX_VVVV]);
             }
         }
         _ => invalid(3977),
@@ -5066,12 +5057,10 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
                         } else {
                             0x81
                         }
+                    } else if srci == Size::Byte {
+                        0x83
                     } else {
-                        if srci == Size::Byte {
-                            0x83
-                        } else {
-                            0x81
-                        }
+                        0x81
                     }
                 }
                 _ => invalid(11),
@@ -5103,7 +5092,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
                 .rex(true)
         }
         (Operand::Mem(m), Operand::Reg(_)) => {
-            let opc = match m.size().unwrap_or_default() {
+            let opc = match m.size() {
                 Size::Byte => 0x38,
                 Size::Word | Size::Dword | Size::Qword => 0x39,
                 _ => invalid(9),
@@ -5334,12 +5323,10 @@ fn ins_in(ins: &Instruction, _: u8) -> GenAPI {
         } else {
             GenAPI::new().opcode(&[0xED]).fixed_size(sz)
         }
+    } else if ins.size() == Size::Byte {
+        GenAPI::new().opcode(&[0xE4]).imm_atindex(1, 1)
     } else {
-        if ins.size() == Size::Byte {
-            GenAPI::new().opcode(&[0xE4]).imm_atindex(1, 1)
-        } else {
-            GenAPI::new().opcode(&[0xE5]).imm_atindex(1, 1)
-        }
+        GenAPI::new().opcode(&[0xE5]).imm_atindex(1, 1)
     }
 }
 
@@ -5354,15 +5341,13 @@ fn ins_out(ins: &Instruction, _: u8) -> GenAPI {
         } else {
             GenAPI::new().opcode(&[0xEF]).fixed_size(sz)
         }
+    } else if sz == Size::Byte {
+        GenAPI::new().opcode(&[0xE6]).imm_atindex(0, 1)
     } else {
-        if sz == Size::Byte {
-            GenAPI::new().opcode(&[0xE6]).imm_atindex(0, 1)
-        } else {
-            GenAPI::new()
-                .opcode(&[0xE7])
-                .imm_atindex(0, 1)
-                .fixed_size(sz)
-        }
+        GenAPI::new()
+            .opcode(&[0xE7])
+            .imm_atindex(0, 1)
+            .fixed_size(sz)
     }
 }
 

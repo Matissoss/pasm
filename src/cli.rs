@@ -68,22 +68,13 @@ pub fn cli_new(args: Vec<String>) -> Cli {
             "-h" | "--help" => cli.flags.set(HELP, true),
             "-d" | "--debug" => cli.flags.set(DBG, true),
             "-i" | "--input" => {
-                cli.infile = match val {
-                    Some(v) => Some(v.into()),
-                    None => None,
-                }
+                cli.infile = val.map(|v| v.into());
             }
             "-o" | "--output" => {
-                cli.outfile = match val {
-                    Some(v) => Some(v.into()),
-                    None => None,
-                }
+                cli.outfile = val.map(|v| v.into());
             }
             "-f" => {
-                cli.target = match val {
-                    Some(v) => Some(v.into()),
-                    None => None,
-                }
+                cli.target = val.map(|v| v.into());
             }
             "-v" | "--version" => cli.flags.set(VER, true),
             "-c" | "--check" => cli.flags.set(NO_ASSEMBLE, true),

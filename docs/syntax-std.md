@@ -12,7 +12,7 @@
 dst. (destination) -> src. (source) -> ssrc. (or src2; second source)
 ```
 
-You can make comments in `rasm` using `;`.
+You can make comments in `rasm` using `;` and `//`.
 
 ## operands
 

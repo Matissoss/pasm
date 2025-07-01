@@ -3,8 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-#![allow(clippy::collapsible_else_if)]
-#![allow(clippy::manual_map)]
 #![allow(clippy::to_string_trait_impl)]
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::needless_range_loop)]

@@ -263,52 +263,6 @@ impl Register {
             Self::ZMM28| Self::ZMM29| Self::ZMM30| Self::ZMM31 => Size::Zword,
         }
     }
-    #[deprecated]
-    #[rustfmt::skip]
-    pub const fn needs_evex(&self) -> bool {
-        matches!(self,
-            Self::XMM16 | Self::XMM18 | Self::XMM19 | Self::XMM20 |
-            Self::XMM21 | Self::XMM22 | Self::XMM23 | Self::XMM24 |
-            Self::XMM25 | Self::XMM26 | Self::XMM27 | Self::XMM28 |
-            Self::XMM29 | Self::XMM30 | Self::XMM31 |
-            Self::YMM16 | Self::YMM18 | Self::YMM19 | Self::YMM20 |
-            Self::YMM21 | Self::YMM22 | Self::YMM23 | Self::YMM24 |
-            Self::YMM25 | Self::YMM26 | Self::YMM27 | Self::YMM28 |
-            Self::YMM29 | Self::YMM30 | Self::YMM31 |
-            Self::ZMM0  | Self::ZMM1  | Self::ZMM2  | Self::ZMM3  |
-            Self::ZMM4  | Self::ZMM5  | Self::ZMM6  | Self::ZMM7  |
-            Self::ZMM8  | Self::ZMM9  | Self::ZMM10 | Self::ZMM11 |
-            Self::ZMM12 | Self::ZMM13 | Self::ZMM14 | Self::ZMM15 |
-            Self::ZMM16 | Self::ZMM18 | Self::ZMM19 | Self::ZMM20 |
-            Self::ZMM21 | Self::ZMM22 | Self::ZMM23 | Self::ZMM24 |
-            Self::ZMM25 | Self::ZMM26 | Self::ZMM27 | Self::ZMM28 |
-            Self::ZMM29 | Self::ZMM30 | Self::ZMM31
-        )
-    }
-    #[deprecated]
-    #[rustfmt::skip]
-    pub const fn needs_rex(&self) -> bool {
-        matches!(
-            self,
-            Self::R8   | Self::R9   | Self::R10  | Self::R11  |
-            Self::R12  | Self::R13  | Self::R14  | Self::R15  |
-            Self::R8B  | Self::R9B  | Self::R10B | Self::R11B |
-            Self::R12B | Self::R13B | Self::R14B | Self::R15B |
-            Self::R8W  | Self::R9W  | Self::R10W | Self::R11W |
-            Self::R12W | Self::R13W | Self::R14W | Self::R15W |
-            Self::R8D  | Self::R9D  | Self::R10D | Self::R11D |
-            Self::R12D | Self::R13D | Self::R14D | Self::R15D |
-            Self::XMM8 | Self::XMM9 | Self::XMM10| Self::XMM11|
-            Self::XMM12| Self::XMM13| Self::XMM14| Self::XMM15|
-            Self::YMM8 | Self::YMM9 | Self::YMM10| Self::YMM11|
-            Self::YMM12| Self::YMM13| Self::YMM14| Self::YMM15|
-            Self::SIL  | Self::DIL  | Self::BPL  | Self::SPL  |
-            Self::CR8  | Self::CR9  | Self::CR10 | Self::CR11 |
-            Self::CR12 | Self::CR13 | Self::CR14 | Self::CR15 |
-            Self::DR8  | Self::DR9  | Self::DR10 | Self::DR11 |
-            Self::DR12 | Self::DR13 | Self::DR14 | Self::DR15
-        )
-    }
     #[rustfmt::skip]
     pub const fn to_byte(&self) -> u8 {
         match &self {

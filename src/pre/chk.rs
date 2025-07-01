@@ -2853,17 +2853,15 @@ fn avx_ot_chk_wthout(
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Err(err);
             }
+        } else if allowed.1 == Optional::Needed {
+            let mut er = Error::new(
+                format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                9,
+            );
+            er.set_line(ins.line);
+            return Err(er);
         } else {
-            if allowed.1 == Optional::Needed {
-                let mut er = Error::new(
-                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
-                    9,
-                );
-                er.set_line(ins.line);
-                return Err(er);
-            } else {
-                break;
-            }
+            break;
         }
     }
     if ops.len() == 2 {
@@ -2922,17 +2920,15 @@ fn avx_ot_chk(
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Err(err);
             }
+        } else if allowed.1 == Optional::Needed {
+            let mut er = Error::new(
+                format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                9,
+            );
+            er.set_line(ins.line);
+            return Err(er);
         } else {
-            if allowed.1 == Optional::Needed {
-                let mut er = Error::new(
-                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
-                    9,
-                );
-                er.set_line(ins.line);
-                return Err(er);
-            } else {
-                break;
-            }
+            break;
         }
     }
     if ops.len() == 2 {
@@ -3023,17 +3019,15 @@ fn ot_chk(
             if let Some(err) = type_check(op, allowed.0, idx) {
                 return Err(err);
             }
+        } else if allowed.1 == Optional::Needed {
+            let mut er = Error::new(
+                format!("this mnemonic requires operand at index {idx}, but one was not found"),
+                9,
+            );
+            er.set_line(ins.line);
+            return Err(er);
         } else {
-            if allowed.1 == Optional::Needed {
-                let mut er = Error::new(
-                    format!("this mnemonic requires operand at index {idx}, but one was not found"),
-                    9,
-                );
-                er.set_line(ins.line);
-                return Err(er);
-            } else {
-                break;
-            }
+            break;
         }
     }
     if ops.len() == 2 {
@@ -3084,7 +3078,7 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<Error> {
 
 fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<Error> {
     if let Some(m) = operand.get_mem() {
-        if m.addrsize() == Some(Size::Word) {
+        if m.addrsize() == Size::Word {
             let er = Error::new("currently it is forbidden to use 16-bit address size", 500);
             return Some(er);
         }
@@ -3126,14 +3120,12 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
             if s1 <= s0 {
                 None
+            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                let mut er = Error::new("you tried to use immediate which is too large", 8);
+                er.set_line(ins.line);
+                Some(er)
             } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    let mut er = Error::new("you tried to use immediate which is too large", 8);
-                    er.set_line(ins.line);
-                    Some(er)
-                } else {
-                    None
-                }
+                None
             }
         }
         (AType::Memory(_), AType::Memory(_)) => {
@@ -3152,14 +3144,12 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 }
             } else if s1 == s0 {
                 None
+            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                let mut er = Error::new("dst operand has invalid type", 8);
+                er.set_line(ins.line);
+                Some(er)
             } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    let mut er = Error::new("dst operand has invalid type", 8);
-                    er.set_line(ins.line);
-                    Some(er)
-                } else {
-                    None
-                }
+                None
             }
         }
 
@@ -3181,14 +3171,12 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
             if s1 <= s0 {
                 None
+            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                let mut er = Error::new("you tried to use immediate which is too large", 8);
+                er.set_line(ins.line);
+                Some(er)
             } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    let mut er = Error::new("you tried to use immediate which is too large", 8);
-                    er.set_line(ins.line);
-                    Some(er)
-                } else {
-                    None
-                }
+                None
             }
         }
         (AType::Memory(_), AType::Memory(_)) => {
@@ -3212,14 +3200,12 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
                         || s1 == Size::Yword))
             {
                 None
+            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+                let mut er = Error::new("dst operand has invalid type", 8);
+                er.set_line(ins.line);
+                Some(er)
             } else {
-                if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
-                    let mut er = Error::new("dst operand has invalid type", 8);
-                    er.set_line(ins.line);
-                    Some(er)
-                } else {
-                    None
-                }
+                None
             }
         }
 

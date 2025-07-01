@@ -19,13 +19,11 @@ pub fn gen_disp(mem: &Mem) -> Option<Vec<u8>> {
         } else {
             Some(offs.to_vec())
         }
+    } else if let (Some(Register::RBP | Register::BP | Register::EBP), Some(_)) =
+        (mem.base(), mem.index())
+    {
+        Some(vec![0; 4])
     } else {
-        if let (Some(Register::RBP | Register::BP | Register::EBP), Some(_)) =
-            (mem.base(), mem.index())
-        {
-            Some(vec![0; 4])
-        } else {
-            None
-        }
+        None
     }
 }

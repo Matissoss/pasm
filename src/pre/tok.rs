@@ -39,6 +39,9 @@ pub enum Token {
 
     Modifier(SharedArr<Self>),
 
+    // {subexpression}
+    SubExpr(RString),
+
     #[default]
     None,
 }
@@ -46,195 +49,218 @@ pub enum Token {
 pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
     let mut tokens: SmallVec<Token, SMALLVEC_TOKENS_LEN> = SmallVec::new();
 
-    let mut inside_closure: Option<char> = None;
-    let mut closure_pfx: Option<char> = None;
-    let mut delimeter_count: usize = 0;
-    let mut tmp_toks: SmallVec<Token, 8> = SmallVec::new();
+    // inside closure
+    let mut iclosure: Option<char> = None;
+    // closure prefix
+    let mut cprefix: Option<char> = None;
 
-    for b in line.as_bytes() {
-        let c = *b as char;
-        match (inside_closure, c) {
-            (None, COMMENT_S) => break,
+    let mut modf_toks: SmallVec<Token, 6> = SmallVec::new();
 
-            (None, '"') => {
-                inside_closure = Some('"');
-            }
-            (Some('"'), '"') => {
-                tokens.push(Token::String(String::from_iter(tmp_buf.iter()).into()));
-                tmp_buf.clear();
-                inside_closure = None;
-            }
+    // closure delimeter count
+    let mut cdelcount = 0usize;
+    // subexpression delimeter count
+    let mut sdelcount = 0usize;
 
-            (Some('"'), c) => tmp_buf.push(c),
-
-            (Some(PREFIX_REG | PREFIX_KWD | PREFIX_REF | PREFIX_VAL) | None, ':') => {
-                delimeter_count = 0;
-                if !tmp_buf.is_empty() {
-                    tmp_toks.push(Token::make_from(
-                        inside_closure,
-                        String::from_iter(tmp_buf.iter()),
-                    ));
+    for c in line.chars() {
+        match c {
+            CLOSURE_START => {
+                if cdelcount == 0 && !tmp_buf.is_empty() {
+                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
-                closure_pfx = None;
-                inside_closure = Some(':');
-                tmp_buf.clear();
+                cdelcount += 1
             }
-
-            (Some(':'), ':') => {
-                if delimeter_count == 0 {
-                    if !tmp_buf.is_empty() {
-                        tmp_toks.push(Token::make_from(
-                            closure_pfx,
-                            String::from_iter(tmp_buf.iter()),
-                        ));
-                        tmp_buf.clear();
+            CLOSURE_END => {
+                if cdelcount == 1 {
+                    let token =
+                        Token::make_closure(cprefix.take().unwrap_or(' '), striter(tmp_buf).into());
+                    if modf_toks.is_empty() {
+                        tokens.push(token);
+                    } else {
+                        modf_toks.push(token);
                     }
-                    closure_pfx = None;
+                    tmp_buf.clear();
+                    cdelcount = 0;
                 } else {
-                    tmp_buf.push(':');
+                    cdelcount -= 1;
                 }
             }
-            (Some(':'), PREFIX_KWD | PREFIX_REG | PREFIX_VAL) => {
-                if delimeter_count == 0 {
-                    closure_pfx = Some(c);
+            SUBEXPR_CLOSE => {
+                if sdelcount == 1 {
+                    if !tmp_buf.is_empty() {
+                        tokens.push(Token::SubExpr(striter(tmp_buf).into()));
+                    }
+                    sdelcount = 0;
+                } else {
+                    sdelcount -= 1;
+                }
+            }
+            SUBEXPR_START => {
+                if cdelcount != 0 {
+                    continue;
+                } else {
+                    if sdelcount == 0 && !tmp_buf.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    }
+                    sdelcount += 1;
+                }
+            }
+            PREFIX_KWD | PREFIX_REF | PREFIX_REG | PREFIX_VAL | '#' => {
+                if cdelcount == 0 {
+                    if !tmp_buf.is_empty() && modf_toks.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    }
+                    cprefix = Some(c);
                 } else {
                     tmp_buf.push(c);
                 }
             }
-            (Some(':'), CLOSURE_START) => {
-                if delimeter_count != 0 {
-                    tmp_buf.push(CLOSURE_START);
-                }
-                delimeter_count += 1;
-            }
-            (Some(':'), CLOSURE_END) => {
-                if delimeter_count == 1 {
-                    tmp_toks.push(Token::make_closure(
-                        closure_pfx.unwrap_or(' '),
-                        String::from_iter(tmp_buf.iter()).into(),
-                    ));
-                    tmp_buf.clear();
-                    closure_pfx = None;
-                    delimeter_count = 0;
-                } else {
-                    delimeter_count -= 1;
+            ':' => {
+                if !tmp_buf.is_empty() {
+                    modf_toks.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
             }
-            (Some(':'), ' ' | ',') => {
-                if delimeter_count == 0 {
-                    if !tmp_buf.is_empty() {
-                        tmp_toks.push(Token::make_from(
-                            closure_pfx,
-                            String::from_iter(tmp_buf.iter()),
-                        ));
+            ',' => {
+                if !tmp_buf.is_empty() {
+                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                }
+                tokens.push(Token::Comma);
+            }
+            ';' => {
+                if !(cdelcount != 0 && sdelcount != 0) {
+                    break;
+                }
+            }
+            '/' => {
+                if !(cdelcount != 0 && sdelcount != 0) {
+                    if iclosure == Some('/') {
+                        break;
+                    } else {
+                        iclosure = Some('/');
                     }
-                    tmp_buf.clear();
-                    tokens.push(Token::make_modifier(tmp_toks.into_iter()));
-                    tmp_toks = SmallVec::new();
-                    inside_closure = None;
-                    closure_pfx = None;
-                }
-            }
-
-            (Some(CLOSURE_START), ',') => tmp_buf.push(c),
-
-            (Some(PREFIX_REG | PREFIX_REF | PREFIX_KWD | PREFIX_VAL), ',') => {
-                if !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(
-                        inside_closure,
-                        String::from_iter(tmp_buf.iter()),
-                    ));
-                    tmp_buf.clear();
-                }
-                tokens.push(Token::Comma)
-            }
-            (None, ',') => {
-                if !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(
-                        inside_closure,
-                        String::from_iter(tmp_buf.iter()),
-                    ));
-                    tmp_buf.clear();
-                }
-                tokens.push(Token::Comma)
-            }
-
-            (Some(CLOSURE_START), ' ') => continue,
-
-            (None | Some(PREFIX_VAL | PREFIX_REG | PREFIX_KWD), ' ' | '\t' | '\n') => {
-                if !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(
-                        inside_closure,
-                        String::from_iter(tmp_buf.iter()),
-                    ));
-                    tmp_buf.clear();
-                }
-                inside_closure = None;
-            }
-            (None, PREFIX_REG | PREFIX_VAL | PREFIX_REF | PREFIX_KWD | PREFIX_SEG) => {
-                inside_closure = Some(c)
-            }
-
-            (Some(CLOSURE_START), CLOSURE_START) => {
-                delimeter_count += 1;
-                tmp_buf.push(CLOSURE_START)
-            }
-
-            (
-                Some(PREFIX_REG | PREFIX_VAL | PREFIX_REF | PREFIX_KWD | PREFIX_SEG | ' ') | None,
-                CLOSURE_START,
-            ) => {
-                if delimeter_count != 0 {
-                    tmp_buf.push(CLOSURE_START);
                 } else {
-                    closure_pfx = inside_closure;
-                    inside_closure = Some(CLOSURE_START);
+                    iclosure.take();
                 }
-                delimeter_count += 1;
             }
-
-            (Some(CLOSURE_START | PREFIX_SEG | PREFIX_REF), CLOSURE_END) => {
-                if delimeter_count == 1 {
-                    tokens.push(Token::make_closure(
-                        closure_pfx.unwrap_or(' '),
-                        String::from_iter(tmp_buf.iter()).into(),
-                    ));
-                    closure_pfx = None;
-                    inside_closure = None;
-                    tmp_buf.clear();
-                    delimeter_count = 0;
-                } else {
-                    delimeter_count -= 1;
-                    tmp_buf.push(CLOSURE_END);
+            ' ' | '\t' => {
+                if cdelcount != 0 || sdelcount != 0 {
+                    tmp_buf.push(c);
+                    continue;
+                }
+                if !modf_toks.is_empty() {
+                    if !tmp_buf.is_empty() {
+                        modf_toks.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    }
+                    tokens.push(Token::make_modifier(modf_toks.into_iter()));
+                    modf_toks = SmallVec::new();
+                } else if !tmp_buf.is_empty() {
+                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
             }
             _ => tmp_buf.push(c),
         }
     }
-    if !tmp_buf.is_empty() {
-        if !tmp_toks.is_empty() {
-            tmp_toks.push(Token::make_from(
-                closure_pfx,
-                String::from_iter(tmp_buf.iter()),
-            ));
-            tokens.push(Token::make_modifier(tmp_toks.into_iter()));
-        } else {
-            tokens.push(Token::make_from(
-                inside_closure,
-                String::from_iter(tmp_buf.iter()),
-            ));
+
+    if cdelcount != 0 && !tmp_buf.is_empty() {
+        tokens.push(Token::make_closure(
+            cprefix.take().unwrap_or(' '),
+            striter(tmp_buf).into(),
+        ));
+    }
+
+    if !modf_toks.is_empty() {
+        if !tmp_buf.is_empty() {
+            modf_toks.push(Token::make_from(cprefix, striter(tmp_buf)));
         }
-    } else if !tmp_toks.is_empty() {
-        tokens.push(Token::make_modifier(tmp_toks.into_iter()));
+        tokens.push(Token::make_modifier(modf_toks.into_iter()));
     }
-    if delimeter_count != 0 {
-        let er = RError::new(
-            format!("unclosed delimeter `(` (`{delimeter_count}` unclosed delimeters)"),
-            000,
-        );
-        tokens.push(Token::Error(Box::new(er)));
+
+    if !tmp_buf.is_empty() {
+        tokens.push(Token::make_from(cprefix, striter(tmp_buf)));
     }
+
     tokens
+}
+
+fn striter(v: &mut Vec<char>) -> String {
+    let s = String::from_iter(v.iter());
+    v.clear();
+    s
+}
+
+#[cfg(test)]
+mod tokn_test {
+    use super::*;
+    #[test]
+    fn tok_test() {
+        let mut tmp_buf = Vec::new();
+        let line = "add %rax, %rcx";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Mnemonic(Mnemonic::ADD),
+                Token::Register(Register::RAX),
+                Token::Comma,
+                Token::Register(Register::RCX)
+            ]
+        );
+        tmp_buf.clear();
+        let line = "_label:";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::Label(RString::from("_label"))]
+        );
+        let line = "$(10)";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::Immediate(Number::uint64(10))]
+        );
+        let line = "@sref:rel32 // comment ";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::SymbolRef(Box::new(SymbolRef::new(
+                RString::from("sref"),
+                None,
+                false,
+                None,
+                Some(RelType::REL32)
+            )))]
+        );
+        tmp_buf.clear();
+        let line = "adc (%rax + %rcx * $4 + $10) .qword, %r10";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Mnemonic(Mnemonic::ADC),
+                Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10")),
+                Token::Keyword(Keyword::Qword),
+                Token::Comma,
+                Token::Register(Register::R10),
+            ]
+        );
+        tmp_buf.clear();
+        let line = "%fs:(%rax + %rcx * $4 + $10) .qword";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Modifier(Shared::from([
+                    Token::Register(Register::FS),
+                    Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10"))
+                ])),
+                Token::Keyword(Keyword::Qword),
+            ]
+        );
+        let line = "{k1} {z}";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::SubExpr(RString::from("k1")),
+                Token::SubExpr(RString::from("z")),
+            ]
+        );
+    }
 }
 
 impl Token {
@@ -412,6 +438,7 @@ impl ToString for Token {
                 string
             }
             Self::Error(e) => format!("{e}"),
+            Self::SubExpr(s) => format!("{{{s}}}"),
             Self::None => String::new(),
         }
     }

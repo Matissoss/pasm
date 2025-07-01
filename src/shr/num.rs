@@ -80,12 +80,10 @@ impl Number {
             } else {
                 size_of::<i64>()
             }
+        } else if self.is_float() {
+            size_of::<f32>()
         } else {
-            if self.is_float() {
-                size_of::<f32>()
-            } else {
-                size_of::<f64>()
-            }
+            size_of::<f64>()
         }
     }
     pub fn split_into_bytes(self) -> Vec<u8> {
@@ -164,55 +162,51 @@ fn num_from_str(str: &str) -> Result<Number, Error> {
         num_from_bin(&str_chars[ef_start..], sign)
     } else if str.starts_with(&format!("{sign_str}{oct_init}")) {
         num_from_oct(&str_chars[ef_start..], sign)
-    } else {
-        if let Ok(u32) = u32::from_str(str) {
-            Ok(Number::uint64(u32 as u64))
-        } else if let Ok(u64) = u64::from_str(str) {
-            Ok(Number::uint64(u64))
-        } else if let Ok(i32) = i32::from_str(str) {
-            Ok(Number::int64(i32 as i64))
-        } else if let Ok(i64) = i64::from_str(str) {
-            Ok(Number::int64(i64))
-        } else if let Ok(float) = f32::from_str(str) {
-            Ok(Number::float(float))
-        } else if let Ok(double) = f64::from_str(str) {
-            Ok(Number::double(double))
-        } else {
-            if str.starts_with("'") {
-                let chr = str_chars.get(1);
-                match chr {
-                    Some('\\') => {
-                        if let Some(c) = str_chars.get(2) {
-                            if let Some(e) = escape_char(*c) {
-                                Ok(Number::uint64(e as u64))
-                            } else if c == &'\'' {
-                                Ok(Number::uint64('\\' as u64))
-                            } else {
-                                Err(Error::new(
-                                    format!("you tried to use unknown escape character '\\{c}'"),
-                                    106,
-                                ))
-                            }
-                        } else {
-                            Err(Error::new(
-                                "found unclosed '' delimeter inside character declaration",
-                                0,
-                            ))
-                        }
+    } else if let Ok(u32) = u32::from_str(str) {
+        Ok(Number::uint64(u32 as u64))
+    } else if let Ok(u64) = u64::from_str(str) {
+        Ok(Number::uint64(u64))
+    } else if let Ok(i32) = i32::from_str(str) {
+        Ok(Number::int64(i32 as i64))
+    } else if let Ok(i64) = i64::from_str(str) {
+        Ok(Number::int64(i64))
+    } else if let Ok(float) = f32::from_str(str) {
+        Ok(Number::float(float))
+    } else if let Ok(double) = f64::from_str(str) {
+        Ok(Number::double(double))
+    } else if str.starts_with("'") {
+        let chr = str_chars.get(1);
+        match chr {
+            Some('\\') => {
+                if let Some(c) = str_chars.get(2) {
+                    if let Some(e) = escape_char(*c) {
+                        Ok(Number::uint64(e as u64))
+                    } else if c == &'\'' {
+                        Ok(Number::uint64('\\' as u64))
+                    } else {
+                        Err(Error::new(
+                            format!("you tried to use unknown escape character '\\{c}'"),
+                            106,
+                        ))
                     }
-                    Some(c) => Ok(Number::uint64(*c as u64)),
-                    None => Err(Error::new(
+                } else {
+                    Err(Error::new(
                         "found unclosed '' delimeter inside character declaration",
                         0,
-                    )),
+                    ))
                 }
-            } else {
-                Err(Error::new(
-                    format!("you provided string \"{str}\", which could not be parsed into number"),
-                    105,
-                ))
             }
+            Some(c) => Ok(Number::uint64(*c as u64)),
+            None => Err(Error::new(
+                "found unclosed '' delimeter inside character declaration",
+                0,
+            )),
         }
+    } else {
+        Err(Error::new(
+            format!("you provided string \"{str}\", which could not be parsed into number"),
+            105,
+        ))
     }
 }
 
@@ -243,12 +237,13 @@ fn num_from_bin(v: &[char], sign: bool) -> Result<Number, Error> {
     for c in v.iter().rev() {
         if c == &'_' {
             continue;
+        } else if let Some(u) = u8_from_bin(*c) {
+            n += u as u64 * (1 << idx);
         } else {
-            if let Some(u) = u8_from_bin(*c) {
-                n += u as u64 * (1 << idx);
-            } else {
-                return Err(Error::new("you tried to make binary number, but you used character that isn't 0 or 1 or _", 2));
-            }
+            return Err(Error::new(
+                "you tried to make binary number, but you used character that isn't 0 or 1 or _",
+                2,
+            ));
         }
         idx += 1;
     }
@@ -267,12 +262,13 @@ fn num_from_hex(v: &[char], sign: bool) -> Result<Number, Error> {
     for c in v.iter().rev() {
         if c == &'_' {
             continue;
+        } else if let Some(u) = u8_from_hex(*c) {
+            n += u as u64 * (16u64.pow(idx));
         } else {
-            if let Some(u) = u8_from_hex(*c) {
-                n += u as u64 * (16u64.pow(idx));
-            } else {
-                return Err(Error::new("you tried to make hex number, but you used character that isn't hexadecimal or _", 2));
-            }
+            return Err(Error::new(
+                "you tried to make hex number, but you used character that isn't hexadecimal or _",
+                2,
+            ));
         }
         idx += 1;
     }
@@ -296,12 +292,10 @@ fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
     for c in v.iter().rev() {
         if c == &'_' {
             continue;
+        } else if let Some(u) = u8_from_oct(*c) {
+            n += u as u64 * (8u64.pow(idx));
         } else {
-            if let Some(u) = u8_from_oct(*c) {
-                n += u as u64 * (8u64.pow(idx));
-            } else {
-                return Err(Error::new("you tried to make octal number, but you used character that isn't octal (0 to 7) or _", 2));
-            }
+            return Err(Error::new("you tried to make octal number, but you used character that isn't octal (0 to 7) or _", 2));
         }
         idx += 1;
     }

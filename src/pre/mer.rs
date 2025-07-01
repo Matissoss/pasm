@@ -113,7 +113,7 @@ pub fn mer(
                 }
             },
             Some(Token::Modifier(m)) => match m.len() {
-                2..=4 => {
+                2..4 => {
                     let mut er = false;
                     let mut sae = false;
                     let mut zero = false;
