@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    atype::AType,
     booltable::BoolTable8,
     error::RError as Error,
     num::Number,
@@ -119,12 +118,6 @@ impl Mem {
         } else {
             false
         }
-    }
-
-    // getters
-    pub fn atype(&self) -> AType {
-        let sz = self.size();
-        AType::Memory(sz)
     }
 
     // returns size of base or index

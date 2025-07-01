@@ -99,6 +99,8 @@ pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
 
     let mut ast = pre::par::ast(mer)?;
 
+    ast.file = inpath.to_path_buf();
+
     #[cfg(feature = "vtime")]
     utils::vtimed_print("par    ", start);
     #[cfg(feature = "vtime")]

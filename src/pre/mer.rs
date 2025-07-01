@@ -252,7 +252,12 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, E
     let mut mnems: SmallVec<Mnemonic, 2> = SmallVec::new();
     let mut tmp_buf: SmallVec<Token, 4> = SmallVec::new();
     let mut iter = line.into_iter().into_iter();
+    let mut subexpr: Vec<RString> = Vec::new();
     while let Some(t) = iter.next() {
+        if let Token::SubExpr(s) = t {
+            subexpr.push(s.clone());
+            continue;
+        }
         if let Token::Mnemonic(m) = t {
             if mnems.can_push() {
                 mnems.push(m);
@@ -285,8 +290,13 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, E
     }
 
     let mut ops = OPS;
+    
     while let Some(t) = iter.next() {
-        if t == Token::Comma {
+        if let Token::SubExpr(s) = t {
+            subexpr.push(s.clone());
+            continue;
+        }
+        else if t == Token::Comma {
             if !tmp_buf.is_empty() {
                 if !ops.can_push() {
                     return Err(Error::new(
@@ -317,13 +327,35 @@ fn make_ins(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<Instruction, E
             _ => (*mnems.get_unchecked(1), Some(*mnems.get_unchecked(0))),
         }
     };
-    Ok(Instruction {
+    let mut ins = Instruction {
         mnem,
         addt,
-        oprs: ops,
+        operands: ops,
         line: 0,
         meta: 0,
-    })
+    };
+
+    for s in subexpr {
+        match &*s {
+            "k0" => ins.set_mask(0b000),
+            "k1" => ins.set_mask(0b001),
+            "k2" => ins.set_mask(0b010),
+            "k3" => ins.set_mask(0b011),
+            "k4" => ins.set_mask(0b100),
+            "k5" => ins.set_mask(0b101),
+            "k6" => ins.set_mask(0b110),
+            "k7" => ins.set_mask(0b111),
+            "sae" => ins.set_sae(),
+            "er" => ins.set_er(),
+            "z" => ins.set_z(),
+            "m" => {},
+            "evex" => ins.set_evex(),
+            "vex" => ins.set_vex(),
+            _ => return Err(Error::new(format!("you tried to use unknown/unsupported subexpression: \"{s}\""), 18)),
+        }
+    }
+
+    Ok(ins)
 }
 
 fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {

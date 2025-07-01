@@ -24,7 +24,7 @@ pub fn replace_mathevals(
     mth: &HashMap<crate::RString, u64>,
 ) -> Result<(), Error> {
     for i in &mut label.inst {
-        for o in i.oprs.iter_mut() {
+        for o in i.operands.iter_mut() {
             if let Operand::SymbolRef(s) = o {
                 if mth.contains_key(&s.symbol) {
                     let eval = mth.get(&s.symbol).unwrap();

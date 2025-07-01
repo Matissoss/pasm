@@ -5,19 +5,15 @@
 
 use crate::pre::chkn;
 
-use chkn::ToType;
-
 use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
     atype::*,
     error::RError as Error,
     ins::Mnemonic as Mnm,
-    reg::{Purpose as RPurpose, Register},
+    reg::Purpose as RPurpose,
     size::Size,
 };
-
-use AType::*;
 
 pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
     let mut errors: Vec<(String, Vec<Error>)> = Vec::new();
@@ -215,7 +211,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
-                (&[ExtendedRegister(Register::CL), I8], Optional::Needed),
+                (&[CL, I8], Optional::Needed),
             ],
             &[],
             &[],
@@ -232,12 +228,12 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         Mnm::DIV | Mnm::IDIV | Mnm::MUL => chkn::CheckAPI::<1>::new()
             .pushop(
                 &[
-                    chkn::R8,
-                    chkn::R16,
-                    chkn::R32,
-                    chkn::M8,
-                    chkn::M16,
-                    chkn::M32,
+                    R8,
+                    R16,
+                    R32,
+                    M8,
+                    M16,
+                    M32,
                 ],
                 true,
             )
@@ -423,7 +419,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[
                 (&[R16, M16, R32, M32], Optional::Needed),
                 (&[R16, R32], Optional::Needed),
-                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+                (&[I8, CL], Optional::Needed),
             ],
             &[],
             &[],
@@ -500,15 +496,15 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
         | Mnm::CMOVNLE
         | Mnm::CMOVNGE
         | Mnm::CMOVNAE => chkn::CheckAPI::<2>::new()
-            .pushop(&[chkn::R16, chkn::R32, chkn::R64], true)
+            .pushop(&[R16, R32, R64], true)
             .pushop(
                 &[
-                    chkn::R16,
-                    chkn::R32,
-                    chkn::R64,
-                    chkn::M16,
-                    chkn::M32,
-                    chkn::M64,
+                    R16,
+                    R32,
+                    R64,
+                    M16,
+                    M32,
+                    M64,
                 ],
                 true,
             )
@@ -611,7 +607,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
-                (&[ExtendedRegister(Register::CL), I8], Optional::Needed),
+                (&[CL, I8], Optional::Needed),
             ],
             &[],
             &[],
@@ -810,7 +806,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[
                 (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
                 (&[R16, R32, R64], Optional::Needed),
-                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+                (&[I8, CL], Optional::Needed),
             ],
             &[],
             &[],
@@ -830,19 +826,18 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
 
 pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
     use Mnm::*;
-    use Register::*;
     match ins.mnem {
         LGDT | LIDT => ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[]),
 
         OUT => ot_chk(
             ins,
             &[
-                (&[ExtendedRegister(DX), I8], Optional::Needed),
+                (&[DX, I8], Optional::Needed),
                 (
                     &[
-                        ExtendedRegister(AL),
-                        ExtendedRegister(AX),
-                        ExtendedRegister(EAX),
+                        AL,
+                        AX,
+                        EAX,
                     ],
                     Optional::Needed,
                 ),
@@ -855,13 +850,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[
                 (
                     &[
-                        ExtendedRegister(AL),
-                        ExtendedRegister(AX),
-                        ExtendedRegister(EAX),
+                    AL,
+                    AX,
+                    EAX
                     ],
                     Optional::Needed,
                 ),
-                (&[ExtendedRegister(DX), I8], Optional::Needed),
+                (&[DX, I8], Optional::Needed),
             ],
             &[],
             &[],
@@ -875,7 +870,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
         }
         EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
-        STRING | ASCII => ot_chk(ins, &[(&[ASTR], Optional::Needed)], &[], &[]),
+        STRING | ASCII => ot_chk(ins, &[(&[crate::shr::atype::STRING], Optional::Needed)], &[], &[]),
 
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
@@ -898,8 +893,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ins,
             &[
                 (&[R32], Optional::Needed),
-                (&[ExtendedRegister(Register::EDX)], Optional::Optional),
-                (&[ExtendedRegister(Register::EAX)], Optional::Needed),
+                (&[EDX], Optional::Optional),
+                (&[EAX], Optional::Needed),
             ],
             &[],
             &[],
@@ -919,7 +914,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[
                 (&[R16, M16, R32, M32, R64, M64], Optional::Needed),
                 (&[R16, R32, R64], Optional::Needed),
-                (&[I8, ExtendedRegister(Register::CL)], Optional::Needed),
+                (&[I8, CL], Optional::Needed),
             ],
             &[],
             &[],
@@ -1717,10 +1712,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VMOVAPS | Mnm::VMOVAPD | Mnm::VMOVUPS | Mnm::VMOVUPD | Mnm::VMOVDQA => ot_chk(
             ins,
             &[
-                (&[XMM, YMM, M128, M256], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
             ],
-            &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128), (MA, MA)],
+            &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128), (MA, MA),
+              (XMM, M512), (YMM, M512), (XMM, ZMM), (YMM, ZMM), (ZMM, M128),
+              (ZMM, XMM), (ZMM, YMM), (ZMM, M256)
+            ],
             &[],
         ),
         Mnm::VMOVMSKPD => avx_ot_chk(
@@ -1893,9 +1891,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         | Mnm::VXORPS => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512, MBCST32, MBCST64], Optional::Needed),
             ],
             &[
                 (XMM, YMM, M128),
@@ -1939,12 +1937,24 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCMPSS | Mnm::VCMPSD => ot_chk(
+        Mnm::VCMPSS => ot_chk(
             ins,
             &[
+                (&[XMM, K], Optional::Needed),
                 (&[XMM], Optional::Needed),
+                (&[XMM, M32], Optional::Needed),
+                (&[I8], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+
+        Mnm::VCMPSD => ot_chk(
+            ins,
+            &[
+                (&[XMM, K], Optional::Needed),
                 (&[XMM], Optional::Needed),
-                (&[XMM, M128], Optional::Needed),
+                (&[XMM, M64], Optional::Needed),
                 (&[I8], Optional::Needed),
             ],
             &[],
@@ -1980,9 +1990,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         | Mnm::VSHUFPS => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256, M512], Optional::Needed),
                 (&[I8], Optional::Needed),
             ],
             &[
@@ -2037,9 +2047,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         | Mnm::VPMULHW => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM, K], Optional::Needed),
+                (&[XMM, YMM, ZMM, K], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
             ],
             &[
                 (XMM, YMM, M128),
@@ -2061,9 +2071,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         | Mnm::VPSRAW => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256, I8], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512, I8], Optional::Needed),
             ],
             &[
                 (XMM, YMM, M128),
@@ -2108,9 +2118,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             avx_ot_chk(
                 ins,
                 &[
-                    (&[XMM, YMM], Optional::Needed),
-                    (&[XMM, YMM], Optional::Needed),
-                    (&[XMM, YMM, M128, M256], Optional::Needed),
+                    (&[XMM, YMM, ZMM], Optional::Needed),
+                    (&[XMM, YMM, ZMM], Optional::Needed),
+                    (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
                 ],
                 &[],
                 &[],
@@ -2125,7 +2135,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VBROADCASTSD => avx_ot_chk_wthout(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
                 (&[XMM, M64], Optional::Needed),
             ],
             &[],
@@ -2134,7 +2144,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VBROADCASTSS => avx_ot_chk_wthout(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
                 (&[XMM, M32], Optional::Needed),
             ],
             &[],
@@ -2198,9 +2208,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VPCLMULQDQ => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M256, M128], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M256, M512, M128], Optional::Needed),
                 (&[I8], Optional::Needed),
             ],
             &[],
@@ -2248,8 +2258,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VPSRLDQ => avx_ot_chk(
             ins,
             &[
-                (&[XMM], Optional::Needed),
-                (&[XMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
                 (&[I8], Optional::Needed),
             ],
             &[],
@@ -2270,9 +2280,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VPMAXUD => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, M128, YMM, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, M128, YMM, ZMM, M256, M512], Optional::Needed),
             ],
             &[],
             &[],
@@ -2438,9 +2448,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnm::VAESDEC | Mnm::VAESENC | Mnm::VAESDECLAST => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, M128, M256, M512], Optional::Needed),
             ],
             &[],
             &[],
@@ -2638,7 +2648,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         // #   #    #    #   #    #  #####
         //
         // (AVX-10 + AVX-512)
-        EADDPH => {
+        VADDPH => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .pushop(&[XMM, YMM, ZMM], true)
@@ -2648,7 +2658,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EADDSH => {
+        VADDSH => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .pushop(&[XMM], true)
@@ -2658,7 +2668,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EBLENDMPD => {
+        VBLENDMPD => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .pushop(&[XMM, YMM, ZMM], true)
@@ -2668,7 +2678,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EBLENDMPS => {
+        VBLENDMPS => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .pushop(&[XMM, YMM, ZMM], true)
@@ -2678,7 +2688,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EALIGND => {
+        VALIGND => {
             use chkn::*;
             CheckAPI::<4>::new()
                 .pushop(&[XMM, YMM, ZMM], true)
@@ -2689,7 +2699,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EALIGNQ => {
+        VALIGNQ => {
             use chkn::*;
             CheckAPI::<4>::new()
                 .pushop(&[XMM, YMM, ZMM], true)
@@ -2700,17 +2710,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EBROADCASTSS => {
-            use chkn::*;
-            CheckAPI::<2>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, M32], true)
-                .set_avx512()
-                .set_mode(CheckMode::AVX)
-                .set_mask_perm()
-                .check(ins)
-        }
-        EBROADCASTSD | EBROADCASTF32X2 => {
+        VBROADCASTF32X2 => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .pushop(&[YMM, ZMM], true)
@@ -2720,7 +2720,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EBROADCASTF32X4 | EBROADCASTF64X2 => {
+        VBROADCASTF32X4 | VBROADCASTF64X2 => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .pushop(&[YMM, ZMM], true)
@@ -2730,7 +2730,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        EBROADCASTF32X8 | EBROADCASTF64X4 => {
+        VBROADCASTF32X8 | VBROADCASTF64X4 => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .pushop(&[ZMM], true)
@@ -2747,7 +2747,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .pushop(&[M16], true)
                 .check(ins)
         }
-        ECOMISH => {
+        VCOMISH => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .pushop(&[XMM], true)
@@ -2755,7 +2755,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_avx512()
                 .check(ins)
         }
-        ECOMPRESSPD | ECOMPRESSPS => {
+        VCOMPRESSPD | VCOMPRESSPS => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
@@ -2764,7 +2764,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_avx512()
                 .check(ins)
         }
-        ECMPSH => {
+        VCMPSH => {
             use chkn::*;
             CheckAPI::<4>::new()
                 .pushop(&[K], true)
@@ -2775,7 +2775,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_avx512()
                 .check(ins)
         }
-        ECMPPH => {
+        VCMPPH => {
             use chkn::*;
             CheckAPI::<4>::new()
                 .pushop(&[K], true)
@@ -2813,34 +2813,10 @@ fn avx_ot_chk_wthout(
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
-    if ins.get_mask().is_some() {
-        return Err(Error::new(
-            "you tried to use mask on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_z() {
-        return Err(Error::new(
-            "you tried to use {z} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_er() {
-        return Err(Error::new(
-            "you tried to use {er} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_sae() {
-        return Err(Error::new(
-            "you tried to use {sae} on mnemonic that does not support it",
-            15,
-        ));
-    }
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.oprs.is_empty() {
+    if ops.is_empty() && !ins.operands.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -2880,34 +2856,10 @@ fn avx_ot_chk(
     forb: &[(AType, AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
-    if ins.get_mask().is_some() {
-        return Err(Error::new(
-            "you tried to use mask on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_z() {
-        return Err(Error::new(
-            "you tried to use {z} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_er() {
-        return Err(Error::new(
-            "you tried to use {er} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_sae() {
-        return Err(Error::new(
-            "you tried to use {sae} on mnemonic that does not support it",
-            15,
-        ));
-    }
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.oprs.is_empty() {
+    if ops.is_empty() && !ins.operands.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -2971,42 +2923,17 @@ fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<Err
     None
 }
 
-// this function should not be used with AVX-512 (or anything EVEX-related), use CheckAPI instead!
 fn ot_chk(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
-    if ins.get_mask().is_some() {
-        return Err(Error::new(
-            "you tried to use mask on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_z() {
-        return Err(Error::new(
-            "you tried to use {z} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_er() {
-        return Err(Error::new(
-            "you tried to use {er} on mnemonic that does not support it",
-            15,
-        ));
-    }
-    if ins.get_sae() {
-        return Err(Error::new(
-            "you tried to use {sae} on mnemonic that does not support it",
-            15,
-        ));
-    }
 
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.oprs.is_empty() {
+    if ops.is_empty() && !ins.operands.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -3035,7 +2962,7 @@ fn ot_chk(
             let mut b = false;
             for o in ops {
                 for o in o.0 {
-                    if let AType::ExtendedRegister(_) = o {
+                    if let AType::Register(_, true) = o {
                         b = true;
                         break;
                     }
@@ -3083,21 +3010,21 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<Error
             return Some(er);
         }
     }
-    if find(accepted, operand.atype()) || find_ext(accepted, operand.ext_atype()) {
+    if accepted.iter().any(|s| s == &operand.atype()) {
         None
     } else {
         if let Operand::Imm(imm) = operand {
-            if accepted.contains(&AType::Immediate(imm.size())) {
+            if accepted.contains(&AType::Immediate(imm.size(), false)) {
                 return None;
             }
         }
         let er = Error::new(
             if operand.size() == Size::Qword {
-                format!("operand at index {idx} has invalid type of {}. consider setting bits parameter to 64 as this could fix the issue.", operand.atypen())
+                format!("operand at index {idx} has invalid type of {}. consider setting bits parameter to 64 as this could fix the issue.", operand.atype())
             } else {
                 format!(
                     "operand at index {idx} has invalid type of {}",
-                    operand.atypen()
+                    operand.atype()
                 )
             },
             8,
@@ -3111,7 +3038,18 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
 
     // should work (i hope so)
     match (dst.atype(), src.atype()) {
-        (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
+        (AType::Register(r0, _), AType::Immediate(s1, _)) => {
+            if s1 <= r0.size() {
+                None
+            } else if !ins.mnem.allows_diff_size(Some(r0.size()), Some(s1)) {
+                let mut er = Error::new("you tried to use immediate which is too large", 8);
+                er.set_line(ins.line);
+                Some(er)
+            } else {
+                None
+            }
+        }
+        (AType::Memory(s0,_,_), AType::Immediate(s1,_)) => {
             if s1 <= s0 {
                 None
             } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
@@ -3122,12 +3060,14 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 None
             }
         }
-        (AType::Memory(_), AType::Memory(_)) => {
+        (AType::Memory(_,_,_), AType::Memory(_,_,_)) => {
             let mut er = Error::new("combination of memory and memory is forbidden", 8);
             er.set_line(ins.line);
             Some(er)
         }
-        (AType::Register(_, s0), AType::Register(_, s1)) => {
+        (AType::Register(r0, _), AType::Register(r1, _)) => {
+            let s0 = r0.size();
+            let s1 = r1.size();
             if let Some(ssrc) = ins.src2() {
                 if s1 == s0 && ssrc.size() == s0 {
                     None
@@ -3166,7 +3106,18 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
     }
     // should work (i hope so)
     match (dst.atype(), src.atype()) {
-        (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
+        (AType::Register(r0, _), AType::Immediate(s1, _)) => {
+            if s1 <= r0.size() {
+                None
+            } else if !ins.mnem.allows_diff_size(Some(r0.size()), Some(s1)) {
+                let mut er = Error::new("you tried to use immediate which is too large", 8);
+                er.set_line(ins.line);
+                Some(er)
+            } else {
+                None
+            }
+        }
+        (AType::Memory(s0,_,_), AType::Immediate(s1,_)) => {
             if s1 <= s0 {
                 None
             } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
@@ -3177,12 +3128,20 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
                 None
             }
         }
-        (AType::Memory(_), AType::Memory(_)) => {
+        (AType::Memory(_, _, _), AType::Memory(_, _, _)) => {
             let mut er = Error::new("combination of memory and memory is forbidden", 8);
             er.set_line(ins.line);
             Some(er)
         }
-        (AType::Register(g0, s0), AType::Register(g1, s1)) => {
+        (AType::Register(r0, f0), AType::Register(r1, f1)) => {
+            if f0 || f1 {
+                return None;
+            }
+
+            let s0 = r0.size();
+            let s1 = r1.size();
+            let g0 = r0.purpose();
+            let g1 = r1.purpose();
             if s1 == s0
                 || ((g0 == RPurpose::Dbg
                     || g0 == RPurpose::Ctrl
@@ -3225,51 +3184,6 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<Error> {
 fn find_bool(addts: &[Mnm], searched: &Mnm) -> bool {
     for addt in addts {
         if searched == addt {
-            return true;
-        }
-    }
-    false
-}
-
-fn find_ext(items: &[AType], searched: AType) -> bool {
-    let (size, regprp, reg) = match searched {
-        AType::Register(prp, size) => (size, Some(prp), None),
-        AType::Immediate(size) => (size, None, None),
-        AType::Memory(size) => (size, None, None),
-        AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(r)),
-    };
-    for i in items {
-        let (isize, iregprp, ireg) = match i {
-            AType::Register(prp, size) => (*size, Some(*prp), None),
-            AType::Immediate(size) => (*size, None, None),
-            AType::Memory(size) => (*size, None, None),
-            AType::ExtendedRegister(r) => (r.size(), Some(r.purpose()), Some(*r)),
-        };
-        if let (Some(ireg), Some(reg)) = (ireg, reg) {
-            if ireg == reg {
-                return true;
-            }
-        } else if isize == size && regprp == iregprp {
-            return true;
-        }
-    }
-    false
-}
-fn find(items: &[AType], searched: AType) -> bool {
-    let (size, regprp) = match searched {
-        AType::Register(prp, size) => (size, Some(prp)),
-        AType::Immediate(size) => (size, None),
-        AType::Memory(size) => (size, None),
-        _ => (Size::Unknown, None),
-    };
-    for i in items {
-        let (isize, iregprp) = match i {
-            AType::Register(prp, size) => (size, Some(prp)),
-            AType::Immediate(size) => (size, None),
-            AType::Memory(size) => (size, None),
-            _ => (&Size::Unknown, None),
-        };
-        if isize == &size && regprp.as_ref() == iregprp {
             return true;
         }
     }

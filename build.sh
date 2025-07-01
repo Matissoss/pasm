@@ -28,7 +28,7 @@ build(){
 	fi
 }
 add_instr(){
-	echo "Adding instructions to /src/shr/ins_switch.rs..."
+	echo "invoking ins_adder..."
 	cargo run -q --features "refresh" -- --supported-instructions-raw > ins_adder/tmp.txt
 	cd ins_adder
 	cargo run -q --release -- tmp.txt

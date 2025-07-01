@@ -288,12 +288,16 @@ impl GenAPI {
             if rex_flag_set && rex != 0x00 {
                 base.push(rex);
             }
+            let mut used_evex = false;
             if vex_flag_set {
-                if let Some(vex) = vex::vex(ins, self) {
+                if ins.needs_evex() {
+                    base.extend(evex::evex(self, ins));
+                    used_evex = true;
+                } else if let Some(vex) = vex::vex(ins, self) {
                     base.extend(vex);
                 }
             }
-            if evex_flag_set {
+            if evex_flag_set && !used_evex {
                 base.extend(evex::evex(self, ins));
             }
             base

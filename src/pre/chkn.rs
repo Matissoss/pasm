@@ -11,174 +11,16 @@ use std::{
 use crate::conf::Shared;
 
 use crate::shr::{
-    ast::{Instruction, Operand},
+    atype::{AType, ToType, K},
+    ast::Instruction,
     booltable::BoolTable8 as Flags8,
     error::RError as Error,
     ins::Mnemonic,
-    reg::{Purpose, Register},
+    reg::Register,
     size::Size,
     smallvec::SmallVec,
 };
 
-pub const SR: AType = AType::Register(Register::CS, false);
-pub const CR: AType = AType::Register(Register::CR0, false);
-pub const DR: AType = AType::Register(Register::DR0, false);
-
-pub const CL: AType = AType::Register(Register::CL, true);
-pub const AL: AType = AType::Register(Register::AL, true);
-pub const AX: AType = AType::Register(Register::AX, true);
-pub const EAX: AType = AType::Register(Register::EAX, true);
-pub const DX: AType = AType::Register(Register::DX, true);
-
-pub const RA: AType = AType::Register(Register::__ANY, false);
-pub const R8: AType = AType::Register(Register::AL, false);
-pub const R16: AType = AType::Register(Register::AX, false);
-pub const R32: AType = AType::Register(Register::EAX, false);
-pub const R64: AType = AType::Register(Register::RAX, false);
-pub const XMM: AType = AType::Register(Register::XMM0, false);
-pub const YMM: AType = AType::Register(Register::YMM0, false);
-pub const ZMM: AType = AType::Register(Register::ZMM0, false);
-pub const K: AType = AType::Register(Register::K0, false);
-
-pub const MA: AType = AType::Memory(Size::Any, Size::Any, false);
-pub const M8: AType = AType::Memory(Size::Byte, Size::Any, false);
-pub const M16: AType = AType::Memory(Size::Word, Size::Any, false);
-pub const MBCST16: AType = AType::Memory(Size::Word, Size::Any, true);
-pub const M32: AType = AType::Memory(Size::Dword, Size::Any, false);
-pub const MBCST32: AType = AType::Memory(Size::Dword, Size::Any, true);
-pub const M64: AType = AType::Memory(Size::Qword, Size::Any, false);
-pub const MBCST64: AType = AType::Memory(Size::Qword, Size::Any, true);
-pub const M128: AType = AType::Memory(Size::Xword, Size::Any, false);
-pub const M256: AType = AType::Memory(Size::Yword, Size::Any, false);
-pub const M512: AType = AType::Memory(Size::Zword, Size::Any, false);
-
-pub const IA: AType = AType::Immediate(Size::Any, false);
-pub const I8: AType = AType::Immediate(Size::Byte, false);
-pub const I16: AType = AType::Immediate(Size::Word, false);
-pub const I32: AType = AType::Immediate(Size::Dword, false);
-pub const I64: AType = AType::Immediate(Size::Qword, false);
-pub const STRING: AType = AType::Immediate(Size::Unknown, true);
-
-#[derive(Debug, Clone, Copy)]
-pub enum AType {
-    None,
-
-    //                fixed register
-    Register(Register, bool),
-    //     size|address size  (registers used) | is_bcst
-    Memory(Size, Size, bool),
-    //              is_string
-    Immediate(Size, bool),
-}
-
-impl std::fmt::Display for AType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Self::Register(r, true) => write!(f, "{}", r.to_string())?,
-            Self::Register(r, false) => match (r.size(), r.purpose()) {
-                (Size::Byte, _) => write!(f, "r8")?,
-                (Size::Word, Purpose::General) => write!(f, "r16")?,
-                (Size::Word, Purpose::Sgmnt) => write!(f, "sreg")?,
-                (Size::Dword, Purpose::General) => write!(f, "r32")?,
-                (Size::Dword, Purpose::Dbg) => write!(f, "dr0")?,
-                (Size::Dword, Purpose::Ctrl) => write!(f, "cr0")?,
-                (Size::Qword, Purpose::General) => write!(f, "r64")?,
-                (Size::Qword, Purpose::Mmx) => write!(f, "mm0")?,
-                (Size::Xword, _) => write!(f, "xmm0")?,
-                (Size::Yword, _) => write!(f, "ymm0")?,
-                (Size::Qword, Purpose::Mask) => write!(f, "k0")?,
-                (Size::Zword, _) => write!(f, "zmm0")?,
-                _ => write!(f, "")?,
-            },
-            Self::Immediate(s, false) => match s {
-                Size::Byte => write!(f, "imm8")?,
-                Size::Word => write!(f, "imm16")?,
-                Size::Dword => write!(f, "imm32")?,
-                Size::Qword => write!(f, "imm64")?,
-                _ => write!(f, "immANY")?,
-            },
-            Self::Immediate(_, true) => write!(f, "string")?,
-            Self::Memory(sz, addrsz, bcst) => match addrsz {
-                Size::Any => write!(
-                    f,
-                    "m{}{}",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Word => write!(
-                    f,
-                    "m{}{}&16",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Dword => write!(
-                    f,
-                    "m{}{}&32",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Qword => write!(
-                    f,
-                    "m{}{}&64",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                _ => write!(f, "")?,
-            },
-            Self::None => write!(f, "")?,
-        };
-        Ok(())
-    }
-}
-
-pub trait ToType {
-    fn atypen(&self) -> AType;
-}
-
-impl ToType for Operand {
-    fn atypen(&self) -> AType {
-        match self {
-            Self::Register(r) => AType::Register(*r, false),
-            Self::Mem(m) => AType::Memory(m.size(), m.addrsize(), m.is_bcst()),
-            Self::SymbolRef(s) => {
-                if s.is_deref() {
-                    AType::Memory(s.size().unwrap_or(Size::Unknown), Size::Any, false)
-                } else {
-                    AType::Immediate(Size::Dword, false)
-                }
-            }
-            Self::Imm(i) => AType::Immediate(i.size(), false),
-            Self::String(_) => AType::Immediate(Size::Unknown, true),
-        }
-    }
-}
-
-impl PartialEq for AType {
-    fn eq(&self, rhs: &Self) -> bool {
-        match (*self, *rhs) {
-            (AType::Register(lr, lf), AType::Register(rr, rf)) => {
-                if lf || rf {
-                    lr == rr
-                } else if lr.is_any() || rr.is_any() {
-                    lr.size() == rr.size()
-                } else {
-                    lr.purpose() == rr.purpose() && lr.size() == rr.size()
-                }
-            }
-            (AType::Memory(lsz, laddr, lbcst), AType::Memory(rsz, raddr, rbcst)) => {
-                (lbcst == rbcst || raddr.is_any() || laddr.is_any() || laddr == raddr) && lsz == rsz
-            }
-            (AType::Immediate(lsz, ls), AType::Immediate(rsz, rs)) => {
-                if ls && rs {
-                    true
-                } else {
-                    rsz <= lsz
-                }
-            }
-            _ => false,
-        }
-    }
-}
 
 impl From<AType> for Key {
     fn from(t: AType) -> Key {
@@ -262,7 +104,7 @@ impl Key {
             AType::Memory(_, _, _) => MEM_TYPE,
             AType::Register(_, _) => REG_TYPE,
             AType::Immediate(_, _) => IMM_TYPE,
-            AType::None => 0,
+            AType::NoType => 0,
         });
         if let AType::Register(r, b) = at {
             toret.set_sz(r.size());
@@ -464,7 +306,7 @@ impl OperandSet {
                     return false;
                 }
             }
-            AType::None => return false,
+            AType::NoType => return false,
         };
         let mut idx = 0;
         let mut off = 0;
@@ -534,7 +376,7 @@ impl OperandSet {
                     flags.set(HAS_IMM, true);
                     IMM_TYPE
                 }
-                AType::None => 0b00,
+                AType::NoType => 0b00,
             };
             if pvtype == 0 {
                 pvtype = crtype;
@@ -700,8 +542,8 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
             return Ok(());
         }
         let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
-        for o in ins.oprs.iter() {
-            smv.push(o.atypen());
+        for o in ins.operands.iter() {
+            smv.push(o.atype());
         }
 
         let mut at = 0;
@@ -744,9 +586,9 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
         }
         for (i, o) in self.allowed.iter().enumerate() {
             if let Some(s) = ins.get_opr(i) {
-                if !o.has(s.atypen()) {
+                if !o.has(s.atype()) {
                     let mut er = Error::new(
-                        format!("operand at index {i} has invalid type: {}", s.atypen()),
+                        format!("operand at index {i} has invalid type: {}", s.atype()),
                         8,
                     );
                     er.set_line(ins.line);
@@ -764,12 +606,12 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
             CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
             CheckMode::X86 => {
                 let mut sz = Size::Unknown;
-                for o in ins.oprs.iter() {
+                for o in ins.operands.iter() {
                     if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, true) =
-                        o.atypen()
+                        o.atype()
                     {
                         continue;
-                    } else if o.atypen() == K {
+                    } else if o.atype() == K {
                         continue;
                     }
                     if sz == Size::Unknown {
@@ -824,6 +666,7 @@ mod chkn_test {
     }
     #[test]
     fn ops_test() {
+        use crate::shr::atype::*;
         assert_eq!(1 << 1, 2);
         assert_eq!(0 << 1, 0);
         assert_eq!(REG_TYPE, 0b01);
@@ -851,12 +694,12 @@ mod chkn_test {
         assert_eq!(o.ptable_data, 0b0001_0001_0010);
         assert!(o.has(AType::Register(Register::BX, false)));
         assert!(o.has(M16));
-        println!("{:?}", o.keys);
         assert!(o.has(I8));
     }
     #[test]
     fn chk_test() {
-        let t = Key::enc(Operand::Register(Register::RAX).atypen())
+        use crate::shr::ast::Operand;
+        let t = Key::enc(Operand::Register(Register::RAX).atype())
             .dec()
             .unwrap();
         assert_eq!(t, AType::Register(Register::RAX, false));

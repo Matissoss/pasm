@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use crate::shr::{
-    atype::{AType, ToAType},
     error::RError as Error,
     ins::Mnemonic,
     mem::Mem,
@@ -32,12 +31,17 @@ pub enum Operand {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Instruction {
-    pub oprs: SmallVec<Operand, 5>,
+    pub operands: SmallVec<Operand, 5>,
     pub line: usize,
     pub addt: Option<Mnemonic>,
     pub mnem: Mnemonic,
 
-    // layout: 0b0SAE_XYYY:
+    // layout: 0b0000_00VV_VSAE_XYYY:
+    // VVV - explicit prefix requested:
+    //  0b000 => None,
+    //  0b001 => VEX,
+    //  0b010 => EVEX,
+    //  ..... => reserved
     // S - uses {sae}
     // A - uses {z}
     // E - uses {er}
@@ -146,52 +150,30 @@ impl Operand {
             Self::String(_) => Size::Unknown,
         }
     }
-    pub fn ext_atype(&self) -> AType {
-        match self {
-            Self::Mem(m) => m.atype(),
-            Self::Register(r) => AType::ExtendedRegister(*r),
-            Self::Imm(n) => n.atype(),
-            Self::SymbolRef(s) => {
-                if s.is_deref() {
-                    AType::Memory(s.size().unwrap_or(Size::Unknown))
-                } else {
-                    AType::Immediate(Size::Dword)
-                }
-            }
-            Self::String(_) => AType::Immediate(Size::Unknown),
-        }
-    }
 }
 
-impl ToAType for Operand {
-    fn atype(&self) -> AType {
-        match self {
-            Self::Mem(m) => m.atype(),
-            Self::Register(r) => r.atype(),
-            Self::Imm(n) => n.atype(),
-            Self::SymbolRef(s) => {
-                if s.is_deref() {
-                    AType::Memory(s.size().unwrap_or(Size::Unknown))
-                } else {
-                    AType::Immediate(Size::Dword)
-                }
-            }
-            Self::String(s) => match s.len() {
-                1 => AType::Immediate(Size::Byte),
-                2 => AType::Immediate(Size::Word),
-                3..=4 => AType::Immediate(Size::Dword),
-                5..=8 => AType::Immediate(Size::Qword),
-                _ => AType::Immediate(Size::Unknown),
-            },
-        }
-    }
-}
 impl Instruction {
     pub fn get_bcst(&self) -> bool {
         if let Some(m) = self.get_mem() {
             return m.is_bcst();
         }
         false
+    }
+    // layout: 0b0000_00VV_VSAE_XYYY:
+    // VVV - explicit prefix requested:
+    //  0b000 => None,
+    //  0b001 => VEX,
+    //  0b010 => EVEX,
+    //  ..... => reserved
+    pub const fn set_vex(&mut self) {
+        if self.meta & (0b111 << 7) == 0 {
+            self.meta |= 0b001 << 7;
+        }
+    }
+    pub const fn set_evex(&mut self) {
+        if self.meta & (0b111 << 7) == 0 {
+            self.meta |= 0b010 << 7;
+        }
     }
     pub const fn get_er(&self) -> bool {
         self.meta & 0b0001_0000 == 0b0001_0000
@@ -235,10 +217,28 @@ impl Instruction {
     }
 
     pub fn needs_evex(&self) -> bool {
+        if self.meta & (0b111 << 7) == 0b10 << 7 {
+            return true;
+        }
+        if self.get_mask().is_some() {
+            return true;
+        }
+        if self.get_er() {
+            return true;
+        }
+        if self.get_sae() {
+            return true;
+        }
+        if self.get_z() {
+            return true;
+        }
+        if self.get_bcst() {
+            return true;
+        }
         if self.size() == Size::Zword {
             return true;
         }
-        for o in self.oprs.iter() {
+        for o in self.operands.iter() {
             if let Operand::Register(r) = o {
                 if r.get_ext_bits()[0] {
                     return true;
@@ -326,7 +326,7 @@ impl Instruction {
         false
     }
     pub fn uses_cr(&self) -> bool {
-        for o in self.oprs.iter() {
+        for o in self.operands.iter() {
             if let Operand::Register(r) = o {
                 if r.is_ctrl_reg() {
                     return true;
@@ -336,7 +336,7 @@ impl Instruction {
         false
     }
     pub fn uses_dr(&self) -> bool {
-        for o in self.oprs.iter() {
+        for o in self.operands.iter() {
             if let Operand::Register(r) = o {
                 if r.is_dbg_reg() {
                     return true;
@@ -347,11 +347,11 @@ impl Instruction {
     }
     #[inline]
     pub fn dst(&self) -> Option<&Operand> {
-        self.oprs.first()
+        self.operands.first()
     }
     #[inline]
     pub fn reg_byte(&self, idx: usize) -> Option<u8> {
-        if let Some(Operand::Register(r)) = self.oprs.get(idx) {
+        if let Some(Operand::Register(r)) = self.operands.get(idx) {
             Some(r.to_byte())
         } else {
             None
@@ -359,19 +359,19 @@ impl Instruction {
     }
     #[inline]
     pub fn src(&self) -> Option<&Operand> {
-        self.oprs.get(1)
+        self.operands.get(1)
     }
     #[inline]
     pub fn src2(&self) -> Option<&Operand> {
-        self.oprs.get(2)
+        self.operands.get(2)
     }
     #[inline]
     pub fn get_opr(&self, idx: usize) -> Option<&Operand> {
-        self.oprs.get(idx)
+        self.operands.get(idx)
     }
     #[inline]
     pub fn get_mem_idx(&self) -> Option<usize> {
-        for (i, o) in self.oprs.iter().enumerate() {
+        for (i, o) in self.operands.iter().enumerate() {
             if o.is_mem() {
                 return Some(i);
             }
@@ -381,7 +381,7 @@ impl Instruction {
     //                                  operand,  index
     pub fn get_symbs(&self) -> [Option<(&SymbolRef, usize)>; 2] {
         let mut ops = [None, None];
-        for (idx, s) in self.oprs.iter().enumerate() {
+        for (idx, s) in self.operands.iter().enumerate() {
             if let Operand::SymbolRef(s) = s {
                 if s.is_deref() {
                     ops[0] = Some((s, idx));
@@ -423,7 +423,6 @@ impl AST {
                 if i0 == i1 {
                     continue;
                 }
-
                 if s0.name == s1.name {
                     return Err(Error::new(
                         format!("this file contains multiple sections named \"{}\"", s0.name),

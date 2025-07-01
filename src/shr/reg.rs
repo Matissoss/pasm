@@ -3,10 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{
-    atype::{AType, ToAType},
-    size::Size,
-};
+use crate::shr::size::Size;
 use std::str::FromStr;
 
 #[derive(Debug, Eq, Clone, Copy)]
@@ -152,12 +149,6 @@ impl PartialEq for Register {
         } else {
             su8 == ru8
         }
-    }
-}
-
-impl ToAType for Register {
-    fn atype(&self) -> AType {
-        AType::Register(self.purpose(), self.size())
     }
 }
 

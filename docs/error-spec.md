@@ -233,6 +233,18 @@ mov:k2 ; e[016]
 
 This error is provoked, when an unknown CLI flag is being used.
 
+### e018
+
+#### description
+
+This error is provoked, when you tried to use unknown subexpression.
+
+#### example
+
+```
+mov %rax, %eax {unknown-subexpression} ; e[018]
+```
+
 ### e101
 
 #### description

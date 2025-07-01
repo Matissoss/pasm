@@ -46,8 +46,6 @@ _start:
 	vbroadcastf64x4 zmm20 {k2}, yword [rax]
 	vbroadcastf32x8 zmm20 {k2}, yword [rax]
 
-	;vcmpph k1 {k2}, xmm20, oword [rax], 10
-	;vcmpph k1 {k2}, ymm20, yword [rax], 10
 	vcmpph k1 {k2}, zmm20, zmm21, {sae}, 10
 	vcmpsh k1 {k2}, xmm20, xmm21, {sae}, 10
 	vcomish xmm20, xmm21, {sae}
@@ -59,3 +57,5 @@ _start:
 	vcompressps xmm20 {k1}, xmm21
 	vcompressps ymm20 {k1}, ymm21
 	vcompressps zmm20 {k1}, zmm21
+
+	vfmadd213ps xmm20 {k1}, xmm21, xmm22

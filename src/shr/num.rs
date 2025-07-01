@@ -4,17 +4,10 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    atype::{AType, ToAType},
     error::RError as Error,
     size::Size,
 };
 use std::str::FromStr;
-
-impl ToAType for Number {
-    fn atype(&self) -> AType {
-        AType::Immediate(self.size())
-    }
-}
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum NType {

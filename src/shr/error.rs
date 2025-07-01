@@ -43,7 +43,7 @@ impl Display for RError {
         if let Some(file) = self.get_file() {
             write!(f, "--> in {file}")?;
             if let Some(line) = self.get_line() {
-                write!(
+                writeln!(
                     f,
                     " at {line}{}",
                     if let Some(c) = self.location.get_char() {
@@ -60,16 +60,20 @@ impl Display for RError {
             if let Some(line_num) = self.get_line() {
                 let line_padding = line_num.to_string().len() + 2;
 
-                let start = line_num - 1;
+                let start = if line_num == 1 {
+                    0
+                } else {
+                    line_num - 2
+                };
                 let destination = line_num;
                 let mut context = 0;
 
-                while context < 3 {
+                while context < 2 {
                     if let Some(l) = src_file.get(start + context) {
-                        if start + context == destination {
-                            write!(f, "{} >| {}", destination, l)?;
+                        if start + context == destination - 1 {
+                            writeln!(f, "{} >| {}", destination, l)?;
                         } else {
-                            write!(f, "{}| {}", " ".repeat(line_padding), l)?;
+                            writeln!(f, "{}| {}", " ".repeat(line_padding), l)?;
                         }
                     }
                     context += 1;
@@ -82,16 +86,16 @@ impl Display for RError {
                     if let Some(ctx_line) = uctx.get_line() {
                         write!(f, "\nadditional context:\n")?;
                         let line_padding = ctx_line.to_string().len() + 2;
-                        let start = ctx_line - 1;
-                        let destination = line_num;
+                        let start = uctx.line - 2;
+                        let destination = uctx.line;
                         let mut context = 0;
 
-                        while context < 3 {
+                        while context <= 3 {
                             if let Some(l) = ctx_file.get(start + context) {
-                                if start + context == destination {
-                                    write!(f, "{} >| {}", destination, l)?;
+                                if start + context == destination - 1 {
+                                    writeln!(f, "{} >| {}", destination, l)?;
                                 } else {
-                                    write!(f, "{}| {}", " ".repeat(line_padding), l)?;
+                                    writeln!(f, "{}| {}", " ".repeat(line_padding), l)?;
                                 }
                             }
                             context += 1;

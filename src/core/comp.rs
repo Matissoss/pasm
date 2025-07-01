@@ -2937,12 +2937,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0x18])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .ord(&[MODRM_REG, MODRM_RM]),
         Ins::VBROADCASTSD => GenAPI::new()
             .opcode(&[0x19])
-            .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
+            .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(ins.needs_evex()))
             .modrm(true, None, None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .ord(&[MODRM_REG, MODRM_RM]),
         Ins::VBROADCASTF128 => GenAPI::new()
             .opcode(&[0x1A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
@@ -4409,23 +4409,23 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Ins::REPNE | Ins::REPNZ => GenAPI::new().opcode(&[0xF2]),
         Ins::REP | Ins::REPE | Ins::REPZ => GenAPI::new().opcode(&[0xF3]),
 
-        Ins::EADDPH => GenAPI::new()
+        Ins::VADDPH => GenAPI::new()
             .opcode(&[0x58])
             .evex(VexDetails::new().map_select(MAP5).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::EADDSH => GenAPI::new()
+        Ins::VADDSH => GenAPI::new()
             .opcode(&[0x58])
             .evex(VexDetails::new().map_select(MAP5).vex_we(false).pp(0xF3))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::EALIGNQ => GenAPI::new()
+        Ins::VALIGNQ => GenAPI::new()
             .opcode(&[0x03])
             .evex(VexDetails::new().pp(0x66).map_select(MAP3A).vex_we(true))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::EALIGND => GenAPI::new()
+        Ins::VALIGND => GenAPI::new()
             .opcode(&[0x03])
             .evex(VexDetails::new().pp(0x66).map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
@@ -4441,75 +4441,65 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .vex(VexDetails::new().pp(0xF3).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBLENDMPS => GenAPI::new()
+        Ins::VBLENDMPS => GenAPI::new()
             .opcode(&[0x65])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBLENDMPD => GenAPI::new()
+        Ins::VBLENDMPD => GenAPI::new()
             .opcode(&[0x65])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBROADCASTSD => GenAPI::new()
-            .opcode(&[0x19])
-            .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
-            .ord(&[MODRM_REG, MODRM_RM])
-            .modrm(true, None, None),
-        Ins::EBROADCASTF32X2 => GenAPI::new()
+        Ins::VBROADCASTF32X2 => GenAPI::new()
             .opcode(&[0x19])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBROADCASTSS => GenAPI::new()
-            .opcode(&[0x18])
-            .evex(VexDetails::new().pp(0x66).map_select(MAP38))
-            .ord(&[MODRM_REG, MODRM_RM])
-            .modrm(true, None, None),
-        Ins::EBROADCASTF32X4 => GenAPI::new()
+        Ins::VBROADCASTF32X4 => GenAPI::new()
             .opcode(&[0x1A])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBROADCASTF64X2 => GenAPI::new()
+        Ins::VBROADCASTF64X2 => GenAPI::new()
             .opcode(&[0x1A])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBROADCASTF32X8 => GenAPI::new()
+        Ins::VBROADCASTF32X8 => GenAPI::new()
             .opcode(&[0x1B])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::EBROADCASTF64X4 => GenAPI::new()
+        Ins::VBROADCASTF64X4 => GenAPI::new()
             .opcode(&[0x1B])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::ECMPPH => GenAPI::new()
+        Ins::VCMPPH => GenAPI::new()
             .opcode(&[0xC2])
             .evex(VexDetails::new().map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::ECMPSH => GenAPI::new()
+        Ins::VCMPSH => GenAPI::new()
             .opcode(&[0xC2])
             .evex(VexDetails::new().pp(0xF3).map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::ECOMISH => GenAPI::new()
+        Ins::VCOMISH => GenAPI::new()
             .opcode(&[0x2F])
             .evex(VexDetails::new().map_select(MAP5))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::ECOMPRESSPD | Ins::ECOMPRESSPS => GenAPI::new()
+        Ins::VCOMPRESSPD | Ins::VCOMPRESSPS => GenAPI::new()
             .opcode(&[0x8A])
             .evex(
                 VexDetails::new()
                     .map_select(MAP38)
                     .pp(0x66)
-                    .vex_we(ins.mnem == Ins::ECOMPRESSPD),
+                    .vex_we(ins.mnem == Ins::VCOMPRESSPD),
             )
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG]),

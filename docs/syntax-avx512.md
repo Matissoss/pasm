@@ -2,48 +2,25 @@
     <h1>syntax-avx512.md</h1>
 </div>
 
-## abbreviations
+## getting started
 
-`AVX-512` = `AVX-512` and/or `AVX-10`
+You can use AVX-512 in my assembler like in other assemblers.
 
-## mnemonics
-
-Mnemonics that are derived from AVX-512 and are encoded using `EVEX` prefix are prefixed with `E` and not `V` like other AVX mnemonics.
-
-Here are two reasons:
-- Explicitness: you exactly know if assembler will encode `EVEX` or `VEX`
-- "Logical": we can assert that `V` means usage of `VEX` prefix and `E` of `EVEX` prefix.
-
-## using masks
-
-Masks have same naming as in Intel documentations: `k0-7`; You will have to utilize mnemonic modifier.
+Example of `vaddph`:
 
 ```
-emnemonic:mask ; [...]
+vaddph %xmm20 {k2}, %xmm21, %xmm22
 ```
 
-## `{sae}`, `{er}`, `{z}`
+## mbcst
 
-You will have to use mnemonic modifier:
-
-```
-emnemonic:z:er:k0
-emnemonic:z:sae:k0
-```
-
-## using mbcst
-
-Use modifier `.size:bcst`.
-
+To use broadcast on memory use `.size:bcst` modifier:
 
 ```
-.qword:bcst (%rax + %rcx)
+.word:bcst (%rax + %rcx)
 ```
 
-## example instruction
+## disclosure
 
-We will use `vaddph` instruction as example:
-
-```
-eaddph:k2:z %xmm2, .word:bcst (%rax)
-```
+I'm very lazy programmer, so instructions encoded with EVEX derived from AVX(1/2) don't check if they can use EVEX. So if anything is wrong (if CPU throws #UD, etc.), 
+check AVX instructions used in code first and then if something is still wrong (and you get wrong output regardless) then report it as bug.
