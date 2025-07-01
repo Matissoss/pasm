@@ -64,7 +64,9 @@ const fn andn(num: u8, bits: u8) -> u8 {
 fn gen_evex4v(op: Option<&Operand>) -> u8 {
     if let Some(o) = op {
         match o {
-            Operand::Reg(r) => andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111),
+            Operand::Register(r) => {
+                andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
+            }
             _ => 0b1111,
         }
     } else {
@@ -76,7 +78,7 @@ fn gen_evex4v(op: Option<&Operand>) -> u8 {
 fn ee_bits(op: Option<&Operand>) -> [[bool; 2]; 2] {
     if let Some(op) = op {
         match op {
-            Operand::Reg(r) => [r.get_ext_bits(), [false; 2]],
+            Operand::Register(r) => [r.get_ext_bits(), [false; 2]],
             Operand::Mem(m) => {
                 let mut base = [false; 2];
                 if let Some(i) = m.base() {

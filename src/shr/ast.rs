@@ -23,10 +23,7 @@ use crate::RString;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
-    Reg(Register),
-    SegReg(Register),
-    CtrReg(Register),
-    DbgReg(Register),
+    Register(Register),
     Imm(Number),
     Mem(Mem),
     SymbolRef(SymbolRef),
@@ -118,9 +115,7 @@ pub enum IVariant {
 impl Operand {
     pub fn get_reg(&self) -> Option<&Register> {
         match self {
-            Operand::Reg(r) | Operand::SegReg(r) | Operand::CtrReg(r) | Operand::DbgReg(r) => {
-                Some(r)
-            }
+            Operand::Register(r) => Some(r),
             _ => None,
         }
     }
@@ -139,9 +134,7 @@ impl Operand {
     pub fn size(&self) -> Size {
         match self {
             Self::Imm(n) => n.size(),
-            Self::Reg(r) => r.size(),
-            Self::CtrReg(r) => r.size(),
-            Self::DbgReg(r) => r.size(),
+            Self::Register(r) => r.size(),
             Self::Mem(m) => m.size(),
             Self::SymbolRef(s) => {
                 if let Some(sz) = s.size() {
@@ -150,16 +143,13 @@ impl Operand {
                     Size::Dword
                 }
             }
-            Self::SegReg(_) => Size::Word,
             Self::String(_) => Size::Unknown,
         }
     }
     pub fn ext_atype(&self) -> AType {
         match self {
             Self::Mem(m) => m.atype(),
-            Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => {
-                AType::ExtendedRegister(*r)
-            }
+            Self::Register(r) => AType::ExtendedRegister(*r),
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(s) => {
                 if s.is_deref() {
@@ -177,7 +167,7 @@ impl ToAType for Operand {
     fn atype(&self) -> AType {
         match self {
             Self::Mem(m) => m.atype(),
-            Self::CtrReg(r) | Self::SegReg(r) | Self::DbgReg(r) | Self::Reg(r) => r.atype(),
+            Self::Register(r) => r.atype(),
             Self::Imm(n) => n.atype(),
             Self::SymbolRef(s) => {
                 if s.is_deref() {
@@ -249,7 +239,7 @@ impl Instruction {
             return true;
         }
         for o in self.oprs.iter() {
-            if let Operand::Reg(r) = o {
+            if let Operand::Register(r) = o {
                 if r.get_ext_bits()[0] {
                     return true;
                 }
@@ -259,7 +249,7 @@ impl Instruction {
     }
     pub fn which_variant(&self) -> IVariant {
         match self.dst() {
-            Some(Operand::Reg(r)) => match r.size() {
+            Some(Operand::Register(r)) => match r.size() {
                 Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => {
@@ -267,7 +257,7 @@ impl Instruction {
                         IVariant::MMX
                     } else {
                         match self.src() {
-                            Some(Operand::Reg(r)) => {
+                            Some(Operand::Register(r)) => {
                                 if r.purpose() == RPurpose::Mmx {
                                     IVariant::MMX
                                 } else if r.size() == Size::Yword {
@@ -288,7 +278,7 @@ impl Instruction {
                 Size::Yword => IVariant::YMM,
                 Size::Xword => IVariant::XMM,
                 Size::Qword | Size::Dword => match self.src() {
-                    Some(Operand::Reg(r)) => {
+                    Some(Operand::Register(r)) => {
                         if r.purpose() == RPurpose::Mmx {
                             IVariant::MMX
                         } else if r.size() == Size::Xword {
@@ -337,16 +327,20 @@ impl Instruction {
     }
     pub fn uses_cr(&self) -> bool {
         for o in self.oprs.iter() {
-            if let Operand::CtrReg(_) = o {
-                return true;
+            if let Operand::Register(r) = o {
+                if r.is_ctrl_reg() {
+                    return true;
+                }
             }
         }
         false
     }
     pub fn uses_dr(&self) -> bool {
         for o in self.oprs.iter() {
-            if let Operand::DbgReg(_) = o {
-                return true;
+            if let Operand::Register(r) = o {
+                if r.is_dbg_reg() {
+                    return true;
+                }
             }
         }
         false
@@ -357,7 +351,7 @@ impl Instruction {
     }
     #[inline]
     pub fn reg_byte(&self, idx: usize) -> Option<u8> {
-        if let Some(Operand::Reg(r)) = self.oprs.get(idx) {
+        if let Some(Operand::Register(r)) = self.oprs.get(idx) {
             Some(r.to_byte())
         } else {
             None

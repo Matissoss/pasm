@@ -20,17 +20,17 @@ fn needs_rex(ins: &Instruction) -> bool {
         _ => (Size::Unknown, Size::Unknown),
     };
     match (ins.dst(), ins.src()) {
-        (Some(Operand::Reg(r)), Some(Operand::Reg(r1))) => {
+        (Some(Operand::Register(r)), Some(Operand::Register(r1))) => {
             if r.get_ext_bits()[1] || r1.get_ext_bits()[1] {
                 return true;
             }
         }
-        (Some(Operand::Reg(r)), _) => {
+        (Some(Operand::Register(r)), _) => {
             if r.get_ext_bits()[1] {
                 return true;
             }
         }
-        (_, Some(Operand::Reg(r))) => {
+        (_, Some(Operand::Register(r))) => {
             if r.get_ext_bits()[1] {
                 return true;
             }
@@ -123,16 +123,24 @@ fn needs_rex(ins: &Instruction) -> bool {
         Mnm::POPCNT => true,
         Mnm::EXTRACTPS => true,
         Mnm::MOV => {
-            if let (Some(Operand::Reg(_)), Some(Operand::Reg(_)))
-            | (Some(Operand::Mem(_)), _)
-            | (_, Some(Operand::Mem(_))) = (ins.dst(), ins.src())
+            if let (Some(Operand::Register(r0)), Some(Operand::Register(r1))) =
+                (ins.dst(), ins.src())
+            {
+                if r0.is_ctrl_reg()
+                    || r0.is_dbg_reg()
+                    || r1.is_ctrl_reg()
+                    || r1.is_dbg_reg()
+                    || r0.is_sgmnt()
+                    || r1.is_sgmnt()
+                {
+                    return r0.get_ext_bits()[1] || r1.get_ext_bits()[1];
+                } else {
+                    return true;
+                }
+            }
+            if let (Some(Operand::Mem(_)), _) | (_, Some(Operand::Mem(_))) = (ins.dst(), ins.src())
             {
                 return true;
-            }
-            if let (Some(Operand::CtrReg(r) | Operand::DbgReg(r)), _)
-            | (_, Some(Operand::CtrReg(r) | Operand::DbgReg(r))) = (ins.dst(), ins.src())
-            {
-                return r.get_ext_bits()[1];
             }
             false
         }
@@ -153,20 +161,20 @@ fn needs_rex(ins: &Instruction) -> bool {
         | Mnm::XOR => {
             matches!(
                 (ins.dst(), ins.src()),
-                (_, Some(Operand::Reg(_)))
-                    | (Some(Operand::Reg(_)), _)
+                (_, Some(Operand::Register(_)))
+                    | (Some(Operand::Register(_)), _)
                     | (Some(Operand::Mem(_)), _)
                     | (_, Some(Operand::Mem(_)))
             )
         }
         Mnm::SAR | Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::LEA => true,
         _ => {
-            if let Some(Operand::Reg(dst)) = ins.dst() {
+            if let Some(Operand::Register(dst)) = ins.dst() {
                 if dst.get_ext_bits()[1] {
                     return true;
                 }
             }
-            if let Some(Operand::Reg(src)) = ins.src() {
+            if let Some(Operand::Register(src)) = ins.src() {
                 if src.get_ext_bits()[1] {
                     return true;
                 }
@@ -178,9 +186,7 @@ fn needs_rex(ins: &Instruction) -> bool {
 
 fn get_wb(op: Option<&Operand>) -> bool {
     match op {
-        Some(Operand::Reg(reg) | Operand::CtrReg(reg) | Operand::DbgReg(reg)) => {
-            reg.get_ext_bits()[1]
-        }
+        Some(Operand::Register(reg)) => reg.get_ext_bits()[1],
         _ => false,
     }
 }
@@ -188,7 +194,7 @@ fn get_wb(op: Option<&Operand>) -> bool {
 fn fix_rev(r: &mut bool, ins: &Instruction) {
     #[allow(clippy::single_match)]
     match ins.dst() {
-        Some(Operand::Reg(reg)) => {
+        Some(Operand::Register(reg)) => {
             if reg.size() == Size::Xword {
                 *r = true;
             }
@@ -229,7 +235,7 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
         (Some(Operand::Mem(m)), _) | (_, Some(Operand::Mem(m))) => (b, x) = m.needs_rex(),
         _ => {}
     }
-    if let Some(Operand::Reg(reg)) = ins.dst() {
+    if let Some(Operand::Register(reg)) = ins.dst() {
         if reg.get_ext_bits()[1] {
             if modrm_reg_is_dst {
                 r = true;

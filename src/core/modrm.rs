@@ -63,7 +63,7 @@ fn gen_rmreg(op: &Option<&Operand>) -> u8 {
         return 0;
     };
     match op.unwrap() {
-        Operand::DbgReg(r) | Operand::CtrReg(r) | Operand::Reg(r) => r.to_byte(),
+        Operand::Register(r) => r.to_byte(),
         Operand::Mem(m) => {
             if let Some(r) = m.base() {
                 r.to_byte()
@@ -71,7 +71,6 @@ fn gen_rmreg(op: &Option<&Operand>) -> u8 {
                 0
             }
         }
-        Operand::SegReg(r) => r.to_byte(),
         _ => 0,
     }
 }

@@ -6,17 +6,8 @@
 use crate::{
     conf::*,
     shr::{
-        ast::Operand,
-        error::RError,
-        error::RError as Error,
-        ins::Mnemonic,
-        kwd::Keyword,
-        math,
-        num::Number,
-        reg::{Purpose as RPurpose, Register},
-        reloc::RelType,
-        smallvec::SmallVec,
-        symbol::SymbolRef,
+        ast::Operand, error::RError, error::RError as Error, ins::Mnemonic, kwd::Keyword, math,
+        num::Number, reg::Register, reloc::RelType, smallvec::SmallVec, symbol::SymbolRef,
     },
 };
 use std::str::FromStr;
@@ -29,10 +20,9 @@ pub enum Token {
     Mnemonic(Mnemonic),
     Label(RString),
     SymbolRef(Box<SymbolRef>),
-    String(RString),
     Comma,
 
-    Unknown(RString),
+    String(RString),
     Error(Box<RError>),
     //       pfx   content
     Closure(char, RString),
@@ -119,19 +109,35 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                     modf_toks.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
             }
-            ',' => {
-                if !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+            '"' => {
+                if !(cdelcount != 0 && sdelcount != 0) {
+                    if iclosure == Some('"') {
+                        tokens.push(Token::String(striter(tmp_buf).into()));
+                        iclosure.take();
+                    } else {
+                        iclosure = Some('"');
+                    }
+                } else {
+                    iclosure.take();
                 }
-                tokens.push(Token::Comma);
+            }
+            ',' => {
+                if iclosure != Some('"') {
+                    if !tmp_buf.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    }
+                    tokens.push(Token::Comma);
+                } else {
+                    tmp_buf.push(',');
+                }
             }
             ';' => {
-                if !(cdelcount != 0 && sdelcount != 0) {
+                if !(cdelcount != 0 && sdelcount != 0) && iclosure != Some('"') {
                     break;
                 }
             }
             '/' => {
-                if !(cdelcount != 0 && sdelcount != 0) {
+                if !(cdelcount != 0 && sdelcount != 0) && iclosure != Some('"') {
                     if iclosure == Some('/') {
                         break;
                     } else {
@@ -142,7 +148,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                 }
             }
             ' ' | '\t' => {
-                if cdelcount != 0 || sdelcount != 0 {
+                if cdelcount != 0 || sdelcount != 0 || iclosure == Some('"') {
                     tmp_buf.push(c);
                     continue;
                 }
@@ -165,6 +171,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
             cprefix.take().unwrap_or(' '),
             striter(tmp_buf).into(),
         ));
+        cdelcount = 0;
     }
 
     if !modf_toks.is_empty() {
@@ -176,6 +183,25 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 
     if !tmp_buf.is_empty() {
         tokens.push(Token::make_from(cprefix, striter(tmp_buf)));
+    }
+
+    if cdelcount != 0 {
+        tokens.push(Token::Error(Box::new(Error::new(
+            "unclosed delimeter `(`",
+            0,
+        ))));
+    }
+    if sdelcount != 0 {
+        tokens.push(Token::Error(Box::new(Error::new(
+            "unclosed delimeter `{`",
+            0,
+        ))));
+    }
+    if iclosure == Some('"') {
+        tokens.push(Token::Error(Box::new(Error::new(
+            "unclosed delimeter `\"`",
+            0,
+        ))));
     }
 
     tokens
@@ -260,6 +286,12 @@ mod tokn_test {
                 Token::SubExpr(RString::from("z")),
             ]
         );
+        let line = "\"Hello, World!\"";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::String(RString::from("Hello, World!"))]
+        );
     }
 }
 
@@ -267,13 +299,11 @@ impl Token {
     fn make_modifier(mut toks: Vec<Self>) -> Self {
         match toks.len() {
             1 => {
-                return Token::Label(
-                    if let Token::String(s) | Token::Unknown(s) = toks.pop().unwrap() {
-                        s
-                    } else {
-                        RString::from("")
-                    },
-                )
+                return Token::Label(if let Token::String(s) = toks.pop().unwrap() {
+                    s
+                } else {
+                    RString::from("")
+                })
             }
             2 => match &toks[..2] {
                 [Token::SymbolRef(symb), Token::Keyword(k)] => {
@@ -334,7 +364,7 @@ impl Token {
             ))),
             Some(PREFIX_REG) => match Register::from_str(&val) {
                 Ok(reg) => Self::Register(reg),
-                Err(_) => Self::Unknown(val.into()),
+                Err(_) => Self::String(val.into()),
             },
             Some(PREFIX_VAL) => match Number::from_str(&val) {
                 Ok(val) => Self::Immediate(val),
@@ -345,7 +375,7 @@ impl Token {
                 if let Ok(kwd) = Keyword::from_str(val.trim()) {
                     Self::Keyword(kwd)
                 } else {
-                    Self::Unknown(val.into())
+                    Self::String(val.into())
                 }
             }
             _ => {
@@ -361,7 +391,7 @@ impl Token {
                 } else if let Ok(dir) = Keyword::from_str(&val) {
                     Self::Keyword(dir)
                 } else {
-                    Self::Unknown(val.into())
+                    Self::String(val.into())
                 }
             }
         }
@@ -385,17 +415,7 @@ impl TryFrom<Token> for Operand {
     type Error = Error;
     fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
         match tok {
-            Token::Register(reg) => {
-                if reg.is_ctrl_reg() {
-                    Ok(Self::CtrReg(reg))
-                } else if reg.is_dbg_reg() {
-                    Ok(Self::DbgReg(reg))
-                } else if reg.purpose() == RPurpose::Sgmnt {
-                    Ok(Self::SegReg(reg))
-                } else {
-                    Ok(Self::Reg(reg))
-                }
-            }
+            Token::Register(reg) => Ok(Self::Register(reg)),
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
@@ -424,7 +444,6 @@ impl ToString for Token {
             Self::Label(lbl) => lbl.to_string(),
             Self::SymbolRef(lbl) => format!("{}{}", PREFIX_REF, lbl.to_string()),
             Self::String(str) => str.to_string(),
-            Self::Unknown(val) => val.to_string(),
             Self::Comma => ','.to_string(),
             Self::Closure(pfx, ctt) => format!("{pfx}({ctt})"),
             Self::Modifier(content) => {

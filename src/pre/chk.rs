@@ -3109,12 +3109,6 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
     let dst = ins.dst().unwrap();
     let src = ins.src().unwrap();
 
-    if let Operand::CtrReg(_) = dst {
-        return None;
-    }
-    if let Operand::CtrReg(_) = src {
-        return None;
-    }
     // should work (i hope so)
     match (dst.atype(), src.atype()) {
         (AType::Register(_, s0) | AType::Memory(s0), AType::Immediate(s1)) => {
@@ -3160,11 +3154,15 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
     let dst = ins.dst().unwrap();
     let src = ins.src().unwrap();
 
-    if let Operand::CtrReg(_) = dst {
-        return None;
+    if let Operand::Register(r) = dst {
+        if r.is_ctrl_reg() {
+            return None;
+        }
     }
-    if let Operand::CtrReg(_) = src {
-        return None;
+    if let Operand::Register(r) = src {
+        if r.is_ctrl_reg() {
+            return None;
+        }
     }
     // should work (i hope so)
     match (dst.atype(), src.atype()) {

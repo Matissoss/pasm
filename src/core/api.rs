@@ -376,7 +376,7 @@ impl GenAPI {
                 base.extend(vec![0; sz as usize]);
             }
             // rvrm
-            else if let Some(Operand::Reg(r)) = ins.get_opr(idx) {
+            else if let Some(Operand::Register(r)) = ins.get_opr(idx) {
                 let mut v = Vec::new();
                 v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
                 extend_imm(&mut v, size as u8);

@@ -66,7 +66,7 @@ pub fn mer(
                 }
             }
             Some(Token::Keyword(Keyword::Section)) => {
-                if let Some(Token::String(str) | Token::Unknown(str)) = line.pop() {
+                if let Some(Token::String(str)) = line.pop() {
                     node = Some(ASTNode::Section(str.clone()));
                 } else {
                     let mut er = Error::new(
@@ -94,7 +94,7 @@ pub fn mer(
                 }
             },
             Some(Token::Keyword(Keyword::Extern)) => {
-                if let Some(Token::String(etrn) | Token::Unknown(etrn)) = line.get(1) {
+                if let Some(Token::String(etrn)) = line.get(1) {
                     node = Some(ASTNode::Extern(etrn.clone()));
                 } else {
                     let mut er = Error::new(
@@ -197,7 +197,7 @@ pub fn mer(
 }
 
 fn make_include(line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<PathBuf, Error> {
-    if let Some(Token::Unknown(s) | Token::String(s)) = line.get(1) {
+    if let Some(Token::String(s)) = line.get(1) {
         Ok(PathBuf::from(s.to_string()))
     } else {
         Err(Error::new(
@@ -233,7 +233,7 @@ fn make_eval(mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>) -> Result<(RString,
             return Err(Error::new("you tried to use math directive, but you provided unexpected token instead of immediate/math closure", 8))
         }
     };
-    let name = if let Token::Unknown(name) | Token::String(name) = line.pop().unwrap() {
+    let name = if let Token::String(name) = line.pop().unwrap() {
         name.clone()
     } else {
         return Err(Error::new(

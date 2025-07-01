@@ -138,9 +138,7 @@ pub trait ToType {
 impl ToType for Operand {
     fn atypen(&self) -> AType {
         match self {
-            Self::SegReg(r) | Self::CtrReg(r) | Self::DbgReg(r) | Self::Reg(r) => {
-                AType::Register(*r, false)
-            }
+            Self::Register(r) => AType::Register(*r, false),
             Self::Mem(m) => AType::Memory(m.size(), m.addrsize(), m.is_bcst()),
             Self::SymbolRef(s) => {
                 if s.is_deref() {
@@ -858,7 +856,7 @@ mod chkn_test {
     }
     #[test]
     fn chk_test() {
-        let t = Key::enc(Operand::Reg(Register::RAX).atypen())
+        let t = Key::enc(Operand::Register(Register::RAX).atypen())
             .dec()
             .unwrap();
         assert_eq!(t, AType::Register(Register::RAX, false));
