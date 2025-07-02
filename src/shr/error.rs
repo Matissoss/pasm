@@ -32,9 +32,9 @@ impl Display for RError {
     // help: go to `{SOURCE_CODE_REPO}/docs/error-spec.md#e[{ERROR_CODE}]` for more info
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         use crate::color::*;
-        write!(
+        writeln!(
             f,
-            "\n{}[{:03}]: {}\n",
+            "{}[{:03}]: {}",
             ColString::new("error").set_color(Color::RED),
             self.error_code,
             self.msg,
@@ -155,6 +155,9 @@ impl RError {
     pub fn set_file(&mut self, fl: PathBuf) {
         self.location
             .set_file(fl.to_string_lossy().to_string().into());
+    }
+    pub fn set_context(&mut self, ctx: Location) {
+        self.context = Box::new(ctx);
     }
     pub fn get_file(&self) -> Option<RString> {
         self.location.get_file()

@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-#[derive(Default, PartialEq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Clone, Copy)]
 pub enum Visibility {
     #[default]
     Local,

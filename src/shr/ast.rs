@@ -13,7 +13,7 @@ use crate::shr::{
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
-    section::Section,
+    section::{Section, SectionN},
     size::Size,
     smallvec::SmallVec,
     symbol::{SymbolRef, SymbolType, Visibility},
@@ -105,6 +105,18 @@ pub struct AST {
     pub includes: Vec<PathBuf>,
     pub defined: HashMap<RString, u64>,
     pub file: PathBuf,
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct ASTn {
+    pub sections: Vec<SectionN>,
+    pub defines: HashMap<RString, Number>,
+    pub includes: Vec<PathBuf>,
+    pub externs: Vec<RString>,
+
+    pub format: Option<RString>,
+    pub default_bits: Option<u8>,
+    pub default_output: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]

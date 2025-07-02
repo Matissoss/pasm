@@ -86,7 +86,7 @@ impl<T, const N: usize> SmallVec<T, N> {
     // | ELEMENT | NONE | ELEMENT |
     // which is just UB
     pub const unsafe fn take_owned(&mut self, idx: usize) -> Option<T> {
-        if self.len() < idx {
+        if self.len() > idx {
             let element = self.content[idx].assume_init_read();
             self.content[idx] = MaybeUninit::uninit().assume_init();
             Some(element)

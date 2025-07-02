@@ -82,13 +82,13 @@ pub fn mer(
                     error = Some(er);
                 }
             }
-            Some(Token::Keyword(Keyword::Write)) => {
+            Some(Token::Keyword(Keyword::Writeable)) => {
                 node = Some(ASTNode::Write);
             }
             Some(Token::Keyword(Keyword::Alloc)) => {
                 node = Some(ASTNode::Alloc);
             }
-            Some(Token::Keyword(Keyword::Exec)) => {
+            Some(Token::Keyword(Keyword::Executable)) => {
                 node = Some(ASTNode::Exec);
             }
             Some(Token::Keyword(Keyword::Include)) => match make_include(line) {
@@ -431,15 +431,32 @@ fn make_op(line: SmallVec<Token, 4>) -> Result<Operand, Error> {
 
 // mer new
 
-pub enum RootNode {
+use crate::shr::location::Location;
+
+#[derive(Debug)]
+pub struct RootNode {
+    pub location: Location,
+    pub node: RootNodeEnum,
+}
+
+#[derive(Debug)]
+pub enum RootNodeEnum {
     Format(RString),
     Include(RString),
     Extern(RString),
     Define(RString, Number),
     Bits(u8),
+    Output(RString),
 }
 
-pub enum BodyNode {
+#[derive(Debug)]
+pub struct BodyNode {
+    pub location: Location,
+    pub node: BodyNodeEnum,
+}
+
+#[derive(Debug)]
+pub enum BodyNodeEnum {
     Section(RString),
 
     Label(Label),
@@ -454,6 +471,7 @@ pub enum BodyNode {
     Write,
 }
 
+#[derive(Debug)]
 pub struct MergerResult {
     pub root: Vec<RootNode>,
     pub body: Vec<BodyNode>,
@@ -504,7 +522,14 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                     }
                     continue;
                 }
-                body.push(BodyNode::Attributes(attr));
+                body.push(BodyNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: BodyNodeEnum::Attributes(attr),
+                });
             }
             // assert that layout of line is something like label: <instruction>
             Token::Label(lname) => {
@@ -514,14 +539,28 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                     debug_line: lnum,
                     ..Default::default()
                 };
-                body.push(BodyNode::Label(l));
+                body.push(BodyNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: BodyNodeEnum::Label(l),
+                });
                 match unsafe { line.take_owned(1) } {
                     Some(Token::Mnemonic(m)) => {
                         unsafe { line.insert(1, Token::Mnemonic(m)) };
                         match make_instruction(line, 0) {
                             Ok(mut i) => {
                                 i.line = lnum;
-                                body.push(BodyNode::Instruction(i))
+                                body.push(BodyNode {
+                                    location: Location {
+                                        line: lnum,
+                                        char: 0,
+                                        ..Default::default()
+                                    },
+                                    node: BodyNodeEnum::Instruction(i),
+                                });
                             }
                             Err(e) => errors.push(e),
                         }
@@ -538,24 +577,92 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                 match make_instruction(line, 0) {
                     Ok(mut i) => {
                         i.line = lnum;
-                        body.push(BodyNode::Instruction(i))
+                        body.push(BodyNode {
+                            location: Location {
+                                line: lnum,
+                                char: 0,
+                                ..Default::default()
+                            },
+                            node: BodyNodeEnum::Instruction(i),
+                        });
                     }
                     Err(e) => errors.push(e),
                 }
             }
-            // assert that layout of line is: .section "name" and nothing past that
-            Token::Keyword(Keyword::Section) => {
-                inroot = false;
+            // assert that layout of line is: .format "name" and nothing past that
+            Token::Keyword(Keyword::Format) => {
+                if !inroot {
+                    errors.push(Error::new_wline(
+                        "you tried to use format directive outside of root",
+                        15,
+                        lnum,
+                    ));
+                }
                 let name = unsafe { line.take_owned(1) };
                 let garbage = unsafe { line.take_owned(2) };
                 if garbage.is_some() {
                     errors.push(Error::new_wline(
-                        "you tried to make section, but you provided a token at index 2",
+                        "you tried to make format, but you provided a token at index 2",
                         17,
                         lnum,
                     ));
                     continue;
                 }
+                let name = if let Some(Token::String(s)) = name {
+                    s
+                } else {
+                    if name.is_none() {
+                        errors.push(Error::new_wline(
+                            "format directive requires name at index 1, found nothing",
+                            17,
+                            lnum,
+                        ));
+                    } else {
+                        errors.push(Error::new_wline(
+                            "you provided invalid token at index 1, expected string",
+                            17,
+                            lnum,
+                        ));
+                    }
+                    continue;
+                };
+                root.push(RootNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: RootNodeEnum::Format(name),
+                });
+            }
+            Token::Keyword(Keyword::Writeable) => body.push(BodyNode {
+                location: Location {
+                    line: lnum,
+                    char: 0,
+                    ..Default::default()
+                },
+                node: BodyNodeEnum::Write,
+            }),
+            Token::Keyword(Keyword::Executable) => body.push(BodyNode {
+                location: Location {
+                    line: lnum,
+                    char: 0,
+                    ..Default::default()
+                },
+                node: BodyNodeEnum::Exec,
+            }),
+            Token::Keyword(Keyword::Alloc) => body.push(BodyNode {
+                location: Location {
+                    line: lnum,
+                    char: 0,
+                    ..Default::default()
+                },
+                node: BodyNodeEnum::Alloc,
+            }),
+            // assert that layout of line is: .section "name" and nothing past that
+            Token::Keyword(Keyword::Section) => {
+                inroot = false;
+                let name = unsafe { line.take_owned(1) };
                 let name = if let Some(Token::String(s)) = name {
                     s
                 } else {
@@ -574,7 +681,46 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                     }
                     continue;
                 };
-                body.push(BodyNode::Section(name));
+                body.push(BodyNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: BodyNodeEnum::Section(name),
+                });
+                let mut slice_idx = 2;
+                while let Some(t) = unsafe { line.take_owned(slice_idx) } {
+                    match t {
+                        Token::Keyword(Keyword::Executable) => body.push(BodyNode {
+                            location: Location {
+                                line: lnum,
+                                char: 0,
+                                ..Default::default()
+                            },
+                            node: BodyNodeEnum::Exec,
+                        }),
+                        Token::Keyword(Keyword::Writeable) => body.push(BodyNode {
+                            location: Location {
+                                line: lnum,
+                                char: 0,
+                                ..Default::default()
+                            },
+                            node: BodyNodeEnum::Write,
+                        }),
+                        Token::Keyword(Keyword::Alloc) => body.push(BodyNode {
+                            location: Location {
+                                line: lnum,
+                                char: 0,
+                                ..Default::default()
+                            },
+                            node: BodyNodeEnum::Alloc,
+                        }),
+                        _ => errors.push(Error::new_wline("expected writeable, alloc and executable directives after section directive, found other garbage", 17, lnum))
+                    }
+
+                    slice_idx += 1;
+                }
             }
             // assert that layout of line is .align $align
             Token::Keyword(Keyword::Align) => {
@@ -612,7 +758,14 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                     }
                     continue;
                 };
-                body.push(BodyNode::Align(align));
+                body.push(BodyNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: BodyNodeEnum::Align(align),
+                });
             }
             // assert that layout of line is .define name $value
             Token::Keyword(Keyword::Define) => {
@@ -667,7 +820,14 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                         }
                         continue;
                     };
-                    root.push(RootNode::Define(name, value));
+                    root.push(RootNode {
+                        location: Location {
+                            line: lnum,
+                            char: 0,
+                            ..Default::default()
+                        },
+                        node: RootNodeEnum::Define(name, value),
+                    });
                 } else {
                     errors.push(Error::new_wline(
                         "you tried to use define directive outside of root",
@@ -710,7 +870,14 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                         }
                         continue;
                     };
-                    root.push(RootNode::Include(path));
+                    root.push(RootNode {
+                        location: Location {
+                            line: lnum,
+                            char: 0,
+                            ..Default::default()
+                        },
+                        node: RootNodeEnum::Include(path),
+                    });
                 } else {
                     errors.push(Error::new_wline(
                         "you tried to use include directive outside of root",
@@ -759,9 +926,23 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                 };
 
                 if inroot {
-                    root.push(RootNode::Bits(bits));
+                    root.push(RootNode {
+                        location: Location {
+                            line: lnum,
+                            char: 0,
+                            ..Default::default()
+                        },
+                        node: RootNodeEnum::Bits(bits),
+                    });
                 } else {
-                    body.push(BodyNode::Bits(bits));
+                    body.push(BodyNode {
+                        location: Location {
+                            line: lnum,
+                            char: 0,
+                            ..Default::default()
+                        },
+                        node: BodyNodeEnum::Bits(bits),
+                    });
                 }
             }
             // possible layout:
@@ -805,29 +986,42 @@ pub fn mern(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRe
                     ));
                     continue;
                 }
+                body.push(BodyNode {
+                    location: Location {
+                        line: lnum,
+                        char: 0,
+                        ..Default::default()
+                    },
+                    node: BodyNodeEnum::Label(Label {
+                        name: lname,
+                        debug_line: lnum,
+                        attributes: {
+                            let mut a = LabelAttributes::default();
+                            a.set_symbol_type(t);
+                            a.set_visibility(v);
+                            a
+                        },
+                        ..Default::default()
+                    }),
+                });
 
                 if let Some(Token::Mnemonic(m)) = unsafe { line.take_owned(i + 1) } {
                     unsafe { line.insert(i + 1, Token::Mnemonic(m)) };
                     match make_instruction(line, i + 1) {
                         Ok(mut i) => {
                             i.line = lnum;
-                            body.push(BodyNode::Instruction(i))
+                            body.push(BodyNode {
+                                location: Location {
+                                    line: lnum,
+                                    char: 0,
+                                    ..Default::default()
+                                },
+                                node: BodyNodeEnum::Instruction(i),
+                            });
                         }
                         Err(e) => errors.push(e),
                     }
                 }
-
-                body.push(BodyNode::Label(Label {
-                    name: lname,
-                    debug_line: lnum,
-                    attributes: {
-                        let mut a = LabelAttributes::default();
-                        a.set_symbol_type(t);
-                        a.set_visibility(v);
-                        a
-                    },
-                    ..Default::default()
-                }));
             }
 
             _ => errors.push(Error::new_wline(

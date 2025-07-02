@@ -3,12 +3,23 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast, booltable, symbol};
+use crate::shr::{ast, booltable, label, symbol};
 
 const GLOBAL: u8 = 0x1;
 const ALLOC_FLAG: u8 = 0x2;
 const WRITE_FLAG: u8 = 0x3;
 const EXEC_FLAG: u8 = 0x4;
+
+#[derive(PartialEq, Clone, Debug, Default)]
+pub struct SectionN {
+    pub name: crate::RString,
+    pub content: Vec<label::Label>,
+    pub size: u32,
+    pub offset: u32,
+    pub align: u16,
+    pub attributes: SectionAttributes,
+    pub bits: u8,
+}
 
 #[derive(PartialEq, Clone, Debug, Default)]
 pub struct Section {

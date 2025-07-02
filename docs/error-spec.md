@@ -52,7 +52,8 @@ _start:
 
 #### description
 
-This error is occured, when an undefined symbol is being used or symbol is redeclared multiple times.
+This error is provoked, when you redeclare a symbol/directive, when they can only be unique.
+
 
 #### example
 
@@ -284,6 +285,19 @@ This error is provoked, when you try to use unknown attribute on a label or when
 unknown label: ; [...]
 
 .public ; e[020]
+```
+
+### e021
+
+#### description
+
+This error is provoked, when you try to redeclare one thing multiple times.
+
+#### example
+
+```
+format elf64 ; declaration here
+format bin   ; redeclaration here
 ```
 
 ### e101
