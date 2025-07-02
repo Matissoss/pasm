@@ -111,7 +111,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         ),
         Mnm::POP => ot_chk(
             ins,
-            &[(&[R16, R32, M16, M32, SR], Optional::Needed)],
+            &[(&[R16, R32, M16, M32, DS, ES, SS, FS, GS], Optional::Needed)],
             &[],
             &[],
         ),
@@ -226,17 +226,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         Mnm::DIV | Mnm::IDIV | Mnm::MUL => chkn::CheckAPI::<1>::new()
-            .pushop(
-                &[
-                    R8,
-                    R16,
-                    R32,
-                    M8,
-                    M16,
-                    M32,
-                ],
-                true,
-            )
+            .pushop(&[R8, R16, R32, M8, M16, M32], true)
             .check(ins),
         Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
             ins,
@@ -497,29 +487,22 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
         | Mnm::CMOVNGE
         | Mnm::CMOVNAE => chkn::CheckAPI::<2>::new()
             .pushop(&[R16, R32, R64], true)
-            .pushop(
-                &[
-                    R16,
-                    R32,
-                    R64,
-                    M16,
-                    M32,
-                    M64,
-                ],
-                true,
-            )
+            .pushop(&[R16, R32, R64, M16, M32, M64], true)
             .check(ins),
         Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
         Mnm::PUSH => ot_chk(
             ins,
-            &[(&[R16, R64, M16, M64, I8, I16, I32, SR], Optional::Needed)],
+            &[(
+                &[R16, R64, M16, M64, I8, I16, I32, FS, GS],
+                Optional::Needed,
+            )],
             &[],
             &[],
         ),
         Mnm::POP => ot_chk(
             ins,
-            &[(&[R16, R64, M16, M64, SR], Optional::Needed)],
+            &[(&[R16, R64, M16, M64, FS, GS], Optional::Needed)],
             &[],
             &[],
         ),
@@ -833,14 +816,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ins,
             &[
                 (&[DX, I8], Optional::Needed),
-                (
-                    &[
-                        AL,
-                        AX,
-                        EAX,
-                    ],
-                    Optional::Needed,
-                ),
+                (&[AL, AX, EAX], Optional::Needed),
             ],
             &[],
             &[],
@@ -848,14 +824,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         IN => ot_chk(
             ins,
             &[
-                (
-                    &[
-                    AL,
-                    AX,
-                    EAX
-                    ],
-                    Optional::Needed,
-                ),
+                (&[AL, AX, EAX], Optional::Needed),
                 (&[DX, I8], Optional::Needed),
             ],
             &[],
@@ -870,7 +839,12 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
         }
         EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
-        STRING | ASCII => ot_chk(ins, &[(&[crate::shr::atype::STRING], Optional::Needed)], &[], &[]),
+        STRING | ASCII => ot_chk(
+            ins,
+            &[(&[crate::shr::atype::STRING], Optional::Needed)],
+            &[],
+            &[],
+        ),
 
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
         PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
@@ -1715,9 +1689,20 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
                 (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
             ],
-            &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128), (MA, MA),
-              (XMM, M512), (YMM, M512), (XMM, ZMM), (YMM, ZMM), (ZMM, M128),
-              (ZMM, XMM), (ZMM, YMM), (ZMM, M256)
+            &[
+                (XMM, M256),
+                (XMM, YMM),
+                (YMM, XMM),
+                (YMM, M128),
+                (MA, MA),
+                (XMM, M512),
+                (YMM, M512),
+                (XMM, ZMM),
+                (YMM, ZMM),
+                (ZMM, M128),
+                (ZMM, XMM),
+                (ZMM, YMM),
+                (ZMM, M256),
             ],
             &[],
         ),
@@ -1893,7 +1878,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
                 (&[XMM, YMM, ZMM], Optional::Needed),
-                (&[XMM, YMM, ZMM, M128, M256, M512, MBCST32, MBCST64], Optional::Needed),
+                (
+                    &[XMM, YMM, ZMM, M128, M256, M512, MBCST32, MBCST64],
+                    Optional::Needed,
+                ),
             ],
             &[
                 (XMM, YMM, M128),
@@ -2929,7 +2917,6 @@ fn ot_chk(
     forb: &[(AType, AType)],
     addt: &[Mnm],
 ) -> Result<(), Error> {
-
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
@@ -3049,7 +3036,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 None
             }
         }
-        (AType::Memory(s0,_,_), AType::Immediate(s1,_)) => {
+        (AType::Memory(s0, _, _), AType::Immediate(s1, _)) => {
             if s1 <= s0 {
                 None
             } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
@@ -3060,7 +3047,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 None
             }
         }
-        (AType::Memory(_,_,_), AType::Memory(_,_,_)) => {
+        (AType::Memory(_, _, _), AType::Memory(_, _, _)) => {
             let mut er = Error::new("combination of memory and memory is forbidden", 8);
             er.set_line(ins.line);
             Some(er)
@@ -3117,7 +3104,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
                 None
             }
         }
-        (AType::Memory(s0,_,_), AType::Immediate(s1,_)) => {
+        (AType::Memory(s0, _, _), AType::Immediate(s1, _)) => {
             if s1 <= s0 {
                 None
             } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {

@@ -40,12 +40,13 @@ echo "building tmp binary..."
 cargo build --profile $TESTING_PROFILE -q
 mv target/$TESTING_PROFILE/$PASM_BIN tests/.tmp/$PASM_BIN
 cd tests
+echo "starting tests..."
 
 errors=0
 
 for file in ./nasm/*.asm; do
 	NASM_FILE=$file
-	PASM_FILE=${file/nasm/rasm}
+	PASM_FILE=${file/nasm/pasm}
 
 	$BIN -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
 	$NASM_BIN $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS

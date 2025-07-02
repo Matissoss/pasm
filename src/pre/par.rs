@@ -330,3 +330,12 @@ fn parse_attr(attr: String) -> Result<TmpLabelAttr, Error> {
     }
     Ok(attrs)
 }
+
+// parser new
+
+#[allow(unused_imports)]
+use crate::pre::mer::{BodyNode, MergerResult, RootNode};
+
+pub fn par(_mer: MergerResult) -> Result<AST, Error> {
+    todo!()
+}

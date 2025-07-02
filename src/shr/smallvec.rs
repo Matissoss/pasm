@@ -79,6 +79,26 @@ impl<T, const N: usize> SmallVec<T, N> {
         }
         self.len = 0;
     }
+    pub const unsafe fn insert(&mut self, idx: usize, t: T) {
+        self.content[idx] = MaybeUninit::new(t);
+    }
+    // it is unsafe, because it allows for scenarios like:
+    // | ELEMENT | NONE | ELEMENT |
+    // which is just UB
+    pub const unsafe fn take_owned(&mut self, idx: usize) -> Option<T> {
+        if self.len() < idx {
+            let element = self.content[idx].assume_init_read();
+            self.content[idx] = MaybeUninit::uninit().assume_init();
+            Some(element)
+        } else {
+            None
+        }
+    }
+    pub const unsafe fn take_owned_unchecked(&mut self, idx: usize) -> T {
+        let element = self.content[idx].assume_init_read();
+        self.content[idx] = MaybeUninit::uninit().assume_init();
+        element
+    }
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {

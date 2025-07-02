@@ -4,8 +4,8 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    reg::{Purpose, Register},
     ast::Operand,
+    reg::{Purpose, Register},
     size::Size,
 };
 
@@ -21,6 +21,13 @@ pub fn atype_arr_string(arr: &[AType]) -> String {
     string.push(']');
     string
 }
+
+pub const CS: AType = AType::Register(Register::CS, true);
+pub const DS: AType = AType::Register(Register::DS, true);
+pub const ES: AType = AType::Register(Register::ES, true);
+pub const SS: AType = AType::Register(Register::SS, true);
+pub const FS: AType = AType::Register(Register::FS, true);
+pub const GS: AType = AType::Register(Register::GS, true);
 
 pub const SR: AType = AType::Register(Register::CS, false);
 pub const CR: AType = AType::Register(Register::CR0, false);
@@ -157,7 +164,7 @@ impl ToType for Operand {
                 2 => AType::Immediate(Size::Word, false),
                 3..=4 => AType::Immediate(Size::Dword, false),
                 5..=8 => AType::Immediate(Size::Qword, false),
-                _     => AType::Immediate(Size::Unknown, true),
+                _ => AType::Immediate(Size::Unknown, true),
             },
         }
     }

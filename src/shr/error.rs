@@ -60,11 +60,7 @@ impl Display for RError {
             if let Some(line_num) = self.get_line() {
                 let line_padding = line_num.to_string().len() + 2;
 
-                let start = if line_num == 1 {
-                    0
-                } else {
-                    line_num - 2
-                };
+                let start = if line_num == 1 { 0 } else { line_num - 2 };
                 let destination = line_num;
                 let mut context = 0;
 

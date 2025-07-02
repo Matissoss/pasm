@@ -43,6 +43,16 @@ pub enum Keyword {
     Rel8,
 
     Define,
+
+    // label visibility
+    Local,
+    Protected,
+    Weak,
+    Public,
+    Anonymous,
+    // label type
+    Function,
+    Object,
 }
 
 impl std::str::FromStr for Keyword {

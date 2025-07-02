@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 pub type RString = Shared<str>;
-pub type SharedArr<T> = Shared<[T]>;
 
 #[cfg(feature = "mthread")]
 pub type Shared<T> = std::sync::Arc<T>;

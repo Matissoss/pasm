@@ -7,6 +7,8 @@
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::unnecessary_unwrap)]
 
 //  global imports go here
 use std::process;
@@ -110,28 +112,9 @@ fn main() {
         std::process::exit(1);
     };
     #[cfg(all(feature = "time", feature = "vtime"))]
-    {
-        let end = time::SystemTime::now();
-        println!(
-            "overall took {:08.16}s",
-            match end.duration_since(start) {
-                Ok(t) => t.as_secs_f32(),
-                Err(e) => e.duration().as_secs_f32(),
-            }
-        )
-    }
+    utils::vtimed_print("overall ", start);
     #[cfg(all(feature = "time", not(feature = "vtime")))]
-    {
-        let end = time::SystemTime::now();
-        println!(
-            "Assembling {} took {:08.16}s and ended without errors!",
-            infile.to_string_lossy(),
-            match end.duration_since(start) {
-                Ok(t) => t.as_secs_f32(),
-                Err(e) => e.duration().as_secs_f32(),
-            }
-        )
-    }
+    utils::vtimed_print("assembling", start);
     process::exit(0);
 }
 

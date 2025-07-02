@@ -2940,7 +2940,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .ord(&[MODRM_REG, MODRM_RM]),
         Ins::VBROADCASTSD => GenAPI::new()
             .opcode(&[0x19])
-            .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(ins.needs_evex()))
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x38)
+                    .vex_we(ins.needs_evex()),
+            )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
         Ins::VBROADCASTF128 => GenAPI::new()

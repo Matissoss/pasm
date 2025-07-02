@@ -11,8 +11,8 @@ use std::{
 use crate::conf::Shared;
 
 use crate::shr::{
-    atype::{AType, ToType, K},
     ast::Instruction,
+    atype::{AType, ToType, K},
     booltable::BoolTable8 as Flags8,
     error::RError as Error,
     ins::Mnemonic,
@@ -20,7 +20,6 @@ use crate::shr::{
     size::Size,
     smallvec::SmallVec,
 };
-
 
 impl From<AType> for Key {
     fn from(t: AType) -> Key {

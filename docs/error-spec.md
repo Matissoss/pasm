@@ -207,12 +207,17 @@ This error is provoked if invalid target (format) is used.
 
 #### description
 
-This error is provoked when using "avx-512 mnemonic modifier" on instruction that does not support that.
+This error is provoked, when you try to use root node, when you are not inside root (or vice versa).
 
 #### example
 
+Let's take for an example: `.define` directive.
+
 ```
-add:k2 ; e[015]
+align 10 ; invalid, align cannot be used in root
+define name 10 ; correct
+_start:
+    define name 10 ; e[015]
 ```
 
 ### e016
@@ -224,14 +229,22 @@ This error is provoked, when mask is being used, but instruction does not suppor
 #### example
 
 ```
-mov:k2 ; e[016]
+mov {k2} ; e[016]
 ```
 
 ### e017
 
 #### description
 
-This error is provoked, when an unknown CLI flag is being used.
+This error is provoked, when you use directives in wrong way (provide wrong arguments, etc.).
+
+#### example
+
+```
+.align $65536 ; e[017] - align accepts 16-bit unsigned integer
+.bits $63 ; e[017] - bits only accept values: 16, 32 or 64
+.define name 10 some_garbage ; e[017]: expected name and 10, but not some_garbage
+```
 
 ### e018
 
@@ -243,6 +256,34 @@ This error is provoked, when you tried to use unknown subexpression.
 
 ```
 mov %rax, %eax {unknown-subexpression} ; e[018]
+```
+
+### e019
+
+#### description
+
+This error is provoked, when you tried too many mnemonics in one instruction.
+
+#### example
+
+```
+lock lock add %rax, %eax ; e[019]
+```
+
+### e020
+
+#### description
+
+This error is provoked, when you try to use unknown attribute on a label or when you provide inline attributes without label.
+
+#### example
+
+```
+// e[020]
+#(unknown)
+unknown label: ; [...]
+
+.public ; e[020]
 ```
 
 ### e101

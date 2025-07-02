@@ -27,7 +27,7 @@ pub enum Token {
     //       pfx   content
     Closure(char, RString),
 
-    Modifier(SharedArr<Self>),
+    Modifier(Shared<[Self]>),
 
     // {subexpression}
     SubExpr(RString),

@@ -6,6 +6,7 @@ pub mod ins;
 #[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
 pub mod kwd;
+pub mod label;
 pub mod location;
 pub mod math;
 pub mod mem;
@@ -19,3 +20,4 @@ pub mod semaphore;
 pub mod size;
 pub mod smallvec;
 pub mod symbol;
+pub mod visibility;

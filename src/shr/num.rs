@@ -3,30 +3,17 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{
-    error::RError as Error,
-    size::Size,
-};
+use crate::shr::{error::RError as Error, size::Size};
 use std::str::FromStr;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum NType {
-    Float,
-    Double,
-    Unsigned,
-    Signed,
-}
-
-#[derive(PartialEq, Clone, Copy, Debug)]
 pub struct Number {
-    ntype: NType,
     content: u64,
 }
 
-use NType::*;
 impl Number {
-    pub fn new(ntype: NType, content: u64) -> Self {
-        Self { ntype, content }
+    pub const fn new(content: u64) -> Self {
+        Self { content }
     }
     pub fn get_as_u64(&self) -> u64 {
         self.get_raw()
@@ -51,32 +38,14 @@ impl Number {
         }
     }
     pub fn get_real_size(&self) -> usize {
-        if self.is_unsigned() {
-            if u8::try_from(self.content).is_ok() {
-                size_of::<u8>()
-            } else if u16::try_from(self.content).is_ok() {
-                size_of::<u16>()
-            } else if u32::try_from(self.content).is_ok() {
-                size_of::<u32>()
-            } else {
-                size_of::<u64>()
-            }
-        } else if self.is_signed() {
-            let body = self.content;
-            // try to guess where to set sign
-            if body & 0xFF == body && body & 0x80 != 0x80 {
-                size_of::<i8>()
-            } else if body & 0xFFFF == body && body & 0x8000 != 0x8000 {
-                size_of::<i16>()
-            } else if body & 0xFFFF_FFFF == body && body & 0x8000_0000 == 0x8000_0000 {
-                size_of::<i32>()
-            } else {
-                size_of::<i64>()
-            }
-        } else if self.is_float() {
-            size_of::<f32>()
+        if u8::try_from(self.content).is_ok() {
+            size_of::<u8>()
+        } else if u16::try_from(self.content).is_ok() {
+            size_of::<u16>()
+        } else if u32::try_from(self.content).is_ok() {
+            size_of::<u32>()
         } else {
-            size_of::<f64>()
+            size_of::<u64>()
         }
     }
     pub fn split_into_bytes(self) -> Vec<u8> {
@@ -105,32 +74,20 @@ impl Number {
             self.content
         }
     }
-    pub fn is_unsigned(&self) -> bool {
-        self.ntype() == Unsigned
-    }
     pub fn is_signed(&self) -> bool {
-        self.ntype() == Signed
+        self.content & (1 << 63) == 1 << 63
     }
-    pub fn is_double(&self) -> bool {
-        self.ntype() == Double
+    pub const fn float(f: f32) -> Self {
+        Self::new(f as u64)
     }
-    pub fn is_float(&self) -> bool {
-        self.ntype() == Float
+    pub const fn double(f: f64) -> Self {
+        Self::new(f as u64)
     }
-    pub fn ntype(&self) -> NType {
-        self.ntype
+    pub const fn uint64(u: u64) -> Self {
+        Self::new(u)
     }
-    pub fn float(f: f32) -> Self {
-        Self::new(Float, f as u64)
-    }
-    pub fn double(f: f64) -> Self {
-        Self::new(Double, f as u64)
-    }
-    pub fn uint64(u: u64) -> Self {
-        Self::new(Unsigned, u)
-    }
-    pub fn int64(i: i64) -> Self {
-        Self::new(Signed, i as u64)
+    pub const fn int64(i: i64) -> Self {
+        Self::new(i as u64)
     }
 }
 
@@ -203,12 +160,7 @@ fn num_from_str(str: &str) -> Result<Number, Error> {
     }
 }
 
-fn num(val: u64, sign: bool, ntype: NType) -> Result<Number, Error> {
-    if ntype == NType::Float {
-        return Ok(Number::float(val as f32));
-    } else if ntype == NType::Double {
-        return Ok(Number::double(val as f64));
-    }
+fn num(val: u64, sign: bool) -> Result<Number, Error> {
     if sign {
         // we extract number without sign
         let body = val & 0x7FFF_FFFF_FFFF_FFFF;
@@ -240,7 +192,7 @@ fn num_from_bin(v: &[char], sign: bool) -> Result<Number, Error> {
         }
         idx += 1;
     }
-    num(n, sign, NType::Unsigned)
+    num(n, sign)
 }
 fn u8_from_bin(c: char) -> Option<u8> {
     match c {
@@ -265,7 +217,7 @@ fn num_from_hex(v: &[char], sign: bool) -> Result<Number, Error> {
         }
         idx += 1;
     }
-    num(n, sign, NType::Unsigned)
+    num(n, sign)
 }
 fn u8_from_hex(c: char) -> Option<u8> {
     match c {
@@ -292,7 +244,7 @@ fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
         }
         idx += 1;
     }
-    num(n, sign, NType::Unsigned)
+    num(n, sign)
 }
 fn u8_from_oct(c: char) -> Option<u8> {
     match c {
@@ -315,15 +267,7 @@ fn escape_char(c: char) -> Option<char> {
 
 impl ToString for Number {
     fn to_string(&self) -> String {
-        if self.is_float() {
-            (self.content as f32).to_string()
-        } else if self.is_double() {
-            (self.content as f64).to_string()
-        } else if self.is_signed() {
-            (self.content as i64).to_string()
-        } else {
-            self.content.to_string()
-        }
+        self.content.to_string()
     }
 }
 
