@@ -180,6 +180,7 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 if started && section != Section::default() {
                     ast.sections.push(section);
                     section = Section::default();
+                    section.name = s;
                 } else {
                     section = Section::default();
                     section.name = s;

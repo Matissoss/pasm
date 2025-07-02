@@ -299,7 +299,7 @@ fn make_elf<'a>(
         if let Some(symbol) = find_index(reloc, symbols) {
             let mut idx = elf.get_local_symbol_count();
             if symbols[symbol].is_global() {
-                idx += symbol;
+                idx += symbol - 1;
             } else {
                 idx -= symbol + 1;
             }

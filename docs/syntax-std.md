@@ -2,226 +2,155 @@
     <h1>syntax-std.md</h1>
 </div>
 
+## file layout
+
+```
+ROOT - before sections/labels
+section 0
+    label 0
+    [...]
+    label n
+[...]
+section n
+    label 0
+    [...]
+    label n
+```
+
 ## quick introduction
 
-`rasm`'s syntax is a custom mix of Intel and AT&T x86-64 assembly syntax with a bit of custom "improvements".
+`pasm`'s syntax is very simillar to what will you find in Intel-like assemblers (mostly FASM), but as everything: it does a lot of things on its own.
 
-`rasm` follows following operand order (our naming):
+Here are they...
 
-```
-dst. (destination) -> src. (source) -> ssrc. (or src2; second source)
-```
+## comments
 
-You can make comments in `rasm` using `;` and `//`.
+In `pasm` comments can start with `;` or `//`
 
-## operands
+## memory addressing
 
-### immediate
+In contrast to Intel-like syntax, `pasm` uses `()` instead of `[]`. Almost everything else is the same.
 
-Immediates are prefixed with `$`. They can be saved in: hex, binary, decimal, float or double number formats.
+Hovewer, you will need to specify size of addressed memory with size directive before:
 
 ```
-$10
-$0xFF
-$0b10
-$1.00
-$3.14
-```
-
-### register
-
-Registers are prefixed with `%` and their naming is same as in every other x86-64 assembler.
-
-```
-%eax
-%fs
-%dr0
-%xmm0
-%ymm1
-%cr1
-```
-
-### memory addressing
-
-Memory addressing is almost same as in Intel syntax, but with difference that we use `()` instead of `[]`. 
-
-Operands used inside memory must be also prefixed. You must use size directive either before or after memory addressing.
-
-```
-(%rax) .qword
-(%rax + %rcx) .xword
-(%rax + %rcx * $4) .dword
-.byte (%rax + $10)
-```
-
-You can also refer to segments, but then you will need to use modifier `%segment:memory_address`. It may sound complicated, but it is not.
-
-```
-%fs:(%rax + %rcx)
-%cs:(%rax)
-```
-
-### symbol references
-
-Symbol referenced are prefixed with `@`.
-
-```
-@_entry
-@_start
-```
-
-If you want to use "extended" version of them (specify addend, relocation type (rel/abs)) then you want to use `@symbol:reltype:addend` modifier.
-
-Immediate there can be prefixed or not.
-
-```
-@symbol:rel:10
-@symbol:rel:-10 ; you have to provide relocation type before offset
-@symbol:rel
-@symbol
-```
-
-If you want to dereference address (use `RIP`-relative) then you want to use `.deref @symbol:reltype:addend .size` or `.size @symbol:reltype:addend` modifier
-
-```
-.deref @symbol:rel32:10 .dword ; more verbose option
-.dword @symbol:rel32:10 ; shorter version
+qword (rax)
 ```
 
 ## labels
 
-Label is basically storage for instructions with name and attributes like: `align` (only `bin` target!), `bits` (like `bits` directive in `NASM`), `visibility` (either `local` (default) or `global`).
+Labels are the same as in every other x86 assembler, but you can use external and inline attributes.
 
 ```
-_label:
+#(bits=64) ; this is external attribute
+public main: ; "public" part is inline attribute
+    ; [...]
+protected main:
+    ; [...]
 ```
 
-### label attributes
+## symbol referencing
 
-Label attributes are inside `#()` closure and split using `,`. They also can be chained.
+Symbol referencing requires to use `@` prefix. 
 
 ```
-#(bits=64,visibility=global)
-#(align=16)
-_label:
+mov rax, @symbol
 ```
 
-> [!NOTE]
-> If `bits` attributes is not set, then one used in section is used.
+`pasm` also allows for "extended" relocations by using modifier: `@symbol_name:reltype:/addend`
+
+```
+mov rax, @symbol:rel32:10
+mov rax, @symbol:abs32:-10
+```
+
+Hovewer, if you want to "dereference" a symbol (treat it as memory addressing), then you have to use size specifier just like in memory.
+
+```
+qword @symbol
+```
 
 ## sections
 
-You can declare section using `.section` directive followed by section's name (`.section section_name`).
-
-You can specify section's: `bits` parameter (used for OSOP/ASOP and checks), `align` (ELF's `sh_addralign` or smth like that), `write`/`alloc`/`exec` permissions (ELF's `SHF_WRITE`, `SHF_ALLOC` and `SHF_EXECINSTR`).
+You can define sections just like in FASM:
 
 ```
-.section mysection
-    .bits $64
-    .align $16
-    .write ; sets write flag (W)
-    .alloc ; sets alloc flag (A)
-    .exec  ; sets exec flag  (X)
+section ".text" alloc executable
 ```
 
-Sections basically store labels.
-
-> [!NOTE]
-> Be aware that due to `.` being prefix for directives, for sections like `.text` you will have to use `".text"`
-
-## data
-
-To preserve simplicity data is stored in labels.
-
-For this purpose few "instructions" were added. `be` suffix means big endian and `le` (and no) suffix means little endian.
-
-Here is list of them:
-
-Following "instructions" need immediate at destination operand.
-
-- `byte`/`bytele`/`bytebe` : 8-bit value
-- `word`/`wordle`/`wordbe` : 16-bit value
-- `dword`/`dwordle`/`dwordbe`: 32-bit value
-- `qword`/`qwordle`/`qwordbe`: 64-bit value
-- `empty`: makes zero'ed buffer
-
-Following "instructions" need string at destination operand.
-- `string`/`ascii`: string without null terminator
+You can also specify section's address align.
 
 ```
-_data:
-    string "Hello, World!"
-    byte $0
-    wordbe $10
-    qword $10
-    dwordle $10
-    empty $16
+section ".text"
+    align 16
+    alloc       // this way is also fine
+    executable  // same
 ```
 
-## symbols
+## define
 
-Symbol is basically every label/section you declare.
+To define variable use `define` directive along with name and value (uint).
 
-## closures
-
-### consteval
-
-Constant time evaluations are basically immediates. They can be used with `$()` closures.
-
-Note that referencing other symbols inside `$()` is forbidden.
+It is refrenced same as symbol (with `@` prefix) and it is inlined (and isn't exported even in `elf` target):
 
 ```
-$(10 ^ 20)  ; 10 XOR 20
-$(10 & 20)  ; 10 AND 20
-$(10 | 20)  ; 10 OR  20
-$(~10)      ; NEG 10
-$(!10)      ; NOT 10
-$(10 << 20) ; LSH 10 20
-$(10 >> 20) ; RSH 20 10
-```
+define pi 3.14
 
-You can use `.define` directive to declare constant symbol and reference with `@` (it is currently inlined, SOON it will be also availiable as ELF symbol).
-
-```
-.define PI $3.14
-
-; [...]
-_start:
-    mov %rax, @PI
+main:
+    mov rax, @pi ; pasm will inline value of pi here
 ```
 
 > [!NOTE]
-> `pasm`'s constevals don't use classical mathematic expression solver (like RPN), but custom one.
-> this means that `1 << 2 + 1` is not `(1 << 2) + 1`, but rather `1 << 3`. If you want to "isolate" calculations then put them in `()`
-> like `$((1 << 2) + 1)`
+> This directive can only be used inside `ROOT`.
 
-### attributes
+## format
 
-See `label` section
+You can also specify output format:
 
-### symbols references
+```
+format "elf64" ; only Little-Endian for now
+```
 
-See `symbols references` section
+Accepted values are:
+- "elf64"
+- "elf32"
+- "bin"
 
-## directives
+> [!NOTE]
+> This directive can only be used inside `ROOT`.
 
-Here is a list of availiable directives (also known as keywords) with their explaination:
+## output
 
-- `.extern <SYMBOL_NAME>`: forbidden in `bin` target
-- `.include <FILE_NAME>`
-- `.section <SECTION_NAME>`
-- `.align <UINT16_T>`
-- `.bits <UINT8_T>`
-- `.alloc` - used in ELF targets
-- `.write` - used in ELF targets
-- `.exec` - used in ELF targets
-- `.define <NAME> $<IMMEDIATE>`
+You can specify default output path:
 
-Here is list of size directives:
+```
+output "a.out"
+```
 
-- `.byte` : 8-bit
-- `.word` : 16-bit
-- `.dword`: 32-bit
-- `.qword`: 64-bit
-- `.xword`: 128-bit
-- `.yword`: 256-bit
+> [!NOTE]
+> This directive can only be used inside `ROOT`.
+
+## size directives
+
+| Size (bits) | directive  |
+|:-----------:|:----------:|
+|      8      |    byte    |
+|     16      |    word    |
+|     32      |   dword    |
+|     64      |   qword    |
+|    128      |   xword    |
+|    256      |   yword    |
+|    512      |   zword    |
+
+## prefixes
+
+`pasm` also allows for prefixing (because originally it was supposed to work only with prefixes).
+
+Here is table of prefixes along with expected type:
+
+| prefix (default) |   type    |
+|:----------------:|:---------:|
+| %                | register  |
+| $                | immediate |
+| @                | symbol ref|
+| .                | directive |

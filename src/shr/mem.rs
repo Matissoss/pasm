@@ -483,9 +483,13 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
                 Err(error) => Some(Token::Error(error)),
             }
         } else {
-            match Number::from_str(&utf8_buf) {
-                Ok(num) => Some(Token::Number(num.get_as_i32())),
-                Err(_) => None,
+            if let Ok(reg) = Register::from_str(&utf8_buf) {
+                Some(Token::Register(reg))
+            } else {
+                match Number::from_str(&utf8_buf) {
+                    Ok(num) => Some(Token::Number(num.get_as_i32())),
+                    Err(_) => None,
+                }
             }
         }
     } else {

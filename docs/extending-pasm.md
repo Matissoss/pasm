@@ -8,11 +8,11 @@ This is short documentation on how to modify `pasm`'s source code.
 
 Adding new instruction is very simple:
 
-- 1. add entry in `src/shr/ins.rs` (if you remove some instruction, remove `match` from `src/shr/ins_switch.rs`)
-- 2. regenerate code using `build.sh refresh` (it will invoke `ins_adder`)
+- 1. add entry in `src/shr/ins.rs`
+- 2. run `./build.sh refresh`
 - 3. add entry in `src/pre/chk.rs` (if has different cases for 32-bit and 64-bit add to `check_ins32bit` and `check_ins64bit`, otherwise to `shr_chk`)
 - 4. add entry in `src/core/comp.rs` in long `match` switch using `GenAPI` (if instruction has a lot of opcodes, then make own function that returns `GenAPI`)
-- 5. create test in `tests/rasm/<INSTRUCTION>.asm` and `tests/nasm/<INSTRUCTION>.asm` (soon will be replaced)
+- 5. create test in `tests/pasm/<INSTRUCTION>.asm` and `tests/nasm/<INSTRUCTION>.asm` (soon will be replaced)
 - 6. run `./test.sh` script
 
 ### GenAPI
@@ -24,7 +24,7 @@ Check `src/core/api.rs` - it is well documented and should be clear.
 - 1. specify it's syntax (if it uses closures, modifiers, etc.)
 - 2. make module in `src/shr/<MODULE>.rs`
 - 3. make tests that can be invoked with `cargo test` (`#[cfg(test)]`)
-- 4. either add in `src/pre/tok.rs:post_process` or `src/pre/lex.rs:make_op` or `src/shr/ast.rs:Operand::TryFrom<Token>` or add `ASTNode` in `src/shr/ast.rs`
+- 4. either add in `src/pre/tok.rs`, `src/pre/mer.rs:make_operand` or `src/pre/tok.rs:Operand::TryFrom<Token>` or add `[Body/Root]Node` in `src/pre/mer.rs`
 - 5. test it if it works as intended
 
 ## file header

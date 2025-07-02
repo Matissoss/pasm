@@ -25,6 +25,10 @@ Firstly you want to download/compile `pasm`'s binary.
 
 Then you should read documentation (`docs`) and see examples (some can be currently found in `tests` directory).
 
+## examples
+
+go to [examples](examples)
+
 ## features
 
 Precompiled `pasm` binary on default ships with following features: `mthread`, `timed`, `iinfo` and `target_all`.

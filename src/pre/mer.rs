@@ -140,7 +140,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 match unsafe { line.take_owned(1) } {
                     Some(Token::Mnemonic(m)) => {
                         unsafe { line.insert(1, Token::Mnemonic(m)) };
-                        match make_instruction(line, 0) {
+                        match make_instruction(line, 1) {
                             Ok(mut i) => {
                                 i.line = lnum;
                                 body.push(BodyNode {
@@ -406,10 +406,10 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
             }
             // assert that layout of line is .align $align
             Token::Keyword(Keyword::Align) => {
-                if inroot {
+                /*if inroot {
                     errors.push(Error::new_wline(
-                        "you tried to use align directive inside of root; consider using external attributes #() on label or use it inside sections", 15, lnum));
-                }
+                        "you tried to use align directive inside of root", 15, lnum));
+                }*/
                 let align = unsafe { line.take_owned(1) };
                 // if is some, then error
                 let invalid = unsafe { line.take_owned(2) };
@@ -630,6 +630,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
             // possible layout:
             // assert that layout of line is something like: .visibility .type "label_name": <instruction>
             Token::Keyword(k) => {
+                inroot = false;
                 let mut v = Visibility::default();
                 let mut t = SymbolType::default();
                 unsafe { line.insert(0, Token::Keyword(k)) };
@@ -809,7 +810,10 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                     mem.set_segment(*seg_reg);
                     Ok(Operand::Mem(mem))
                 }
-                _ => Err(Error::new("you tried to make operand from two tokens, but ones you provided could not be parsed into one", 8))
+                (a,b) => {
+                    println!("{:?} - {:?}", a, b);
+                    Err(Error::new("you tried to make operand from two tokens, but ones you provided could not be parsed into one", 8))
+                }
             }
             3 => {
                 match (operand_buf.take_owned_unchecked(0), operand_buf.take_owned_unchecked(1), operand_buf.take_owned_unchecked(2)) {
@@ -823,7 +827,9 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                         s.deref(true);
                         Ok(Operand::SymbolRef(*s))
                     }
-                    _ => Err(Error::new("you tried to make operand from three tokens, but ones you provided could not be parsed into one", 8))
+                    _ => {
+                        Err(Error::new("you tried to make operand from three tokens, but ones you provided could not be parsed into one", 8))
+                    }
                 }
             }
             _ => Err(Error::new("you tried to make operand from more than 3 tokens",8))

@@ -195,6 +195,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                     '\'' => tmp_buf.push('\''),
                     _    => tokens.push(Token::Error(Box::new(Error::new(format!("found unknown escape character: '\\{c}'"), 106)))),
                 }
+                cprefix = None;
             } else {
                 tmp_buf.push(c)
             },
