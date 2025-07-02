@@ -142,7 +142,8 @@ mod tests {
     use super::*;
     #[test]
     fn rel_test() {
-        use crate::shr::symbol::{SymbolType, Visibility};
+        use crate::shr::symbol::SymbolType;
+        use crate::shr::visibility::Visibility;
         // we assert here that Symbol is defined as second (idx 1)
         // byte.
         //                0     1     2     3     4     5     6     7
@@ -154,7 +155,6 @@ mod tests {
             size: 0,
             sindex: 0,
             visibility: Visibility::Local,
-            is_extern: false,
         };
         let relocation = Relocation {
             symbol: "Symbol".to_string().into(),

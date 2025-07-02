@@ -13,10 +13,10 @@ use crate::shr::{
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
-    section::{Section, SectionN},
+    section::Section,
     size::Size,
     smallvec::SmallVec,
-    symbol::{SymbolRef, SymbolType, Visibility},
+    symbol::SymbolRef,
 };
 use crate::RString;
 
@@ -50,66 +50,9 @@ pub struct Instruction {
     pub meta: u16,
 }
 
-#[derive(Debug, Clone)]
-pub enum ASTNode {
-    Ins(Instruction),
-    Attributes(RString),
-    Bits(u8),
-    Label(RString),
-    Extern(RString),
-    Include(PathBuf),
-    Define(RString, u64),
-
-    Section(RString),
-    Align(u16),
-    Exec,
-    Write,
-    Alloc,
-}
-
-#[derive(PartialEq, Debug, Clone, Default)]
-pub struct Label {
-    pub name: RString,
-    pub line: usize,
-    pub inst: Vec<Instruction>,
-    pub shidx: u16,
-    pub align: u16,
-    pub stype: SymbolType,
-    // layout:
-    // 0bXYYY_YZZZ
-    // X : is global
-    // YYYY: is reserved
-    // ZZZ: bits: 0b000 - 16; 0b001 - 32; 0b010 - 64
-    pub meta: u8,
-}
-
-impl Label {
-    pub fn bits(&self) -> u8 {
-        (self.meta & 0b111) << 4
-    }
-    pub fn visibility(&self) -> Visibility {
-        if self.meta & 0b1000_0000 == 0b1000_0000 {
-            Visibility::Global
-        } else {
-            Visibility::Local
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
+#[derive(Default, Clone, Debug)]
 pub struct AST {
     pub sections: Vec<Section>,
-    pub externs: Vec<RString>,
-    pub bits: Option<u8>,
-    pub entry: Option<RString>,
-    pub includes: Vec<PathBuf>,
-    pub defined: HashMap<RString, u64>,
-    pub file: PathBuf,
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct ASTn {
-    pub sections: Vec<SectionN>,
     pub defines: HashMap<RString, Number>,
     pub includes: Vec<PathBuf>,
     pub externs: Vec<RString>,
@@ -429,36 +372,6 @@ impl Instruction {
 }
 
 impl AST {
-    pub fn validate(&self) -> Result<(), Error> {
-        for (i0, s0) in self.sections.iter().enumerate() {
-            for (i1, s1) in self.sections.iter().enumerate() {
-                if i0 == i1 {
-                    continue;
-                }
-                if s0.name == s1.name {
-                    return Err(Error::new(
-                        format!("this file contains multiple sections named \"{}\"", s0.name),
-                        12,
-                    ));
-                }
-            }
-            for (i0, l0) in s0.content.iter().enumerate() {
-                for (i1, l1) in s0.content.iter().enumerate() {
-                    if i0 == i1 {
-                        continue;
-                    }
-                    if l0.name == l1.name {
-                        return Err(Error::new_wline_actx(format!("section {} contains two labels with name \"{}\". Declaration at line {}, redeclaration at line {}",  
-                        s0.name, l1.name, l0.line,l1.line),
-                            12, l0.line, l1.line,
-                            self.file.to_string_lossy().to_string().into()
-                        ));
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
     pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
             let attr = l.attributes;
@@ -499,7 +412,7 @@ impl AST {
             }
             self.includes.push(l);
         }
-        self.defined.extend(rhs.defined);
+        self.defines.extend(rhs.defines);
         Ok(())
     }
 }

@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast, booltable, label, symbol};
+use crate::shr::{booltable, label, visibility::Visibility};
 
 const GLOBAL: u8 = 0x1;
 const ALLOC_FLAG: u8 = 0x2;
@@ -11,20 +11,9 @@ const WRITE_FLAG: u8 = 0x3;
 const EXEC_FLAG: u8 = 0x4;
 
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct SectionN {
-    pub name: crate::RString,
-    pub content: Vec<label::Label>,
-    pub size: u32,
-    pub offset: u32,
-    pub align: u16,
-    pub attributes: SectionAttributes,
-    pub bits: u8,
-}
-
-#[derive(PartialEq, Clone, Debug, Default)]
 pub struct Section {
     pub name: crate::RString,
-    pub content: Vec<ast::Label>,
+    pub content: Vec<label::Label>,
     pub size: u32,
     pub offset: u32,
     pub align: u16,
@@ -65,11 +54,11 @@ impl SectionAttributes {
     pub fn alloc(&self) -> bool {
         self.flags.get(ALLOC_FLAG).unwrap_or(false)
     }
-    pub fn visibility(&self) -> symbol::Visibility {
-        if let Some(true) = self.flags.get(GLOBAL) {
-            symbol::Visibility::Global
+    pub fn visibility(&self) -> Visibility {
+        if self.flags.get(GLOBAL).unwrap_or(false) {
+            Visibility::Public
         } else {
-            symbol::Visibility::Local
+            Visibility::Local
         }
     }
 }

@@ -14,23 +14,13 @@ use crate::{
         reloc::RelType,
         reloc::Relocation,
         size::Size,
-        symbol::{Symbol, SymbolType, Visibility},
+        symbol::{Symbol, SymbolType},
+        visibility::Visibility,
     },
 };
 
 use OpOrd::*;
 
-#[inline]
-pub fn make_globals(symbols: &mut [Symbol], globals: &[crate::RString]) {
-    for s in symbols {
-        for g in globals {
-            if &s.name == g {
-                s.visibility = Visibility::Global;
-                break;
-            }
-        }
-    }
-}
 #[inline]
 pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
     let mut symbols = Vec::new();
@@ -41,8 +31,7 @@ pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
             size: 0,
             sindex: 0,
             stype: SymbolType::NoType,
-            visibility: Visibility::Global,
-            is_extern: true,
+            visibility: Visibility::Extern,
         });
     }
     symbols

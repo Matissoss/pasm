@@ -10,6 +10,7 @@ use crate::shr::{
     reloc::{RelType, Relocation},
     section::Section,
     symbol::{Symbol, SymbolType},
+    visibility::Visibility,
 };
 
 // section constants
@@ -65,6 +66,9 @@ pub struct ElfSymbol {
     size: u32,
     // currently can be set to 1
     section_index: u32,
+    
+    visibility: u8,
+
     info: u8,
 }
 
@@ -180,7 +184,17 @@ impl<'a> Elf<'a> {
             value: symbol.offset,
             size: symbol.size,
             section_index: symbol.sindex as u32 + 4,
-            info: (symbol.visibility as u8) << 4 | (symbol.stype as u8 & 0x0F),
+            info: (match symbol.visibility {
+                Visibility::Public => 1,
+                Visibility::Local => 0,
+                Visibility::Weak  => 2,
+                _ => 0,
+            }) << 4 | (symbol.stype as u8 & 0x0F),
+            visibility: match symbol.visibility {
+                Visibility::Anonymous => 2,
+                Visibility::Protected => 3,
+                _ => 0,
+            }
         });
     }
     fn push_strtab(&mut self, str: &str) -> usize {
@@ -240,6 +254,7 @@ fn make_elf<'a>(
         info: SymbolType::File as u8,
         section_index: 0xFFF1,
         size: 0,
+        visibility: 0,
     });
     let iter = sections.iter();
     for section in iter {
@@ -392,7 +407,7 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
     if is_64bit {
         b.extend((symb.name as u32).to_le_bytes());
         b.extend(symb.info.to_le_bytes());
-        b.extend([0; 1]);
+        b.extend(symb.visibility.to_le_bytes());
         b.extend((symb.section_index as u16).to_le_bytes());
         b.extend((symb.value as u64).to_le_bytes());
         b.extend((symb.size as u64).to_le_bytes());
@@ -401,7 +416,7 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
         b.extend(symb.value.to_le_bytes());
         b.extend(symb.size.to_le_bytes());
         b.extend(symb.info.to_le_bytes());
-        b.extend([0; 1]);
+        b.extend(symb.visibility.to_le_bytes());
         b.extend((symb.section_index as u16).to_le_bytes());
     }
     b

@@ -3,15 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{booltable::BoolTable8, reloc::RelType, size::Size};
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Clone, Copy, Default)]
-pub enum Visibility {
-    #[default]
-    Local = 0,
-    Global = 1,
-}
+use crate::shr::{booltable::BoolTable8, reloc::RelType, size::Size, visibility::Visibility};
 
 #[repr(u8)]
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -32,14 +24,11 @@ pub struct Symbol {
     pub sindex: u16,
     pub visibility: Visibility,
     pub stype: SymbolType,
-    pub is_extern: bool,
-    // TODO: add flags and stuff
-    // [...]
 }
 
 impl Symbol {
     pub fn is_global(&self) -> bool {
-        self.visibility == Visibility::Global
+        self.visibility == Visibility::Public || self.visibility == Visibility::Weak
     }
 }
 

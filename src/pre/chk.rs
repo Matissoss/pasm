@@ -20,12 +20,12 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
 
     for section in &file.sections {
         for label in &section.content {
-            let chk_ins: fn(&Instruction) -> Result<(), Error> = match label.bits() {
+            let chk_ins: fn(&Instruction) -> Result<(), Error> = match label.attributes.get_bits() {
                 64 => check_ins64bit,
                 _ => check_ins32bit,
             };
             let mut errs = Vec::new();
-            for inst in &label.inst {
+            for inst in &label.content {
                 if let Err(mut err) = chk_ins(inst) {
                     err.set_line(inst.line);
                     errs.push(err);

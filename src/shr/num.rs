@@ -127,25 +127,6 @@ fn num_from_str(str: &str) -> Result<Number, Error> {
     } else if str.starts_with("'") {
         let chr = str_chars.get(1);
         match chr {
-            Some('\\') => {
-                if let Some(c) = str_chars.get(2) {
-                    if let Some(e) = escape_char(*c) {
-                        Ok(Number::uint64(e as u64))
-                    } else if c == &'\'' {
-                        Ok(Number::uint64('\\' as u64))
-                    } else {
-                        Err(Error::new(
-                            format!("you tried to use unknown escape character '\\{c}'"),
-                            106,
-                        ))
-                    }
-                } else {
-                    Err(Error::new(
-                        "found unclosed '' delimeter inside character declaration",
-                        0,
-                    ))
-                }
-            }
             Some(c) => Ok(Number::uint64(*c as u64)),
             None => Err(Error::new(
                 "found unclosed '' delimeter inside character declaration",
@@ -249,18 +230,6 @@ fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
 fn u8_from_oct(c: char) -> Option<u8> {
     match c {
         '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' => Some(c as u8 - b'0'),
-        _ => None,
-    }
-}
-
-fn escape_char(c: char) -> Option<char> {
-    match c {
-        'n' => Some('\n'),
-        't' => Some('\t'),
-        '0' => Some('\0'),
-        '\'' => Some('\''),
-        '\\' => Some('\\'),
-        'r' => Some('\r'),
         _ => None,
     }
 }

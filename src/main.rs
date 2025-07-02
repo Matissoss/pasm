@@ -102,12 +102,9 @@ fn main() {
         return;
     }
 
-    let outfile = cli_outfile(cli)
-        .clone()
-        .unwrap_or(std::path::PathBuf::from("a.out"));
+    let outfile = cli_outfile(cli).clone();
 
-    let f = cli_target(cli).unwrap_or("bin");
-    if let Err(e) = libr::assemble(ast, &outfile, f) {
+    if let Err(e) = libr::assemble(ast, outfile.as_deref()) {
         eprintln!("{e}");
         std::process::exit(1);
     };

@@ -53,55 +53,78 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
 
     for c in line.chars() {
         match c {
+            '\\' => cprefix = Some('\\'),
             CLOSURE_START => {
-                if cdelcount == 0 && !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                if iclosure == Some('"') {
+                    tmp_buf.push(c);
+                } else {
+                    if cdelcount == 0 && !tmp_buf.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    }
+                    cdelcount += 1;
                 }
-                cdelcount += 1
             }
             CLOSURE_END => {
-                if cdelcount == 1 {
-                    let token =
-                        Token::make_closure(cprefix.take().unwrap_or(' '), striter(tmp_buf).into());
-                    if modf_toks.is_empty() {
-                        tokens.push(token);
-                    } else {
-                        modf_toks.push(token);
-                    }
-                    tmp_buf.clear();
-                    cdelcount = 0;
+                if iclosure == Some('"') {
+                    tmp_buf.push(c);
                 } else {
-                    cdelcount -= 1;
+                    if cdelcount == 1 {
+                        let token = Token::make_closure(
+                            cprefix.take().unwrap_or(' '),
+                            striter(tmp_buf).into(),
+                        );
+                        if modf_toks.is_empty() {
+                            tokens.push(token);
+                        } else {
+                            modf_toks.push(token);
+                        }
+                        tmp_buf.clear();
+                        cdelcount = 0;
+                    } else {
+                        cdelcount -= 1;
+                    }
                 }
             }
             SUBEXPR_CLOSE => {
-                if sdelcount == 1 {
-                    if !tmp_buf.is_empty() {
-                        tokens.push(Token::SubExpr(striter(tmp_buf).into()));
-                    }
-                    sdelcount = 0;
+                if iclosure == Some('"') {
+                    tmp_buf.push(c);
                 } else {
-                    sdelcount -= 1;
+                    if sdelcount == 1 {
+                        if !tmp_buf.is_empty() {
+                            tokens.push(Token::SubExpr(striter(tmp_buf).into()));
+                        }
+                        sdelcount = 0;
+                    } else {
+                        sdelcount -= 1;
+                    }
                 }
             }
             SUBEXPR_START => {
-                if cdelcount != 0 {
-                    continue;
+                if iclosure == Some('"') {
+                    tmp_buf.push(c);
                 } else {
-                    if sdelcount == 0 && !tmp_buf.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    if cdelcount != 0 {
+                        continue;
+                    } else {
+                        if sdelcount == 0 && !tmp_buf.is_empty() {
+                            tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                        }
+                        sdelcount += 1;
                     }
-                    sdelcount += 1;
                 }
             }
             PREFIX_KWD | PREFIX_REF | PREFIX_REG | PREFIX_VAL | '#' => {
-                if cdelcount == 0 {
-                    if !tmp_buf.is_empty() && modf_toks.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
-                    }
-                    cprefix = Some(c);
-                } else {
+                if iclosure == Some('"') {
                     tmp_buf.push(c);
+                } else {
+                    if cdelcount == 0 {
+                        if !tmp_buf.is_empty() && modf_toks.is_empty() {
+                            tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                        }
+                        cprefix = Some(c);
+                    } else {
+                        tmp_buf.push(c);
+                    }
                 }
             }
             ':' => {
@@ -111,7 +134,7 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
             }
             '"' => {
                 if !(cdelcount != 0 && sdelcount != 0) {
-                    if iclosure == Some('"') {
+                    if iclosure == Some('"') && cprefix != Some('\\') {
                         tokens.push(Token::String(striter(tmp_buf).into()));
                         iclosure.take();
                     } else {
@@ -162,7 +185,19 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                     tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
             }
-            _ => tmp_buf.push(c),
+            _ => if cprefix == Some('\\') {
+                match c {
+                    'n' => tmp_buf.push('\n'),
+                    't' => tmp_buf.push('\t'),
+                    '0' => tmp_buf.push('\0'),
+                    'r' => tmp_buf.push('\r'),
+                    '\"' => tmp_buf.push('\"'),
+                    '\'' => tmp_buf.push('\''),
+                    _    => tokens.push(Token::Error(Box::new(Error::new(format!("found unknown escape character: '\\{c}'"), 106)))),
+                }
+            } else {
+                tmp_buf.push(c)
+            },
         }
     }
 
