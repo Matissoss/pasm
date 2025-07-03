@@ -18,7 +18,7 @@ This error is provoked by using signed number that is too large to be signed.
 
 ```
 ; for 16-bit value
-$-0xFFFF ; 0xFFFF is max for unsigned 16-bit value and it is not possible to set sign
+-0xFFFF ; 0xFFFF is max for unsigned 16-bit value and it is not possible to set sign
 ```
 
 ### e002
@@ -45,7 +45,7 @@ This error is provoked, when you provided one token for operand, but it couldn't
 
 ```
 _start:
-    .dword ; e[003]. directive .dword cannot be converted into operand
+    dword ; e[003]. directive dword cannot be converted into operand
 ```
 
 ### e004
@@ -77,7 +77,7 @@ This error is provoked, when assembler tried to write too large relocation addre
 
 ```
 some_label:
-    byte $0
+    bytele 0
 #(align=257)
 _start:
     jmp @_start1:rel8 ; e[005]
@@ -93,7 +93,7 @@ This error is provoked, when you tried to use prefix mnemonic (like `LOCK`), whe
 
 ```
 _start:
-    add mov %rax, %rbx ; e[006]
+    add mov rax, rbx ; e[006]
 ```
 
 ### e007
@@ -106,7 +106,7 @@ This error is provoked, when you try to use forbidden operand combination on ins
 
 ```
 _start:
-    mov %dr0, .dword (%rax) ; e[007]
+    mov dr0, dword (rax) ; e[007]
 ```
 
 ### e008
@@ -118,11 +118,11 @@ This error is provoked, when instruction expects other operand type than one tha
 #### example
 
 ```
-.section ".text"
-    .bits ; e[008]
-    .align "invalid_input" ; e[008]
+section ".text"
+    bits ; e[008]
+    align "invalid_input" ; e[008]
 _start:
-    mov %xmm0, %rax ; e[008]
+    mov xmm0, rax ; e[008]
 ```
 
 ### e009
@@ -135,7 +135,7 @@ This error is provoked, when instruction expects operand number larger (or other
 
 ```
 _start:
-    mov %rax ; e[009]
+    mov rax ; e[009]
 ```
 
 ### e010
@@ -147,10 +147,10 @@ This error is provoked, when instruction requires REX or EVEX prefix, when bits 
 #### example
 
 ```
-#(bits = 32)
+#(bits=32)
 _start:
-    mov %r8d, $10 ; e[010]
-    mov %rax, $10 ; e[010]
+    mov r8d, 10 ; e[010]
+    mov rax, 10 ; e[010]
     stosq ; e[010]
 ```
 
@@ -163,7 +163,7 @@ This error is provoked on errors that occur, when invalid addressing (`()` closu
 #### example
 
 ```
-(%rax + %ecx) ; e[011]
+(rax + ecx) ; e[011]
 () ; e[011]
 ```
 
@@ -178,7 +178,7 @@ This error is provoked, when something goes wrong while extending `AST` with `AS
 main.asm:
 
 ```
-.include lib.asm
+include lib.asm
 
 _label:
     call @_exit
@@ -212,7 +212,7 @@ This error is provoked, when you try to use root node, when you are not inside r
 
 #### example
 
-Let's take for an example: `.define` directive.
+Let's take for an example: `define` directive.
 
 ```
 align 10 ; invalid, align cannot be used in root
@@ -242,9 +242,9 @@ This error is provoked, when you use directives in wrong way (provide wrong argu
 #### example
 
 ```
-.align $65536 ; e[017] - align accepts 16-bit unsigned integer
-.bits $63 ; e[017] - bits only accept values: 16, 32 or 64
-.define name 10 some_garbage ; e[017]: expected name and 10, but not some_garbage
+align 65536 ; e[017] - align accepts 16-bit unsigned integer
+bits 63 ; e[017] - bits only accept values: 16, 32 or 64
+define name 10 some_garbage ; e[017]: expected name and 10, but not some_garbage
 ```
 
 ### e018
@@ -256,7 +256,7 @@ This error is provoked, when you tried to use unknown subexpression.
 #### example
 
 ```
-mov %rax, %eax {unknown-subexpression} ; e[018]
+mov rax, eax {unknown-subexpression} ; e[018]
 ```
 
 ### e019
@@ -268,7 +268,7 @@ This error is provoked, when you tried too many mnemonics in one instruction.
 #### example
 
 ```
-lock lock add %rax, %eax ; e[019]
+lock lock add rax, eax ; e[019]
 ```
 
 ### e020
@@ -284,7 +284,7 @@ This error is provoked, when you try to use unknown attribute on a label or when
 #(unknown)
 unknown label: ; [...]
 
-.public ; e[020]
+public ; e[020]
 ```
 
 ### e021
