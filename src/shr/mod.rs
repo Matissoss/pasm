@@ -1,11 +1,11 @@
 pub mod ast;
 pub mod atype;
 pub mod booltable;
+pub mod dir;
 pub mod error;
 pub mod ins;
 #[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
-pub mod kwd;
 pub mod label;
 pub mod location;
 pub mod math;
@@ -15,8 +15,6 @@ pub mod reg;
 pub mod reloc;
 pub mod rpanic;
 pub mod section;
-#[cfg(feature = "mthread")]
-pub mod semaphore;
 pub mod size;
 pub mod smallvec;
 pub mod symbol;

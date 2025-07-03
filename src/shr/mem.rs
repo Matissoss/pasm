@@ -3,9 +3,11 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::conf::{CLOSURE_END, CLOSURE_START};
+
 use crate::shr::{
     booltable::BoolTable8,
-    error::RError as Error,
+    error::Error,
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
@@ -272,7 +274,6 @@ impl Mem {
 enum Token {
     Register(Register),
     Number(i32),
-    Error(Error),
     // +
     Add,
     // -
@@ -314,7 +315,6 @@ fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
     let mut num_ismin = false;
     for tok in toks {
         match tok {
-            Token::Error(e) => return Err(e),
             Token::Register(r) => {
                 if unspec_reg.is_none() {
                     unspec_reg = Some(r);
@@ -421,12 +421,14 @@ fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
     Ok(mem)
 }
 
+const MS: u8 = CLOSURE_START as u8;
+const ME: u8 = CLOSURE_END as u8;
 fn mem_tok(str: &str) -> Vec<Token> {
     let mut tokens = Vec::with_capacity(8);
     let bytes: &[u8] = str.as_bytes();
     let mut tmp_buf: Vec<u8> = Vec::with_capacity(16);
     for b in bytes {
-        match b {
+        match *b {
             b'*' => {
                 if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
                     tokens.push(tok);
@@ -448,7 +450,7 @@ fn mem_tok(str: &str) -> Vec<Token> {
                 }
                 tokens.push(Token::Add);
             }
-            b' ' | b'\t' => continue,
+            MS | ME | b' ' | b'\t' => continue,
             _ => tmp_buf.push(*b),
         }
     }
@@ -465,35 +467,14 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
     if buf.is_empty() {
         return None;
     }
-    if let Some(prefix) = buf.first() {
-        let utf8_buf = String::from_utf8_lossy(buf);
-        if prefix == &b'%' {
-            if let Ok(reg) = Register::from_str(&utf8_buf[1..]) {
-                if reg.purpose() != RPurpose::General {
-                    Some(Token::Error(Error::new("you tried to use register that is not general purposed in memory declaration", 11)))
-                } else {
-                    Some(Token::Register(reg))
-                }
-            } else {
-                None
-            }
-        } else if prefix == &b'$' {
-            match Number::from_str(&utf8_buf[1..]) {
-                Ok(num) => Some(Token::Number(num.get_as_i32())),
-                Err(error) => Some(Token::Error(error)),
-            }
-        } else {
-            if let Ok(reg) = Register::from_str(&utf8_buf) {
-                Some(Token::Register(reg))
-            } else {
-                match Number::from_str(&utf8_buf) {
-                    Ok(num) => Some(Token::Number(num.get_as_i32())),
-                    Err(_) => None,
-                }
-            }
-        }
+    let utf8_buf = String::from_utf8_lossy(buf);
+    if let Ok(reg) = Register::from_str(&utf8_buf) {
+        Some(Token::Register(reg))
     } else {
-        None
+        match Number::from_str(&utf8_buf) {
+            Ok(num) => Some(Token::Number(num.get_as_i32())),
+            Err(_) => None,
+        }
     }
 }
 
@@ -501,33 +482,29 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
 impl ToString for Mem {
     fn to_string(&self) -> String {
         let mut str = String::new();
-        str.push('(');
+        str.push(CLOSURE_START);
         if let Some(reg) = self.base() {
-            str.push('%');
             str.push_str(&reg.to_string());
             if self.index().is_some() {
                 str.push_str(" + ");
             }
         }
         if let Some(reg) = self.index() {
-            str.push('%');
             str.push_str(&reg.to_string());
             str.push_str(" * ");
-            str.push('$');
             str.push_str(&(<Size as Into<u8>>::into(self.scale()).to_string()));
         }
         if let Some(offset) = self.offset() {
             let is_neg = offset.is_negative();
             let to_add = if is_neg { " - " } else { " + " };
             str.push_str(to_add);
-            str.push('$');
             if is_neg {
                 str.push_str(&offset.to_string()[1..]);
             } else {
                 str.push_str(&offset.to_string());
             }
         }
-        str.push(')');
+        str.push(CLOSURE_END);
         str
     }
 }
@@ -561,27 +538,27 @@ mod new_test {
     }
     #[test]
     fn mem_par_check() {
-        let str = "%rax";
+        let str = "rax";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.index(), None);
         assert!(!mem.is_sib());
         assert_eq!(mem.base(), Some(Register::RAX));
-        let str = "%rax + %rcx";
+        let str = "rax + rcx";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Size::Byte);
-        let str = "%rax + $20";
+        let str = "rax + 20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.offset(), Some(20));
-        let str = "%rax + %rcx * $4 + $20";
+        let str = "rax + rcx * 4 + 20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
@@ -589,14 +566,14 @@ mod new_test {
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Size::Dword);
         assert_eq!(mem.offset(), Some(20));
-        let str = "%rcx*$4";
+        let str = "rcx*4";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Size::Dword);
-        let str = "%rcx * $4 + $20";
+        let str = "rcx * 4 + 20";
         let mem = Mem::new(str, Size::Qword);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
@@ -610,7 +587,7 @@ mod new_test {
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RIP));
         assert_eq!(mem.offset(), Some(-0xFF));
-        let mem = Mem::new("%eax + %ebx", Size::Qword).unwrap();
+        let mem = Mem::new("eax + ebx", Size::Qword).unwrap();
         assert_eq!(mem.base(), Some(Register::EAX));
         assert_eq!(mem.index(), Some(Register::EBX));
         assert_eq!(mem.scale(), Size::Byte);

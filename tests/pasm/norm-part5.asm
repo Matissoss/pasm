@@ -1,20 +1,20 @@
-.bits $64
+bits 64
 _start:
-	shld %rax, %rbx, %cl
-	shld %rax, %rbx, $10
-	shld %eax, %ebx, %cl
-	shld %eax, %ebx, $10
-	shld %ax, %bx, %cl
-	shld %ax, %bx, $10
-	shrd %rax, %rbx, %cl
-	shrd %rax, %rbx, $10
-	shrd %eax, %ebx, %cl
-	shrd %eax, %ebx, $10
-	shrd %ax, %bx, %cl
-	shrd %ax, %bx, $10
+	shld rax, rbx, cl
+	shld rax, rbx, 10
+	shld eax, ebx, cl
+	shld eax, ebx, 10
+	shld ax, bx, cl
+	shld ax, bx, 10
+	shrd rax, rbx, cl
+	shrd rax, rbx, 10
+	shrd eax, ebx, cl
+	shrd eax, ebx, 10
+	shrd ax, bx, cl
+	shrd ax, bx, 10
 
-	wrfsbase %rbx
-	wrgsbase %rbx
+	wrfsbase rbx
+	wrgsbase rbx
 
 	sfence
 	stac
@@ -37,19 +37,19 @@ _start:
 	wbinvd
 	wrmsr
 	wrpkru
-	tpause %ecx
-	umwait %ecx
+	tpause ecx
+	umwait ecx
 
-	ud0 %eax, %ebx
-	ud1 %eax, %ebx
+	ud0 eax, ebx
+	ud1 eax, ebx
 
-	;umonitor %eax
-	umonitor %rax
+	;umonitor eax
+	umonitor rax
 
-	smsw %ax
-	smsw %eax
-	smsw %rax
+	smsw ax
+	smsw eax
+	smsw rax
 
-	str %ax
-	verr %ax
-	verw %ax
+	str ax
+	verr ax
+	verw ax

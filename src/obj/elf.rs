@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use crate::shr::{
-    error::RError as Error,
+    error::Error,
     reloc::{RelType, Relocation},
     section::Section,
     symbol::{Symbol, SymbolType},
@@ -19,16 +19,10 @@ const SHT_PROGBITS: u32 = 1;
 const SHT_SYMTAB: u32 = 2;
 const SHT_STRTAB: u32 = 3;
 const SHT_RELA: u32 = 4;
-#[allow(unused)]
-const SHT_REL: u32 = 9;
 
 // .bss
 #[allow(unused)]
 const SHT_NOBITS: u32 = 8;
-
-#[allow(unused)]
-const REL_SIZE_64: u32 = 16;
-const REL_SIZE_32: u32 = 8;
 
 const RELA_SIZE_64: u32 = 24;
 const RELA_SIZE_32: u32 = 12;
@@ -66,7 +60,7 @@ pub struct ElfSymbol {
     size: u32,
     // currently can be set to 1
     section_index: u32,
-    
+
     visibility: u8,
 
     info: u8,
@@ -149,6 +143,16 @@ impl<'a> Elf<'a> {
     fn get_local_symbol_count(&self) -> usize {
         self.symbols.len() - self.get_global_count()
     }
+    fn find_symbol(&self, name: &str) -> Option<usize> {
+        let buf = &self.strtab;
+        for (i, s) in self.symbols.iter().enumerate() {
+            let sname = cstring(buf, s.name);
+            if sname == name {
+                return Some(i);
+            }
+        }
+        None
+    }
     fn push_reloc(&mut self, reloc: &TmpRelocation, is_64bit: bool) {
         let symb = reloc.symbol as u64;
         self.relocations.push(ElfRelocation {
@@ -187,14 +191,15 @@ impl<'a> Elf<'a> {
             info: (match symbol.visibility {
                 Visibility::Public => 1,
                 Visibility::Local => 0,
-                Visibility::Weak  => 2,
+                Visibility::Weak => 2,
                 _ => 0,
-            }) << 4 | (symbol.stype as u8 & 0x0F),
+            }) << 4
+                | (symbol.stype as u8 & 0x0F),
             visibility: match symbol.visibility {
                 Visibility::Anonymous => 2,
                 Visibility::Protected => 3,
                 _ => 0,
-            }
+            },
         });
     }
     fn push_strtab(&mut self, str: &str) -> usize {
@@ -296,13 +301,7 @@ fn make_elf<'a>(
     elf.code = code;
     elf.push_symbols(symbols);
     for reloc in relocs {
-        if let Some(symbol) = find_index(reloc, symbols) {
-            let mut idx = elf.get_local_symbol_count();
-            if symbols[symbol].is_global() {
-                idx += symbol - 1;
-            } else {
-                idx -= symbol + 1;
-            }
+        if let Some(idx) = elf.find_symbol(&reloc.symbol) {
             elf.push_reloc(
                 &TmpRelocation {
                     symbol: idx as u32,
@@ -387,7 +386,7 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
 }
 
 fn reloc_collect(rel: ElfRelocation, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::with_capacity(REL_SIZE_32 as usize);
+    let mut b = Vec::with_capacity(RELA_SIZE_32 as usize);
     if is_64bit {
         b.extend(rel.offset.to_le_bytes());
         b.extend(rel.info.to_le_bytes());
@@ -420,15 +419,6 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
         b.extend((symb.section_index as u16).to_le_bytes());
     }
     b
-}
-
-fn find_index<'a>(reloc: &'a Relocation, symbols: &'a [Symbol]) -> Option<usize> {
-    for (idx, s) in symbols.iter().enumerate() {
-        if s.name == reloc.symbol {
-            return Some(idx);
-        }
-    }
-    None
 }
 
 // rasm's ELF layout:
@@ -614,15 +604,15 @@ struct RelInfo {
     relcount: usize,
 }
 
-fn cstring(vec: &[u8], mut idx: usize) -> String {
-    let mut string = String::new();
-    while idx < vec.len() {
-        if vec[idx] == 0 {
+fn cstring(vec: &[u8], idx: usize) -> &str {
+    let start = idx;
+    let mut end = idx;
+    while end < vec.len() {
+        if vec[end] == 0 {
             break;
         } else {
-            string.push(vec[idx] as char);
-            idx += 1;
+            end += 1;
         }
     }
-    string
+    unsafe { std::str::from_utf8_unchecked(&vec[start..end]) }
 }

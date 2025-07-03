@@ -8,9 +8,9 @@ use crate::{
     pre::tok::Token,
     shr::{
         ast::{Instruction, Operand},
-        error::RError as Error,
+        dir::Directive,
+        error::Error,
         ins::Mnemonic,
-        kwd::Keyword,
         label::{Label, LabelAttributes},
         mem::Mem,
         num::Number,
@@ -115,7 +115,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 body.push(BodyNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: BodyNodeEnum::Attributes(attr),
@@ -132,7 +131,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 body.push(BodyNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: BodyNodeEnum::Label(l),
@@ -146,13 +144,15 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                                 body.push(BodyNode {
                                     location: Location {
                                         line: lnum,
-                                        char: 0,
                                         ..Default::default()
                                     },
                                     node: BodyNodeEnum::Instruction(i),
                                 });
                             }
-                            Err(e) => errors.push(e),
+                            Err(mut e) => {
+                                e.set_line(lnum);
+                                errors.push(e)
+                            }
                         }
                     }
                     Some(_) => {
@@ -170,20 +170,22 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         body.push(BodyNode {
                             location: Location {
                                 line: lnum,
-                                char: 0,
                                 ..Default::default()
                             },
                             node: BodyNodeEnum::Instruction(i),
                         });
                     }
-                    Err(e) => errors.push(e),
+                    Err(mut e) => {
+                        e.set_line(lnum);
+                        errors.push(e)
+                    }
                 }
             }
             // assert that layout of line is: .extern "path" and nothing past that
-            Token::Keyword(Keyword::Extern) => {
+            Token::Directive(Directive::Extern) => {
                 if !inroot {
                     errors.push(Error::new_wline(
-                        "you tried to use output directive outside of root",
+                        "you tried to use extern directive outside of root",
                         15,
                         lnum,
                     ));
@@ -192,7 +194,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 let garbage = unsafe { line.take_owned(2) };
                 if garbage.is_some() {
                     errors.push(Error::new_wline(
-                        "you tried to make output, but you provided a token at index 2",
+                        "you tried to make extern, but you provided a token at index 2",
                         17,
                         lnum,
                     ));
@@ -203,7 +205,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 } else {
                     if name.is_none() {
                         errors.push(Error::new_wline(
-                            "output directive requires name at index 1, found nothing",
+                            "extern directive requires name at index 1, found nothing",
                             17,
                             lnum,
                         ));
@@ -219,14 +221,13 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 root.push(RootNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: RootNodeEnum::Extern(name),
                 });
             }
             // assert that layout of line is: .output "path" and nothing past that
-            Token::Keyword(Keyword::Output) => {
+            Token::Directive(Directive::Output) => {
                 if !inroot {
                     errors.push(Error::new_wline(
                         "you tried to use output directive outside of root",
@@ -265,14 +266,13 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 root.push(RootNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: RootNodeEnum::Output(name),
                 });
             }
             // assert that layout of line is: .format "name" and nothing past that
-            Token::Keyword(Keyword::Format) => {
+            Token::Directive(Directive::Format) => {
                 if !inroot {
                     errors.push(Error::new_wline(
                         "you tried to use format directive outside of root",
@@ -311,38 +311,34 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 root.push(RootNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: RootNodeEnum::Format(name),
                 });
             }
-            Token::Keyword(Keyword::Writeable) => body.push(BodyNode {
+            Token::Directive(Directive::Writeable) => body.push(BodyNode {
                 location: Location {
                     line: lnum,
-                    char: 0,
                     ..Default::default()
                 },
                 node: BodyNodeEnum::Write,
             }),
-            Token::Keyword(Keyword::Executable) => body.push(BodyNode {
+            Token::Directive(Directive::Executable) => body.push(BodyNode {
                 location: Location {
                     line: lnum,
-                    char: 0,
                     ..Default::default()
                 },
                 node: BodyNodeEnum::Exec,
             }),
-            Token::Keyword(Keyword::Alloc) => body.push(BodyNode {
+            Token::Directive(Directive::Alloc) => body.push(BodyNode {
                 location: Location {
                     line: lnum,
-                    char: 0,
                     ..Default::default()
                 },
                 node: BodyNodeEnum::Alloc,
             }),
             // assert that layout of line is: .section "name" and nothing past that
-            Token::Keyword(Keyword::Section) => {
+            Token::Directive(Directive::Section) => {
                 inroot = false;
                 let name = unsafe { line.take_owned(1) };
                 let name = if let Some(Token::String(s)) = name {
@@ -366,7 +362,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 body.push(BodyNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: BodyNodeEnum::Section(name),
@@ -374,26 +369,23 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 let mut slice_idx = 2;
                 while let Some(t) = unsafe { line.take_owned(slice_idx) } {
                     match t {
-                        Token::Keyword(Keyword::Executable) => body.push(BodyNode {
+                        Token::Directive(Directive::Executable) => body.push(BodyNode {
                             location: Location {
                                 line: lnum,
-                                char: 0,
                                 ..Default::default()
                             },
                             node: BodyNodeEnum::Exec,
                         }),
-                        Token::Keyword(Keyword::Writeable) => body.push(BodyNode {
+                        Token::Directive(Directive::Writeable) => body.push(BodyNode {
                             location: Location {
                                 line: lnum,
-                                char: 0,
                                 ..Default::default()
                             },
                             node: BodyNodeEnum::Write,
                         }),
-                        Token::Keyword(Keyword::Alloc) => body.push(BodyNode {
+                        Token::Directive(Directive::Alloc) => body.push(BodyNode {
                             location: Location {
                                 line: lnum,
-                                char: 0,
                                 ..Default::default()
                             },
                             node: BodyNodeEnum::Alloc,
@@ -405,11 +397,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 }
             }
             // assert that layout of line is .align $align
-            Token::Keyword(Keyword::Align) => {
-                /*if inroot {
-                    errors.push(Error::new_wline(
-                        "you tried to use align directive inside of root", 15, lnum));
-                }*/
+            Token::Directive(Directive::Align) => {
                 let align = unsafe { line.take_owned(1) };
                 // if is some, then error
                 let invalid = unsafe { line.take_owned(2) };
@@ -443,14 +431,13 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 body.push(BodyNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: BodyNodeEnum::Align(align),
                 });
             }
             // assert that layout of line is .define name $value
-            Token::Keyword(Keyword::Define) => {
+            Token::Directive(Directive::Define) => {
                 if inroot {
                     let name = unsafe { line.take_owned(1) };
                     let value = unsafe { line.take_owned(2) };
@@ -505,7 +492,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     root.push(RootNode {
                         location: Location {
                             line: lnum,
-                            char: 0,
                             ..Default::default()
                         },
                         node: RootNodeEnum::Define(name, value),
@@ -519,7 +505,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 }
             }
             // assert that layout of line is .include "file_path"
-            Token::Keyword(Keyword::Include) => {
+            Token::Directive(Directive::Include) => {
                 if inroot {
                     let path = unsafe { line.take_owned(1) };
                     // if is some, then error
@@ -555,7 +541,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     root.push(RootNode {
                         location: Location {
                             line: lnum,
-                            char: 0,
                             ..Default::default()
                         },
                         node: RootNodeEnum::Include(path),
@@ -569,7 +554,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 }
             }
             // assert that layout of line is .bits $align
-            Token::Keyword(Keyword::Bits) => {
+            Token::Directive(Directive::Bits) => {
                 let bits = unsafe { line.take_owned(1) };
                 // if is some, then error
                 let invalid = unsafe { line.take_owned(2) };
@@ -611,7 +596,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     root.push(RootNode {
                         location: Location {
                             line: lnum,
-                            char: 0,
                             ..Default::default()
                         },
                         node: RootNodeEnum::Bits(bits),
@@ -620,7 +604,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     body.push(BodyNode {
                         location: Location {
                             line: lnum,
-                            char: 0,
                             ..Default::default()
                         },
                         node: BodyNodeEnum::Bits(bits),
@@ -629,22 +612,22 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
             }
             // possible layout:
             // assert that layout of line is something like: .visibility .type "label_name": <instruction>
-            Token::Keyword(k) => {
+            Token::Directive(k) => {
                 inroot = false;
                 let mut v = Visibility::default();
                 let mut t = SymbolType::default();
-                unsafe { line.insert(0, Token::Keyword(k)) };
+                unsafe { line.insert(0, Token::Directive(k)) };
                 let mut lname = RString::from("");
                 let mut i = 0;
                 for token in line.iter() {
                     match token {
-                        Token::Keyword(Keyword::Protected) => v = Visibility::Protected,
-                        Token::Keyword(Keyword::Public) => v = Visibility::Public,
-                        Token::Keyword(Keyword::Local) => v = Visibility::Local,
-                        Token::Keyword(Keyword::Weak) => v = Visibility::Weak,
-                        Token::Keyword(Keyword::Anonymous) => v = Visibility::Anonymous,
-                        Token::Keyword(Keyword::Function) => t = SymbolType::Func,
-                        Token::Keyword(Keyword::Object) => t = SymbolType::Object,
+                        Token::Directive(Directive::Protected) => v = Visibility::Protected,
+                        Token::Directive(Directive::Public) => v = Visibility::Public,
+                        Token::Directive(Directive::Local) => v = Visibility::Local,
+                        Token::Directive(Directive::Weak) => v = Visibility::Weak,
+                        Token::Directive(Directive::Anonymous) => v = Visibility::Anonymous,
+                        Token::Directive(Directive::Function) => t = SymbolType::Func,
+                        Token::Directive(Directive::Object) => t = SymbolType::Object,
                         Token::Label(l) => {
                             lname = l.clone();
                             break;
@@ -672,7 +655,6 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 body.push(BodyNode {
                     location: Location {
                         line: lnum,
-                        char: 0,
                         ..Default::default()
                     },
                     node: BodyNodeEnum::Label(Label {
@@ -696,13 +678,15 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                             body.push(BodyNode {
                                 location: Location {
                                     line: lnum,
-                                    char: 0,
                                     ..Default::default()
                                 },
                                 node: BodyNodeEnum::Instruction(i),
                             });
                         }
-                        Err(e) => errors.push(e),
+                        Err(mut e) => {
+                            e.set_line(lnum);
+                            errors.push(e)
+                        }
                     }
                 }
             }
@@ -728,14 +712,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
             0 => Err(Error::new("cannot make operand from nothing", 3)),
             1 => Ok(Operand::try_from(operand_buf.take_owned(0).unwrap_unchecked())?),
             2 => match (operand_buf.take_owned_unchecked(0), operand_buf.take_owned_unchecked(1)) {
-                (Token::Keyword(Keyword::Ref), Token::SymbolRef(s)) => {
-                    let mut s = s.clone();
-                    s.deref(false);
-                    Ok(Operand::SymbolRef(*s.clone()))
-                },
-                (Token::Keyword(Keyword::Deref), Token::SymbolRef(_)) =>
-                    Err(Error::new("you cannot create dereference to a symbol without providing size directive", 8)),
-                (Token::Keyword(sz), Token::SymbolRef(mut s)) | (Token::SymbolRef(mut s), Token::Keyword(sz)) => {
+                (Token::Directive(sz), Token::SymbolRef(mut s)) | (Token::SymbolRef(mut s), Token::Directive(sz)) => {
                     let size = match Size::try_from(sz){
                         Ok(s) => s,
                         Err(_) => return Err(Error::new(
@@ -745,26 +722,10 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                     s.deref(true);
                     Ok(Operand::SymbolRef(*s))
                 }
-                (Token::Keyword(Keyword::Deref), Token::Modifier(m)) => {
-                    let (sref, sz) = match (m.first(), m.get(1)) {
-                        (Some(Token::SymbolRef(s)), Some(Token::Keyword(s1))) => (s, s1),
-                        (Some(Token::SymbolRef(s)), None) => (s, &Keyword::Any),
-                        _ => return Err(Error::new("you tried to make operand from modifier with deref directive", 8)),
-                    };
-                    let sz = if let Ok(sz) = Size::try_from(*sz) {
-                        sz
-                    } else {
-                        return Err(Error::new("expected size directive after symbol reference", 8))
-                    };
-                    let mut sref = *sref.clone();
-                    sref.deref(true);
-                    sref.set_size(sz);
-                    Ok(Operand::SymbolRef(sref))
-                }
                 (Token::Closure(' ', m), Token::Modifier(mods)) |
                 (Token::Modifier(mods), Token::Closure(' ', m)) => {
                     if mods.len() == 2 {
-                        let sz = if let Token::Keyword(modk) = mods[0] {
+                        let sz = if let Token::Directive(modk) = mods[0] {
                             match Size::try_from(modk){
                                 Ok(s) => s,
                                 Err(_) => return Err(Error::new(
@@ -773,7 +734,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                         } else {
                             return Err(Error::new("expected size directive at index 0 of modifier", 8));
                         };
-                        if let Token::Keyword(Keyword::Bcst) = mods[1] {} else {
+                        if let Token::Directive(Directive::Bcst) = mods[1] {} else {
                             return Err(Error::new("expected bcst directive at index 1 of modifier", 8));
                         }
                         let mut m = Mem::new(&m, sz)?;
@@ -783,11 +744,11 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                         Err(Error::new("expected modifier of size directive and bcst keyword", 8))
                     }
                 }
-                (Token::Closure(' ', m), Token::Keyword(k))
-                |(Token::Keyword(k), Token::Closure(' ', m)) =>
+                (Token::Closure(' ', m), Token::Directive(k))
+                |(Token::Directive(k), Token::Closure(' ', m)) =>
                     Ok(Operand::Mem(Mem::new(&m, Size::try_from(k).unwrap_or(Size::Unknown))?)),
-                (Token::Modifier(m), Token::Keyword(k))
-                |(Token::Keyword(k), Token::Modifier(m)) => {
+                (Token::Modifier(m), Token::Directive(k))
+                |(Token::Directive(k), Token::Modifier(m)) => {
                     let size = match Size::try_from(k){
                         Ok(s) => s,
                         Err(_) => return Err(Error::new(
@@ -810,29 +771,11 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                     mem.set_segment(*seg_reg);
                     Ok(Operand::Mem(mem))
                 }
-                (a,b) => {
-                    println!("{:?} - {:?}", a, b);
+                _ => {
                     Err(Error::new("you tried to make operand from two tokens, but ones you provided could not be parsed into one", 8))
                 }
             }
-            3 => {
-                match (operand_buf.take_owned_unchecked(0), operand_buf.take_owned_unchecked(1), operand_buf.take_owned_unchecked(2)) {
-                    (Token::Keyword(Keyword::Deref), Token::SymbolRef(mut s), Token::Keyword(sz)) |
-                    (Token::Keyword(sz), Token::SymbolRef(mut s), Token::Keyword(Keyword::Deref)) => {
-                        let sz = match Size::try_from(sz) {
-                            Ok(s) => s,
-                            Err(_) => return Err(Error::new("you tried to use symbol dereference, but you did not provide valid size directive", 8))
-                        };
-                        s.set_size(sz);
-                        s.deref(true);
-                        Ok(Operand::SymbolRef(*s))
-                    }
-                    _ => {
-                        Err(Error::new("you tried to make operand from three tokens, but ones you provided could not be parsed into one", 8))
-                    }
-                }
-            }
-            _ => Err(Error::new("you tried to make operand from more than 3 tokens",8))
+            _ => Err(Error::new("you tried to make operand from more than 2 tokens",8))
         }
     }
 }

@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RError as Error, size::Size};
+use crate::shr::{error::Error, size::Size};
 use std::str::FromStr;
 
 #[derive(PartialEq, Clone, Copy, Debug)]

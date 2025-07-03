@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use crate::shr::{
-    error::RError as Error,
+    error::Error,
     ins::Mnemonic,
     mem::Mem,
     num::Number,
@@ -171,6 +171,9 @@ impl Instruction {
         self.meta |= 0b1000;
     }
 
+    pub fn needs_rex(&self) -> bool {
+        crate::core::rex::needs_rex(self)
+    }
     pub fn needs_evex(&self) -> bool {
         if self.meta & (0b111 << 7) == 0b10 << 7 {
             return true;

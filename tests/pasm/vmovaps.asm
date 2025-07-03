@@ -1,11 +1,11 @@
-.bits $64
+bits 64
 _start:
-	vmovaps %xmm0, %xmm1
-	vmovaps .xword (%rax), %xmm1
-	vmovaps %xmm0, .xword (%rax)
+	vmovaps xmm0, xmm1
+	vmovaps xword (rax), xmm1
+	vmovaps xmm0, xword (rax)
 	
-	vmovaps %ymm0, %ymm1
-	vmovaps .yword (%rax), %ymm1
-	vmovaps %ymm0, .yword (%rax)
+	vmovaps ymm0, ymm1
+	vmovaps yword (rax), ymm1
+	vmovaps ymm0, yword (rax)
 
-	vmovaps %xmm8, %xmm9
+	vmovaps xmm8, xmm9

@@ -8,7 +8,7 @@ use crate::{
     core::evex::*,
     shr::{
         ast::{IVariant, Instruction, Operand},
-        ins::Mnemonic as Ins,
+        ins::Mnemonic,
         num::Number,
         reg::{Purpose as RPurpose, Register},
         reloc::RelType,
@@ -66,181 +66,168 @@ pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>,
 
 pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
     match ins.mnem {
-        Ins::IN => ins_in(ins, bits),
-        Ins::OUT => ins_out(ins, bits),
+        Mnemonic::IN => ins_in(ins, bits),
+        Mnemonic::OUT => ins_out(ins, bits),
 
-        Ins::BYTE | Ins::BYTELE | Ins::BYTEBE => GenAPI::new()
+        Mnemonic::BYTELE | Mnemonic::BYTEBE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 1)
             .fixed_size(Size::Byte),
-        Ins::WORD => GenAPI::new()
+        Mnemonic::WORDLE | Mnemonic::WORDBE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 2)
             .fixed_size(Size::Byte)
-            .imm_is_be(false),
-        Ins::WORDLE | Ins::WORDBE => GenAPI::new()
-            .opcode(&[])
-            .imm_atindex(0, 2)
-            .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Ins::WORDLE),
-        Ins::DWORD => GenAPI::new()
+            .imm_is_be(ins.mnem != Mnemonic::WORDLE),
+        Mnemonic::DWORDLE | Mnemonic::DWORDBE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 4)
             .fixed_size(Size::Byte)
-            .imm_is_be(false),
-        Ins::DWORDLE | Ins::DWORDBE => GenAPI::new()
-            .opcode(&[])
-            .imm_atindex(0, 4)
-            .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Ins::DWORDLE),
-        Ins::QWORD => GenAPI::new()
+            .imm_is_be(ins.mnem != Mnemonic::DWORDLE),
+        Mnemonic::QWORDBE | Mnemonic::QWORDLE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 8)
             .fixed_size(Size::Byte)
-            .imm_is_be(false),
-        Ins::QWORDBE | Ins::QWORDLE => GenAPI::new()
-            .opcode(&[])
-            .imm_atindex(0, 8)
-            .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Ins::QWORDLE),
-        Ins::ASCII | Ins::STRING => GenAPI::new().opcode(&[]).imm_atindex(0, 0),
+            .imm_is_be(ins.mnem != Mnemonic::QWORDLE),
+        Mnemonic::ASCII | Mnemonic::STRING => GenAPI::new().opcode(&[]).imm_atindex(0, 0),
 
-        //Ins::EMPTY => ins_empty(ins),
-        Ins::__LAST => GenAPI::new(),
-        Ins::CPUID => GenAPI::new().opcode(&[0x0F, 0xA2]),
-        Ins::RET => GenAPI::new().opcode(&[0xC3]),
-        Ins::SYSCALL => GenAPI::new().opcode(&[0x0F, 0x05]),
-        Ins::PUSH => ins_push(ins, bits),
-        Ins::POP => ins_pop(ins, bits),
-        Ins::MOV => ins_mov(ins, bits),
-        Ins::ADD => add_like_ins(
+        //Mnemonic::EMPTY => ins_empty(ins),
+        Mnemonic::__LAST => GenAPI::new(),
+        Mnemonic::CPUID => GenAPI::new().opcode(&[0x0F, 0xA2]),
+        Mnemonic::RET => GenAPI::new().opcode(&[0xC3]),
+        Mnemonic::SYSCALL => GenAPI::new().opcode(&[0x0F, 0x05]),
+        Mnemonic::PUSH => ins_push(ins, bits),
+        Mnemonic::POP => ins_pop(ins, bits),
+        Mnemonic::MOV => ins_mov(ins, bits),
+        Mnemonic::ADD => add_like_ins(
             ins,
             &[0x04, 0x05, 0x80, 0x81, 0x83, 0x00, 0x01, 0x02, 0x03],
             0,
             bits,
         ),
-        Ins::OR => add_like_ins(
+        Mnemonic::OR => add_like_ins(
             ins,
             &[0x0C, 0x0D, 0x80, 0x81, 0x83, 0x08, 0x09, 0x0A, 0x0B],
             1,
             bits,
         ),
-        Ins::AND => add_like_ins(
+        Mnemonic::AND => add_like_ins(
             ins,
             &[0x24, 0x25, 0x80, 0x81, 0x83, 0x20, 0x21, 0x22, 0x23],
             4,
             bits,
         ),
-        Ins::SUB => add_like_ins(
+        Mnemonic::SUB => add_like_ins(
             ins,
             &[0x2C, 0x2D, 0x80, 0x81, 0x83, 0x28, 0x29, 0x2A, 0x2B],
             5,
             bits,
         ),
-        Ins::XOR => add_like_ins(
+        Mnemonic::XOR => add_like_ins(
             ins,
             &[0x34, 0x35, 0x80, 0x81, 0x83, 0x30, 0x31, 0x32, 0x33],
             6,
             bits,
         ),
-        Ins::SAL | Ins::SHL => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 4, bits),
-        Ins::SHR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 5, bits),
-        Ins::SAR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 7, bits),
-        Ins::TEST => ins_test(ins, bits),
-        Ins::INC => ins_inclike(ins, &[0xFE, 0xFF], 0, bits),
-        Ins::DEC => ins_inclike(ins, &[0xFE, 0xFF], 1, bits),
-        Ins::NOT => ins_inclike(ins, &[0xF6, 0xF7], 2, bits),
-        Ins::NEG => ins_inclike(ins, &[0xF6, 0xF7], 3, bits),
-        Ins::CMP => ins_cmp(ins, bits),
-        Ins::IMUL => ins_imul(ins, bits),
-        Ins::DIV => ins_divmul(ins, 6, bits),
-        Ins::IDIV => ins_divmul(ins, 7, bits),
-        Ins::MUL => ins_divmul(ins, 4, bits),
-        Ins::JMP => ins_jmplike(ins, [&[0xE9], &[0xFF], &[0xEB]], 4, bits),
-        Ins::CALL => ins_jmplike(ins, [&[0xE8], &[0xFF], &[0xE8]], 2, bits),
+        Mnemonic::SAL | Mnemonic::SHL => {
+            ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 4, bits)
+        }
+        Mnemonic::SHR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 5, bits),
+        Mnemonic::SAR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 7, bits),
+        Mnemonic::TEST => ins_test(ins, bits),
+        Mnemonic::INC => ins_inclike(ins, &[0xFE, 0xFF], 0, bits),
+        Mnemonic::DEC => ins_inclike(ins, &[0xFE, 0xFF], 1, bits),
+        Mnemonic::NOT => ins_inclike(ins, &[0xF6, 0xF7], 2, bits),
+        Mnemonic::NEG => ins_inclike(ins, &[0xF6, 0xF7], 3, bits),
+        Mnemonic::CMP => ins_cmp(ins, bits),
+        Mnemonic::IMUL => ins_imul(ins, bits),
+        Mnemonic::DIV => ins_divmul(ins, 6, bits),
+        Mnemonic::IDIV => ins_divmul(ins, 7, bits),
+        Mnemonic::MUL => ins_divmul(ins, 4, bits),
+        Mnemonic::JMP => ins_jmplike(ins, [&[0xE9], &[0xFF], &[0xEB]], 4, bits),
+        Mnemonic::CALL => ins_jmplike(ins, [&[0xE8], &[0xFF], &[0xE8]], 2, bits),
 
         // jcc
-        Ins::JA => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
-        Ins::JB => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
-        Ins::JC => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
-        Ins::JO => ins_jmplike(ins, [&[0x0F, 0x80], &[], &[0x70]], 0, bits),
-        Ins::JP => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
-        Ins::JS => ins_jmplike(ins, [&[0x0F, 0x88], &[], &[0x78]], 0, bits),
-        Ins::JL => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
-        Ins::JG => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7C]], 0, bits),
-        Ins::JE | Ins::JZ => ins_jmplike(ins, [&[0x0F, 0x84], &[], &[0x74]], 0, bits),
-        Ins::JAE => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
-        Ins::JBE => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
-        Ins::JNA => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
-        Ins::JNB => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
-        Ins::JNC => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
-        Ins::JNG => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
-        Ins::JNL => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
-        Ins::JNO => ins_jmplike(ins, [&[0x0F, 0x81], &[], &[0x71]], 0, bits),
-        Ins::JNP => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
-        Ins::JNS => ins_jmplike(ins, [&[0x0F, 0x89], &[], &[0x79]], 0, bits),
-        Ins::JPE => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
-        Ins::JPO => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
-        Ins::JNE | Ins::JNZ => ins_jmplike(ins, [&[0xFF, 0x85], &[], &[0x75]], 0, bits),
-        Ins::JLE => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
-        Ins::JGE => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
-        Ins::JNAE => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
-        Ins::JNBE => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
-        Ins::JNGE => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
-        Ins::JNLE => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7F]], 0, bits),
+        Mnemonic::JA => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
+        Mnemonic::JB => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Mnemonic::JC => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Mnemonic::JO => ins_jmplike(ins, [&[0x0F, 0x80], &[], &[0x70]], 0, bits),
+        Mnemonic::JP => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
+        Mnemonic::JS => ins_jmplike(ins, [&[0x0F, 0x88], &[], &[0x78]], 0, bits),
+        Mnemonic::JL => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
+        Mnemonic::JG => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7C]], 0, bits),
+        Mnemonic::JE | Mnemonic::JZ => ins_jmplike(ins, [&[0x0F, 0x84], &[], &[0x74]], 0, bits),
+        Mnemonic::JAE => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Mnemonic::JBE => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
+        Mnemonic::JNA => ins_jmplike(ins, [&[0x0F, 0x86], &[], &[0x76]], 0, bits),
+        Mnemonic::JNB => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Mnemonic::JNC => ins_jmplike(ins, [&[0x0F, 0x83], &[], &[0x73]], 0, bits),
+        Mnemonic::JNG => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
+        Mnemonic::JNL => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
+        Mnemonic::JNO => ins_jmplike(ins, [&[0x0F, 0x81], &[], &[0x71]], 0, bits),
+        Mnemonic::JNP => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
+        Mnemonic::JNS => ins_jmplike(ins, [&[0x0F, 0x89], &[], &[0x79]], 0, bits),
+        Mnemonic::JPE => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
+        Mnemonic::JPO => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
+        Mnemonic::JNE | Mnemonic::JNZ => ins_jmplike(ins, [&[0xFF, 0x85], &[], &[0x75]], 0, bits),
+        Mnemonic::JLE => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
+        Mnemonic::JGE => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
+        Mnemonic::JNAE => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
+        Mnemonic::JNBE => ins_jmplike(ins, [&[0x0F, 0x87], &[], &[0x77]], 0, bits),
+        Mnemonic::JNGE => ins_jmplike(ins, [&[0x0F, 0x8C], &[], &[0x7C]], 0, bits),
+        Mnemonic::JNLE => ins_jmplike(ins, [&[0x0F, 0x8F], &[], &[0x7F]], 0, bits),
 
-        Ins::JCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
-        Ins::JECXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
-        Ins::JRCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
+        Mnemonic::JCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
+        Mnemonic::JECXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
+        Mnemonic::JRCXZ => ins_jmplike(ins, [&[], &[], &[0xE3]], 0, bits),
 
-        Ins::LEA => ins_lea(ins, bits),
+        Mnemonic::LEA => ins_lea(ins, bits),
 
-        Ins::NOP => GenAPI::new().opcode(&[0x90]),
+        Mnemonic::NOP => GenAPI::new().opcode(&[0x90]),
 
-        Ins::PUSHF | Ins::PUSHFD | Ins::PUSHFQ => GenAPI::new().opcode(&[0x9C]),
-        Ins::POPF | Ins::POPFD | Ins::POPFQ => GenAPI::new().opcode(&[0x9D]),
+        Mnemonic::PUSHF | Mnemonic::PUSHFD | Mnemonic::PUSHFQ => GenAPI::new().opcode(&[0x9C]),
+        Mnemonic::POPF | Mnemonic::POPFD | Mnemonic::POPFQ => GenAPI::new().opcode(&[0x9D]),
 
-        Ins::CLFLUSH => GenAPI::new()
+        Mnemonic::CLFLUSH => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(7), None)
             .rex(true),
 
-        Ins::PAUSE => GenAPI::new().opcode(&[0xF3, 0x90]),
-        Ins::MWAIT => GenAPI::new().opcode(&[0x0F, 0x01, 0xC9]),
+        Mnemonic::PAUSE => GenAPI::new().opcode(&[0xF3, 0x90]),
+        Mnemonic::MWAIT => GenAPI::new().opcode(&[0x0F, 0x01, 0xC9]),
 
-        Ins::CMOVA => ins_cmovcc(ins, &[0x0F, 0x47], bits),
-        Ins::CMOVAE => ins_cmovcc(ins, &[0x0F, 0x43], bits),
-        Ins::CMOVB => ins_cmovcc(ins, &[0x0F, 0x42], bits),
-        Ins::CMOVBE => ins_cmovcc(ins, &[0x0F, 0x46], bits),
-        Ins::CMOVC => ins_cmovcc(ins, &[0x0F, 0x42], bits),
-        Ins::CMOVE => ins_cmovcc(ins, &[0x0F, 0x44], bits),
-        Ins::CMOVG => ins_cmovcc(ins, &[0x0F, 0x4F], bits),
-        Ins::CMOVGE => ins_cmovcc(ins, &[0x0F, 0x4D], bits),
-        Ins::CMOVL => ins_cmovcc(ins, &[0x0F, 0x4C], bits),
-        Ins::CMOVLE => ins_cmovcc(ins, &[0x0F, 0x4E], bits),
-        Ins::CMOVNA => ins_cmovcc(ins, &[0x0F, 0x46], bits),
-        Ins::CMOVNB => ins_cmovcc(ins, &[0x0F, 0x43], bits),
-        Ins::CMOVNBE => ins_cmovcc(ins, &[0x0F, 0x47], bits),
-        Ins::CMOVNC => ins_cmovcc(ins, &[0x0F, 0x43], bits),
-        Ins::CMOVNE => ins_cmovcc(ins, &[0x0F, 0x45], bits),
-        Ins::CMOVNG => ins_cmovcc(ins, &[0x0F, 0x4E], bits),
-        Ins::CMOVNGE => ins_cmovcc(ins, &[0x0F, 0x4C], bits),
-        Ins::CMOVNL => ins_cmovcc(ins, &[0x0F, 0x4D], bits),
-        Ins::CMOVNLE => ins_cmovcc(ins, &[0x0F, 0x4F], bits),
-        Ins::CMOVNAE => ins_cmovcc(ins, &[0x0F, 0x42], bits),
-        Ins::CMOVNO => ins_cmovcc(ins, &[0x0F, 0x41], bits),
-        Ins::CMOVNP => ins_cmovcc(ins, &[0x0F, 0x4B], bits),
-        Ins::CMOVNS => ins_cmovcc(ins, &[0x0F, 0x49], bits),
-        Ins::CMOVNZ => ins_cmovcc(ins, &[0x0F, 0x45], bits),
-        Ins::CMOVO => ins_cmovcc(ins, &[0x0F, 0x40], bits),
-        Ins::CMOVP => ins_cmovcc(ins, &[0x0F, 0x4A], bits),
-        Ins::CMOVPO => ins_cmovcc(ins, &[0x0F, 0x4B], bits),
-        Ins::CMOVS => ins_cmovcc(ins, &[0x0F, 0x48], bits),
-        Ins::CMOVZ => ins_cmovcc(ins, &[0x0F, 0x44], bits),
-        Ins::CMOVPE => ins_cmovcc(ins, &[0x0F, 0x4A], bits),
+        Mnemonic::CMOVA => ins_cmovcc(ins, &[0x0F, 0x47], bits),
+        Mnemonic::CMOVAE => ins_cmovcc(ins, &[0x0F, 0x43], bits),
+        Mnemonic::CMOVB => ins_cmovcc(ins, &[0x0F, 0x42], bits),
+        Mnemonic::CMOVBE => ins_cmovcc(ins, &[0x0F, 0x46], bits),
+        Mnemonic::CMOVC => ins_cmovcc(ins, &[0x0F, 0x42], bits),
+        Mnemonic::CMOVE => ins_cmovcc(ins, &[0x0F, 0x44], bits),
+        Mnemonic::CMOVG => ins_cmovcc(ins, &[0x0F, 0x4F], bits),
+        Mnemonic::CMOVGE => ins_cmovcc(ins, &[0x0F, 0x4D], bits),
+        Mnemonic::CMOVL => ins_cmovcc(ins, &[0x0F, 0x4C], bits),
+        Mnemonic::CMOVLE => ins_cmovcc(ins, &[0x0F, 0x4E], bits),
+        Mnemonic::CMOVNA => ins_cmovcc(ins, &[0x0F, 0x46], bits),
+        Mnemonic::CMOVNB => ins_cmovcc(ins, &[0x0F, 0x43], bits),
+        Mnemonic::CMOVNBE => ins_cmovcc(ins, &[0x0F, 0x47], bits),
+        Mnemonic::CMOVNC => ins_cmovcc(ins, &[0x0F, 0x43], bits),
+        Mnemonic::CMOVNE => ins_cmovcc(ins, &[0x0F, 0x45], bits),
+        Mnemonic::CMOVNG => ins_cmovcc(ins, &[0x0F, 0x4E], bits),
+        Mnemonic::CMOVNGE => ins_cmovcc(ins, &[0x0F, 0x4C], bits),
+        Mnemonic::CMOVNL => ins_cmovcc(ins, &[0x0F, 0x4D], bits),
+        Mnemonic::CMOVNLE => ins_cmovcc(ins, &[0x0F, 0x4F], bits),
+        Mnemonic::CMOVNAE => ins_cmovcc(ins, &[0x0F, 0x42], bits),
+        Mnemonic::CMOVNO => ins_cmovcc(ins, &[0x0F, 0x41], bits),
+        Mnemonic::CMOVNP => ins_cmovcc(ins, &[0x0F, 0x4B], bits),
+        Mnemonic::CMOVNS => ins_cmovcc(ins, &[0x0F, 0x49], bits),
+        Mnemonic::CMOVNZ => ins_cmovcc(ins, &[0x0F, 0x45], bits),
+        Mnemonic::CMOVO => ins_cmovcc(ins, &[0x0F, 0x40], bits),
+        Mnemonic::CMOVP => ins_cmovcc(ins, &[0x0F, 0x4A], bits),
+        Mnemonic::CMOVPO => ins_cmovcc(ins, &[0x0F, 0x4B], bits),
+        Mnemonic::CMOVS => ins_cmovcc(ins, &[0x0F, 0x48], bits),
+        Mnemonic::CMOVZ => ins_cmovcc(ins, &[0x0F, 0x44], bits),
+        Mnemonic::CMOVPE => ins_cmovcc(ins, &[0x0F, 0x4A], bits),
 
         // SSE
-        Ins::MOVSS => {
+        Mnemonic::MOVSS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true).prefix(0xF3);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
@@ -249,17 +236,17 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVHLPS => GenAPI::new()
+        Mnemonic::MOVHLPS => GenAPI::new()
             .modrm(true, None, None)
             .rex(true)
             .opcode(&[0x0F, 0x12])
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MOVLHPS => GenAPI::new()
+        Mnemonic::MOVLHPS => GenAPI::new()
             .modrm(true, None, None)
             .rex(true)
             .opcode(&[0x0F, 0x16])
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MOVAPS => {
+        Mnemonic::MOVAPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
@@ -268,7 +255,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVUPS => {
+        Mnemonic::MOVUPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
@@ -277,7 +264,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVLPS => {
+        Mnemonic::MOVLPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
@@ -286,7 +273,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVHPS => {
+        Mnemonic::MOVHPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
@@ -296,187 +283,187 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::ADDPS => GenAPI::new()
+        Mnemonic::ADDPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x58])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ADDSS => GenAPI::new()
+        Mnemonic::ADDSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x58])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SUBPS => GenAPI::new()
+        Mnemonic::SUBPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x5C])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SUBSS => GenAPI::new()
+        Mnemonic::SUBSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x5C])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MULPS => GenAPI::new()
+        Mnemonic::MULPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x59])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MULSS => GenAPI::new()
+        Mnemonic::MULSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x59])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::DIVPS => GenAPI::new()
+        Mnemonic::DIVPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x5E])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::DIVSS => GenAPI::new()
+        Mnemonic::DIVSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x5E])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MINPS => GenAPI::new()
+        Mnemonic::MINPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x5D])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MINSS => GenAPI::new()
+        Mnemonic::MINSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x5D])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MAXPS => GenAPI::new()
+        Mnemonic::MAXPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x5F])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MAXSS => GenAPI::new()
+        Mnemonic::MAXSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x5F])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::RSQRTPS => GenAPI::new()
+        Mnemonic::RSQRTPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x52])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::RSQRTSS => GenAPI::new()
+        Mnemonic::RSQRTSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x52])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SHUFPS => GenAPI::new()
+        Mnemonic::SHUFPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0xC6])
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SQRTPS => GenAPI::new()
+        Mnemonic::SQRTPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x51])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SQRTSS => GenAPI::new()
+        Mnemonic::SQRTSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x51])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::CMPPS => GenAPI::new()
+        Mnemonic::CMPPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0xC2])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::CMPSS => GenAPI::new()
+        Mnemonic::CMPSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0xC2])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::RCPPS => GenAPI::new()
+        Mnemonic::RCPPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x53])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::RCPSS => GenAPI::new()
+        Mnemonic::RCPSS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x53])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::UCOMISS => GenAPI::new()
+        Mnemonic::UCOMISS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x2E])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::COMISS => GenAPI::new()
+        Mnemonic::COMISS => GenAPI::new()
             .modrm(true, None, None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0x2F])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ORPS => GenAPI::new()
+        Mnemonic::ORPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x56])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ANDPS => GenAPI::new()
+        Mnemonic::ANDPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x54])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ANDNPS => GenAPI::new()
+        Mnemonic::ANDNPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x55])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::XORPS => GenAPI::new()
+        Mnemonic::XORPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x57])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::UNPCKLPS => GenAPI::new()
+        Mnemonic::UNPCKLPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x14])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::UNPCKHPS => GenAPI::new()
+        Mnemonic::UNPCKHPS => GenAPI::new()
             .modrm(true, None, None)
             .opcode(&[0x0F, 0x15])
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
 
         // SSE2
-        Ins::MOVNTI => GenAPI::new()
+        Mnemonic::MOVNTI => GenAPI::new()
             .opcode(&[0x0F, 0xC3])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::MFENCE => GenAPI::new().opcode(&[0xF0, 0xAE, 0xF0]),
-        Ins::LFENCE => GenAPI::new().opcode(&[0xF0, 0xAE, 0xE8]),
+        Mnemonic::MFENCE => GenAPI::new().opcode(&[0xF0, 0xAE, 0xF0]),
+        Mnemonic::LFENCE => GenAPI::new().opcode(&[0xF0, 0xAE, 0xE8]),
 
-        Ins::MOVNTPD => GenAPI::new()
+        Mnemonic::MOVNTPD => GenAPI::new()
             .opcode(&[0x0F, 0x2B])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true),
-        Ins::MOVNTDQ => GenAPI::new()
+        Mnemonic::MOVNTDQ => GenAPI::new()
             .opcode(&[0x0F, 0xE7])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true),
-        Ins::MOVAPD => {
+        Mnemonic::MOVAPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
@@ -485,7 +472,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVUPD => {
+        Mnemonic::MOVUPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
@@ -494,7 +481,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVLPD => {
+        Mnemonic::MOVLPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
@@ -503,7 +490,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVHPD => {
+        Mnemonic::MOVHPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
@@ -512,7 +499,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVSD => {
+        Mnemonic::MOVSD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0xF2).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
@@ -521,7 +508,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVDQA => {
+        Mnemonic::MOVDQA => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x7F]).ord(&[MODRM_REG, MODRM_RM]);
@@ -530,173 +517,173 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVDQ2Q => GenAPI::new()
+        Mnemonic::MOVDQ2Q => GenAPI::new()
             .opcode(&[0x0F, 0xD6])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true),
-        Ins::MOVQ2DQ => GenAPI::new()
+        Mnemonic::MOVQ2DQ => GenAPI::new()
             .opcode(&[0x0F, 0xD6])
             .prefix(0xF3)
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::MOVMSKPD => GenAPI::new()
+        Mnemonic::MOVMSKPD => GenAPI::new()
             .opcode(&[0x0F, 0x50])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
 
-        Ins::ADDPD => GenAPI::new()
+        Mnemonic::ADDPD => GenAPI::new()
             .opcode(&[0x0F, 0x58])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ADDSD => GenAPI::new()
+        Mnemonic::ADDSD => GenAPI::new()
             .opcode(&[0x0F, 0x58])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SUBPD => GenAPI::new()
+        Mnemonic::SUBPD => GenAPI::new()
             .opcode(&[0x0F, 0x5C])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SUBSD => GenAPI::new()
+        Mnemonic::SUBSD => GenAPI::new()
             .opcode(&[0x0F, 0x5C])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MULPD => GenAPI::new()
+        Mnemonic::MULPD => GenAPI::new()
             .opcode(&[0x0F, 0x59])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MULSD => GenAPI::new()
+        Mnemonic::MULSD => GenAPI::new()
             .opcode(&[0x0F, 0x59])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::DIVPD => GenAPI::new()
+        Mnemonic::DIVPD => GenAPI::new()
             .opcode(&[0x0F, 0x5E])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::DIVSD => GenAPI::new()
+        Mnemonic::DIVSD => GenAPI::new()
             .opcode(&[0x0F, 0x5E])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MINPD => GenAPI::new()
+        Mnemonic::MINPD => GenAPI::new()
             .opcode(&[0x0F, 0x5D])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MINSD => GenAPI::new()
+        Mnemonic::MINSD => GenAPI::new()
             .opcode(&[0x0F, 0x5D])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MAXPD => GenAPI::new()
+        Mnemonic::MAXPD => GenAPI::new()
             .opcode(&[0x0F, 0x5F])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MAXSD => GenAPI::new()
+        Mnemonic::MAXSD => GenAPI::new()
             .opcode(&[0x0F, 0x5F])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SQRTPD => GenAPI::new()
+        Mnemonic::SQRTPD => GenAPI::new()
             .opcode(&[0x0F, 0x51])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::SQRTSD => GenAPI::new()
+        Mnemonic::SQRTSD => GenAPI::new()
             .opcode(&[0x0F, 0x51])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::CMPPD => GenAPI::new()
+        Mnemonic::CMPPD => GenAPI::new()
             .opcode(&[0x0F, 0xC2])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::CMPSD => GenAPI::new()
+        Mnemonic::CMPSD => GenAPI::new()
             .opcode(&[0x0F, 0xC2])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::COMISD => GenAPI::new()
+        Mnemonic::COMISD => GenAPI::new()
             .opcode(&[0x0F, 0x2F])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::UCOMISD => GenAPI::new()
+        Mnemonic::UCOMISD => GenAPI::new()
             .opcode(&[0x0F, 0x2E])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ORPD => GenAPI::new()
+        Mnemonic::ORPD => GenAPI::new()
             .opcode(&[0x0F, 0x56])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ANDPD => GenAPI::new()
+        Mnemonic::ANDPD => GenAPI::new()
             .opcode(&[0x0F, 0x54])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ANDNPD => GenAPI::new()
+        Mnemonic::ANDNPD => GenAPI::new()
             .opcode(&[0x0F, 0x55])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::XORPD => GenAPI::new()
+        Mnemonic::XORPD => GenAPI::new()
             .opcode(&[0x0F, 0x57])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PSHUFLW => GenAPI::new()
+        Mnemonic::PSHUFLW => GenAPI::new()
             .opcode(&[0x0F, 0x70])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PSHUFHW => GenAPI::new()
+        Mnemonic::PSHUFHW => GenAPI::new()
             .opcode(&[0x0F, 0x70])
             .prefix(0xF3)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PSHUFD => GenAPI::new()
+        Mnemonic::PSHUFD => GenAPI::new()
             .opcode(&[0x0F, 0x70])
             .prefix(0x66)
             .modrm(true, None, None)
@@ -704,32 +691,32 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
 
-        Ins::PSLLDQ => GenAPI::new()
+        Mnemonic::PSLLDQ => GenAPI::new()
             .opcode(&[0x0F, 0x73])
             .prefix(0x66)
             .modrm(true, Some(7), None)
             .rex(true)
             .imm_atindex(1, 1),
-        Ins::PSRLDQ => GenAPI::new()
+        Mnemonic::PSRLDQ => GenAPI::new()
             .opcode(&[0x0F, 0x73])
             .prefix(0x66)
             .modrm(true, Some(3), None)
             .rex(true)
             .imm_atindex(1, 1),
-        Ins::PUNPCKHQDQ => GenAPI::new()
+        Mnemonic::PUNPCKHQDQ => GenAPI::new()
             .opcode(&[0x0F, 0x6D])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .prefix(0x66)
             .rex(true),
-        Ins::PUNPCKLQDQ => GenAPI::new()
+        Mnemonic::PUNPCKLQDQ => GenAPI::new()
             .opcode(&[0x0F, 0x6C])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .prefix(0x66)
             .rex(true),
         // MMX/SSE2
-        Ins::MOVD | Ins::MOVQ => {
+        Mnemonic::MOVD | Mnemonic::MOVQ => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if ins.which_variant() != IVariant::MMX {
                 api = api.prefix(0x66);
@@ -745,7 +732,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDB => {
+        Mnemonic::PADDB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xFC])
                 .modrm(true, None, None)
@@ -755,7 +742,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDW => {
+        Mnemonic::PADDW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xFD])
                 .modrm(true, None, None)
@@ -765,7 +752,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDD => {
+        Mnemonic::PADDD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xFE])
                 .modrm(true, None, None)
@@ -775,7 +762,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDQ => {
+        Mnemonic::PADDQ => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xD4])
                 .modrm(true, None, None)
@@ -786,7 +773,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PADDUSB => {
+        Mnemonic::PADDUSB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xDC])
                 .modrm(true, None, None)
@@ -796,7 +783,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDUSW => {
+        Mnemonic::PADDUSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xDD])
                 .modrm(true, None, None)
@@ -807,7 +794,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PADDSB => {
+        Mnemonic::PADDSB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xEC])
                 .modrm(true, None, None)
@@ -817,7 +804,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PADDSW => {
+        Mnemonic::PADDSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xED])
                 .modrm(true, None, None)
@@ -827,7 +814,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBUSB => {
+        Mnemonic::PSUBUSB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xD8])
                 .modrm(true, None, None)
@@ -837,7 +824,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBUSW => {
+        Mnemonic::PSUBUSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xD9])
                 .modrm(true, None, None)
@@ -848,7 +835,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PSUBB => {
+        Mnemonic::PSUBB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xF8])
                 .modrm(true, None, None)
@@ -858,7 +845,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBW => {
+        Mnemonic::PSUBW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xF9])
                 .modrm(true, None, None)
@@ -868,7 +855,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBD => {
+        Mnemonic::PSUBD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xFA])
                 .modrm(true, None, None)
@@ -878,7 +865,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBQ => {
+        Mnemonic::PSUBQ => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xFB])
                 .modrm(true, None, None)
@@ -888,13 +875,13 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MASKMOVDQU => GenAPI::new()
+        Mnemonic::MASKMOVDQU => GenAPI::new()
             .opcode(&[0x0F, 0xF7])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::PSUBSB => {
+        Mnemonic::PSUBSB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE8])
                 .modrm(true, None, None)
@@ -904,7 +891,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSUBSW => {
+        Mnemonic::PSUBSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE9])
                 .modrm(true, None, None)
@@ -915,7 +902,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PMULLW => {
+        Mnemonic::PMULLW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xD5])
                 .modrm(true, None, None)
@@ -925,7 +912,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PMULHW => {
+        Mnemonic::PMULHW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE5])
                 .modrm(true, None, None)
@@ -936,7 +923,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PMULUDQ => {
+        Mnemonic::PMULUDQ => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xF4])
                 .modrm(true, None, None)
@@ -947,7 +934,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PMADDWD => {
+        Mnemonic::PMADDWD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xF5])
                 .modrm(true, None, None)
@@ -958,7 +945,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PCMPEQB => {
+        Mnemonic::PCMPEQB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x74])
                 .modrm(true, None, None)
@@ -968,7 +955,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PCMPEQW => {
+        Mnemonic::PCMPEQW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x75])
                 .modrm(true, None, None)
@@ -978,7 +965,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PCMPEQD => {
+        Mnemonic::PCMPEQD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x76])
                 .modrm(true, None, None)
@@ -989,7 +976,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PCMPGTB => {
+        Mnemonic::PCMPGTB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x64])
                 .modrm(true, None, None)
@@ -999,7 +986,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PCMPGTW => {
+        Mnemonic::PCMPGTW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x65])
                 .modrm(true, None, None)
@@ -1009,7 +996,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PCMPGTD => {
+        Mnemonic::PCMPGTD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x66])
                 .modrm(true, None, None)
@@ -1020,7 +1007,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PACKUSWB => {
+        Mnemonic::PACKUSWB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x67])
                 .modrm(true, None, None)
@@ -1030,7 +1017,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PACKSSWB => {
+        Mnemonic::PACKSSWB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x63])
                 .modrm(true, None, None)
@@ -1040,7 +1027,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PACKSSDW => {
+        Mnemonic::PACKSSDW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x6B])
                 .modrm(true, None, None)
@@ -1051,7 +1038,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PUNPCKLBW => {
+        Mnemonic::PUNPCKLBW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x60])
                 .modrm(true, None, None)
@@ -1061,7 +1048,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PUNPCKLWD => {
+        Mnemonic::PUNPCKLWD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x61])
                 .modrm(true, None, None)
@@ -1071,7 +1058,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PUNPCKLDQ => {
+        Mnemonic::PUNPCKLDQ => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x62])
                 .modrm(true, None, None)
@@ -1081,7 +1068,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PUNPCKHBW => {
+        Mnemonic::PUNPCKHBW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x68])
                 .modrm(true, None, None)
@@ -1091,7 +1078,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PUNPCKHWD => {
+        Mnemonic::PUNPCKHWD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x69])
                 .modrm(true, None, None)
@@ -1101,7 +1088,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PUNPCKHDQ => {
+        Mnemonic::PUNPCKHDQ => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x6A])
                 .modrm(true, None, None)
@@ -1112,7 +1099,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PSLLQ => {
+        Mnemonic::PSLLQ => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1130,7 +1117,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSLLD => {
+        Mnemonic::PSLLD => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1148,7 +1135,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSLLW => {
+        Mnemonic::PSLLW => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1166,7 +1153,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSRLW => {
+        Mnemonic::PSRLW => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1184,7 +1171,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSRLD => {
+        Mnemonic::PSRLD => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1202,7 +1189,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSRLQ => {
+        Mnemonic::PSRLQ => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1220,7 +1207,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSRAW => {
+        Mnemonic::PSRAW => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1238,7 +1225,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSRAD => {
+        Mnemonic::PSRAD => {
             let mut api = GenAPI::new();
             if let Some(Operand::Imm(_)) = ins.src() {
                 api = api
@@ -1257,7 +1244,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::POR => {
+        Mnemonic::POR => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xEB])
                 .modrm(true, None, None)
@@ -1267,7 +1254,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PAND => {
+        Mnemonic::PAND => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xDB])
                 .modrm(true, None, None)
@@ -1277,7 +1264,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PANDN => {
+        Mnemonic::PANDN => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xDF])
                 .modrm(true, None, None)
@@ -1287,7 +1274,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PXOR => {
+        Mnemonic::PXOR => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xEF])
                 .modrm(true, None, None)
@@ -1297,77 +1284,77 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::EMMS => GenAPI::new().opcode(&[0x0F, 0x77]),
+        Mnemonic::EMMS => GenAPI::new().opcode(&[0x0F, 0x77]),
 
         // sse3
-        Ins::ADDSUBPD => GenAPI::new()
+        Mnemonic::ADDSUBPD => GenAPI::new()
             .opcode(&[0x0F, 0xD0])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::ADDSUBPS => GenAPI::new()
+        Mnemonic::ADDSUBPS => GenAPI::new()
             .opcode(&[0x0F, 0xD0])
             .prefix(0xF2)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
 
-        Ins::HADDPD => GenAPI::new()
+        Mnemonic::HADDPD => GenAPI::new()
             .opcode(&[0x0F, 0x7C])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::HADDPS => GenAPI::new()
+        Mnemonic::HADDPS => GenAPI::new()
             .opcode(&[0x0F, 0x7C])
             .prefix(0xF2)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::HSUBPD => GenAPI::new()
+        Mnemonic::HSUBPD => GenAPI::new()
             .opcode(&[0x0F, 0x7D])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::HSUBPS => GenAPI::new()
+        Mnemonic::HSUBPS => GenAPI::new()
             .opcode(&[0x0F, 0x7D])
             .prefix(0xF2)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
 
-        Ins::MOVSLDUP => GenAPI::new()
+        Mnemonic::MOVSLDUP => GenAPI::new()
             .opcode(&[0x0F, 0x12])
             .modrm(true, None, None)
             .prefix(0xF3)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MOVSHDUP => GenAPI::new()
+        Mnemonic::MOVSHDUP => GenAPI::new()
             .opcode(&[0x0F, 0x16])
             .modrm(true, None, None)
             .prefix(0xF3)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MOVDDUP => GenAPI::new()
+        Mnemonic::MOVDDUP => GenAPI::new()
             .opcode(&[0x0F, 0x12])
             .modrm(true, None, None)
             .prefix(0xF2)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
 
-        Ins::LDDQU => GenAPI::new()
+        Mnemonic::LDDQU => GenAPI::new()
             .opcode(&[0x0F, 0xF0])
             .modrm(true, None, None)
             .prefix(0xF2)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
 
-        Ins::MONITOR => GenAPI::new().opcode(&[0x0F, 0x01, 0xC8]),
+        Mnemonic::MONITOR => GenAPI::new().opcode(&[0x0F, 0x01, 0xC8]),
 
         // ssse3
-        Ins::PABSB => {
+        Mnemonic::PABSB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x1C])
                 .modrm(true, None, None)
@@ -1377,7 +1364,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PABSW => {
+        Mnemonic::PABSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x1D])
                 .modrm(true, None, None)
@@ -1387,7 +1374,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PABSD => {
+        Mnemonic::PABSD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x1E])
                 .modrm(true, None, None)
@@ -1398,7 +1385,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PSIGNB => {
+        Mnemonic::PSIGNB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x08])
                 .modrm(true, None, None)
@@ -1408,7 +1395,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSIGNW => {
+        Mnemonic::PSIGNW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x09])
                 .modrm(true, None, None)
@@ -1418,7 +1405,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PSIGND => {
+        Mnemonic::PSIGND => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x0A])
                 .modrm(true, None, None)
@@ -1429,7 +1416,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
 
-        Ins::PSHUFB => {
+        Mnemonic::PSHUFB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x00])
                 .modrm(true, None, None)
@@ -1439,7 +1426,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHADDW => {
+        Mnemonic::PHADDW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x01])
                 .modrm(true, None, None)
@@ -1449,7 +1436,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHADDD => {
+        Mnemonic::PHADDD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x02])
                 .modrm(true, None, None)
@@ -1459,7 +1446,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHADDSW => {
+        Mnemonic::PHADDSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x03])
                 .modrm(true, None, None)
@@ -1469,7 +1456,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHSUBW => {
+        Mnemonic::PHSUBW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x05])
                 .modrm(true, None, None)
@@ -1479,7 +1466,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHSUBD => {
+        Mnemonic::PHSUBD => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x06])
                 .modrm(true, None, None)
@@ -1489,7 +1476,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PHSUBSW => {
+        Mnemonic::PHSUBSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x07])
                 .modrm(true, None, None)
@@ -1499,7 +1486,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PALIGNR => {
+        Mnemonic::PALIGNR => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x3A, 0x0F])
                 .modrm(true, None, None)
@@ -1510,7 +1497,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PMULHRSW => {
+        Mnemonic::PMULHRSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x0B])
                 .modrm(true, None, None)
@@ -1520,7 +1507,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PMADDUBSW => {
+        Mnemonic::PMADDUBSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0x38, 0x04])
                 .modrm(true, None, None)
@@ -1531,273 +1518,273 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
         // sse4
-        Ins::DPPS => GenAPI::new()
+        Mnemonic::DPPS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x40])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::DPPD => GenAPI::new()
+        Mnemonic::DPPD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x41])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PTEST => GenAPI::new()
+        Mnemonic::PTEST => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x17])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PEXTRW => GenAPI::new()
+        Mnemonic::PEXTRW => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x15])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1),
-        Ins::PEXTRB => GenAPI::new()
+        Mnemonic::PEXTRB => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x14])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1),
-        Ins::PEXTRD => GenAPI::new()
+        Mnemonic::PEXTRD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x16])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1),
-        Ins::PEXTRQ => GenAPI::new()
+        Mnemonic::PEXTRQ => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x16])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1),
-        Ins::PINSRB => GenAPI::new()
+        Mnemonic::PINSRB => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x20])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PINSRD => GenAPI::new()
+        Mnemonic::PINSRD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x22])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PINSRQ => GenAPI::new()
+        Mnemonic::PINSRQ => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x22])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMAXSB => GenAPI::new()
+        Mnemonic::PMAXSB => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x3C])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMAXSD => GenAPI::new()
+        Mnemonic::PMAXSD => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x3D])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMAXUW => GenAPI::new()
+        Mnemonic::PMAXUW => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x3E])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMINSB => GenAPI::new()
+        Mnemonic::PMINSB => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x38])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMINSD => GenAPI::new()
+        Mnemonic::PMINSD => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x39])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMINUW => GenAPI::new()
+        Mnemonic::PMINUW => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x3A])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMULDQ => GenAPI::new()
+        Mnemonic::PMULDQ => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x28])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PMULLD => GenAPI::new()
+        Mnemonic::PMULLD => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x40])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::BLENDPS => GenAPI::new()
+        Mnemonic::BLENDPS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x0C])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::BLENDPD => GenAPI::new()
+        Mnemonic::BLENDPD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x0D])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PBLENDW => GenAPI::new()
+        Mnemonic::PBLENDW => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x0E])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPEQQ => GenAPI::new()
+        Mnemonic::PCMPEQQ => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x29])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ROUNDPS => GenAPI::new()
+        Mnemonic::ROUNDPS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x08])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ROUNDPD => GenAPI::new()
+        Mnemonic::ROUNDPD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x09])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ROUNDSS => GenAPI::new()
+        Mnemonic::ROUNDSS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x0A])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ROUNDSD => GenAPI::new()
+        Mnemonic::ROUNDSD => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x0B])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MPSADBW => GenAPI::new()
+        Mnemonic::MPSADBW => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x42])
             .prefix(0x66)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPGTQ => GenAPI::new()
+        Mnemonic::PCMPGTQ => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x37])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::BLENDVPS => GenAPI::new()
+        Mnemonic::BLENDVPS => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x14])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::BLENDVPD => GenAPI::new()
+        Mnemonic::BLENDVPD => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x15])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PBLENDVB => GenAPI::new()
+        Mnemonic::PBLENDVB => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x10])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::INSERTPS => GenAPI::new()
+        Mnemonic::INSERTPS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x21])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PACKUSDW => GenAPI::new()
+        Mnemonic::PACKUSDW => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x2B])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::MOVNTDQA => GenAPI::new()
+        Mnemonic::MOVNTDQA => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x2A])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPESTRM => GenAPI::new()
+        Mnemonic::PCMPESTRM => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x60])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPESTRI => GenAPI::new()
+        Mnemonic::PCMPESTRI => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x61])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPISTRM => GenAPI::new()
+        Mnemonic::PCMPISTRM => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x62])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PCMPISTRI => GenAPI::new()
+        Mnemonic::PCMPISTRI => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x63])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::EXTRACTPS => GenAPI::new()
+        Mnemonic::EXTRACTPS => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x17])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::PHMINPOSUW => GenAPI::new()
+        Mnemonic::PHMINPOSUW => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x41])
             .prefix(0x66)
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::CRC32 => GenAPI::new()
+        Mnemonic::CRC32 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xF0])
             .prefix(0xF2)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::POPCNT => GenAPI::new()
+        Mnemonic::POPCNT => GenAPI::new()
             .opcode(&[0x0F, 0xB8])
             .prefix(0xF3)
             .modrm(true, None, None)
@@ -1805,7 +1792,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .ord(&[MODRM_REG, MODRM_RM]),
 
         // AVX
-        Ins::VMOVDQA => {
+        Mnemonic::VMOVDQA => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
@@ -1816,32 +1803,32 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVSLDUP => GenAPI::new()
+        Mnemonic::VMOVSLDUP => GenAPI::new()
             .opcode(&[0x12])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VLDDQU => GenAPI::new()
+        Mnemonic::VLDDQU => GenAPI::new()
             .opcode(&[0xF0])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VMOVDDUP => GenAPI::new()
+        Mnemonic::VMOVDDUP => GenAPI::new()
             .opcode(&[0x12])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VMOVSHDUP => GenAPI::new()
+        Mnemonic::VMOVSHDUP => GenAPI::new()
             .opcode(&[0x16])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VMOVMSKPD => GenAPI::new()
+        Mnemonic::VMOVMSKPD => GenAPI::new()
             .opcode(&[0x50])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VMOVAPS => {
+        Mnemonic::VMOVAPS => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
@@ -1852,7 +1839,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVAPD => {
+        Mnemonic::VMOVAPD => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
@@ -1863,7 +1850,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVUPS => {
+        Mnemonic::VMOVUPS => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
@@ -1874,7 +1861,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVUPD => {
+        Mnemonic::VMOVUPD => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
@@ -1885,499 +1872,499 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VADDPS => GenAPI::new()
+        Mnemonic::VADDPS => GenAPI::new()
             .opcode(&[0x58])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDSUBPS => GenAPI::new()
+        Mnemonic::VADDSUBPS => GenAPI::new()
             .opcode(&[0xD0])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDSUBPD => GenAPI::new()
+        Mnemonic::VADDSUBPD => GenAPI::new()
             .opcode(&[0xD0])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VHADDPS => GenAPI::new()
+        Mnemonic::VHADDPS => GenAPI::new()
             .opcode(&[0x7C])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VHADDPD => GenAPI::new()
+        Mnemonic::VHADDPD => GenAPI::new()
             .opcode(&[0x7C])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VHSUBPS => GenAPI::new()
+        Mnemonic::VHSUBPS => GenAPI::new()
             .opcode(&[0x7D])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VHSUBPD => GenAPI::new()
+        Mnemonic::VHSUBPD => GenAPI::new()
             .opcode(&[0x7D])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDPD => GenAPI::new()
+        Mnemonic::VADDPD => GenAPI::new()
             .opcode(&[0x58])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDSS => GenAPI::new()
+        Mnemonic::VADDSS => GenAPI::new()
             .opcode(&[0x58])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDSD => GenAPI::new()
+        Mnemonic::VADDSD => GenAPI::new()
             .opcode(&[0x58])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VSUBPS => GenAPI::new()
+        Mnemonic::VSUBPS => GenAPI::new()
             .opcode(&[0x5C])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VSUBPD => GenAPI::new()
+        Mnemonic::VSUBPD => GenAPI::new()
             .opcode(&[0x5C])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VSUBSS => GenAPI::new()
+        Mnemonic::VSUBSS => GenAPI::new()
             .opcode(&[0x5C])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VSUBSD => GenAPI::new()
+        Mnemonic::VSUBSD => GenAPI::new()
             .opcode(&[0x5C])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
-        Ins::VMULPS => GenAPI::new()
+        Mnemonic::VMULPS => GenAPI::new()
             .opcode(&[0x59])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMULPD => GenAPI::new()
+        Mnemonic::VMULPD => GenAPI::new()
             .opcode(&[0x59])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMULSS => GenAPI::new()
+        Mnemonic::VMULSS => GenAPI::new()
             .opcode(&[0x59])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMULSD => GenAPI::new()
+        Mnemonic::VMULSD => GenAPI::new()
             .opcode(&[0x59])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VDIVPS => GenAPI::new()
+        Mnemonic::VDIVPS => GenAPI::new()
             .opcode(&[0x5E])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VDIVPD => GenAPI::new()
+        Mnemonic::VDIVPD => GenAPI::new()
             .opcode(&[0x5E])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VDIVSS => GenAPI::new()
+        Mnemonic::VDIVSS => GenAPI::new()
             .opcode(&[0x5E])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VDIVSD => GenAPI::new()
+        Mnemonic::VDIVSD => GenAPI::new()
             .opcode(&[0x5E])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
-        Ins::VRCPPS => GenAPI::new()
+        Mnemonic::VRCPPS => GenAPI::new()
             .opcode(&[0x53])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VRCPSS => GenAPI::new()
+        Mnemonic::VRCPSS => GenAPI::new()
             .opcode(&[0x53])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
 
-        Ins::VSQRTPS => GenAPI::new()
+        Mnemonic::VSQRTPS => GenAPI::new()
             .opcode(&[0x51])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VSQRTPD => GenAPI::new()
+        Mnemonic::VSQRTPD => GenAPI::new()
             .opcode(&[0x51])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VSQRTSS => GenAPI::new()
+        Mnemonic::VSQRTSS => GenAPI::new()
             .opcode(&[0x51])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VSQRTSD => GenAPI::new()
+        Mnemonic::VSQRTSD => GenAPI::new()
             .opcode(&[0x51])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VRSQRTPS => GenAPI::new()
+        Mnemonic::VRSQRTPS => GenAPI::new()
             .opcode(&[0x52])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VRSQRTSS => GenAPI::new()
+        Mnemonic::VRSQRTSS => GenAPI::new()
             .opcode(&[0x52])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VPMULDQ => GenAPI::new()
+        Mnemonic::VPMULDQ => GenAPI::new()
             .opcode(&[0x28])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULLD => GenAPI::new()
+        Mnemonic::VPMULLD => GenAPI::new()
             .opcode(&[0x40])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMINSB => GenAPI::new()
+        Mnemonic::VPMINSB => GenAPI::new()
             .opcode(&[0x38])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMINSD => GenAPI::new()
+        Mnemonic::VPMINSD => GenAPI::new()
             .opcode(&[0x39])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMINUB => GenAPI::new()
+        Mnemonic::VPMINUB => GenAPI::new()
             .opcode(&[0xDA])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMINUW => GenAPI::new()
+        Mnemonic::VPMINUW => GenAPI::new()
             .opcode(&[0x3A])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMAXSB => GenAPI::new()
+        Mnemonic::VPMAXSB => GenAPI::new()
             .opcode(&[0x3C])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMAXSD => GenAPI::new()
+        Mnemonic::VPMAXSD => GenAPI::new()
             .opcode(&[0x3D])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMAXUB => GenAPI::new()
+        Mnemonic::VPMAXUB => GenAPI::new()
             .opcode(&[0xDE])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMAXUW => GenAPI::new()
+        Mnemonic::VPMAXUW => GenAPI::new()
             .opcode(&[0x3E])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
-        Ins::VMINPS => GenAPI::new()
+        Mnemonic::VMINPS => GenAPI::new()
             .opcode(&[0x5D])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMINPD => GenAPI::new()
+        Mnemonic::VMINPD => GenAPI::new()
             .opcode(&[0x5D])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMINSS => GenAPI::new()
+        Mnemonic::VMINSS => GenAPI::new()
             .opcode(&[0x5D])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMINSD => GenAPI::new()
+        Mnemonic::VMINSD => GenAPI::new()
             .opcode(&[0x5D])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMAXPS => GenAPI::new()
+        Mnemonic::VMAXPS => GenAPI::new()
             .opcode(&[0x5F])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMAXPD => GenAPI::new()
+        Mnemonic::VMAXPD => GenAPI::new()
             .opcode(&[0x5F])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMAXSS => GenAPI::new()
+        Mnemonic::VMAXSS => GenAPI::new()
             .opcode(&[0x5F])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMAXSD => GenAPI::new()
+        Mnemonic::VMAXSD => GenAPI::new()
             .opcode(&[0x5F])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
-        Ins::VORPS => GenAPI::new()
+        Mnemonic::VORPS => GenAPI::new()
             .opcode(&[0x56])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VORPD => GenAPI::new()
+        Mnemonic::VORPD => GenAPI::new()
             .opcode(&[0x56])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VANDPS => GenAPI::new()
+        Mnemonic::VANDPS => GenAPI::new()
             .opcode(&[0x54])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VANDPD => GenAPI::new()
+        Mnemonic::VANDPD => GenAPI::new()
             .opcode(&[0x54])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VANDNPD => GenAPI::new()
+        Mnemonic::VANDNPD => GenAPI::new()
             .opcode(&[0x55])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VXORPD => GenAPI::new()
+        Mnemonic::VXORPD => GenAPI::new()
             .opcode(&[0x57])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
-        Ins::VBLENDVPS => GenAPI::new()
+        Mnemonic::VBLENDVPS => GenAPI::new()
             .opcode(&[0x4A])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VPBLENDVB => GenAPI::new()
+        Mnemonic::VPBLENDVB => GenAPI::new()
             .opcode(&[0x4C])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VBLENDVPD => GenAPI::new()
+        Mnemonic::VBLENDVPD => GenAPI::new()
             .opcode(&[0x4B])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
 
-        Ins::VPHMINPOSUW => GenAPI::new()
+        Mnemonic::VPHMINPOSUW => GenAPI::new()
             .opcode(&[0x41])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VEXTRACTPS => GenAPI::new()
+        Mnemonic::VEXTRACTPS => GenAPI::new()
             .opcode(&[0x17])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG])
             .imm_atindex(2, 1),
 
-        Ins::VMOVNTDQA => GenAPI::new()
+        Mnemonic::VMOVNTDQA => GenAPI::new()
             .opcode(&[0x2A])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPACKUSDW => GenAPI::new()
+        Mnemonic::VPACKUSDW => GenAPI::new()
             .opcode(&[0x2B])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPESTRM => GenAPI::new()
+        Mnemonic::VPCMPESTRM => GenAPI::new()
             .opcode(&[0x60])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VPCMPESTRI => GenAPI::new()
+        Mnemonic::VPCMPESTRI => GenAPI::new()
             .opcode(&[0x61])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VPCMPISTRM => GenAPI::new()
+        Mnemonic::VPCMPISTRM => GenAPI::new()
             .opcode(&[0x62])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VPCMPISTRI => GenAPI::new()
+        Mnemonic::VPCMPISTRI => GenAPI::new()
             .opcode(&[0x63])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VINSERTPS => GenAPI::new()
+        Mnemonic::VINSERTPS => GenAPI::new()
             .opcode(&[0x21])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VBLENDPS => GenAPI::new()
+        Mnemonic::VBLENDPS => GenAPI::new()
             .opcode(&[0x0C])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VBLENDPD => GenAPI::new()
+        Mnemonic::VBLENDPD => GenAPI::new()
             .opcode(&[0x0D])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VPCMPGTQ => GenAPI::new()
+        Mnemonic::VPCMPGTQ => GenAPI::new()
             .opcode(&[0x37])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPEQQ => GenAPI::new()
+        Mnemonic::VPCMPEQQ => GenAPI::new()
             .opcode(&[0x29])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMPSADBW => GenAPI::new()
+        Mnemonic::VMPSADBW => GenAPI::new()
             .opcode(&[0x42])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VROUNDSS => GenAPI::new()
+        Mnemonic::VROUNDSS => GenAPI::new()
             .opcode(&[0x0A])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VROUNDSD => GenAPI::new()
+        Mnemonic::VROUNDSD => GenAPI::new()
             .opcode(&[0x0B])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VROUNDPS => GenAPI::new()
+        Mnemonic::VROUNDPS => GenAPI::new()
             .opcode(&[0x08])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VROUNDPD => GenAPI::new()
+        Mnemonic::VROUNDPD => GenAPI::new()
             .opcode(&[0x09])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .imm_atindex(2, 1),
-        Ins::VPBLENDW => GenAPI::new()
+        Mnemonic::VPBLENDW => GenAPI::new()
             .opcode(&[0x0E])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VCMPPD => GenAPI::new()
+        Mnemonic::VCMPPD => GenAPI::new()
             .opcode(&[0xC2])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VANDNPS => GenAPI::new()
+        Mnemonic::VANDNPS => GenAPI::new()
             .opcode(&[0x55])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VXORPS => GenAPI::new()
+        Mnemonic::VXORPS => GenAPI::new()
             .opcode(&[0x57])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPTEST => GenAPI::new()
+        Mnemonic::VPTEST => GenAPI::new()
             .opcode(&[0x17])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VDPPS => GenAPI::new()
+        Mnemonic::VDPPS => GenAPI::new()
             .opcode(&[0x40])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VDPPD => GenAPI::new()
+        Mnemonic::VDPPD => GenAPI::new()
             .opcode(&[0x41])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VCMPPS => GenAPI::new()
+        Mnemonic::VCMPPS => GenAPI::new()
             .opcode(&[0xC2])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VCMPSS => GenAPI::new()
+        Mnemonic::VCMPSS => GenAPI::new()
             .opcode(&[0xC2])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VCMPSD => GenAPI::new()
+        Mnemonic::VCMPSD => GenAPI::new()
             .opcode(&[0xC2])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VUCOMISS => GenAPI::new()
+        Mnemonic::VUCOMISS => GenAPI::new()
             .opcode(&[0x2E])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VUCOMISD => GenAPI::new()
+        Mnemonic::VUCOMISD => GenAPI::new()
             .opcode(&[0x2E])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCOMISS => GenAPI::new()
+        Mnemonic::VCOMISS => GenAPI::new()
             .opcode(&[0x2F])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCOMISD => GenAPI::new()
+        Mnemonic::VCOMISD => GenAPI::new()
             .opcode(&[0x2F])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VUNPCKLPS => GenAPI::new()
+        Mnemonic::VUNPCKLPS => GenAPI::new()
             .opcode(&[0x14])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VUNPCKHPS => GenAPI::new()
+        Mnemonic::VUNPCKHPS => GenAPI::new()
             .opcode(&[0x15])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VSHUFPS => GenAPI::new()
+        Mnemonic::VSHUFPS => GenAPI::new()
             .opcode(&[0xC6])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VMOVSS => {
+        Mnemonic::VMOVSS => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0xF3).map_select(0x0F).vex_we(false));
@@ -2388,7 +2375,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVSD => {
+        Mnemonic::VMOVSD => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0xF2).map_select(0x0F).vex_we(false));
@@ -2399,7 +2386,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVLPS => {
+        Mnemonic::VMOVLPS => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
@@ -2410,7 +2397,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVLPD => {
+        Mnemonic::VMOVLPD => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
@@ -2421,7 +2408,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVHPS => {
+        Mnemonic::VMOVHPS => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
@@ -2432,7 +2419,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVHPD => {
+        Mnemonic::VMOVHPD => {
             let mut api = GenAPI::new()
                 .modrm(true, None, None)
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
@@ -2443,53 +2430,53 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VMOVLHPS => GenAPI::new()
+        Mnemonic::VMOVLHPS => GenAPI::new()
             .opcode(&[0x16])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMOVHLPS => GenAPI::new()
+        Mnemonic::VMOVHLPS => GenAPI::new()
             .opcode(&[0x12])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPEXTRB => GenAPI::new()
+        Mnemonic::VPEXTRB => GenAPI::new()
             .opcode(&[0x14])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG])
             .imm_atindex(2, 1),
-        Ins::VPEXTRW => GenAPI::new()
+        Mnemonic::VPEXTRW => GenAPI::new()
             .opcode(&[0xC5])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG])
             .imm_atindex(2, 1),
-        Ins::VPEXTRD => GenAPI::new()
+        Mnemonic::VPEXTRD => GenAPI::new()
             .opcode(&[0x16])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG])
             .imm_atindex(2, 1),
-        Ins::VPEXTRQ => GenAPI::new()
+        Mnemonic::VPEXTRQ => GenAPI::new()
             .opcode(&[0x16])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(true))
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG])
             .imm_atindex(2, 1),
-        Ins::VPINSRB => GenAPI::new()
+        Mnemonic::VPINSRB => GenAPI::new()
             .opcode(&[0x20])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VPINSRD => GenAPI::new()
+        Mnemonic::VPINSRD => GenAPI::new()
             .opcode(&[0x22])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .imm_atindex(3, 1),
-        Ins::VPINSRQ => GenAPI::new()
+        Mnemonic::VPINSRQ => GenAPI::new()
             .opcode(&[0x22])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(true))
             .modrm(true, None, None)
@@ -2497,17 +2484,17 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .imm_atindex(3, 1),
 
         // MMX derived part 1
-        Ins::VPOR => GenAPI::new()
+        Mnemonic::VPOR => GenAPI::new()
             .opcode(&[0xEB])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMOVD | Ins::VMOVQ => {
+        Mnemonic::VMOVD | Mnemonic::VMOVQ => {
             let mut api = GenAPI::new().modrm(true, None, None).vex(
                 VexDetails::new()
                     .pp(0x66)
                     .map_select(0x0F)
-                    .vex_we(ins.mnem == Ins::VMOVQ),
+                    .vex_we(ins.mnem == Mnemonic::VMOVQ),
             );
             if let Some(Operand::Register(r)) = ins.dst() {
                 if r.size() != Size::Xword {
@@ -2522,62 +2509,62 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPAND => GenAPI::new()
+        Mnemonic::VPAND => GenAPI::new()
             .opcode(&[0xDB])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPXOR => GenAPI::new()
+        Mnemonic::VPXOR => GenAPI::new()
             .opcode(&[0xEF])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDB => GenAPI::new()
+        Mnemonic::VPADDB => GenAPI::new()
             .opcode(&[0xFC])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDW => GenAPI::new()
+        Mnemonic::VPADDW => GenAPI::new()
             .opcode(&[0xFD])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDD => GenAPI::new()
+        Mnemonic::VPADDD => GenAPI::new()
             .opcode(&[0xFE])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDQ => GenAPI::new()
+        Mnemonic::VPADDQ => GenAPI::new()
             .opcode(&[0xD4])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBB => GenAPI::new()
+        Mnemonic::VPSUBB => GenAPI::new()
             .opcode(&[0xF8])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBW => GenAPI::new()
+        Mnemonic::VPSUBW => GenAPI::new()
             .opcode(&[0xF9])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBD => GenAPI::new()
+        Mnemonic::VPSUBD => GenAPI::new()
             .opcode(&[0xFA])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBQ => GenAPI::new()
+        Mnemonic::VPSUBQ => GenAPI::new()
             .opcode(&[0xFB])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPANDN => GenAPI::new()
+        Mnemonic::VPANDN => GenAPI::new()
             .opcode(&[0xDF])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSLLW => {
+        Mnemonic::VPSLLW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2594,7 +2581,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSLLD => {
+        Mnemonic::VPSLLD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2611,7 +2598,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSLLQ => {
+        Mnemonic::VPSLLQ => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2628,7 +2615,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSRLW => {
+        Mnemonic::VPSRLW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2645,7 +2632,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSRLD => {
+        Mnemonic::VPSRLD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2662,7 +2649,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSRLQ => {
+        Mnemonic::VPSRLQ => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2679,7 +2666,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSRAW => {
+        Mnemonic::VPSRAW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2696,7 +2683,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSRAD => {
+        Mnemonic::VPSRAD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
             if let Some(Operand::Imm(_)) = ins.src2() {
@@ -2713,140 +2700,140 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPSUBSB => GenAPI::new()
+        Mnemonic::VPSUBSB => GenAPI::new()
             .opcode(&[0xE8])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBSW => GenAPI::new()
+        Mnemonic::VPSUBSW => GenAPI::new()
             .opcode(&[0xE9])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDSB => GenAPI::new()
+        Mnemonic::VPADDSB => GenAPI::new()
             .opcode(&[0xEC])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDSW => GenAPI::new()
+        Mnemonic::VPADDSW => GenAPI::new()
             .opcode(&[0xED])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULHW => GenAPI::new()
+        Mnemonic::VPMULHW => GenAPI::new()
             .opcode(&[0xE5])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULLW => GenAPI::new()
+        Mnemonic::VPMULLW => GenAPI::new()
             .opcode(&[0xD5])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         // part 2
-        Ins::VPADDUSB => GenAPI::new()
+        Mnemonic::VPADDUSB => GenAPI::new()
             .opcode(&[0xDC])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPADDUSW => GenAPI::new()
+        Mnemonic::VPADDUSW => GenAPI::new()
             .opcode(&[0xDD])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBUSB => GenAPI::new()
+        Mnemonic::VPSUBUSB => GenAPI::new()
             .opcode(&[0xD8])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSUBUSW => GenAPI::new()
+        Mnemonic::VPSUBUSW => GenAPI::new()
             .opcode(&[0xD9])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMADDWD => GenAPI::new()
+        Mnemonic::VPMADDWD => GenAPI::new()
             .opcode(&[0xF5])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPEQB => GenAPI::new()
+        Mnemonic::VPCMPEQB => GenAPI::new()
             .opcode(&[0x74])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPEQW => GenAPI::new()
+        Mnemonic::VPCMPEQW => GenAPI::new()
             .opcode(&[0x75])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPEQD => GenAPI::new()
+        Mnemonic::VPCMPEQD => GenAPI::new()
             .opcode(&[0x76])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPGTB => GenAPI::new()
+        Mnemonic::VPCMPGTB => GenAPI::new()
             .opcode(&[0x64])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPGTW => GenAPI::new()
+        Mnemonic::VPCMPGTW => GenAPI::new()
             .opcode(&[0x65])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPCMPGTD => GenAPI::new()
+        Mnemonic::VPCMPGTD => GenAPI::new()
             .opcode(&[0x66])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPACKUSWB => GenAPI::new()
+        Mnemonic::VPACKUSWB => GenAPI::new()
             .opcode(&[0x67])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPACKSSWB => GenAPI::new()
+        Mnemonic::VPACKSSWB => GenAPI::new()
             .opcode(&[0x63])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPACKSSDW => GenAPI::new()
+        Mnemonic::VPACKSSDW => GenAPI::new()
             .opcode(&[0x6B])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKLBW => GenAPI::new()
+        Mnemonic::VPUNPCKLBW => GenAPI::new()
             .opcode(&[0x60])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKLWD => GenAPI::new()
+        Mnemonic::VPUNPCKLWD => GenAPI::new()
             .opcode(&[0x61])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKLDQ => GenAPI::new()
+        Mnemonic::VPUNPCKLDQ => GenAPI::new()
             .opcode(&[0x62])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKHBW => GenAPI::new()
+        Mnemonic::VPUNPCKHBW => GenAPI::new()
             .opcode(&[0x68])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKHWD => GenAPI::new()
+        Mnemonic::VPUNPCKHWD => GenAPI::new()
             .opcode(&[0x69])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPUNPCKHDQ => GenAPI::new()
+        Mnemonic::VPUNPCKHDQ => GenAPI::new()
             .opcode(&[0x6A])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
 
         // part2a
-        Ins::PAVGB => {
+        Mnemonic::PAVGB => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE0])
                 .modrm(true, None, None)
@@ -2856,7 +2843,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PAVGW => {
+        Mnemonic::PAVGW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE3])
                 .modrm(true, None, None)
@@ -2866,51 +2853,51 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::VPAVGB => GenAPI::new()
+        Mnemonic::VPAVGB => GenAPI::new()
             .opcode(&[0xE0])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPAVGW => GenAPI::new()
+        Mnemonic::VPAVGW => GenAPI::new()
             .opcode(&[0xE3])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPHADDW => GenAPI::new()
+        Mnemonic::VPHADDW => GenAPI::new()
             .opcode(&[0x01])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPHADDD => GenAPI::new()
+        Mnemonic::VPHADDD => GenAPI::new()
             .opcode(&[0x02])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPHSUBW => GenAPI::new()
+        Mnemonic::VPHSUBW => GenAPI::new()
             .opcode(&[0x05])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPHSUBD => GenAPI::new()
+        Mnemonic::VPHSUBD => GenAPI::new()
             .opcode(&[0x06])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VZEROUPPER => GenAPI::new().opcode(&[0xC5, 0xF8, 0x77]),
-        Ins::VZEROALL => GenAPI::new().opcode(&[0xC5, 0xFC, 0x77]),
-        Ins::VPALIGNR => GenAPI::new()
+        Mnemonic::VZEROUPPER => GenAPI::new().opcode(&[0xC5, 0xF8, 0x77]),
+        Mnemonic::VZEROALL => GenAPI::new().opcode(&[0xC5, 0xFC, 0x77]),
+        Mnemonic::VPALIGNR => GenAPI::new()
             .opcode(&[0x0F])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .imm_atindex(3, 1)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VINSERTF128 => GenAPI::new()
+        Mnemonic::VINSERTF128 => GenAPI::new()
             .opcode(&[0x18])
             .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
             .modrm(true, None, None)
             .imm_atindex(3, 1)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VEXTRACTF128 => GenAPI::new()
+        Mnemonic::VEXTRACTF128 => GenAPI::new()
             .opcode(&[0x19])
             .vex(
                 VexDetails::new()
@@ -2922,12 +2909,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .ord(&[MODRM_RM, MODRM_REG]),
-        Ins::VBROADCASTSS => GenAPI::new()
+        Mnemonic::VBROADCASTSS => GenAPI::new()
             .opcode(&[0x18])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VBROADCASTSD => GenAPI::new()
+        Mnemonic::VBROADCASTSD => GenAPI::new()
             .opcode(&[0x19])
             .vex(
                 VexDetails::new()
@@ -2937,34 +2924,34 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VBROADCASTF128 => GenAPI::new()
+        Mnemonic::VBROADCASTF128 => GenAPI::new()
             .opcode(&[0x1A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None),
-        Ins::STMXCSR => GenAPI::new()
+        Mnemonic::STMXCSR => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(3), None)
             .rex(true),
-        Ins::LDMXCSR => GenAPI::new()
+        Mnemonic::LDMXCSR => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(2), None)
             .rex(true),
-        Ins::VSTMXCSR => GenAPI::new()
+        Mnemonic::VSTMXCSR => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
             .modrm(true, Some(3), None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VLDMXCSR => GenAPI::new()
+        Mnemonic::VLDMXCSR => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
             .modrm(true, Some(2), None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VMOVMSKPS => GenAPI::new()
+        Mnemonic::VMOVMSKPS => GenAPI::new()
             .opcode(&[0x50])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPERMILPS => {
+        Mnemonic::VPERMILPS => {
             if let Some(Operand::Imm(_)) = ins.src2() {
                 GenAPI::new()
                     .modrm(true, None, None)
@@ -2980,7 +2967,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             }
         }
-        Ins::VPERMILPD => {
+        Mnemonic::VPERMILPD => {
             if let Some(Operand::Imm(_)) = ins.src2() {
                 GenAPI::new()
                     .modrm(true, None, None)
@@ -2996,86 +2983,86 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             }
         }
-        Ins::PCLMULQDQ => GenAPI::new()
+        Mnemonic::PCLMULQDQ => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0x44])
             .prefix(0x66)
             .rex(true)
             .modrm(true, None, None)
             .imm_atindex(2, 1)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VPCLMULQDQ => GenAPI::new()
+        Mnemonic::VPCLMULQDQ => GenAPI::new()
             .opcode(&[0x44])
             .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
             .imm_atindex(3, 1)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPERM2F128 => GenAPI::new()
+        Mnemonic::VPERM2F128 => GenAPI::new()
             .opcode(&[0x06])
             .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
             .imm_atindex(3, 1)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPERM2I128 => GenAPI::new()
+        Mnemonic::VPERM2I128 => GenAPI::new()
             .opcode(&[0x46])
             .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
             .imm_atindex(3, 1)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         // part2c
-        Ins::VPINSRW => GenAPI::new()
+        Mnemonic::VPINSRW => GenAPI::new()
             .opcode(&[0xC4])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .imm_atindex(3, 1)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMAXSW => GenAPI::new()
+        Mnemonic::VPMAXSW => GenAPI::new()
             .opcode(&[0xEE])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMINSW => GenAPI::new()
+        Mnemonic::VPMINSW => GenAPI::new()
             .opcode(&[0xEA])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSRLDQ => GenAPI::new()
+        Mnemonic::VPSRLDQ => GenAPI::new()
             .opcode(&[0x73])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .imm_atindex(2, 1)
             .modrm(true, Some(3), None)
             .ord(&[VEX_VVVV, MODRM_RM]),
-        Ins::VPSIGNB => GenAPI::new()
+        Mnemonic::VPSIGNB => GenAPI::new()
             .opcode(&[0x08])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSIGNW => GenAPI::new()
+        Mnemonic::VPSIGNW => GenAPI::new()
             .opcode(&[0x09])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPSIGND => GenAPI::new()
+        Mnemonic::VPSIGND => GenAPI::new()
             .opcode(&[0x0A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULUDQ => GenAPI::new()
+        Mnemonic::VPMULUDQ => GenAPI::new()
             .opcode(&[0xF4])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULHUW => GenAPI::new()
+        Mnemonic::VPMULHUW => GenAPI::new()
             .opcode(&[0xE4])
             .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VPMULHRSW => GenAPI::new()
+        Mnemonic::VPMULHRSW => GenAPI::new()
             .opcode(&[0x0B])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         // part2c-ext
-        Ins::PMAXSW => {
+        Mnemonic::PMAXSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xEE])
                 .modrm(true, None, None)
@@ -3085,7 +3072,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PINSRW => {
+        Mnemonic::PINSRW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xC4])
                 .modrm(true, None, None)
@@ -3096,7 +3083,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PMINSW => {
+        Mnemonic::PMINSW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xEA])
                 .modrm(true, None, None)
@@ -3106,18 +3093,18 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::PMAXUD => GenAPI::new()
+        Mnemonic::PMAXUD => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x3F])
             .prefix(0x66)
             .rex(true)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VPMAXUD => GenAPI::new()
+        Mnemonic::VPMAXUD => GenAPI::new()
             .opcode(&[0x3F])
             .modrm(true, None, None)
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::PMULHUW => {
+        Mnemonic::PMULHUW => {
             let mut api = GenAPI::new()
                 .opcode(&[0x0F, 0xE4])
                 .modrm(true, None, None)
@@ -3128,383 +3115,383 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             api
         }
         // fma-part1
-        Ins::VFMADD132PS => GenAPI::new()
+        Mnemonic::VFMADD132PS => GenAPI::new()
             .opcode(&[0x98])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD213PS => GenAPI::new()
+        Mnemonic::VFMADD213PS => GenAPI::new()
             .opcode(&[0xA8])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD231PS => GenAPI::new()
+        Mnemonic::VFMADD231PS => GenAPI::new()
             .opcode(&[0xB8])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD132PD => GenAPI::new()
+        Mnemonic::VFMADD132PD => GenAPI::new()
             .opcode(&[0x98])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD213PD => GenAPI::new()
+        Mnemonic::VFMADD213PD => GenAPI::new()
             .opcode(&[0xA8])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD231PD => GenAPI::new()
+        Mnemonic::VFMADD231PD => GenAPI::new()
             .opcode(&[0xB8])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD132SD => GenAPI::new()
+        Mnemonic::VFMADD132SD => GenAPI::new()
             .opcode(&[0x99])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD213SD => GenAPI::new()
+        Mnemonic::VFMADD213SD => GenAPI::new()
             .opcode(&[0xA9])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD231SD => GenAPI::new()
+        Mnemonic::VFMADD231SD => GenAPI::new()
             .opcode(&[0xB9])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD132SS => GenAPI::new()
+        Mnemonic::VFMADD132SS => GenAPI::new()
             .opcode(&[0x99])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD213SS => GenAPI::new()
+        Mnemonic::VFMADD213SS => GenAPI::new()
             .opcode(&[0xA9])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADD231SS => GenAPI::new()
+        Mnemonic::VFMADD231SS => GenAPI::new()
             .opcode(&[0xB9])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFMSUB132PS => GenAPI::new()
+        Mnemonic::VFMSUB132PS => GenAPI::new()
             .opcode(&[0x9A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB213PS => GenAPI::new()
+        Mnemonic::VFMSUB213PS => GenAPI::new()
             .opcode(&[0xAA])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB231PS => GenAPI::new()
+        Mnemonic::VFMSUB231PS => GenAPI::new()
             .opcode(&[0xBA])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFMSUB132PD => GenAPI::new()
+        Mnemonic::VFMSUB132PD => GenAPI::new()
             .opcode(&[0x9A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB213PD => GenAPI::new()
+        Mnemonic::VFMSUB213PD => GenAPI::new()
             .opcode(&[0xAA])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB231PD => GenAPI::new()
+        Mnemonic::VFMSUB231PD => GenAPI::new()
             .opcode(&[0xBA])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB132SD => GenAPI::new()
+        Mnemonic::VFMSUB132SD => GenAPI::new()
             .opcode(&[0x9B])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB213SD => GenAPI::new()
+        Mnemonic::VFMSUB213SD => GenAPI::new()
             .opcode(&[0xAB])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB231SD => GenAPI::new()
+        Mnemonic::VFMSUB231SD => GenAPI::new()
             .opcode(&[0xBB])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB132SS => GenAPI::new()
+        Mnemonic::VFMSUB132SS => GenAPI::new()
             .opcode(&[0x9B])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB213SS => GenAPI::new()
+        Mnemonic::VFMSUB213SS => GenAPI::new()
             .opcode(&[0xAB])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUB231SS => GenAPI::new()
+        Mnemonic::VFMSUB231SS => GenAPI::new()
             .opcode(&[0xBB])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
         // fma-part2
-        Ins::VFNMADD132PS => GenAPI::new()
+        Mnemonic::VFNMADD132PS => GenAPI::new()
             .opcode(&[0x9C])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD213PS => GenAPI::new()
+        Mnemonic::VFNMADD213PS => GenAPI::new()
             .opcode(&[0xAC])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD231PS => GenAPI::new()
+        Mnemonic::VFNMADD231PS => GenAPI::new()
             .opcode(&[0xBC])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMADD132PD => GenAPI::new()
+        Mnemonic::VFNMADD132PD => GenAPI::new()
             .opcode(&[0x9C])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD213PD => GenAPI::new()
+        Mnemonic::VFNMADD213PD => GenAPI::new()
             .opcode(&[0xAC])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD231PD => GenAPI::new()
+        Mnemonic::VFNMADD231PD => GenAPI::new()
             .opcode(&[0xBC])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMADD132SS => GenAPI::new()
+        Mnemonic::VFNMADD132SS => GenAPI::new()
             .opcode(&[0x9D])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD213SS => GenAPI::new()
+        Mnemonic::VFNMADD213SS => GenAPI::new()
             .opcode(&[0xAD])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD231SS => GenAPI::new()
+        Mnemonic::VFNMADD231SS => GenAPI::new()
             .opcode(&[0xBD])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMADD132SD => GenAPI::new()
+        Mnemonic::VFNMADD132SD => GenAPI::new()
             .opcode(&[0x9D])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD213SD => GenAPI::new()
+        Mnemonic::VFNMADD213SD => GenAPI::new()
             .opcode(&[0xAD])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMADD231SD => GenAPI::new()
+        Mnemonic::VFNMADD231SD => GenAPI::new()
             .opcode(&[0xBD])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMSUB132PS => GenAPI::new()
+        Mnemonic::VFNMSUB132PS => GenAPI::new()
             .opcode(&[0x9E])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB213PS => GenAPI::new()
+        Mnemonic::VFNMSUB213PS => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB231PS => GenAPI::new()
+        Mnemonic::VFNMSUB231PS => GenAPI::new()
             .opcode(&[0xBE])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMSUB132PD => GenAPI::new()
+        Mnemonic::VFNMSUB132PD => GenAPI::new()
             .opcode(&[0x9E])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB213PD => GenAPI::new()
+        Mnemonic::VFNMSUB213PD => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB231PD => GenAPI::new()
+        Mnemonic::VFNMSUB231PD => GenAPI::new()
             .opcode(&[0xBE])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMSUB132SS => GenAPI::new()
+        Mnemonic::VFNMSUB132SS => GenAPI::new()
             .opcode(&[0x9F])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB213SS => GenAPI::new()
+        Mnemonic::VFNMSUB213SS => GenAPI::new()
             .opcode(&[0xAF])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB231SS => GenAPI::new()
+        Mnemonic::VFNMSUB231SS => GenAPI::new()
             .opcode(&[0xBF])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFNMSUB132SD => GenAPI::new()
+        Mnemonic::VFNMSUB132SD => GenAPI::new()
             .opcode(&[0x9F])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB213SD => GenAPI::new()
+        Mnemonic::VFNMSUB213SD => GenAPI::new()
             .opcode(&[0xAF])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFNMSUB231SD => GenAPI::new()
+        Mnemonic::VFNMSUB231SD => GenAPI::new()
             .opcode(&[0xBF])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
         // fma-part3
-        Ins::VFMADDSUB132PS => GenAPI::new()
+        Mnemonic::VFMADDSUB132PS => GenAPI::new()
             .opcode(&[0x96])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADDSUB213PS => GenAPI::new()
+        Mnemonic::VFMADDSUB213PS => GenAPI::new()
             .opcode(&[0xA6])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADDSUB231PS => GenAPI::new()
+        Mnemonic::VFMADDSUB231PS => GenAPI::new()
             .opcode(&[0xB6])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADDSUB132PD => GenAPI::new()
+        Mnemonic::VFMADDSUB132PD => GenAPI::new()
             .opcode(&[0x96])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADDSUB213PD => GenAPI::new()
+        Mnemonic::VFMADDSUB213PD => GenAPI::new()
             .opcode(&[0xA6])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMADDSUB231PD => GenAPI::new()
+        Mnemonic::VFMADDSUB231PD => GenAPI::new()
             .opcode(&[0xB6])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
 
-        Ins::VFMSUBADD132PS => GenAPI::new()
+        Mnemonic::VFMSUBADD132PS => GenAPI::new()
             .opcode(&[0x97])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUBADD213PS => GenAPI::new()
+        Mnemonic::VFMSUBADD213PS => GenAPI::new()
             .opcode(&[0xA7])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUBADD231PS => GenAPI::new()
+        Mnemonic::VFMSUBADD231PS => GenAPI::new()
             .opcode(&[0xB7])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUBADD132PD => GenAPI::new()
+        Mnemonic::VFMSUBADD132PD => GenAPI::new()
             .opcode(&[0x97])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUBADD213PD => GenAPI::new()
+        Mnemonic::VFMSUBADD213PD => GenAPI::new()
             .opcode(&[0xA7])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VFMSUBADD231PD => GenAPI::new()
+        Mnemonic::VFMSUBADD231PD => GenAPI::new()
             .opcode(&[0xB7])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
         // aes
-        Ins::AESDEC => GenAPI::new()
+        Mnemonic::AESDEC => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x38, 0xDE])
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::AESENC => GenAPI::new()
+        Mnemonic::AESENC => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x38, 0xDC])
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::AESIMC => GenAPI::new()
+        Mnemonic::AESIMC => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x38, 0xDB])
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::AESDECLAST => GenAPI::new()
+        Mnemonic::AESDECLAST => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x38, 0xDF])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::AESENCLAST => GenAPI::new()
+        Mnemonic::AESENCLAST => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x38, 0xDD])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
 
-        Ins::VAESDEC => GenAPI::new()
+        Mnemonic::VAESDEC => GenAPI::new()
             .opcode(&[0xDE])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VAESENC => GenAPI::new()
+        Mnemonic::VAESENC => GenAPI::new()
             .opcode(&[0xDC])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VAESIMC => GenAPI::new()
+        Mnemonic::VAESIMC => GenAPI::new()
             .opcode(&[0xDB])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM]),
-        Ins::VAESENCLAST => GenAPI::new()
+        Mnemonic::VAESENCLAST => GenAPI::new()
             .opcode(&[0xDD])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VAESDECLAST => GenAPI::new()
+        Mnemonic::VAESDECLAST => GenAPI::new()
             .opcode(&[0xDF])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::VEX_VVVV, OpOrd::MODRM_RM]),
-        Ins::VAESKEYGENASSIST => GenAPI::new()
+        Mnemonic::VAESKEYGENASSIST => GenAPI::new()
             .opcode(&[0xDF])
             .imm_atindex(2, 1)
             .vex(VexDetails::new().pp(0x66).map_select(0x3A).vex_we(false))
             .modrm(true, None, None)
             .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM]),
-        Ins::AESKEYGENASSIST => GenAPI::new()
+        Mnemonic::AESKEYGENASSIST => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0xDF])
             .modrm(true, None, None)
             .imm_atindex(2, 1)
@@ -3512,156 +3499,156 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
         // cvt-part1
-        Ins::CVTPD2PI => GenAPI::new()
+        Mnemonic::CVTPD2PI => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x2D])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTSS2SD => GenAPI::new()
+        Mnemonic::CVTSS2SD => GenAPI::new()
             .prefix(0xF3)
             .opcode(&[0x0F, 0x5A])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPD2PS => GenAPI::new()
+        Mnemonic::CVTPD2PS => GenAPI::new()
             .prefix(0x66)
             .opcode(&[0x0F, 0x5A])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPS2PD => GenAPI::new()
+        Mnemonic::CVTPS2PD => GenAPI::new()
             .opcode(&[0x0F, 0x5A])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPI2PD => GenAPI::new()
+        Mnemonic::CVTPI2PD => GenAPI::new()
             .opcode(&[0x0F, 0x2A])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPD2DQ => GenAPI::new()
+        Mnemonic::CVTPD2DQ => GenAPI::new()
             .opcode(&[0x0F, 0xE6])
             .prefix(0xF2)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTSD2SS => GenAPI::new()
+        Mnemonic::CVTSD2SS => GenAPI::new()
             .opcode(&[0x0F, 0x5A])
             .prefix(0xF2)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPS2DQ => GenAPI::new()
+        Mnemonic::CVTPS2DQ => GenAPI::new()
             .opcode(&[0x0F, 0x5B])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTDQ2PS => GenAPI::new()
+        Mnemonic::CVTDQ2PS => GenAPI::new()
             .opcode(&[0x0F, 0x5B])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTDQ2PD => GenAPI::new()
+        Mnemonic::CVTDQ2PD => GenAPI::new()
             .opcode(&[0x0F, 0xE6])
             .modrm(true, None, None)
             .prefix(0xF3)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTSD2SI => GenAPI::new()
+        Mnemonic::CVTSD2SI => GenAPI::new()
             .opcode(&[0x0F, 0x2D])
             .modrm(true, None, None)
             .prefix(0xF2)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTSI2SD => GenAPI::new()
+        Mnemonic::CVTSI2SD => GenAPI::new()
             .opcode(&[0x0F, 0x2A])
             .modrm(true, None, None)
             .prefix(0xF2)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
 
-        Ins::CVTTPS2DQ => GenAPI::new()
+        Mnemonic::CVTTPS2DQ => GenAPI::new()
             .opcode(&[0x0F, 0x5B])
             .prefix(0xF3)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTTSD2SI => GenAPI::new()
+        Mnemonic::CVTTSD2SI => GenAPI::new()
             .opcode(&[0x0F, 0x2C])
             .modrm(true, None, None)
             .prefix(0x66)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTTPD2PI => GenAPI::new()
+        Mnemonic::CVTTPD2PI => GenAPI::new()
             .opcode(&[0x0F, 0x2C])
             .modrm(true, None, None)
             .prefix(0x66)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTSI2SS => GenAPI::new()
+        Mnemonic::CVTSI2SS => GenAPI::new()
             .opcode(&[0x0F, 0x2A])
             .prefix(0xF3)
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::CVTPS2PI => GenAPI::new()
+        Mnemonic::CVTPS2PI => GenAPI::new()
             .opcode(&[0x0F, 0x2D])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTTPS2PI => GenAPI::new()
+        Mnemonic::CVTTPS2PI => GenAPI::new()
             .opcode(&[0x0F, 0x2C])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTPI2PS => GenAPI::new()
+        Mnemonic::CVTPI2PS => GenAPI::new()
             .opcode(&[0x0F, 0x2A])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTTPD2DQ => GenAPI::new()
+        Mnemonic::CVTTPD2DQ => GenAPI::new()
             .opcode(&[0x0F, 0xE6])
             .modrm(true, None, None)
             .prefix(0x66)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::CVTTSS2SI => GenAPI::new()
+        Mnemonic::CVTTSS2SI => GenAPI::new()
             .opcode(&[0x0F, 0x2C])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .prefix(0xF3)
             .rex(true),
-        Ins::CVTSS2SI => GenAPI::new()
+        Mnemonic::CVTSS2SI => GenAPI::new()
             .opcode(&[0x0F, 0x2D])
             .prefix(0xF3)
             .rex(true)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
         // cvt-part2
-        Ins::VCVTPD2DQ => GenAPI::new()
+        Mnemonic::VCVTPD2DQ => GenAPI::new()
             .opcode(&[0xE6])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTPD2PS => GenAPI::new()
+        Mnemonic::VCVTPD2PS => GenAPI::new()
             .opcode(&[0x5A])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTPS2DQ => GenAPI::new()
+        Mnemonic::VCVTPS2DQ => GenAPI::new()
             .opcode(&[0x5B])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTPS2PD => GenAPI::new()
+        Mnemonic::VCVTPS2PD => GenAPI::new()
             .opcode(&[0x5A])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTSD2SI => GenAPI::new()
+        Mnemonic::VCVTSD2SI => GenAPI::new()
             .opcode(&[0x2D])
             .vex(
                 VexDetails::new()
@@ -3671,12 +3658,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTSD2SS => GenAPI::new()
+        Mnemonic::VCVTSD2SS => GenAPI::new()
             .opcode(&[0x5A])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF2).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VCVTSI2SD => GenAPI::new()
+        Mnemonic::VCVTSI2SD => GenAPI::new()
             .opcode(&[0x2A])
             .vex(
                 VexDetails::new()
@@ -3686,7 +3673,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VCVTSI2SS => GenAPI::new()
+        Mnemonic::VCVTSI2SS => GenAPI::new()
             .opcode(&[0x2A])
             .vex(
                 VexDetails::new()
@@ -3696,12 +3683,12 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VCVTSS2SD => GenAPI::new()
+        Mnemonic::VCVTSS2SD => GenAPI::new()
             .opcode(&[0x5A])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VCVTSS2SI => GenAPI::new()
+        Mnemonic::VCVTSS2SI => GenAPI::new()
             .opcode(&[0x2D])
             .vex(
                 VexDetails::new()
@@ -3711,27 +3698,27 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VCVTDQ2PD => GenAPI::new()
+        Mnemonic::VCVTDQ2PD => GenAPI::new()
             .opcode(&[0xE6])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTDQ2PS => GenAPI::new()
+        Mnemonic::VCVTDQ2PS => GenAPI::new()
             .opcode(&[0x5B])
             .vex(VexDetails::new().map_select(0x0F).pp(0).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTTPD2DQ => GenAPI::new()
+        Mnemonic::VCVTTPD2DQ => GenAPI::new()
             .opcode(&[0xE6])
             .vex(VexDetails::new().map_select(0x0F).pp(0x66).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTTPS2DQ => GenAPI::new()
+        Mnemonic::VCVTTPS2DQ => GenAPI::new()
             .opcode(&[0x5B])
             .vex(VexDetails::new().map_select(0x0F).pp(0xF3).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTTSD2SI => GenAPI::new()
+        Mnemonic::VCVTTSD2SI => GenAPI::new()
             .opcode(&[0x2C])
             .vex(
                 VexDetails::new()
@@ -3741,7 +3728,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::VCVTTSS2SI => GenAPI::new()
+        Mnemonic::VCVTTSS2SI => GenAPI::new()
             .opcode(&[0x2C])
             .vex(
                 VexDetails::new()
@@ -3752,23 +3739,23 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM]),
         // norm-part1a
-        Ins::BT => ins_bt(ins, &[0x0F, 0xA3], &[0x0F, 0xBA], bits, 4),
-        Ins::BTS => ins_bt(ins, &[0x0F, 0xAB], &[0x0F, 0xBA], bits, 5),
-        Ins::BTC => ins_bt(ins, &[0x0F, 0xBB], &[0x0F, 0xBA], bits, 7),
-        Ins::BTR => ins_bt(ins, &[0x0F, 0xB3], &[0x0F, 0xBA], bits, 6),
-        Ins::CLC => GenAPI::new().opcode(&[0xF8]),
-        Ins::CMC => GenAPI::new().opcode(&[0xF5]),
-        Ins::CWD => GenAPI::new().opcode(&[0x99]).fixed_size(Size::Word),
-        Ins::CDQ => GenAPI::new().opcode(&[0x99]).fixed_size(Size::Dword),
-        Ins::CQO => GenAPI::new().opcode(&[0x48, 0x99]),
-        Ins::DAA => GenAPI::new().opcode(&[0x27]),
-        Ins::DAS => GenAPI::new().opcode(&[0x2F]),
-        Ins::CLD => GenAPI::new().opcode(&[0xFC]),
-        Ins::CBW => GenAPI::new().opcode(&[0x98]).fixed_size(Size::Word),
-        Ins::CLI => GenAPI::new().opcode(&[0xFA]),
-        Ins::AAA => GenAPI::new().opcode(&[0x37]),
-        Ins::AAS => GenAPI::new().opcode(&[0x3F]),
-        Ins::AAD => GenAPI::new().opcode(&[
+        Mnemonic::BT => ins_bt(ins, &[0x0F, 0xA3], &[0x0F, 0xBA], bits, 4),
+        Mnemonic::BTS => ins_bt(ins, &[0x0F, 0xAB], &[0x0F, 0xBA], bits, 5),
+        Mnemonic::BTC => ins_bt(ins, &[0x0F, 0xBB], &[0x0F, 0xBA], bits, 7),
+        Mnemonic::BTR => ins_bt(ins, &[0x0F, 0xB3], &[0x0F, 0xBA], bits, 6),
+        Mnemonic::CLC => GenAPI::new().opcode(&[0xF8]),
+        Mnemonic::CMC => GenAPI::new().opcode(&[0xF5]),
+        Mnemonic::CWD => GenAPI::new().opcode(&[0x99]).fixed_size(Size::Word),
+        Mnemonic::CDQ => GenAPI::new().opcode(&[0x99]).fixed_size(Size::Dword),
+        Mnemonic::CQO => GenAPI::new().opcode(&[0x48, 0x99]),
+        Mnemonic::DAA => GenAPI::new().opcode(&[0x27]),
+        Mnemonic::DAS => GenAPI::new().opcode(&[0x2F]),
+        Mnemonic::CLD => GenAPI::new().opcode(&[0xFC]),
+        Mnemonic::CBW => GenAPI::new().opcode(&[0x98]).fixed_size(Size::Word),
+        Mnemonic::CLI => GenAPI::new().opcode(&[0xFA]),
+        Mnemonic::AAA => GenAPI::new().opcode(&[0x37]),
+        Mnemonic::AAS => GenAPI::new().opcode(&[0x3F]),
+        Mnemonic::AAD => GenAPI::new().opcode(&[
             0xD5,
             if let Some(Operand::Imm(n)) = ins.dst() {
                 n.split_into_bytes()[0]
@@ -3776,7 +3763,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 0x0A
             },
         ]),
-        Ins::AAM => GenAPI::new().opcode(&[
+        Mnemonic::AAM => GenAPI::new().opcode(&[
             0xD4,
             if let Some(Operand::Imm(n)) = ins.dst() {
                 n.split_into_bytes()[0]
@@ -3784,36 +3771,36 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 0x0A
             },
         ]),
-        Ins::ADC => add_like_ins(
+        Mnemonic::ADC => add_like_ins(
             ins,
             &[0x14, 0x15, 0x80, 0x81, 0x83, 0x10, 0x11, 0x12, 0x13],
             2,
             bits,
         ),
-        Ins::BSF => GenAPI::new()
+        Mnemonic::BSF => GenAPI::new()
             .opcode(&[0x0F, 0xBC])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::BSR => GenAPI::new()
+        Mnemonic::BSR => GenAPI::new()
             .opcode(&[0x0F, 0xBD])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
         // part b
-        Ins::ADCX => GenAPI::new()
+        Mnemonic::ADCX => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xF6])
             .modrm(true, None, None)
             .prefix(0x66)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM]),
-        Ins::ADOX => GenAPI::new()
+        Mnemonic::ADOX => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xF6])
             .modrm(true, None, None)
             .prefix(0xF3)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::ANDN => GenAPI::new()
+        Mnemonic::ANDN => GenAPI::new()
             .opcode(&[0xF2])
             .modrm(true, None, None)
             .vex(
@@ -3823,18 +3810,20 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::CWDE => GenAPI::new().opcode(&[0x98]).fixed_size(Size::Dword),
-        Ins::CDQE => GenAPI::new().opcode(&[0x48, 0x98]),
-        Ins::CLAC => GenAPI::new().opcode(&[0x0F, 0x01, 0xCA]),
-        Ins::CLTS => GenAPI::new().opcode(&[0x0F, 0x06]),
-        Ins::CLUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEE]),
-        Ins::CLWB => GenAPI::new()
-            .opcode(&[0x0F, 0xAE])
-            .prefix(0x66)
-            .modrm(true, Some(6), None),
-        Ins::ARPL => GenAPI::new().opcode(&[0x63]).modrm(true, None, None),
+        Mnemonic::CWDE => GenAPI::new().opcode(&[0x98]).fixed_size(Size::Dword),
+        Mnemonic::CDQE => GenAPI::new().opcode(&[0x48, 0x98]),
+        Mnemonic::CLAC => GenAPI::new().opcode(&[0x0F, 0x01, 0xCA]),
+        Mnemonic::CLTS => GenAPI::new().opcode(&[0x0F, 0x06]),
+        Mnemonic::CLUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEE]),
+        Mnemonic::CLWB => {
+            GenAPI::new()
+                .opcode(&[0x0F, 0xAE])
+                .prefix(0x66)
+                .modrm(true, Some(6), None)
+        }
+        Mnemonic::ARPL => GenAPI::new().opcode(&[0x63]).modrm(true, None, None),
 
-        Ins::BLSR => GenAPI::new()
+        Mnemonic::BLSR => GenAPI::new()
             .opcode(&[0xF3])
             .modrm(true, Some(1), None)
             .vex(
@@ -3843,7 +3832,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[VEX_VVVV, MODRM_RM]),
-        Ins::BLSI => GenAPI::new()
+        Mnemonic::BLSI => GenAPI::new()
             .opcode(&[0xF3])
             .modrm(true, Some(3), None)
             .vex(
@@ -3852,7 +3841,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[VEX_VVVV, MODRM_RM]),
-        Ins::BZHI => GenAPI::new()
+        Mnemonic::BZHI => GenAPI::new()
             .opcode(&[0xF5])
             .modrm(true, None, None)
             .vex(
@@ -3861,7 +3850,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::BEXTR => GenAPI::new()
+        Mnemonic::BEXTR => GenAPI::new()
             .opcode(&[0xF7])
             .vex(
                 VexDetails::new()
@@ -3870,7 +3859,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::BLSMSK => GenAPI::new()
+        Mnemonic::BLSMSK => GenAPI::new()
             .opcode(&[0xF3])
             .modrm(true, Some(2), None)
             .vex(
@@ -3879,39 +3868,39 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[VEX_VVVV, MODRM_RM]),
-        Ins::BSWAP => GenAPI::new()
+        Mnemonic::BSWAP => GenAPI::new()
             .opcode(&[0x0F, 0xC8 + ins.reg_byte(0).unwrap_or(0)])
             .modrm(false, None, None)
             .rex(true),
         // part c
-        Ins::CMPSTRB => GenAPI::new().opcode(&[0xA6]).fixed_size(Size::Byte),
-        Ins::CMPSTRW => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Word),
-        Ins::CMPSTRD => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Dword),
-        Ins::CMPSTRQ => GenAPI::new().opcode(&[0x48, 0xA7]).fixed_size(Size::Qword),
-        Ins::ENDBR64 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFA]),
-        Ins::ENDBR32 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFB]),
-        Ins::CMPXCHG => GenAPI::new()
+        Mnemonic::CMPSTRB => GenAPI::new().opcode(&[0xA6]).fixed_size(Size::Byte),
+        Mnemonic::CMPSTRW => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Word),
+        Mnemonic::CMPSTRD => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Dword),
+        Mnemonic::CMPSTRQ => GenAPI::new().opcode(&[0x48, 0xA7]).fixed_size(Size::Qword),
+        Mnemonic::ENDBR64 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFA]),
+        Mnemonic::ENDBR32 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFB]),
+        Mnemonic::CMPXCHG => GenAPI::new()
             .opcode(&[0x0F, (0xB1 - ((ins.size() == Size::Byte) as u8))])
             .modrm(true, None, None)
             .rex(true),
-        Ins::CLDEMOTE => GenAPI::new()
+        Mnemonic::CLDEMOTE => GenAPI::new()
             .opcode(&[0x0F, 0x1C])
             .modrm(true, Some(0), None),
-        Ins::CLRSSBSY => {
+        Mnemonic::CLRSSBSY => {
             GenAPI::new()
                 .opcode(&[0x0F, 0xAE])
                 .prefix(0xF3)
                 .modrm(true, Some(6), None)
         }
-        Ins::CMPXCHG8B => GenAPI::new()
+        Mnemonic::CMPXCHG8B => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(1), None),
-        Ins::CMPXCHG16B => GenAPI::new()
+        Mnemonic::CMPXCHG16B => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(1), None)
             .rex(true),
         // part 3
-        Ins::ENTER => {
+        Mnemonic::ENTER => {
             let imm = if let Some(Operand::Imm(n)) = ins.dst() {
                 n.get_as_u64()
             } else {
@@ -3922,15 +3911,15 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .opcode(&[0xC8, imm[0], imm[1]])
                 .imm_atindex(1, 1)
         }
-        Ins::HLT => GenAPI::new().opcode(&[0xF4]),
-        Ins::HRESET => GenAPI::new()
+        Mnemonic::HLT => GenAPI::new().opcode(&[0xF4]),
+        Mnemonic::HRESET => GenAPI::new()
             .opcode(&[0xF3, 0x0F, 0x3A, 0xF0, 0xC0])
             .modrm(false, None, None)
             .imm_atindex(0, 1),
-        Ins::INSB => GenAPI::new().opcode(&[0x6C]).fixed_size(Size::Byte),
-        Ins::INSW => GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Word),
-        Ins::INSD => GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Dword),
-        Ins::INT => GenAPI::new().opcode(&[
+        Mnemonic::INSB => GenAPI::new().opcode(&[0x6C]).fixed_size(Size::Byte),
+        Mnemonic::INSW => GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Word),
+        Mnemonic::INSD => GenAPI::new().opcode(&[0x6D]).fixed_size(Size::Dword),
+        Mnemonic::INT => GenAPI::new().opcode(&[
             0xCC,
             if let Some(Operand::Imm(imm)) = ins.dst() {
                 imm.split_into_bytes()[0]
@@ -3938,58 +3927,58 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 0x00
             },
         ]),
-        Ins::INTO => GenAPI::new().opcode(&[0xCE]),
-        Ins::INT3 => GenAPI::new().opcode(&[0xCC]),
-        Ins::INT1 => GenAPI::new().opcode(&[0xF1]),
-        Ins::INVD => GenAPI::new().opcode(&[0x0F, 0x08]),
-        Ins::INVLPG => GenAPI::new().opcode(&[0x0F, 0x01, 0b11_111_000]),
-        Ins::INVPCID => GenAPI::new()
+        Mnemonic::INTO => GenAPI::new().opcode(&[0xCE]),
+        Mnemonic::INT3 => GenAPI::new().opcode(&[0xCC]),
+        Mnemonic::INT1 => GenAPI::new().opcode(&[0xF1]),
+        Mnemonic::INVD => GenAPI::new().opcode(&[0x0F, 0x08]),
+        Mnemonic::INVLPG => GenAPI::new().opcode(&[0x0F, 0x01, 0b11_111_000]),
+        Mnemonic::INVPCID => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x82])
             .prefix(0x66)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::IRET | Ins::IRETD => GenAPI::new().opcode(&[0xCF]),
-        Ins::IRETQ => GenAPI::new().opcode(&[0x48, 0xCF]),
-        Ins::LAHF => GenAPI::new().opcode(&[0x9F]),
-        Ins::LAR => GenAPI::new()
+        Mnemonic::IRET | Mnemonic::IRETD => GenAPI::new().opcode(&[0xCF]),
+        Mnemonic::IRETQ => GenAPI::new().opcode(&[0x48, 0xCF]),
+        Mnemonic::LAHF => GenAPI::new().opcode(&[0x9F]),
+        Mnemonic::LAR => GenAPI::new()
             .opcode(&[0x0F, 0x02])
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::LEAVE => GenAPI::new().opcode(&[0xC9]),
-        Ins::LLDT => GenAPI::new()
+        Mnemonic::LEAVE => GenAPI::new().opcode(&[0xC9]),
+        Mnemonic::LLDT => GenAPI::new()
             .opcode(&[0x0F, 0x00])
             .modrm(true, Some(2), None)
             .can_h66(false),
-        Ins::LMSW => GenAPI::new()
+        Mnemonic::LMSW => GenAPI::new()
             .opcode(&[0x0F, 0x01])
             .modrm(true, Some(6), None)
             .can_h66(false),
-        Ins::LODSB => GenAPI::new().fixed_size(Size::Byte).opcode(&[0xAC]),
-        Ins::LODSW => GenAPI::new().fixed_size(Size::Word).opcode(&[0xAD]),
-        Ins::LODSD => GenAPI::new().fixed_size(Size::Dword).opcode(&[0xAD]),
-        Ins::LODSQ => GenAPI::new().fixed_size(Size::Qword).opcode(&[0x48, 0xAD]),
+        Mnemonic::LODSB => GenAPI::new().fixed_size(Size::Byte).opcode(&[0xAC]),
+        Mnemonic::LODSW => GenAPI::new().fixed_size(Size::Word).opcode(&[0xAD]),
+        Mnemonic::LODSD => GenAPI::new().fixed_size(Size::Dword).opcode(&[0xAD]),
+        Mnemonic::LODSQ => GenAPI::new().fixed_size(Size::Qword).opcode(&[0x48, 0xAD]),
 
         // part 3
-        Ins::LOOP => ins_shrtjmp(ins, vec![0xE2]),
-        Ins::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
-        Ins::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
-        Ins::LSL => GenAPI::new()
+        Mnemonic::LOOP => ins_shrtjmp(ins, vec![0xE2]),
+        Mnemonic::LOOPE => ins_shrtjmp(ins, vec![0xE1]),
+        Mnemonic::LOOPNE => ins_shrtjmp(ins, vec![0xE0]),
+        Mnemonic::LSL => GenAPI::new()
             .opcode(&[0x0F, 0x03])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::LTR => GenAPI::new()
+        Mnemonic::LTR => GenAPI::new()
             .opcode(&[0x0F, 0x00])
             .modrm(true, Some(3), None)
             .can_h66(false),
-        Ins::LZCNT => GenAPI::new()
+        Mnemonic::LZCNT => GenAPI::new()
             .opcode(&[0x0F, 0xBD])
             .prefix(0xF3)
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::MOVBE => {
+        Mnemonic::MOVBE => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Register(_)) = ins.dst() {
                 api = api.opcode(&[0x0F, 0x38, 0xF0]);
@@ -3999,7 +3988,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api
         }
-        Ins::MOVZX => GenAPI::new()
+        Mnemonic::MOVZX => GenAPI::new()
             .opcode(&[
                 0x0F,
                 (0xB6 + ((ins.src().unwrap().size() == Size::Word) as u8)),
@@ -4007,15 +3996,15 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM])
             .rex(true),
-        Ins::MOVDIRI => GenAPI::new()
+        Mnemonic::MOVDIRI => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xF9])
             .modrm(true, None, None)
             .rex(true),
-        Ins::MOVSTRB => GenAPI::new().opcode(&[0xA4]).fixed_size(Size::Byte),
-        Ins::MOVSTRW => GenAPI::new().opcode(&[0xA5]).fixed_size(Size::Word),
-        Ins::MOVSTRD => GenAPI::new().opcode(&[0xA5]).fixed_size(Size::Dword),
-        Ins::MOVSTRQ => GenAPI::new().opcode(&[0x48, 0xA5]).fixed_size(Size::Qword),
-        Ins::MULX => GenAPI::new()
+        Mnemonic::MOVSTRB => GenAPI::new().opcode(&[0xA4]).fixed_size(Size::Byte),
+        Mnemonic::MOVSTRW => GenAPI::new().opcode(&[0xA5]).fixed_size(Size::Word),
+        Mnemonic::MOVSTRD => GenAPI::new().opcode(&[0xA5]).fixed_size(Size::Dword),
+        Mnemonic::MOVSTRQ => GenAPI::new().opcode(&[0x48, 0xA5]).fixed_size(Size::Qword),
+        Mnemonic::MULX => GenAPI::new()
             .vex(
                 VexDetails::new()
                     .map_select(0x38)
@@ -4025,10 +4014,10 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0xF6])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::OUTSB => GenAPI::new().opcode(&[0x6E]).fixed_size(Size::Byte),
-        Ins::OUTSW => GenAPI::new().opcode(&[0x6F]).fixed_size(Size::Word),
-        Ins::OUTSD => GenAPI::new().opcode(&[0x6F]).fixed_size(Size::Dword),
-        Ins::PEXT => GenAPI::new()
+        Mnemonic::OUTSB => GenAPI::new().opcode(&[0x6E]).fixed_size(Size::Byte),
+        Mnemonic::OUTSW => GenAPI::new().opcode(&[0x6F]).fixed_size(Size::Word),
+        Mnemonic::OUTSD => GenAPI::new().opcode(&[0x6F]).fixed_size(Size::Dword),
+        Mnemonic::PEXT => GenAPI::new()
             .opcode(&[0xF5])
             .modrm(true, None, None)
             .vex(
@@ -4038,7 +4027,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::PDEP => GenAPI::new()
+        Mnemonic::PDEP => GenAPI::new()
             .opcode(&[0xF5])
             .modrm(true, None, None)
             .vex(
@@ -4048,50 +4037,52 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                     .vex_we(ins.size() == Size::Qword),
             )
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::PREFETCHW => GenAPI::new()
+        Mnemonic::PREFETCHW => GenAPI::new()
             .opcode(&[0x0F, 0x0D])
             .modrm(true, Some(1), None),
-        Ins::PREFETCH0 => GenAPI::new()
+        Mnemonic::PREFETCH0 => GenAPI::new()
             .opcode(&[0x0F, 0x18])
             .modrm(true, Some(1), None),
-        Ins::PREFETCH1 => GenAPI::new()
+        Mnemonic::PREFETCH1 => GenAPI::new()
             .opcode(&[0x0F, 0x18])
             .modrm(true, Some(2), None),
-        Ins::PREFETCH2 => GenAPI::new()
+        Mnemonic::PREFETCH2 => GenAPI::new()
             .opcode(&[0x0F, 0x18])
             .modrm(true, Some(3), None),
-        Ins::PREFETCHA => GenAPI::new()
+        Mnemonic::PREFETCHA => GenAPI::new()
             .opcode(&[0x0F, 0x18])
             .modrm(true, Some(0), None),
 
-        Ins::ROL => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 0, bits),
-        Ins::ROR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 1, bits),
-        Ins::RCL => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 2, bits),
-        Ins::RCR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 3, bits),
+        Mnemonic::ROL => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 0, bits),
+        Mnemonic::ROR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 1, bits),
+        Mnemonic::RCL => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 2, bits),
+        Mnemonic::RCR => ins_shllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 3, bits),
         // part 4
-        Ins::RDMSR => GenAPI::new().opcode(&[0x0F, 0x32]),
-        Ins::RDPID => GenAPI::new()
-            .opcode(&[0x0F, 0xC7])
-            .prefix(0xF3)
-            .modrm(true, Some(7), None),
-        Ins::RDPKRU => GenAPI::new().opcode(&[0x0F, 0x01, 0xEE]),
-        Ins::RDPMC => GenAPI::new().opcode(&[0x0F, 0x33]),
-        Ins::RDRAND => GenAPI::new()
+        Mnemonic::RDMSR => GenAPI::new().opcode(&[0x0F, 0x32]),
+        Mnemonic::RDPID => {
+            GenAPI::new()
+                .opcode(&[0x0F, 0xC7])
+                .prefix(0xF3)
+                .modrm(true, Some(7), None)
+        }
+        Mnemonic::RDPKRU => GenAPI::new().opcode(&[0x0F, 0x01, 0xEE]),
+        Mnemonic::RDPMC => GenAPI::new().opcode(&[0x0F, 0x33]),
+        Mnemonic::RDRAND => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(6), None)
             .rex(true),
-        Ins::RDSEED => GenAPI::new()
+        Mnemonic::RDSEED => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(7), None)
             .rex(true),
-        Ins::RDSSPD | Ins::RDSSPQ => GenAPI::new()
+        Mnemonic::RDSSPD | Mnemonic::RDSSPQ => GenAPI::new()
             .opcode(&[0x0F, 0x1E])
             .modrm(true, Some(1), None)
             .prefix(0xF3)
             .rex(true),
-        Ins::RDTSC => GenAPI::new().opcode(&[0x0F, 0x31]),
-        Ins::RDTSCP => GenAPI::new().opcode(&[0x0F, 0x01, 0xF9]),
-        Ins::RORX => GenAPI::new()
+        Mnemonic::RDTSC => GenAPI::new().opcode(&[0x0F, 0x31]),
+        Mnemonic::RDTSCP => GenAPI::new().opcode(&[0x0F, 0x01, 0xF9]),
+        Mnemonic::RORX => GenAPI::new()
             .opcode(&[0xF0])
             .vex(
                 VexDetails::new()
@@ -4103,14 +4094,14 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .imm_atindex(2, 1),
-        Ins::RSM => GenAPI::new().opcode(&[0x0F, 0xAA]),
-        Ins::RSTORSSP => GenAPI::new()
+        Mnemonic::RSM => GenAPI::new().opcode(&[0x0F, 0xAA]),
+        Mnemonic::RSTORSSP => GenAPI::new()
             .opcode(&[0x0F, 0x01])
             .modrm(true, Some(5), None)
             .prefix(0xF3)
             .rex(true),
-        Ins::SAHF => GenAPI::new().opcode(&[0x9E]),
-        Ins::SHLX => GenAPI::new()
+        Mnemonic::SAHF => GenAPI::new().opcode(&[0x9E]),
+        Mnemonic::SHLX => GenAPI::new()
             .opcode(&[0xF7])
             .vex(
                 VexDetails::new()
@@ -4120,7 +4111,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SHRX => GenAPI::new()
+        Mnemonic::SHRX => GenAPI::new()
             .opcode(&[0xF7])
             .vex(
                 VexDetails::new()
@@ -4130,7 +4121,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SARX => GenAPI::new()
+        Mnemonic::SARX => GenAPI::new()
             .opcode(&[0xF7])
             .vex(
                 VexDetails::new()
@@ -4140,360 +4131,360 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SBB => add_like_ins(
+        Mnemonic::SBB => add_like_ins(
             ins,
             &[0x1C, 0x1D, 0x80, 0x81, 0x83, 0x18, 0x19, 0x1A, 0x1B],
             3,
             bits,
         ),
-        Ins::SCASB => GenAPI::new().fixed_size(Size::Byte).opcode(&[0xAE]),
-        Ins::SCASW => GenAPI::new().fixed_size(Size::Word).opcode(&[0xAF]),
-        Ins::SCASD => GenAPI::new().fixed_size(Size::Dword).opcode(&[0xAF]),
-        Ins::SCASQ => GenAPI::new().fixed_size(Size::Qword).opcode(&[0x48, 0xAF]),
-        Ins::SENDUIPI => GenAPI::new()
+        Mnemonic::SCASB => GenAPI::new().fixed_size(Size::Byte).opcode(&[0xAE]),
+        Mnemonic::SCASW => GenAPI::new().fixed_size(Size::Word).opcode(&[0xAF]),
+        Mnemonic::SCASD => GenAPI::new().fixed_size(Size::Dword).opcode(&[0xAF]),
+        Mnemonic::SCASQ => GenAPI::new().fixed_size(Size::Qword).opcode(&[0x48, 0xAF]),
+        Mnemonic::SENDUIPI => GenAPI::new()
             .prefix(0xF3)
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(6), None)
             .can_h66(false)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SERIALIZE => GenAPI::new().opcode(&[0x0F, 0x01, 0xE8]),
+        Mnemonic::SERIALIZE => GenAPI::new().opcode(&[0x0F, 0x01, 0xE8]),
         // for some reason NASM generates this as no opcode at all?
-        Ins::SETSSBY => GenAPI::new(),
+        Mnemonic::SETSSBY => GenAPI::new(),
 
         // setcc
-        Ins::SETO => GenAPI::new()
+        Mnemonic::SETO => GenAPI::new()
             .opcode(&[0x0F, 0x90])
             .modrm(true, None, None)
             .rex(true),
-        Ins::SETNO => GenAPI::new()
+        Mnemonic::SETNO => GenAPI::new()
             .opcode(&[0x0F, 0x91])
             .modrm(true, None, None)
             .rex(true),
-        Ins::SETB | Ins::SETC | Ins::SETNAE => GenAPI::new()
+        Mnemonic::SETB | Mnemonic::SETC | Mnemonic::SETNAE => GenAPI::new()
             .opcode(&[0x0F, 0x92])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETAE | Ins::SETNB | Ins::SETNC => GenAPI::new()
+        Mnemonic::SETAE | Mnemonic::SETNB | Mnemonic::SETNC => GenAPI::new()
             .opcode(&[0x0F, 0x93])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETE | Ins::SETZ => GenAPI::new()
+        Mnemonic::SETE | Mnemonic::SETZ => GenAPI::new()
             .opcode(&[0x0F, 0x94])
             .modrm(true, None, None)
             .rex(true),
-        Ins::SETNE | Ins::SETNZ => GenAPI::new()
+        Mnemonic::SETNE | Mnemonic::SETNZ => GenAPI::new()
             .opcode(&[0x0F, 0x95])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETBE | Ins::SETNA => GenAPI::new()
+        Mnemonic::SETBE | Mnemonic::SETNA => GenAPI::new()
             .opcode(&[0x0F, 0x96])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETA | Ins::SETNBE => GenAPI::new()
+        Mnemonic::SETA | Mnemonic::SETNBE => GenAPI::new()
             .opcode(&[0x0F, 0x97])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETS => GenAPI::new()
+        Mnemonic::SETS => GenAPI::new()
             .opcode(&[0x0F, 0x98])
             .modrm(true, None, None)
             .rex(true),
-        Ins::SETNS => GenAPI::new()
+        Mnemonic::SETNS => GenAPI::new()
             .opcode(&[0x0F, 0x99])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETP | Ins::SETPE => GenAPI::new()
+        Mnemonic::SETP | Mnemonic::SETPE => GenAPI::new()
             .opcode(&[0x0F, 0x9A])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETNP | Ins::SETPO => GenAPI::new()
+        Mnemonic::SETNP | Mnemonic::SETPO => GenAPI::new()
             .opcode(&[0x0F, 0x9B])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETL | Ins::SETNGE => GenAPI::new()
+        Mnemonic::SETL | Mnemonic::SETNGE => GenAPI::new()
             .opcode(&[0x0F, 0x9C])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETGE | Ins::SETNL => GenAPI::new()
+        Mnemonic::SETGE | Mnemonic::SETNL => GenAPI::new()
             .opcode(&[0x0F, 0x9D])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETLE | Ins::SETNG => GenAPI::new()
+        Mnemonic::SETLE | Mnemonic::SETNG => GenAPI::new()
             .opcode(&[0x0F, 0x9E])
             .modrm(true, None, None)
             .rex(true),
 
-        Ins::SETG | Ins::SETNLE => GenAPI::new()
+        Mnemonic::SETG | Mnemonic::SETNLE => GenAPI::new()
             .opcode(&[0x0F, 0x9F])
             .modrm(true, None, None)
             .rex(true),
 
         // norm-part5
-        Ins::SFENCE => GenAPI::new().opcode(&[0x0F, 0xAE, 0xF8]),
-        Ins::STAC => GenAPI::new().opcode(&[0x0F, 0x01, 0xCB]),
-        Ins::STC => GenAPI::new().opcode(&[0xF9]),
-        Ins::STD => GenAPI::new().opcode(&[0xFD]),
-        Ins::STI => GenAPI::new().opcode(&[0xFB]),
-        Ins::STUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEF]),
-        Ins::STOSB => GenAPI::new().opcode(&[0xAA]),
-        Ins::STOSW => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Word),
-        Ins::STOSD => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Dword),
-        Ins::STOSQ => GenAPI::new().opcode(&[0x48, 0xAB]),
-        Ins::SYSENTER => GenAPI::new().opcode(&[0x0F, 0x34]),
-        Ins::SYSEXIT => GenAPI::new().opcode(&[0x0F, 0x35]),
-        Ins::SYSRET => GenAPI::new().opcode(&[0x0F, 0x07]),
-        Ins::TESTUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xED]),
-        Ins::UD2 => GenAPI::new().opcode(&[0x0F, 0x0B]),
-        Ins::UD0 => GenAPI::new()
+        Mnemonic::SFENCE => GenAPI::new().opcode(&[0x0F, 0xAE, 0xF8]),
+        Mnemonic::STAC => GenAPI::new().opcode(&[0x0F, 0x01, 0xCB]),
+        Mnemonic::STC => GenAPI::new().opcode(&[0xF9]),
+        Mnemonic::STD => GenAPI::new().opcode(&[0xFD]),
+        Mnemonic::STI => GenAPI::new().opcode(&[0xFB]),
+        Mnemonic::STUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEF]),
+        Mnemonic::STOSB => GenAPI::new().opcode(&[0xAA]),
+        Mnemonic::STOSW => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Word),
+        Mnemonic::STOSD => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Dword),
+        Mnemonic::STOSQ => GenAPI::new().opcode(&[0x48, 0xAB]),
+        Mnemonic::SYSENTER => GenAPI::new().opcode(&[0x0F, 0x34]),
+        Mnemonic::SYSEXIT => GenAPI::new().opcode(&[0x0F, 0x35]),
+        Mnemonic::SYSRET => GenAPI::new().opcode(&[0x0F, 0x07]),
+        Mnemonic::TESTUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xED]),
+        Mnemonic::UD2 => GenAPI::new().opcode(&[0x0F, 0x0B]),
+        Mnemonic::UD0 => GenAPI::new()
             .opcode(&[0x0F, 0xFF])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::UD1 => GenAPI::new()
+        Mnemonic::UD1 => GenAPI::new()
             .opcode(&[0x0F, 0xB9])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::TPAUSE => GenAPI::new()
+        Mnemonic::TPAUSE => GenAPI::new()
             .modrm(true, Some(6), None)
             .prefix(0x66)
             .opcode(&[0x0F, 0xAE]),
-        Ins::UMWAIT => GenAPI::new()
+        Mnemonic::UMWAIT => GenAPI::new()
             .modrm(true, Some(6), None)
             .prefix(0xF2)
             .opcode(&[0x0F, 0xAE]),
-        Ins::UMONITOR => GenAPI::new()
+        Mnemonic::UMONITOR => GenAPI::new()
             .modrm(true, Some(6), None)
             .prefix(0xF3)
             .opcode(&[0x0F, 0xAE]),
-        Ins::SMSW => GenAPI::new()
+        Mnemonic::SMSW => GenAPI::new()
             .modrm(true, Some(4), None)
             .opcode(&[0x0F, 0x01])
             .rex(true),
-        Ins::STR => GenAPI::new()
+        Mnemonic::STR => GenAPI::new()
             .modrm(true, Some(1), None)
             .opcode(&[0x0F, 0x00]),
-        Ins::VERR => GenAPI::new()
+        Mnemonic::VERR => GenAPI::new()
             .modrm(true, Some(4), None)
             .opcode(&[0x0F, 0x00])
             .can_h66(false),
-        Ins::VERW => GenAPI::new()
+        Mnemonic::VERW => GenAPI::new()
             .modrm(true, Some(5), None)
             .opcode(&[0x0F, 0x00])
             .can_h66(false),
-        Ins::SHLD => ins_shlx(ins, &[0x0F, 0xA4], &[0x0F, 0xA5]),
-        Ins::SHRD => ins_shlx(ins, &[0x0F, 0xAC], &[0x0F, 0xAD]),
-        Ins::UIRET => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEC]),
-        Ins::WAIT | Ins::FWAIT => GenAPI::new().opcode(&[0x9B]),
-        Ins::WBINVD => GenAPI::new().opcode(&[0x0F, 0x09]),
-        Ins::WRMSR => GenAPI::new().opcode(&[0x0F, 0x30]),
-        Ins::WRPKRU => GenAPI::new().opcode(&[0x0F, 0x01, 0xEF]),
+        Mnemonic::SHLD => ins_shlx(ins, &[0x0F, 0xA4], &[0x0F, 0xA5]),
+        Mnemonic::SHRD => ins_shlx(ins, &[0x0F, 0xAC], &[0x0F, 0xAD]),
+        Mnemonic::UIRET => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEC]),
+        Mnemonic::WAIT | Mnemonic::FWAIT => GenAPI::new().opcode(&[0x9B]),
+        Mnemonic::WBINVD => GenAPI::new().opcode(&[0x0F, 0x09]),
+        Mnemonic::WRMSR => GenAPI::new().opcode(&[0x0F, 0x30]),
+        Mnemonic::WRPKRU => GenAPI::new().opcode(&[0x0F, 0x01, 0xEF]),
 
         // norm-part6
-        Ins::XABORT => GenAPI::new().imm_atindex(0, 1).opcode(&[0xC6, 0xF8]),
-        Ins::XACQUIRE => GenAPI::new().opcode(&[0xF2]),
-        Ins::XRELEASE => GenAPI::new().opcode(&[0xF3]),
-        Ins::XADD => GenAPI::new()
+        Mnemonic::XABORT => GenAPI::new().imm_atindex(0, 1).opcode(&[0xC6, 0xF8]),
+        Mnemonic::XACQUIRE => GenAPI::new().opcode(&[0xF2]),
+        Mnemonic::XRELEASE => GenAPI::new().opcode(&[0xF3]),
+        Mnemonic::XADD => GenAPI::new()
             .opcode(&[0x0F, (0xC0 + ((ins.size() != Size::Byte) as u8))])
             .modrm(true, None, None)
             .rex(true),
-        Ins::XBEGIN => ins_xbegin(ins),
-        Ins::XCHG => ins_xchg(ins),
-        Ins::XEND => GenAPI::new().opcode(&[0x0F, 0x01, 0xD5]),
-        Ins::XGETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD0]),
-        Ins::XLAT | Ins::XLATB => GenAPI::new().opcode(&[0xD7]),
-        Ins::XLATB64 => GenAPI::new().opcode(&[0x48, 0xD7]),
-        Ins::XRESLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE9]),
+        Mnemonic::XBEGIN => ins_xbegin(ins),
+        Mnemonic::XCHG => ins_xchg(ins),
+        Mnemonic::XEND => GenAPI::new().opcode(&[0x0F, 0x01, 0xD5]),
+        Mnemonic::XGETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD0]),
+        Mnemonic::XLAT | Mnemonic::XLATB => GenAPI::new().opcode(&[0xD7]),
+        Mnemonic::XLATB64 => GenAPI::new().opcode(&[0x48, 0xD7]),
+        Mnemonic::XRESLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE9]),
 
-        Ins::XRSTOR | Ins::XRSTOR64 => {
+        Mnemonic::XRSTOR | Mnemonic::XRSTOR64 => {
             GenAPI::new()
                 .opcode(&[0x0F, 0xAE])
                 .modrm(true, Some(5), None)
         }
-        Ins::XRSTORS | Ins::XRSTORS64 => GenAPI::new()
+        Mnemonic::XRSTORS | Mnemonic::XRSTORS64 => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(3), None)
             .rex(true),
-        Ins::XSAVE | Ins::XSAVE64 => GenAPI::new()
+        Mnemonic::XSAVE | Mnemonic::XSAVE64 => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(4), None)
             .rex(true),
-        Ins::XSAVEC | Ins::XSAVEC64 => GenAPI::new()
+        Mnemonic::XSAVEC | Mnemonic::XSAVEC64 => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(4), None)
             .rex(true),
-        Ins::XSAVEOPT | Ins::XSAVEOPT64 => GenAPI::new()
+        Mnemonic::XSAVEOPT | Mnemonic::XSAVEOPT64 => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(6), None)
             .rex(true),
-        Ins::XSAVES | Ins::XSAVES64 => GenAPI::new()
+        Mnemonic::XSAVES | Mnemonic::XSAVES64 => GenAPI::new()
             .opcode(&[0x0F, 0xC7])
             .modrm(true, Some(5), None)
             .rex(true),
-        Ins::XSETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD1]),
-        Ins::XSUSLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE8]),
-        Ins::XTEST => GenAPI::new().opcode(&[0x0F, 0x01, 0xD6]),
+        Mnemonic::XSETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD1]),
+        Mnemonic::XSUSLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE8]),
+        Mnemonic::XTEST => GenAPI::new().opcode(&[0x0F, 0x01, 0xD6]),
         // sha.asm
-        Ins::SHA1MSG1 => GenAPI::new()
+        Mnemonic::SHA1MSG1 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xC9])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .rex(true),
-        Ins::SHA1NEXTE => GenAPI::new()
+        Mnemonic::SHA1NEXTE => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xC8])
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SHA1MSG2 => GenAPI::new()
+        Mnemonic::SHA1MSG2 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xCA])
             .modrm(true, None, None)
             .rex(true)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV]),
-        Ins::SHA1RNDS4 => GenAPI::new()
+        Mnemonic::SHA1RNDS4 => GenAPI::new()
             .opcode(&[0x0F, 0x3A, 0xCC])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .rex(true)
             .imm_atindex(2, 1),
-        Ins::SHA256RNDS2 => GenAPI::new()
+        Mnemonic::SHA256RNDS2 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xCB])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .rex(true),
-        Ins::SHA256MSG2 => GenAPI::new()
+        Mnemonic::SHA256MSG2 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xCD])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .rex(true),
-        Ins::SHA256MSG1 => GenAPI::new()
+        Mnemonic::SHA256MSG1 => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0xCC])
             .modrm(true, None, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .rex(true),
 
         // fxd
-        Ins::WRGSBASE => GenAPI::new()
+        Mnemonic::WRGSBASE => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(3), None)
             .prefix(0xF3)
             .rex(true),
-        Ins::WRFSBASE => GenAPI::new()
+        Mnemonic::WRFSBASE => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(2), None)
             .prefix(0xF3)
             .rex(true),
-        Ins::LIDT => GenAPI::new()
+        Mnemonic::LIDT => GenAPI::new()
             .opcode(&[0x0F, 0x01])
             .modrm(true, Some(3), None)
             .rex(true)
             .can_h66(false),
-        Ins::LGDT => GenAPI::new()
+        Mnemonic::LGDT => GenAPI::new()
             .opcode(&[0x0F, 0x01])
             .modrm(true, Some(2), None)
             .rex(true)
             .can_h66(false),
-        Ins::LOCK => GenAPI::new().opcode(&[0xF0]),
-        Ins::REPNE | Ins::REPNZ => GenAPI::new().opcode(&[0xF2]),
-        Ins::REP | Ins::REPE | Ins::REPZ => GenAPI::new().opcode(&[0xF3]),
+        Mnemonic::LOCK => GenAPI::new().opcode(&[0xF0]),
+        Mnemonic::REPNE | Mnemonic::REPNZ => GenAPI::new().opcode(&[0xF2]),
+        Mnemonic::REP | Mnemonic::REPE | Mnemonic::REPZ => GenAPI::new().opcode(&[0xF3]),
 
-        Ins::VADDPH => GenAPI::new()
+        Mnemonic::VADDPH => GenAPI::new()
             .opcode(&[0x58])
             .evex(VexDetails::new().map_select(MAP5).vex_we(false))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VADDSH => GenAPI::new()
+        Mnemonic::VADDSH => GenAPI::new()
             .opcode(&[0x58])
             .evex(VexDetails::new().map_select(MAP5).vex_we(false).pp(0xF3))
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
-        Ins::VALIGNQ => GenAPI::new()
+        Mnemonic::VALIGNQ => GenAPI::new()
             .opcode(&[0x03])
             .evex(VexDetails::new().pp(0x66).map_select(MAP3A).vex_we(true))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::VALIGND => GenAPI::new()
+        Mnemonic::VALIGND => GenAPI::new()
             .opcode(&[0x03])
             .evex(VexDetails::new().pp(0x66).map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::VBCSTNESH2PS => GenAPI::new()
+        Mnemonic::VBCSTNESH2PS => GenAPI::new()
             .opcode(&[0xB1])
             .vex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBCSTNEBF162PS => GenAPI::new()
+        Mnemonic::VBCSTNEBF162PS => GenAPI::new()
             .opcode(&[0xB1])
             .vex(VexDetails::new().pp(0xF3).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBLENDMPS => GenAPI::new()
+        Mnemonic::VBLENDMPS => GenAPI::new()
             .opcode(&[0x65])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBLENDMPD => GenAPI::new()
+        Mnemonic::VBLENDMPD => GenAPI::new()
             .opcode(&[0x65])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBROADCASTF32X2 => GenAPI::new()
+        Mnemonic::VBROADCASTF32X2 => GenAPI::new()
             .opcode(&[0x19])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBROADCASTF32X4 => GenAPI::new()
+        Mnemonic::VBROADCASTF32X4 => GenAPI::new()
             .opcode(&[0x1A])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBROADCASTF64X2 => GenAPI::new()
+        Mnemonic::VBROADCASTF64X2 => GenAPI::new()
             .opcode(&[0x1A])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBROADCASTF32X8 => GenAPI::new()
+        Mnemonic::VBROADCASTF32X8 => GenAPI::new()
             .opcode(&[0x1B])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VBROADCASTF64X4 => GenAPI::new()
+        Mnemonic::VBROADCASTF64X4 => GenAPI::new()
             .opcode(&[0x1B])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VCMPPH => GenAPI::new()
+        Mnemonic::VCMPPH => GenAPI::new()
             .opcode(&[0xC2])
             .evex(VexDetails::new().map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::VCMPSH => GenAPI::new()
+        Mnemonic::VCMPSH => GenAPI::new()
             .opcode(&[0xC2])
             .evex(VexDetails::new().pp(0xF3).map_select(MAP3A))
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None)
             .imm_atindex(3, 1),
-        Ins::VCOMISH => GenAPI::new()
+        Mnemonic::VCOMISH => GenAPI::new()
             .opcode(&[0x2F])
             .evex(VexDetails::new().map_select(MAP5))
             .ord(&[MODRM_REG, MODRM_RM])
             .modrm(true, None, None),
-        Ins::VCOMPRESSPD | Ins::VCOMPRESSPS => GenAPI::new()
+        Mnemonic::VCOMPRESSPD | Mnemonic::VCOMPRESSPS => GenAPI::new()
             .opcode(&[0x8A])
             .evex(
                 VexDetails::new()
                     .map_select(MAP38)
                     .pp(0x66)
-                    .vex_we(ins.mnem == Ins::VCOMPRESSPD),
+                    .vex_we(ins.mnem == Mnemonic::VCOMPRESSPD),
             )
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG]),
@@ -4735,6 +4726,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                         Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
                         _ => invalid(29),
                     };
+                    // TODO: fix this
                     let size = if size == Size::Qword { 4 } else { size.into() };
                     GenAPI::new().opcode(&[opc]).imm_atindex(1, size as u16)
                 }
@@ -4802,8 +4794,12 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
                             _ => invalid(29),
                         };
-                        let size = 4;
-                        GenAPI::new().opcode(&[opc]).imm_atindex(1, size as u16)
+                        // TODO: fix this
+                        let size = if size == Size::Qword { 4 } else { size.into() };
+                        GenAPI::new()
+                            .opcode(&[opc])
+                            .imm_atindex(1, size as u16)
+                            .rex(true)
                     }
                 }
                 Operand::Mem(_) => {

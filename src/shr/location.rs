@@ -8,7 +8,6 @@ use crate::RString;
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Location {
     pub line: usize, // if 0, then NULL
-    pub char: usize, // if 0, then NULL
     pub file: RString,
 }
 
@@ -21,11 +20,7 @@ impl Location {
         }
     }
     pub const fn get_char(&self) -> Option<usize> {
-        if self.line == 0 {
-            None
-        } else {
-            Some(self.char)
-        }
+        None
     }
     pub const fn get_line(&self) -> Option<usize> {
         if self.line == 0 {
@@ -34,8 +29,8 @@ impl Location {
             Some(self.line)
         }
     }
-    pub const fn set_char(&mut self, char: usize) {
-        self.char = char;
+    pub const fn set_char(&mut self, _char: usize) {
+        //self.char = char;
     }
     pub const fn set_line(&mut self, line: usize) {
         self.line = line;

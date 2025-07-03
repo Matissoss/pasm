@@ -6,8 +6,8 @@
 use crate::{
     conf::*,
     shr::{
-        ast::Operand, error::RError, error::RError as Error, ins::Mnemonic, kwd::Keyword, math,
-        num::Number, reg::Register, reloc::RelType, smallvec::SmallVec, symbol::SymbolRef,
+        ast::Operand, dir::Directive, error::Error, ins::Mnemonic, math, num::Number,
+        reg::Register, reloc::RelType, smallvec::SmallVec, symbol::SymbolRef,
     },
 };
 use std::str::FromStr;
@@ -16,14 +16,14 @@ use std::str::FromStr;
 pub enum Token {
     Register(Register),
     Immediate(Number),
-    Keyword(Keyword),
+    Directive(Directive),
     Mnemonic(Mnemonic),
     Label(RString),
     SymbolRef(Box<SymbolRef>),
     Comma,
 
     String(RString),
-    Error(Box<RError>),
+    Error(Box<Error>),
     //       pfx   content
     Closure(char, RString),
 
@@ -67,64 +67,54 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
             CLOSURE_END => {
                 if iclosure == Some('"') {
                     tmp_buf.push(c);
-                } else {
-                    if cdelcount == 1 {
-                        let token = Token::make_closure(
-                            cprefix.take().unwrap_or(' '),
-                            striter(tmp_buf).into(),
-                        );
-                        if modf_toks.is_empty() {
-                            tokens.push(token);
-                        } else {
-                            modf_toks.push(token);
-                        }
-                        tmp_buf.clear();
-                        cdelcount = 0;
+                } else if cdelcount == 1 {
+                    let token =
+                        Token::make_closure(cprefix.take().unwrap_or(' '), striter(tmp_buf).into());
+                    if modf_toks.is_empty() {
+                        tokens.push(token);
                     } else {
-                        cdelcount -= 1;
+                        modf_toks.push(token);
                     }
+                    tmp_buf.clear();
+                    cdelcount = 0;
+                } else {
+                    cdelcount -= 1;
                 }
             }
             SUBEXPR_CLOSE => {
                 if iclosure == Some('"') {
                     tmp_buf.push(c);
-                } else {
-                    if sdelcount == 1 {
-                        if !tmp_buf.is_empty() {
-                            tokens.push(Token::SubExpr(striter(tmp_buf).into()));
-                        }
-                        sdelcount = 0;
-                    } else {
-                        sdelcount -= 1;
+                } else if sdelcount == 1 {
+                    if !tmp_buf.is_empty() {
+                        tokens.push(Token::SubExpr(striter(tmp_buf).into()));
                     }
+                    sdelcount = 0;
+                } else {
+                    sdelcount -= 1;
                 }
             }
             SUBEXPR_START => {
                 if iclosure == Some('"') {
                     tmp_buf.push(c);
+                } else if cdelcount != 0 {
+                    continue;
                 } else {
-                    if cdelcount != 0 {
-                        continue;
-                    } else {
-                        if sdelcount == 0 && !tmp_buf.is_empty() {
-                            tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
-                        }
-                        sdelcount += 1;
+                    if sdelcount == 0 && !tmp_buf.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                     }
+                    sdelcount += 1;
                 }
             }
-            PREFIX_KWD | PREFIX_REF | PREFIX_REG | PREFIX_VAL | '#' => {
+            PREFIX_VAL | PREFIX_REF | '#' => {
                 if iclosure == Some('"') {
                     tmp_buf.push(c);
-                } else {
-                    if cdelcount == 0 {
-                        if !tmp_buf.is_empty() && modf_toks.is_empty() {
-                            tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
-                        }
-                        cprefix = Some(c);
-                    } else {
-                        tmp_buf.push(c);
+                } else if cdelcount == 0 {
+                    if !tmp_buf.is_empty() && modf_toks.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                     }
+                    cprefix = Some(c);
+                } else {
+                    tmp_buf.push(c);
                 }
             }
             ':' => {
@@ -185,20 +175,25 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                     tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
                 }
             }
-            _ => if cprefix == Some('\\') {
-                match c {
-                    'n' => tmp_buf.push('\n'),
-                    't' => tmp_buf.push('\t'),
-                    '0' => tmp_buf.push('\0'),
-                    'r' => tmp_buf.push('\r'),
-                    '\"' => tmp_buf.push('\"'),
-                    '\'' => tmp_buf.push('\''),
-                    _    => tokens.push(Token::Error(Box::new(Error::new(format!("found unknown escape character: '\\{c}'"), 106)))),
+            _ => {
+                if cprefix == Some('\\') {
+                    match c {
+                        'n' => tmp_buf.push('\n'),
+                        't' => tmp_buf.push('\t'),
+                        '0' => tmp_buf.push('\0'),
+                        'r' => tmp_buf.push('\r'),
+                        '\"' => tmp_buf.push('\"'),
+                        '\'' => tmp_buf.push('\''),
+                        _ => tokens.push(Token::Error(Box::new(Error::new(
+                            format!("found unknown escape character: '\\{c}'"),
+                            106,
+                        )))),
+                    }
+                    cprefix = None;
+                } else {
+                    tmp_buf.push(c)
                 }
-                cprefix = None;
-            } else {
-                tmp_buf.push(c)
-            },
+            }
         }
     }
 
@@ -249,88 +244,6 @@ fn striter(v: &mut Vec<char>) -> String {
     s
 }
 
-#[cfg(test)]
-mod tokn_test {
-    use super::*;
-    #[test]
-    fn tok_test() {
-        let mut tmp_buf = Vec::new();
-        let line = "add %rax, %rcx";
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![
-                Token::Mnemonic(Mnemonic::ADD),
-                Token::Register(Register::RAX),
-                Token::Comma,
-                Token::Register(Register::RCX)
-            ]
-        );
-        tmp_buf.clear();
-        let line = "_label:";
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::Label(RString::from("_label"))]
-        );
-        let line = "$(10)";
-        tmp_buf.clear();
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::Immediate(Number::uint64(10))]
-        );
-        let line = "@sref:rel32 // comment ";
-        tmp_buf.clear();
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::SymbolRef(Box::new(SymbolRef::new(
-                RString::from("sref"),
-                None,
-                false,
-                None,
-                Some(RelType::REL32)
-            )))]
-        );
-        tmp_buf.clear();
-        let line = "adc (%rax + %rcx * $4 + $10) .qword, %r10";
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![
-                Token::Mnemonic(Mnemonic::ADC),
-                Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10")),
-                Token::Keyword(Keyword::Qword),
-                Token::Comma,
-                Token::Register(Register::R10),
-            ]
-        );
-        tmp_buf.clear();
-        let line = "%fs:(%rax + %rcx * $4 + $10) .qword";
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![
-                Token::Modifier(Shared::from([
-                    Token::Register(Register::FS),
-                    Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10"))
-                ])),
-                Token::Keyword(Keyword::Qword),
-            ]
-        );
-        let line = "{k1} {z}";
-        tmp_buf.clear();
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![
-                Token::SubExpr(RString::from("k1")),
-                Token::SubExpr(RString::from("z")),
-            ]
-        );
-        let line = "\"Hello, World!\"";
-        tmp_buf.clear();
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::String(RString::from("Hello, World!"))]
-        );
-    }
-}
-
 impl Token {
     fn make_modifier(mut toks: Vec<Self>) -> Self {
         match toks.len() {
@@ -342,8 +255,8 @@ impl Token {
                 })
             }
             2 => match &toks[..2] {
-                [Token::SymbolRef(symb), Token::Keyword(k)] => {
-                    let rt = if let Ok(rt) = RelType::try_from(&Token::Keyword(*k)) {
+                [Token::SymbolRef(symb), Token::Directive(k)] => {
+                    let rt = if let Ok(rt) = RelType::try_from(&Token::Directive(*k)) {
                         rt
                     } else {
                         return Token::Modifier(toks.into());
@@ -360,9 +273,9 @@ impl Token {
                 _ => return Token::Modifier(toks.into()),
             },
             3 => match &toks[..3] {
-                [Token::SymbolRef(symb), Token::Immediate(n), Token::Keyword(k)]
-                | [Token::SymbolRef(symb), Token::Keyword(k), Token::Immediate(n)] => {
-                    let rt = if let Ok(rt) = RelType::try_from(&Token::Keyword(*k)) {
+                [Token::SymbolRef(symb), Token::Immediate(n), Token::Directive(k)]
+                | [Token::SymbolRef(symb), Token::Directive(k), Token::Immediate(n)] => {
+                    let rt = if let Ok(rt) = RelType::try_from(&Token::Directive(*k)) {
                         rt
                     } else {
                         return Token::Modifier(toks.into());
@@ -398,35 +311,19 @@ impl Token {
                 None,
                 None,
             ))),
-            Some(PREFIX_REG) => match Register::from_str(&val) {
-                Ok(reg) => Self::Register(reg),
-                Err(_) => Self::String(val.into()),
-            },
-            Some(PREFIX_VAL) => match Number::from_str(&val) {
-                Ok(val) => Self::Immediate(val),
-                Err(err) => Self::Error(Box::new(err)),
-            },
             Some(CLOSURE_START) => Self::Closure(' ', val.into()),
-            Some(PREFIX_KWD) => {
-                if let Ok(kwd) = Keyword::from_str(val.trim()) {
-                    Self::Keyword(kwd)
-                } else {
-                    Self::String(val.into())
-                }
-            }
             _ => {
-                #[cfg(not(feature = "refresh"))]
-                if let Ok(mnm) = Mnemonic::from_str(&val) {
-                    return Self::Mnemonic(mnm);
-                }
-
                 if let Ok(reg) = Register::from_str(&val) {
                     Self::Register(reg)
                 } else if let Ok(num) = Number::from_str(&val) {
                     Self::Immediate(num)
-                } else if let Ok(dir) = Keyword::from_str(&val) {
-                    Self::Keyword(dir)
+                } else if let Ok(dir) = Directive::from_str(&val) {
+                    Self::Directive(dir)
                 } else {
+                    #[cfg(not(feature = "refresh"))]
+                    if let Ok(mnm) = Mnemonic::from_str(&val) {
+                        return Self::Mnemonic(mnm);
+                    }
                     Self::String(val.into())
                 }
             }
@@ -438,10 +335,10 @@ impl TryFrom<&Token> for RelType {
     type Error = ();
     fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
         match tok {
-            Token::Keyword(Keyword::Rel32) => Ok(Self::REL32),
-            Token::Keyword(Keyword::Rel16) => Ok(Self::REL16),
-            Token::Keyword(Keyword::Rel8) => Ok(Self::REL8),
-            Token::Keyword(Keyword::Abs32) => Ok(Self::ABS32),
+            Token::Directive(Directive::Rel32) => Ok(Self::REL32),
+            Token::Directive(Directive::Rel16) => Ok(Self::REL16),
+            Token::Directive(Directive::Rel8) => Ok(Self::REL8),
+            Token::Directive(Directive::Abs32) => Ok(Self::ABS32),
             _ => Err(()),
         }
     }
@@ -455,6 +352,10 @@ impl TryFrom<Token> for Operand {
             Token::String(val) => Ok(Self::String(val)),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
+            Token::Closure(' ', _) => Err(Error::new(
+                "you cannot create memory addressing without using size directive",
+                3,
+            )),
             _ => Err(Error::new(
                 format!(
                     "failed to create operand from \"{}\" token",
@@ -472,7 +373,7 @@ impl ToString for Token {
         match self {
             Self::Register(reg) => format!("{}{}", PREFIX_REG, reg.to_string()),
             Self::Immediate(v) => format!("{}{}", PREFIX_VAL, v.to_string()),
-            Self::Keyword(kwd) => kwd.to_string(),
+            Self::Directive(dir) => dir.to_string(),
             #[cfg(feature = "iinfo")]
             Self::Mnemonic(m) => m.to_string(),
             #[cfg(not(feature = "iinfo"))]
@@ -496,5 +397,87 @@ impl ToString for Token {
             Self::SubExpr(s) => format!("{{{s}}}"),
             Self::None => String::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tokn_test {
+    use super::*;
+    #[test]
+    fn tok_test() {
+        let mut tmp_buf = Vec::new();
+        let line = "add rax, rcx";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Mnemonic(Mnemonic::ADD),
+                Token::Register(Register::RAX),
+                Token::Comma,
+                Token::Register(Register::RCX)
+            ]
+        );
+        tmp_buf.clear();
+        let line = "_label:";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::Label(RString::from("_label"))]
+        );
+        let line = "$(10)";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::Immediate(Number::uint64(10))]
+        );
+        let line = "@sref:rel32 // comment ";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::SymbolRef(Box::new(SymbolRef::new(
+                RString::from("sref"),
+                None,
+                false,
+                None,
+                Some(RelType::REL32)
+            )))]
+        );
+        tmp_buf.clear();
+        let line = "adc (rax + rcx * 4 + 10) qword, r10";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Mnemonic(Mnemonic::ADC),
+                Token::Closure(' ', RString::from("rax + rcx * 4 + 10")),
+                Token::Directive(Directive::Qword),
+                Token::Comma,
+                Token::Register(Register::R10),
+            ]
+        );
+        tmp_buf.clear();
+        let line = "fs:(%rax + %rcx * $4 + $10) qword";
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::Modifier(Shared::from([
+                    Token::Register(Register::FS),
+                    Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10"))
+                ])),
+                Token::Directive(Directive::Qword),
+            ]
+        );
+        let line = "{k1} {z}";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![
+                Token::SubExpr(RString::from("k1")),
+                Token::SubExpr(RString::from("z")),
+            ]
+        );
+        let line = "\"Hello, World!\"";
+        tmp_buf.clear();
+        assert_eq!(
+            tokl(&mut tmp_buf, line).into_iter(),
+            vec![Token::String(RString::from("Hello, World!"))]
+        );
     }
 }

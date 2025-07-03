@@ -5,12 +5,12 @@
 
 use crate::shr::{
     ast::{Instruction, Operand},
-    ins::Mnemonic as Mnm,
+    ins::Mnemonic,
     size::Size,
 };
 
-fn needs_rex(ins: &Instruction) -> bool {
-    if matches!(ins.mnem, Mnm::CMPXCHG16B) {
+pub fn needs_rex(ins: &Instruction) -> bool {
+    if matches!(ins.mnem, Mnemonic::CMPXCHG16B) {
         return true;
     }
     let (size_d, size_s) = match (ins.dst(), ins.src()) {
@@ -19,110 +19,99 @@ fn needs_rex(ins: &Instruction) -> bool {
         (None, Some(s)) => (Size::Unknown, s.size()),
         _ => (Size::Unknown, Size::Unknown),
     };
-    match (ins.dst(), ins.src()) {
-        (Some(Operand::Register(r)), Some(Operand::Register(r1))) => {
-            if r.get_ext_bits()[1] || r1.get_ext_bits()[1] {
-                return true;
-            }
-        }
-        (Some(Operand::Register(r)), _) => {
+    for o in ins.operands.iter() {
+        if let Some(r) = o.get_reg() {
             if r.get_ext_bits()[1] {
                 return true;
             }
         }
-        (_, Some(Operand::Register(r))) => {
-            if r.get_ext_bits()[1] {
-                return true;
-            }
-        }
-        _ => {}
-    };
+    }
     match (size_d, size_s) {
         (Size::Qword, Size::Qword) | (Size::Qword, _) | (_, Size::Qword) => {}
         _ => return false,
     }
     match &ins.mnem {
-        Mnm::XADD
-        | Mnm::XRSTOR
-        | Mnm::XRSTOR64
-        | Mnm::XRSTORS
-        | Mnm::XRSTORS64
-        | Mnm::XSAVE
-        | Mnm::XSAVE64
-        | Mnm::XSAVEC
-        | Mnm::XSAVEC64
-        | Mnm::XSAVEOPT
-        | Mnm::XSAVEOPT64
-        | Mnm::XSAVES
-        | Mnm::XSAVES64
-        | Mnm::SHLD
-        | Mnm::SHRD
-        | Mnm::SMSW
-        | Mnm::WRFSBASE
-        | Mnm::WRGSBASE => true,
+        Mnemonic::XADD
+        | Mnemonic::XRSTOR
+        | Mnemonic::XRSTOR64
+        | Mnemonic::XRSTORS
+        | Mnemonic::XRSTORS64
+        | Mnemonic::XSAVE
+        | Mnemonic::XSAVE64
+        | Mnemonic::XSAVEC
+        | Mnemonic::XSAVEC64
+        | Mnemonic::XSAVEOPT
+        | Mnemonic::XSAVEOPT64
+        | Mnemonic::XSAVES
+        | Mnemonic::XSAVES64
+        | Mnemonic::SHLD
+        | Mnemonic::SHRD
+        | Mnemonic::SMSW
+        | Mnemonic::WRFSBASE
+        | Mnemonic::WRGSBASE => true,
 
-        Mnm::ROL
-        | Mnm::RDRAND
-        | Mnm::RDSEED
-        | Mnm::RDSSPQ
-        | Mnm::ROR
-        | Mnm::RCL
-        | Mnm::RCR
-        | Mnm::BSF
-        | Mnm::INVPCID
-        | Mnm::ADCX
-        | Mnm::ADOX
-        | Mnm::BSWAP
-        | Mnm::CMPXCHG
-        | Mnm::BSR
-        | Mnm::BT
-        | Mnm::BTC
-        | Mnm::BTS
-        | Mnm::BTR
-        | Mnm::CMOVA
-        | Mnm::CMOVB
-        | Mnm::CMOVC
-        | Mnm::CMOVE
-        | Mnm::CMOVG
-        | Mnm::CMOVL
-        | Mnm::CMOVO
-        | Mnm::CMOVP
-        | Mnm::CMOVS
-        | Mnm::CMOVZ
-        | Mnm::CMOVAE
-        | Mnm::CMOVBE
-        | Mnm::CMOVLE
-        | Mnm::CMOVGE
-        | Mnm::CMOVNA
-        | Mnm::CMOVNB
-        | Mnm::CMOVNC
-        | Mnm::CMOVNE
-        | Mnm::CMOVNG
-        | Mnm::CMOVNL
-        | Mnm::CMOVNO
-        | Mnm::CMOVNP
-        | Mnm::CMOVNS
-        | Mnm::CMOVNZ
-        | Mnm::CMOVPE
-        | Mnm::CMOVPO
-        | Mnm::CMOVNBE
-        | Mnm::CMOVNLE
-        | Mnm::CMOVNGE
-        | Mnm::MOVZX
-        | Mnm::MOVDIRI
-        | Mnm::MOVBE
-        | Mnm::LZCNT
-        | Mnm::LSL
-        | Mnm::CMOVNAE => true,
-        Mnm::MOVMSKPD => true,
-        Mnm::CVTSS2SI => true,
-        Mnm::CVTSI2SS => true,
-        Mnm::PINSRQ => true,
-        Mnm::MOVQ => true,
-        Mnm::PEXTRW | Mnm::PEXTRQ => true,
-        Mnm::POPCNT => true,
-        Mnm::EXTRACTPS => true,
-        Mnm::MOV => {
+        Mnemonic::ROL
+        | Mnemonic::RDRAND
+        | Mnemonic::RDSEED
+        | Mnemonic::RDSSPQ
+        | Mnemonic::ROR
+        | Mnemonic::RCL
+        | Mnemonic::RCR
+        | Mnemonic::BSF
+        | Mnemonic::INVPCID
+        | Mnemonic::ADCX
+        | Mnemonic::ADOX
+        | Mnemonic::BSWAP
+        | Mnemonic::CMPXCHG
+        | Mnemonic::BSR
+        | Mnemonic::BT
+        | Mnemonic::BTC
+        | Mnemonic::BTS
+        | Mnemonic::BTR
+        | Mnemonic::CMOVA
+        | Mnemonic::CMOVB
+        | Mnemonic::CMOVC
+        | Mnemonic::CMOVE
+        | Mnemonic::CMOVG
+        | Mnemonic::CMOVL
+        | Mnemonic::CMOVO
+        | Mnemonic::CMOVP
+        | Mnemonic::CMOVS
+        | Mnemonic::CMOVZ
+        | Mnemonic::CMOVAE
+        | Mnemonic::CMOVBE
+        | Mnemonic::CMOVLE
+        | Mnemonic::CMOVGE
+        | Mnemonic::CMOVNA
+        | Mnemonic::CMOVNB
+        | Mnemonic::CMOVNC
+        | Mnemonic::CMOVNE
+        | Mnemonic::CMOVNG
+        | Mnemonic::CMOVNL
+        | Mnemonic::CMOVNO
+        | Mnemonic::CMOVNP
+        | Mnemonic::CMOVNS
+        | Mnemonic::CMOVNZ
+        | Mnemonic::CMOVPE
+        | Mnemonic::CMOVPO
+        | Mnemonic::CMOVNBE
+        | Mnemonic::CMOVNLE
+        | Mnemonic::CMOVNGE
+        | Mnemonic::MOVZX
+        | Mnemonic::MOVDIRI
+        | Mnemonic::MOVBE
+        | Mnemonic::LZCNT
+        | Mnemonic::LSL
+        | Mnemonic::CMOVNAE => true,
+        Mnemonic::MOVMSKPD => true,
+        Mnemonic::CVTSS2SI => true,
+        Mnemonic::CVTSI2SS => true,
+        Mnemonic::PINSRQ => true,
+        Mnemonic::MOVQ => true,
+        Mnemonic::PEXTRW | Mnemonic::PEXTRQ => true,
+        Mnemonic::POPCNT => true,
+        Mnemonic::EXTRACTPS => true,
+        Mnemonic::MOV => {
             if let (Some(Operand::Register(r0)), Some(Operand::Register(r1))) =
                 (ins.dst(), ins.src())
             {
@@ -144,21 +133,21 @@ fn needs_rex(ins: &Instruction) -> bool {
             }
             false
         }
-        Mnm::SUB
-        | Mnm::ADD
-        | Mnm::IMUL
-        | Mnm::CMP
-        | Mnm::TEST
-        | Mnm::DEC
-        | Mnm::INC
-        | Mnm::OR
-        | Mnm::AND
-        | Mnm::NOT
-        | Mnm::NEG
-        | Mnm::ADC
-        | Mnm::SBB
-        | Mnm::XCHG
-        | Mnm::XOR => {
+        Mnemonic::SUB
+        | Mnemonic::ADD
+        | Mnemonic::IMUL
+        | Mnemonic::CMP
+        | Mnemonic::TEST
+        | Mnemonic::DEC
+        | Mnemonic::INC
+        | Mnemonic::OR
+        | Mnemonic::AND
+        | Mnemonic::NOT
+        | Mnemonic::NEG
+        | Mnemonic::ADC
+        | Mnemonic::SBB
+        | Mnemonic::XCHG
+        | Mnemonic::XOR => {
             matches!(
                 (ins.dst(), ins.src()),
                 (_, Some(Operand::Register(_)))
@@ -167,7 +156,7 @@ fn needs_rex(ins: &Instruction) -> bool {
                     | (_, Some(Operand::Mem(_)))
             )
         }
-        Mnm::SAR | Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::LEA => true,
+        Mnemonic::SAR | Mnemonic::SAL | Mnemonic::SHL | Mnemonic::SHR | Mnemonic::LEA => true,
         _ => {
             if let Some(Operand::Register(dst)) = ins.dst() {
                 if dst.get_ext_bits()[1] {
@@ -201,7 +190,7 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
         }
         _ => {}
     }
-    if matches!(ins.mnem, Mnm::UD1 | Mnm::UD2) {
+    if matches!(ins.mnem, Mnemonic::UD1 | Mnemonic::UD2) {
         *r = true;
     }
 }
@@ -226,7 +215,7 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
 
     let w = (!(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit())
         && (sized == Size::Qword || sizes == Size::Qword))
-        || matches!(ins.mnem, Mnm::CMPXCHG16B);
+        || matches!(ins.mnem, Mnemonic::CMPXCHG16B);
     let mut r = if !modrm_reg_is_dst { wbs } else { wbd };
     let mut b = if !modrm_reg_is_dst { wbd } else { wbs };
     let mut x = false;

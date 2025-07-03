@@ -31,13 +31,12 @@ go to [examples](examples)
 
 ## features
 
-Precompiled `pasm` binary on default ships with following features: `mthread`, `timed`, `iinfo` and `target_all`.
+Precompiled `pasm` binary on default ships with following features: `timed`, `iinfo` and `target_all`.
 
 You can also customize few parameters in `src/conf.rs`.
 
 Here is exhaustive list of features you can use:
 
-- `mthread`: multi-threading
 - `time`: measures time it took for assembling (as a whole)
 - `vtime`: for benchmarking
 - `iinfo` : instruction info (also stores Mnemonics as strings)

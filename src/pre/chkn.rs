@@ -14,7 +14,7 @@ use crate::shr::{
     ast::Instruction,
     atype::{AType, ToType, K},
     booltable::BoolTable8 as Flags8,
-    error::RError as Error,
+    error::Error,
     ins::Mnemonic,
     reg::Register,
     size::Size,
@@ -439,7 +439,7 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
     pub const fn new() -> Self {
         Self {
             allowed: SmallVec::new(),
-            flags: CheckMode::X86 as u8,
+            flags: CheckMode::NONE as u8,
             additional: unsafe { MaybeUninit::uninit().assume_init() },
             forbidden: unsafe { MaybeUninit::uninit().assume_init() },
         }
@@ -632,6 +632,15 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
                     }
                     if let Some(r) = o.get_reg() {
                         if sz != r.size() && !r.is_dbg_reg() && !r.is_ctrl_reg() && !r.is_sgmnt() {
+                            let mut er = Error::new(
+                                "you tried to use invalid operand size in this instruction",
+                                8,
+                            );
+                            er.set_line(ins.line);
+                            return Err(er);
+                        }
+                    } else if let Some(m) = o.get_mem() {
+                        if sz != m.size() {
                             let mut er = Error::new(
                                 "you tried to use invalid operand size in this instruction",
                                 8,

@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RError as Error, num::Number};
+use crate::shr::{error::Error, num::Number};
 
 pub struct MathematicalEvaluation;
 

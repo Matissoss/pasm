@@ -5,32 +5,7 @@
 
 pub type RString = Shared<str>;
 
-#[cfg(feature = "mthread")]
-pub type Shared<T> = std::sync::Arc<T>;
-#[cfg(not(feature = "mthread"))]
 pub type Shared<T> = std::rc::Rc<T>;
-
-// CORE_LB_GROUP groups CORE_LB_GROUP lines to make assembling
-// labels faster in multithreading.
-// -----------
-// default = 2
-#[cfg(feature = "mthread")]
-pub const CORE_LB_GROUP: usize = 2;
-
-// TOK_LN_GROUP groups (TOK_LN_GROUP) lines to make tokenizer
-// faster in multithreading.
-// -----------
-// default = 512
-#[cfg(feature = "mthread")]
-pub const TOK_LN_GROUP: usize = 512;
-
-// default = 8
-#[cfg(feature = "mthread")]
-pub const THREAD_LIMIT: u8 = 8;
-
-// default = 5
-#[cfg(feature = "mthread")]
-pub const RETRY_TIME_MS: u64 = 5;
 
 pub const SMALLVEC_TOKENS_LEN: usize = 16;
 

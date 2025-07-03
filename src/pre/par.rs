@@ -6,8 +6,8 @@
 use crate::{
     pre::mer::{BodyNodeEnum as BodyNode, MergerResult, RootNodeEnum as RootNode},
     shr::{
-        ast::AST, error::RError as Error, label::Label, location::Location, num::Number,
-        section::Section, visibility::Visibility,
+        ast::AST, error::Error, label::Label, location::Location, num::Number, section::Section,
+        visibility::Visibility,
     },
 };
 
@@ -165,15 +165,16 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 if label == Label::default() {
                     label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
-                    if !attrs.is_empty() {
-                        if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
-                            errors.push(why);
-                        }
+                    if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+                        errors.push(why);
                     }
                 } else {
                     section.content.push(label);
                     label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
+                    if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+                        errors.push(why);
+                    }
                 }
             }
             BodyNode::Section(s) => {
@@ -192,6 +193,9 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
 
     if label != Label::default() {
         label.attributes.set_bits(ast.default_bits.unwrap_or(16));
+        if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+            errors.push(why);
+        }
         section.content.push(label);
     }
 

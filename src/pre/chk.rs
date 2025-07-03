@@ -9,8 +9,8 @@ use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
     atype::*,
-    error::RError as Error,
-    ins::Mnemonic as Mnm,
+    error::Error,
+    ins::Mnemonic,
     reg::Purpose as RPurpose,
     size::Size,
 };
@@ -45,7 +45,7 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
 }
 
 fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
-    use Mnm::*;
+    use Mnemonic::*;
     if gen_rex(ins, false).is_some() {
         let mut er = Error::new(
             "you tried to use instruction that requires REX prefix, but bits != 64",
@@ -64,36 +64,36 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     match ins.mnem {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
-        Mnm::CMOVA
-        | Mnm::CMOVB
-        | Mnm::CMOVC
-        | Mnm::CMOVE
-        | Mnm::CMOVG
-        | Mnm::CMOVL
-        | Mnm::CMOVO
-        | Mnm::CMOVP
-        | Mnm::CMOVS
-        | Mnm::CMOVZ
-        | Mnm::CMOVAE
-        | Mnm::CMOVBE
-        | Mnm::CMOVLE
-        | Mnm::CMOVGE
-        | Mnm::CMOVNA
-        | Mnm::CMOVNB
-        | Mnm::CMOVNC
-        | Mnm::CMOVNE
-        | Mnm::CMOVNG
-        | Mnm::CMOVNL
-        | Mnm::CMOVNO
-        | Mnm::CMOVNP
-        | Mnm::CMOVNS
-        | Mnm::CMOVNZ
-        | Mnm::CMOVPE
-        | Mnm::CMOVPO
-        | Mnm::CMOVNBE
-        | Mnm::CMOVNLE
-        | Mnm::CMOVNGE
-        | Mnm::CMOVNAE => ot_chk(
+        Mnemonic::CMOVA
+        | Mnemonic::CMOVB
+        | Mnemonic::CMOVC
+        | Mnemonic::CMOVE
+        | Mnemonic::CMOVG
+        | Mnemonic::CMOVL
+        | Mnemonic::CMOVO
+        | Mnemonic::CMOVP
+        | Mnemonic::CMOVS
+        | Mnemonic::CMOVZ
+        | Mnemonic::CMOVAE
+        | Mnemonic::CMOVBE
+        | Mnemonic::CMOVLE
+        | Mnemonic::CMOVGE
+        | Mnemonic::CMOVNA
+        | Mnemonic::CMOVNB
+        | Mnemonic::CMOVNC
+        | Mnemonic::CMOVNE
+        | Mnemonic::CMOVNG
+        | Mnemonic::CMOVNL
+        | Mnemonic::CMOVNO
+        | Mnemonic::CMOVNP
+        | Mnemonic::CMOVNS
+        | Mnemonic::CMOVNZ
+        | Mnemonic::CMOVPE
+        | Mnemonic::CMOVPO
+        | Mnemonic::CMOVNBE
+        | Mnemonic::CMOVNLE
+        | Mnemonic::CMOVNGE
+        | Mnemonic::CMOVNAE => ot_chk(
             ins,
             &[
                 (&[R16, R32], Optional::Needed),
@@ -103,19 +103,19 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::PUSH => ot_chk(
+        Mnemonic::PUSH => ot_chk(
             ins,
             &[(&[R16, R32, M16, M32, I8, I16, I32, SR], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::POP => ot_chk(
+        Mnemonic::POP => ot_chk(
             ins,
             &[(&[R16, R32, M16, M32, DS, ES, SS, FS, GS], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOV => ot_chk(
+        Mnemonic::MOV => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32, SR, CR, DR], Optional::Needed),
@@ -185,7 +185,13 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::AND | Mnm::OR | Mnm::XOR | Mnm::ADC | SBB => ot_chk(
+        Mnemonic::SUB
+        | Mnemonic::ADD
+        | Mnemonic::AND
+        | Mnemonic::OR
+        | Mnemonic::XOR
+        | Mnemonic::ADC
+        | SBB => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -197,7 +203,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[LOCK],
         ),
-        Mnm::IMUL => ot_chk(
+        Mnemonic::IMUL => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -207,16 +213,18 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => ot_chk(
-            ins,
-            &[
-                (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
-                (&[CL, I8], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
-        Mnm::TEST => ot_chk(
+        Mnemonic::SAL | Mnemonic::SHL | Mnemonic::SHR | Mnemonic::SAR | ROL | RCL | ROR | RCR => {
+            ot_chk(
+                ins,
+                &[
+                    (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
+                    (&[CL, I8], Optional::Needed),
+                ],
+                &[],
+                &[],
+            )
+        }
+        Mnemonic::TEST => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, M8, M16, M32], Optional::Needed),
@@ -225,31 +233,35 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::DIV | Mnm::IDIV | Mnm::MUL => chkn::CheckAPI::<1>::new()
+        Mnemonic::DIV | Mnemonic::IDIV | Mnemonic::MUL => chkn::CheckAPI::<1>::new()
             .pushop(&[R8, R16, R32, M8, M16, M32], true)
             .check(ins),
-        Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+        Mnemonic::DEC | Mnemonic::INC | Mnemonic::NEG | Mnemonic::NOT => ot_chk(
             ins,
             &[(&[R8, R16, R32, M8, M16, M32], Optional::Needed)],
             &[],
             &[LOCK],
         ),
 
-        Mnm::JMP | Mnm::CALL => ot_chk(
+        Mnemonic::JMP | Mnemonic::CALL => ot_chk(
             ins,
             &[(&[I32, R32, R16, M32, M16], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::LEA => ot_chk(
+        Mnemonic::LEA => ot_chk(
             ins,
             &[(&[R16, R32], Optional::Needed), (&[MA], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::POPF | Mnm::POPFD | Mnm::PUSHF | Mnm::PUSHFD => {
-            ot_chk(ins, &[], &[], &[])
-        }
+        Mnemonic::SYSCALL
+        | Mnemonic::RET
+        | Mnemonic::NOP
+        | Mnemonic::POPF
+        | Mnemonic::POPFD
+        | Mnemonic::PUSHF
+        | Mnemonic::PUSHFD => ot_chk(ins, &[], &[], &[]),
         BSF | BSR => ot_chk(
             ins,
             &[
@@ -268,7 +280,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[LOCK],
         ),
-        Mnm::BT => ot_chk(
+        Mnemonic::BT => ot_chk(
             ins,
             &[
                 (&[R16, R32, M16, M32], Optional::Needed),
@@ -430,7 +442,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         // #   #  #   #   # #
         // #   #  #   #  #   #
         // (MMX/SSE2)
-        Mnm::MOVD => ot_chk(
+        Mnemonic::MOVD => ot_chk(
             ins,
             &[
                 (&[MMX, XMM, R32, M32], Optional::Needed),
@@ -439,7 +451,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::MOVQ | MOVSTRQ | SCASQ | STOSQ => {
+        Mnemonic::MOVQ | MOVSTRQ | SCASQ | STOSQ => {
             let mut er = Error::new(
                 "you tried to use instruction that is invalid when bits != 64",
                 10,
@@ -452,46 +464,46 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
 }
 
 fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
-    use Mnm::*;
+    use Mnemonic::*;
     match ins.mnem {
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
-        Mnm::CMOVA
-        | Mnm::CMOVB
-        | Mnm::CMOVC
-        | Mnm::CMOVE
-        | Mnm::CMOVG
-        | Mnm::CMOVL
-        | Mnm::CMOVO
-        | Mnm::CMOVP
-        | Mnm::CMOVS
-        | Mnm::CMOVZ
-        | Mnm::CMOVAE
-        | Mnm::CMOVBE
-        | Mnm::CMOVLE
-        | Mnm::CMOVGE
-        | Mnm::CMOVNA
-        | Mnm::CMOVNB
-        | Mnm::CMOVNC
-        | Mnm::CMOVNE
-        | Mnm::CMOVNG
-        | Mnm::CMOVNL
-        | Mnm::CMOVNO
-        | Mnm::CMOVNP
-        | Mnm::CMOVNS
-        | Mnm::CMOVNZ
-        | Mnm::CMOVPE
-        | Mnm::CMOVPO
-        | Mnm::CMOVNBE
-        | Mnm::CMOVNLE
-        | Mnm::CMOVNGE
-        | Mnm::CMOVNAE => chkn::CheckAPI::<2>::new()
+        Mnemonic::CMOVA
+        | Mnemonic::CMOVB
+        | Mnemonic::CMOVC
+        | Mnemonic::CMOVE
+        | Mnemonic::CMOVG
+        | Mnemonic::CMOVL
+        | Mnemonic::CMOVO
+        | Mnemonic::CMOVP
+        | Mnemonic::CMOVS
+        | Mnemonic::CMOVZ
+        | Mnemonic::CMOVAE
+        | Mnemonic::CMOVBE
+        | Mnemonic::CMOVLE
+        | Mnemonic::CMOVGE
+        | Mnemonic::CMOVNA
+        | Mnemonic::CMOVNB
+        | Mnemonic::CMOVNC
+        | Mnemonic::CMOVNE
+        | Mnemonic::CMOVNG
+        | Mnemonic::CMOVNL
+        | Mnemonic::CMOVNO
+        | Mnemonic::CMOVNP
+        | Mnemonic::CMOVNS
+        | Mnemonic::CMOVNZ
+        | Mnemonic::CMOVPE
+        | Mnemonic::CMOVPO
+        | Mnemonic::CMOVNBE
+        | Mnemonic::CMOVNLE
+        | Mnemonic::CMOVNGE
+        | Mnemonic::CMOVNAE => chkn::CheckAPI::<2>::new()
             .pushop(&[R16, R32, R64], true)
             .pushop(&[R16, R32, R64, M16, M32, M64], true)
             .check(ins),
-        Mnm::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
-        Mnm::PAUSE | Mnm::LFENCE | Mnm::MFENCE => ot_chk(ins, &[], &[], &[]),
-        Mnm::PUSH => ot_chk(
+        Mnemonic::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
+        Mnemonic::PAUSE | Mnemonic::LFENCE | Mnemonic::MFENCE => ot_chk(ins, &[], &[], &[]),
+        Mnemonic::PUSH => ot_chk(
             ins,
             &[(
                 &[R16, R64, M16, M64, I8, I16, I32, FS, GS],
@@ -500,13 +512,13 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::POP => ot_chk(
+        Mnemonic::POP => ot_chk(
             ins,
             &[(&[R16, R64, M16, M64, FS, GS], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOV => {
+        Mnemonic::MOV => {
             use chkn::*;
             CheckAPI::new()
                 .pushop(&[R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64], true)
@@ -541,6 +553,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                     [MA, DR],
                     [R8, DR],
                 ])
+                .set_mode(CheckMode::X86)
                 .check(ins)
         }
         XCHG => {
@@ -550,9 +563,10 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                 .pushop(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
                 .set_forb(&[[MA, MA]])
                 .set_addt(&[LOCK])
+                .set_mode(CheckMode::X86)
                 .check(ins)
         }
-        Mnm::CMP => ot_chk(
+        Mnemonic::CMP => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -564,7 +578,13 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SUB | Mnm::ADD | Mnm::AND | Mnm::OR | Mnm::XOR | ADC | SBB => ot_chk(
+        Mnemonic::SUB
+        | Mnemonic::ADD
+        | Mnemonic::AND
+        | Mnemonic::OR
+        | Mnemonic::XOR
+        | ADC
+        | SBB => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -576,7 +596,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[LOCK],
         ),
-        Mnm::IMUL => ot_chk(
+        Mnemonic::IMUL => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -586,16 +606,18 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA)],
             &[],
         ),
-        Mnm::SAL | Mnm::SHL | Mnm::SHR | Mnm::SAR | ROL | RCL | ROR | RCR => ot_chk(
-            ins,
-            &[
-                (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
-                (&[CL, I8], Optional::Needed),
-            ],
-            &[],
-            &[],
-        ),
-        Mnm::TEST => ot_chk(
+        Mnemonic::SAL | Mnemonic::SHL | Mnemonic::SHR | Mnemonic::SAR | ROL | RCL | ROR | RCR => {
+            ot_chk(
+                ins,
+                &[
+                    (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
+                    (&[CL, I8], Optional::Needed),
+                ],
+                &[],
+                &[],
+            )
+        }
+        Mnemonic::TEST => ot_chk(
             ins,
             &[
                 (&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed),
@@ -604,20 +626,22 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::DIV | Mnm::IDIV | Mnm::MUL => ot_chk(
+        Mnemonic::DIV | Mnemonic::IDIV | Mnemonic::MUL => ot_chk(
             ins,
             &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::DEC | Mnm::INC | Mnm::NEG | Mnm::NOT => ot_chk(
+        Mnemonic::DEC | Mnemonic::INC | Mnemonic::NEG | Mnemonic::NOT => ot_chk(
             ins,
             &[(&[R8, R16, R32, R64, M8, M16, M32, M64], Optional::Needed)],
             &[],
             &[LOCK],
         ),
-        Mnm::JMP | Mnm::CALL => ot_chk(ins, &[(&[I32, R64, M64], Optional::Needed)], &[], &[]),
-        Mnm::LEA => ot_chk(
+        Mnemonic::JMP | Mnemonic::CALL => {
+            ot_chk(ins, &[(&[I32, R64, M64], Optional::Needed)], &[], &[])
+        }
+        Mnemonic::LEA => ot_chk(
             ins,
             &[
                 (&[R16, R32, R64], Optional::Needed),
@@ -626,9 +650,13 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::SYSCALL | Mnm::RET | Mnm::NOP | Mnm::PUSHF | Mnm::POPF | Mnm::POPFQ | Mnm::PUSHFQ => {
-            ot_chk(ins, &[], &[], &[])
-        }
+        Mnemonic::SYSCALL
+        | Mnemonic::RET
+        | Mnemonic::NOP
+        | Mnemonic::PUSHF
+        | Mnemonic::POPF
+        | Mnemonic::POPFQ
+        | Mnemonic::PUSHFQ => ot_chk(ins, &[], &[], &[]),
         BSF | BSR => ot_chk(
             ins,
             &[
@@ -808,7 +836,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
 }
 
 pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
-    use Mnm::*;
+    use Mnemonic::*;
     match ins.mnem {
         LGDT | LIDT => ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[]),
 
@@ -832,12 +860,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         ),
 
         // instruction as "variable"
-        BYTE | BYTELE | BYTEBE => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
-        WORD | WORDLE | WORDBE => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
-        DWORD | DWORDLE | DWORDBE => ot_chk(ins, &[(&[I8, I16, I32], Optional::Needed)], &[], &[]),
-        QWORD | QWORDLE | QWORDBE => {
-            ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[])
-        }
+        BYTELE | BYTEBE => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
+        WORDLE | WORDBE => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
+        DWORDLE | DWORDBE => ot_chk(ins, &[(&[I8, I16, I32], Optional::Needed)], &[], &[]),
+        QWORDLE | QWORDBE => ot_chk(ins, &[(&[I8, I16, I32, I64], Optional::Needed)], &[], &[]),
         EMPTY => ot_chk(ins, &[(&[I8, I16], Optional::Needed)], &[], &[]),
         STRING | ASCII => ot_chk(
             ins,
@@ -897,35 +923,35 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         LOOP
         | LOOPNE
         | LOOPE
-        | Mnm::JA
-        | Mnm::JB
-        | Mnm::JC
-        | Mnm::JO
-        | Mnm::JP
-        | Mnm::JS
-        | Mnm::JAE
-        | Mnm::JNAE
-        | Mnm::JNBE
-        | Mnm::JNGE
-        | Mnm::JBE
-        | Mnm::JNO
-        | Mnm::JNP
-        | Mnm::JPO
-        | Mnm::JPE
-        | Mnm::JNA
-        | Mnm::JNL
-        | Mnm::JNLE
-        | Mnm::JNC
-        | Mnm::JNB
-        | Mnm::JE
-        | Mnm::JNE
-        | Mnm::JZ
-        | Mnm::JNZ
-        | Mnm::JL
-        | Mnm::JLE
-        | Mnm::JG
-        | Mnm::JGE => ot_chk(ins, &[(&[I32, I16, I8], Optional::Needed)], &[], &[]),
-        Mnm::CPUID => ot_chk(ins, &[], &[], &[]),
+        | Mnemonic::JA
+        | Mnemonic::JB
+        | Mnemonic::JC
+        | Mnemonic::JO
+        | Mnemonic::JP
+        | Mnemonic::JS
+        | Mnemonic::JAE
+        | Mnemonic::JNAE
+        | Mnemonic::JNBE
+        | Mnemonic::JNGE
+        | Mnemonic::JBE
+        | Mnemonic::JNO
+        | Mnemonic::JNP
+        | Mnemonic::JPO
+        | Mnemonic::JPE
+        | Mnemonic::JNA
+        | Mnemonic::JNL
+        | Mnemonic::JNLE
+        | Mnemonic::JNC
+        | Mnemonic::JNB
+        | Mnemonic::JE
+        | Mnemonic::JNE
+        | Mnemonic::JZ
+        | Mnemonic::JNZ
+        | Mnemonic::JL
+        | Mnemonic::JLE
+        | Mnemonic::JG
+        | Mnemonic::JGE => ot_chk(ins, &[(&[I32, I16, I8], Optional::Needed)], &[], &[]),
+        Mnemonic::CPUID => ot_chk(ins, &[], &[], &[]),
 
         ENTER => ot_chk(
             ins,
@@ -1000,7 +1026,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         //     #      #  #
         // #####  #####  #####
         // (SSE)
-        Mnm::CMPSS => ot_chk(
+        Mnemonic::CMPSS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1010,14 +1036,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::UNPCKLPS | Mnm::UNPCKHPS => ot_chk(
+        Mnemonic::UNPCKLPS | Mnemonic::UNPCKHPS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
 
-        Mnm::CMPPS | Mnm::SHUFPS => ot_chk(
+        Mnemonic::CMPPS | Mnemonic::SHUFPS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1027,7 +1053,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::MOVHPS | Mnm::MOVLPS => ot_chk(
+        Mnemonic::MOVHPS | Mnemonic::MOVLPS => ot_chk(
             ins,
             &[
                 (&[XMM, M64], Optional::Needed),
@@ -1036,13 +1062,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M64, M64)],
             &[],
         ),
-        Mnm::MOVLHPS | Mnm::MOVHLPS => ot_chk(
+        Mnemonic::MOVLHPS | Mnemonic::MOVHLPS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVAPS | Mnm::MOVUPS => ot_chk(
+        Mnemonic::MOVAPS | Mnemonic::MOVUPS => ot_chk(
             ins,
             &[
                 (&[XMM, M128], Optional::Needed),
@@ -1051,7 +1077,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M128, M128)],
             &[],
         ),
-        Mnm::MOVSS => ot_chk(
+        Mnemonic::MOVSS => ot_chk(
             ins,
             &[
                 (&[XMM, M32], Optional::Needed),
@@ -1060,33 +1086,33 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M32, M32)],
             &[],
         ),
-        Mnm::SQRTSS
-        | Mnm::ADDSS
-        | Mnm::SUBSS
-        | Mnm::DIVSS
-        | Mnm::MULSS
-        | Mnm::RCPSS
-        | Mnm::RSQRTSS
-        | Mnm::MINSS
-        | Mnm::MAXSS => ot_chk(
+        Mnemonic::SQRTSS
+        | Mnemonic::ADDSS
+        | Mnemonic::SUBSS
+        | Mnemonic::DIVSS
+        | Mnemonic::MULSS
+        | Mnemonic::RCPSS
+        | Mnemonic::RSQRTSS
+        | Mnemonic::MINSS
+        | Mnemonic::MAXSS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
             &[],
             &[],
         ),
 
-        Mnm::ADDPS
-        | Mnm::SUBPS
-        | Mnm::DIVPS
-        | Mnm::MULPS
-        | Mnm::RCPPS
-        | Mnm::SQRTPS
-        | Mnm::RSQRTPS
-        | Mnm::MINPS
-        | Mnm::MAXPS
-        | Mnm::ORPS
-        | Mnm::ANDPS
-        | Mnm::XORPS => ot_chk(
+        Mnemonic::ADDPS
+        | Mnemonic::SUBPS
+        | Mnemonic::DIVPS
+        | Mnemonic::MULPS
+        | Mnemonic::RCPPS
+        | Mnemonic::SQRTPS
+        | Mnemonic::RSQRTPS
+        | Mnemonic::MINPS
+        | Mnemonic::MAXPS
+        | Mnemonic::ORPS
+        | Mnemonic::ANDPS
+        | Mnemonic::XORPS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
@@ -1099,19 +1125,19 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         //     #      #  #       #
         // #####  #####  #####   #####
         // (SSE2)
-        Mnm::MOVDQ2Q => ot_chk(
+        Mnemonic::MOVDQ2Q => ot_chk(
             ins,
             &[(&[MMX], Optional::Needed), (&[XMM], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVMSKPD => ot_chk(
+        Mnemonic::MOVMSKPD => ot_chk(
             ins,
             &[(&[R32, R64], Optional::Needed), (&[XMM], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVLPD | Mnm::MOVHPD | Mnm::MOVSD => ot_chk(
+        Mnemonic::MOVLPD | Mnemonic::MOVHPD | Mnemonic::MOVSD => ot_chk(
             ins,
             &[
                 (&[XMM, M64], Optional::Needed),
@@ -1120,7 +1146,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M64, M64)],
             &[],
         ),
-        Mnm::MOVAPD | Mnm::MOVUPD | Mnm::MOVDQA => ot_chk(
+        Mnemonic::MOVAPD | Mnemonic::MOVUPD | Mnemonic::MOVDQA => ot_chk(
             ins,
             &[
                 (&[XMM, M128], Optional::Needed),
@@ -1129,7 +1155,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M128, M128)],
             &[],
         ),
-        Mnm::CMPSD => ot_chk(
+        Mnemonic::CMPSD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1140,7 +1166,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::CMPPD => ot_chk(
+        Mnemonic::CMPPD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1151,49 +1177,49 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::SQRTSD
-        | Mnm::ADDSD
-        | Mnm::SUBSD
-        | Mnm::DIVSD
-        | Mnm::MULSD
-        | Mnm::MINSD
-        | Mnm::COMISD
-        | Mnm::UCOMISD
-        | Mnm::MAXSD => ot_chk(
+        Mnemonic::SQRTSD
+        | Mnemonic::ADDSD
+        | Mnemonic::SUBSD
+        | Mnemonic::DIVSD
+        | Mnemonic::MULSD
+        | Mnemonic::MINSD
+        | Mnemonic::COMISD
+        | Mnemonic::UCOMISD
+        | Mnemonic::MAXSD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
             &[],
             &[],
         ),
 
-        Mnm::ADDPD
-        | Mnm::SUBPD
-        | Mnm::DIVPD
-        | Mnm::MULPD
-        | Mnm::SQRTPD
-        | Mnm::MINPD
-        | Mnm::MAXPD
-        | Mnm::ORPD
-        | Mnm::ANDPD
-        | Mnm::XORPD => ot_chk(
+        Mnemonic::ADDPD
+        | Mnemonic::SUBPD
+        | Mnemonic::DIVPD
+        | Mnemonic::MULPD
+        | Mnemonic::SQRTPD
+        | Mnemonic::MINPD
+        | Mnemonic::MAXPD
+        | Mnemonic::ORPD
+        | Mnemonic::ANDPD
+        | Mnemonic::XORPD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MASKMOVDQU => ot_chk(
+        Mnemonic::MASKMOVDQU => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVNTDQ | Mnm::MOVNTPD => ot_chk(
+        Mnemonic::MOVNTDQ | Mnemonic::MOVNTPD => ot_chk(
             ins,
             &[(&[M128], Optional::Needed), (&[XMM], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVNTI => ot_chk(
+        Mnemonic::MOVNTI => ot_chk(
             ins,
             &[
                 (&[M32, M64], Optional::Needed),
@@ -1209,8 +1235,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         // #   #  #   #   # #
         // #   #  #   #  #   #
         // (MMX/SSE2)
-        Mnm::EMMS => ot_chk(ins, &[], &[], &[]),
-        Mnm::MOVD => ot_chk(
+        Mnemonic::EMMS => ot_chk(ins, &[], &[], &[]),
+        Mnemonic::MOVD => ot_chk(
             ins,
             &[
                 (&[MMX, XMM, R32, M32], Optional::Needed),
@@ -1226,7 +1252,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::MOVQ => ot_chk(
+        Mnemonic::MOVQ => ot_chk(
             ins,
             &[
                 (&[MMX, XMM, R64, M64], Optional::Needed),
@@ -1242,14 +1268,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::PSLLW
-        | Mnm::PSLLD
-        | Mnm::PSLLQ
-        | Mnm::PSRLW
-        | Mnm::PSRLD
-        | Mnm::PSRLQ
-        | Mnm::PSRAD
-        | Mnm::PSRAW => ot_chk(
+        Mnemonic::PSLLW
+        | Mnemonic::PSLLD
+        | Mnemonic::PSLLQ
+        | Mnemonic::PSRLW
+        | Mnemonic::PSRLD
+        | Mnemonic::PSRLQ
+        | Mnemonic::PSRAD
+        | Mnemonic::PSRAW => ot_chk(
             ins,
             &[
                 (&[MMX, XMM], Optional::Needed),
@@ -1258,43 +1284,43 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, MMX), (MMX, XMM), (MMX, M128), (XMM, M64)],
             &[],
         ),
-        Mnm::PADDB
-        | Mnm::PADDW
-        | Mnm::PADDD
-        | Mnm::PADDQ
-        | Mnm::PADDSB
-        | Mnm::PADDSW
-        | Mnm::PADDUSB
-        | Mnm::PADDUSW
-        | Mnm::PSUBB
-        | Mnm::PSUBW
-        | Mnm::PSUBSB
-        | Mnm::PSUBSW
-        | Mnm::PSUBUSB
-        | Mnm::PSUBUSW
-        | Mnm::PMULHW
-        | Mnm::PMULLW
-        | Mnm::PMADDWD
-        | Mnm::PCMPGTB
-        | Mnm::PCMPGTW
-        | Mnm::PCMPGTD
-        | Mnm::PCMPEQB
-        | Mnm::PCMPEQW
-        | Mnm::PCMPEQD
-        | Mnm::PACKSSWB
-        | Mnm::PACKSSDW
-        | Mnm::PACKUSWB
-        | Mnm::PUNPCKLBW
-        | Mnm::PUNPCKLWD
-        | Mnm::PUNPCKLDQ
-        | Mnm::PUNPCKHBW
-        | Mnm::PUNPCKHWD
-        | Mnm::PUNPCKHDQ
-        | Mnm::PAND
-        | Mnm::PANDN
-        | Mnm::POR
-        | Mnm::PXOR
-        | Mnm::PSUBD => ot_chk(
+        Mnemonic::PADDB
+        | Mnemonic::PADDW
+        | Mnemonic::PADDD
+        | Mnemonic::PADDQ
+        | Mnemonic::PADDSB
+        | Mnemonic::PADDSW
+        | Mnemonic::PADDUSB
+        | Mnemonic::PADDUSW
+        | Mnemonic::PSUBB
+        | Mnemonic::PSUBW
+        | Mnemonic::PSUBSB
+        | Mnemonic::PSUBSW
+        | Mnemonic::PSUBUSB
+        | Mnemonic::PSUBUSW
+        | Mnemonic::PMULHW
+        | Mnemonic::PMULLW
+        | Mnemonic::PMADDWD
+        | Mnemonic::PCMPGTB
+        | Mnemonic::PCMPGTW
+        | Mnemonic::PCMPGTD
+        | Mnemonic::PCMPEQB
+        | Mnemonic::PCMPEQW
+        | Mnemonic::PCMPEQD
+        | Mnemonic::PACKSSWB
+        | Mnemonic::PACKSSDW
+        | Mnemonic::PACKUSWB
+        | Mnemonic::PUNPCKLBW
+        | Mnemonic::PUNPCKLWD
+        | Mnemonic::PUNPCKLDQ
+        | Mnemonic::PUNPCKHBW
+        | Mnemonic::PUNPCKHWD
+        | Mnemonic::PUNPCKHDQ
+        | Mnemonic::PAND
+        | Mnemonic::PANDN
+        | Mnemonic::POR
+        | Mnemonic::PXOR
+        | Mnemonic::PSUBD => ot_chk(
             ins,
             &[
                 (&[MMX, XMM], Optional::Needed),
@@ -1303,7 +1329,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, MMX), (MMX, XMM), (XMM, M64), (MMX, M128)],
             &[],
         ),
-        Mnm::PMULUDQ | Mnm::PSUBQ => ot_chk(
+        Mnemonic::PMULUDQ | Mnemonic::PSUBQ => ot_chk(
             ins,
             &[
                 (&[MMX, XMM], Optional::Needed),
@@ -1312,7 +1338,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(MMX, XMM), (XMM, MMX), (XMM, M64), (MMX, M128)],
             &[],
         ),
-        Mnm::PSHUFLW | Mnm::PSHUFHW | Mnm::PSHUFD => ot_chk(
+        Mnemonic::PSHUFLW | Mnemonic::PSHUFHW | Mnemonic::PSHUFD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1322,7 +1348,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PSLLDQ | Mnm::PSRLDQ => ot_chk(
+        Mnemonic::PSLLDQ | Mnemonic::PSRLDQ => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[I8], Optional::Needed)],
             &[],
@@ -1335,14 +1361,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         //     #      #  #       #
         // #####  #####  #####   ####
         // (SSE 3)
-        Mnm::ADDSUBPD
-        | Mnm::ADDSUBPS
-        | Mnm::HADDPD
-        | Mnm::HADDPS
-        | Mnm::HSUBPS
-        | Mnm::HSUBPD
-        | Mnm::MOVSLDUP
-        | Mnm::MOVSHDUP => ot_chk(
+        Mnemonic::ADDSUBPD
+        | Mnemonic::ADDSUBPS
+        | Mnemonic::HADDPD
+        | Mnemonic::HADDPS
+        | Mnemonic::HSUBPS
+        | Mnemonic::HSUBPD
+        | Mnemonic::MOVSLDUP
+        | Mnemonic::MOVSHDUP => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
@@ -1350,21 +1376,23 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         ),
 
         // weird one
-        Mnm::LDDQU => ot_chk(
+        Mnemonic::LDDQU => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MOVDDUP => ot_chk(
+        Mnemonic::MOVDDUP => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::MONITOR | Mnm::MWAIT | Mnm::MFENCE | Mnm::LFENCE | Mnm::CLFLUSH => {
-            ot_chk(ins, &[], &[], &[])
-        }
+        Mnemonic::MONITOR
+        | Mnemonic::MWAIT
+        | Mnemonic::MFENCE
+        | Mnemonic::LFENCE
+        | Mnemonic::CLFLUSH => ot_chk(ins, &[], &[], &[]),
 
         // ##### ##### #####  #####   ####
         // #     #     #      #           #
@@ -1372,21 +1400,21 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         //     #     #     #  #           #
         // ##### ##### #####  #####   ####
         // (SSSE 3)
-        Mnm::PABSW
-        | Mnm::PABSD
-        | Mnm::PABSB
-        | Mnm::PSIGNW
-        | Mnm::PSIGND
-        | Mnm::PSIGNB
-        | Mnm::PHSUBW
-        | Mnm::PHSUBD
-        | Mnm::PHADDW
-        | Mnm::PHADDD
-        | Mnm::PSHUFB
-        | Mnm::PHSUBSW
-        | Mnm::PHADDSW
-        | Mnm::PMULHRSW
-        | Mnm::PMADDUBSW => ot_chk(
+        Mnemonic::PABSW
+        | Mnemonic::PABSD
+        | Mnemonic::PABSB
+        | Mnemonic::PSIGNW
+        | Mnemonic::PSIGND
+        | Mnemonic::PSIGNB
+        | Mnemonic::PHSUBW
+        | Mnemonic::PHSUBD
+        | Mnemonic::PHADDW
+        | Mnemonic::PHADDD
+        | Mnemonic::PSHUFB
+        | Mnemonic::PHSUBSW
+        | Mnemonic::PHADDSW
+        | Mnemonic::PMULHRSW
+        | Mnemonic::PMADDUBSW => ot_chk(
             ins,
             &[
                 (&[MMX, XMM], Optional::Needed),
@@ -1396,7 +1424,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::PALIGNR => ot_chk(
+        Mnemonic::PALIGNR => ot_chk(
             ins,
             &[
                 (&[MMX, XMM], Optional::Needed),
@@ -1413,7 +1441,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         //     #      #  #          #
         // #####  #####  #####      #
         // (SSE4)
-        Mnm::PINSRB => ot_chk(
+        Mnemonic::PINSRB => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1423,7 +1451,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PINSRQ => ot_chk(
+        Mnemonic::PINSRQ => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1433,7 +1461,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PINSRD => ot_chk(
+        Mnemonic::PINSRD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1443,7 +1471,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PEXTRB => ot_chk(
+        Mnemonic::PEXTRB => ot_chk(
             ins,
             &[
                 (&[R32, R64, M32, M64], Optional::Needed),
@@ -1453,7 +1481,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PEXTRD => ot_chk(
+        Mnemonic::PEXTRD => ot_chk(
             ins,
             &[
                 (&[R32, M32], Optional::Needed),
@@ -1463,7 +1491,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PEXTRQ => ot_chk(
+        Mnemonic::PEXTRQ => ot_chk(
             ins,
             &[
                 (&[R64, M64], Optional::Needed),
@@ -1473,7 +1501,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PEXTRW => ot_chk(
+        Mnemonic::PEXTRW => ot_chk(
             ins,
             &[
                 (&[M16], Optional::Needed),
@@ -1483,25 +1511,25 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PTEST
-        | Mnm::PMAXSB
-        | Mnm::PMAXSD
-        | Mnm::PMINSD
-        | Mnm::PMINSB
-        | Mnm::PMINUW
-        | Mnm::PMULDQ
-        | Mnm::PMULLD
-        | Mnm::PCMPEQQ
-        | Mnm::PCMPGTQ
-        | Mnm::BLENDVPS
-        | Mnm::BLENDVPD
-        | Mnm::PACKUSDW => ot_chk(
+        Mnemonic::PTEST
+        | Mnemonic::PMAXSB
+        | Mnemonic::PMAXSD
+        | Mnemonic::PMINSD
+        | Mnemonic::PMINSB
+        | Mnemonic::PMINUW
+        | Mnemonic::PMULDQ
+        | Mnemonic::PMULLD
+        | Mnemonic::PCMPEQQ
+        | Mnemonic::PCMPGTQ
+        | Mnemonic::BLENDVPS
+        | Mnemonic::BLENDVPD
+        | Mnemonic::PACKUSDW => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::POPCNT => ot_chk(
+        Mnemonic::POPCNT => ot_chk(
             ins,
             &[
                 (&[R16, R32, R64], Optional::Needed),
@@ -1523,13 +1551,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::MOVNTDQA => ot_chk(
+        Mnemonic::MOVNTDQA => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::EXTRACTPS => ot_chk(
+        Mnemonic::EXTRACTPS => ot_chk(
             ins,
             &[
                 (&[R32, R64, M32], Optional::Needed),
@@ -1539,7 +1567,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::ROUNDSS | Mnm::ROUNDSD | Mnm::INSERTPS => ot_chk(
+        Mnemonic::ROUNDSS | Mnemonic::ROUNDSD | Mnemonic::INSERTPS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1549,18 +1577,18 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::DPPS
-        | Mnm::DPPD
-        | Mnm::BLENDPS
-        | Mnm::BLENDPD
-        | Mnm::PBLENDW
-        | Mnm::ROUNDPS
-        | Mnm::ROUNDPD
-        | Mnm::MPSADBW
-        | Mnm::PCMPESTRI
-        | Mnm::PCMPESTRM
-        | Mnm::PCMPISTRM
-        | Mnm::PCMPISTRI => ot_chk(
+        Mnemonic::DPPS
+        | Mnemonic::DPPD
+        | Mnemonic::BLENDPS
+        | Mnemonic::BLENDPD
+        | Mnemonic::PBLENDW
+        | Mnemonic::ROUNDPS
+        | Mnemonic::ROUNDPD
+        | Mnemonic::MPSADBW
+        | Mnemonic::PCMPESTRI
+        | Mnemonic::PCMPESTRM
+        | Mnemonic::PCMPISTRM
+        | Mnemonic::PCMPISTRI => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1578,7 +1606,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         // AVX chk
 
         // idk derived
-        Mnm::VPINSRB => ot_chk(
+        Mnemonic::VPINSRB => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1589,7 +1617,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPINSRQ => ot_chk(
+        Mnemonic::VPINSRQ => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1600,7 +1628,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPINSRD => ot_chk(
+        Mnemonic::VPINSRD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1611,7 +1639,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPEXTRB => ot_chk(
+        Mnemonic::VPEXTRB => ot_chk(
             ins,
             &[
                 (&[M8, R32, R64, M32, M64], Optional::Needed),
@@ -1621,7 +1649,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPEXTRD | Mnm::VEXTRACTPS => ot_chk(
+        Mnemonic::VPEXTRD | Mnemonic::VEXTRACTPS => ot_chk(
             ins,
             &[
                 (&[R32, M32], Optional::Needed),
@@ -1631,7 +1659,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPEXTRQ => ot_chk(
+        Mnemonic::VPEXTRQ => ot_chk(
             ins,
             &[
                 (&[R64, M64], Optional::Needed),
@@ -1641,7 +1669,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPEXTRW => ot_chk(
+        Mnemonic::VPEXTRW => ot_chk(
             ins,
             &[
                 (&[M16], Optional::Needed),
@@ -1651,7 +1679,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VROUNDSS | Mnm::VINSERTPS => ot_chk(
+        Mnemonic::VROUNDSS | Mnemonic::VINSERTPS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1662,7 +1690,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VROUNDSD => ot_chk(
+        Mnemonic::VROUNDSD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1673,7 +1701,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VROUNDPS | Mnm::VROUNDPD => ot_chk(
+        Mnemonic::VROUNDPS | Mnemonic::VROUNDPD => ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1683,7 +1711,11 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, YMM), (XMM, M256), (YMM, M128), (YMM, XMM)],
             &[],
         ),
-        Mnm::VMOVAPS | Mnm::VMOVAPD | Mnm::VMOVUPS | Mnm::VMOVUPD | Mnm::VMOVDQA => ot_chk(
+        Mnemonic::VMOVAPS
+        | Mnemonic::VMOVAPD
+        | Mnemonic::VMOVUPS
+        | Mnemonic::VMOVUPD
+        | Mnemonic::VMOVDQA => ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
@@ -1706,7 +1738,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::VMOVMSKPD => avx_ot_chk(
+        Mnemonic::VMOVMSKPD => avx_ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -1715,7 +1747,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VMOVSD => avx_ot_chk(
+        Mnemonic::VMOVSD => avx_ot_chk(
             ins,
             &[
                 (&[XMM, M64], Optional::Needed),
@@ -1725,7 +1757,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA, XMM), (XMM, MA, XMM), (MA, XMM, XMM)],
             &[],
         ),
-        Mnm::VMOVSS => avx_ot_chk(
+        Mnemonic::VMOVSS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, M32], Optional::Needed),
@@ -1735,7 +1767,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(MA, MA, XMM), (XMM, MA, XMM), (MA, XMM, XMM)],
             &[],
         ),
-        Mnm::VPMULDQ | Mnm::VPMULLD => avx_ot_chk(
+        Mnemonic::VPMULDQ | Mnemonic::VPMULLD => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1752,17 +1784,19 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::VMOVLPS | Mnm::VMOVLPD | Mnm::VMOVHPS | Mnm::VMOVHPD => avx_ot_chk(
-            ins,
-            &[
-                (&[XMM, M64], Optional::Needed),
-                (&[XMM], Optional::Needed),
-                (&[M64], Optional::Optional),
-            ],
-            &[(MA, XMM, MA)],
-            &[],
-        ),
-        Mnm::VLDDQU | Mnm::VMOVNTDQA => ot_chk(
+        Mnemonic::VMOVLPS | Mnemonic::VMOVLPD | Mnemonic::VMOVHPS | Mnemonic::VMOVHPD => {
+            avx_ot_chk(
+                ins,
+                &[
+                    (&[XMM, M64], Optional::Needed),
+                    (&[XMM], Optional::Needed),
+                    (&[M64], Optional::Optional),
+                ],
+                &[(MA, XMM, MA)],
+                &[],
+            )
+        }
+        Mnemonic::VLDDQU | Mnemonic::VMOVNTDQA => ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1771,13 +1805,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, M256), (YMM, M128)],
             &[],
         ),
-        Mnm::VPHMINPOSUW => ot_chk(
+        Mnemonic::VPHMINPOSUW => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::VMOVDDUP => ot_chk(
+        Mnemonic::VMOVDDUP => ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1786,13 +1820,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, YMM), (XMM, M256), (YMM, XMM), (YMM, M64)],
             &[],
         ),
-        Mnm::VMOVSLDUP
-        | Mnm::VPTEST
-        | Mnm::VMOVSHDUP
-        | Mnm::VRCPPS
-        | Mnm::VSQRTPS
-        | Mnm::VRSQRTPS
-        | Mnm::VSQRTPD => ot_chk(
+        Mnemonic::VMOVSLDUP
+        | Mnemonic::VPTEST
+        | Mnemonic::VMOVSHDUP
+        | Mnemonic::VRCPPS
+        | Mnemonic::VSQRTPS
+        | Mnemonic::VRSQRTPS
+        | Mnemonic::VSQRTPD => ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1801,13 +1835,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, M256), (XMM, YMM), (YMM, XMM), (YMM, M128)],
             &[],
         ),
-        Mnm::VADDSD
-        | Mnm::VSUBSD
-        | Mnm::VMULSD
-        | Mnm::VDIVSD
-        | Mnm::VSQRTSD
-        | Mnm::VMINSD
-        | Mnm::VMAXSD => avx_ot_chk(
+        Mnemonic::VADDSD
+        | Mnemonic::VSUBSD
+        | Mnemonic::VMULSD
+        | Mnemonic::VDIVSD
+        | Mnemonic::VSQRTSD
+        | Mnemonic::VMINSD
+        | Mnemonic::VMAXSD => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1817,15 +1851,15 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VADDSS
-        | Mnm::VSUBSS
-        | Mnm::VMULSS
-        | Mnm::VDIVSS
-        | Mnm::VRCPSS
-        | Mnm::VSQRTSS
-        | Mnm::VRSQRTSS
-        | Mnm::VMINSS
-        | Mnm::VMAXSS => avx_ot_chk(
+        Mnemonic::VADDSS
+        | Mnemonic::VSUBSS
+        | Mnemonic::VMULSS
+        | Mnemonic::VDIVSS
+        | Mnemonic::VRCPSS
+        | Mnemonic::VSQRTSS
+        | Mnemonic::VRSQRTSS
+        | Mnemonic::VMINSS
+        | Mnemonic::VMAXSS => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1835,45 +1869,45 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VADDPD
-        | Mnm::VSUBPD
-        | Mnm::VDIVPD
-        | Mnm::VMULPD
-        | Mnm::VMINPD
-        | Mnm::VMAXPD
-        | Mnm::VORPD
-        | Mnm::VANDNPD
-        | Mnm::VANDPD
-        | Mnm::VXORPD
-        | Mnm::VADDPS
-        | Mnm::VSUBPS
-        | Mnm::VDIVPS
-        | Mnm::VMULPS
-        | Mnm::VMINPS
-        | Mnm::VMAXPS
-        | Mnm::VORPS
-        | Mnm::VANDNPS
-        | Mnm::VANDPS
-        | Mnm::VUNPCKLPS
-        | Mnm::VUNPCKHPS
-        | Mnm::VADDSUBPS
-        | Mnm::VADDSUBPD
-        | Mnm::VHADDPS
-        | Mnm::VHADDPD
-        | Mnm::VHSUBPS
-        | Mnm::VHSUBPD
-        | Mnm::VPMAXSB
-        | Mnm::VPMAXSD
-        | Mnm::VPMINSB
-        | Mnm::VPMINSD
-        | Mnm::VPMAXUW
-        | Mnm::VPMAXUB
-        | Mnm::VPMINUW
-        | Mnm::VPMINUB
-        | Mnm::VPCMPEQQ
-        | Mnm::VPCMPGTQ
-        | Mnm::VPACKUSDW
-        | Mnm::VXORPS => avx_ot_chk(
+        Mnemonic::VADDPD
+        | Mnemonic::VSUBPD
+        | Mnemonic::VDIVPD
+        | Mnemonic::VMULPD
+        | Mnemonic::VMINPD
+        | Mnemonic::VMAXPD
+        | Mnemonic::VORPD
+        | Mnemonic::VANDNPD
+        | Mnemonic::VANDPD
+        | Mnemonic::VXORPD
+        | Mnemonic::VADDPS
+        | Mnemonic::VSUBPS
+        | Mnemonic::VDIVPS
+        | Mnemonic::VMULPS
+        | Mnemonic::VMINPS
+        | Mnemonic::VMAXPS
+        | Mnemonic::VORPS
+        | Mnemonic::VANDNPS
+        | Mnemonic::VANDPS
+        | Mnemonic::VUNPCKLPS
+        | Mnemonic::VUNPCKHPS
+        | Mnemonic::VADDSUBPS
+        | Mnemonic::VADDSUBPD
+        | Mnemonic::VHADDPS
+        | Mnemonic::VHADDPD
+        | Mnemonic::VHSUBPS
+        | Mnemonic::VHSUBPD
+        | Mnemonic::VPMAXSB
+        | Mnemonic::VPMAXSD
+        | Mnemonic::VPMINSB
+        | Mnemonic::VPMINSD
+        | Mnemonic::VPMAXUW
+        | Mnemonic::VPMAXUB
+        | Mnemonic::VPMINUW
+        | Mnemonic::VPMINUB
+        | Mnemonic::VPCMPEQQ
+        | Mnemonic::VPCMPGTQ
+        | Mnemonic::VPACKUSDW
+        | Mnemonic::VXORPS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -1893,19 +1927,19 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::VCOMISD | Mnm::VUCOMISD => ot_chk(
+        Mnemonic::VCOMISD | Mnemonic::VUCOMISD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::VCOMISS | Mnm::VUCOMISS => ot_chk(
+        Mnemonic::VCOMISS | Mnemonic::VUCOMISS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::VMOVHLPS | Mnm::VMOVLHPS => ot_chk(
+        Mnemonic::VMOVHLPS | Mnemonic::VMOVLHPS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1915,7 +1949,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPCMPESTRI | Mnm::VPCMPESTRM | Mnm::VPCMPISTRI | Mnm::VPCMPISTRM => ot_chk(
+        Mnemonic::VPCMPESTRI
+        | Mnemonic::VPCMPESTRM
+        | Mnemonic::VPCMPISTRI
+        | Mnemonic::VPCMPISTRM => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -1925,7 +1962,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCMPSS => ot_chk(
+        Mnemonic::VCMPSS => ot_chk(
             ins,
             &[
                 (&[XMM, K], Optional::Needed),
@@ -1937,7 +1974,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::VCMPSD => ot_chk(
+        Mnemonic::VCMPSD => ot_chk(
             ins,
             &[
                 (&[XMM, K], Optional::Needed),
@@ -1948,7 +1985,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VBLENDVPS | Mnm::VBLENDVPD | Mnm::VPBLENDVB => avx_ot_chk(
+        Mnemonic::VBLENDVPS | Mnemonic::VBLENDVPD | Mnemonic::VPBLENDVB => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -1967,15 +2004,15 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
 
-        Mnm::VBLENDPS
-        | Mnm::VBLENDPD
-        | Mnm::VPBLENDW
-        | Mnm::VMPSADBW
-        | Mnm::VDPPS
-        | Mnm::VDPPD
-        | Mnm::VCMPPS
-        | Mnm::VCMPPD
-        | Mnm::VSHUFPS => avx_ot_chk(
+        Mnemonic::VBLENDPS
+        | Mnemonic::VBLENDPD
+        | Mnemonic::VPBLENDW
+        | Mnemonic::VMPSADBW
+        | Mnemonic::VDPPS
+        | Mnemonic::VDPPD
+        | Mnemonic::VCMPPS
+        | Mnemonic::VCMPPD
+        | Mnemonic::VSHUFPS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -1995,44 +2032,44 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         ),
 
         // MMX derived
-        Mnm::VPOR
-        | Mnm::VPAND
-        | Mnm::VPXOR
-        | Mnm::VPADDB
-        | Mnm::VPADDW
-        | Mnm::VPADDD
-        | Mnm::VPADDQ
-        | Mnm::VPSUBB
-        | Mnm::VPSUBD
-        | Mnm::VPSUBQ
-        | Mnm::VPSUBW
-        | Mnm::VPANDN
-        | Mnm::VPSUBSW
-        | Mnm::VPSUBSB
-        | Mnm::VPADDSB
-        | Mnm::VPADDSW
-        | Mnm::VPMULLW
-        | Mnm::VPSUBUSB
-        | Mnm::VPSUBUSW
-        | Mnm::VPADDUSB
-        | Mnm::VPADDUSW
-        | Mnm::VPMADDWD
-        | Mnm::VPCMPEQB
-        | Mnm::VPCMPEQW
-        | Mnm::VPCMPEQD
-        | Mnm::VPCMPGTB
-        | Mnm::VPCMPGTW
-        | Mnm::VPCMPGTD
-        | Mnm::VPACKUSWB
-        | Mnm::VPACKSSWB
-        | Mnm::VPACKSSDW
-        | Mnm::VPUNPCKLBW
-        | Mnm::VPUNPCKHBW
-        | Mnm::VPUNPCKLWD
-        | Mnm::VPUNPCKHWD
-        | Mnm::VPUNPCKLDQ
-        | Mnm::VPUNPCKHDQ
-        | Mnm::VPMULHW => avx_ot_chk(
+        Mnemonic::VPOR
+        | Mnemonic::VPAND
+        | Mnemonic::VPXOR
+        | Mnemonic::VPADDB
+        | Mnemonic::VPADDW
+        | Mnemonic::VPADDD
+        | Mnemonic::VPADDQ
+        | Mnemonic::VPSUBB
+        | Mnemonic::VPSUBD
+        | Mnemonic::VPSUBQ
+        | Mnemonic::VPSUBW
+        | Mnemonic::VPANDN
+        | Mnemonic::VPSUBSW
+        | Mnemonic::VPSUBSB
+        | Mnemonic::VPADDSB
+        | Mnemonic::VPADDSW
+        | Mnemonic::VPMULLW
+        | Mnemonic::VPSUBUSB
+        | Mnemonic::VPSUBUSW
+        | Mnemonic::VPADDUSB
+        | Mnemonic::VPADDUSW
+        | Mnemonic::VPMADDWD
+        | Mnemonic::VPCMPEQB
+        | Mnemonic::VPCMPEQW
+        | Mnemonic::VPCMPEQD
+        | Mnemonic::VPCMPGTB
+        | Mnemonic::VPCMPGTW
+        | Mnemonic::VPCMPGTD
+        | Mnemonic::VPACKUSWB
+        | Mnemonic::VPACKSSWB
+        | Mnemonic::VPACKSSDW
+        | Mnemonic::VPUNPCKLBW
+        | Mnemonic::VPUNPCKHBW
+        | Mnemonic::VPUNPCKLWD
+        | Mnemonic::VPUNPCKHWD
+        | Mnemonic::VPUNPCKLDQ
+        | Mnemonic::VPUNPCKHDQ
+        | Mnemonic::VPMULHW => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM, K], Optional::Needed),
@@ -2049,14 +2086,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::VPSLLW
-        | Mnm::VPSLLD
-        | Mnm::VPSLLQ
-        | Mnm::VPSRLW
-        | Mnm::VPSRLD
-        | Mnm::VPSRLQ
-        | Mnm::VPSRAD
-        | Mnm::VPSRAW => avx_ot_chk(
+        Mnemonic::VPSLLW
+        | Mnemonic::VPSLLD
+        | Mnemonic::VPSLLQ
+        | Mnemonic::VPSRLW
+        | Mnemonic::VPSRLD
+        | Mnemonic::VPSRLQ
+        | Mnemonic::VPSRAD
+        | Mnemonic::VPSRAW => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2073,7 +2110,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             ],
             &[],
         ),
-        Mnm::VMOVD => ot_chk(
+        Mnemonic::VMOVD => ot_chk(
             ins,
             &[
                 (&[XMM, R32, M32], Optional::Needed),
@@ -2082,7 +2119,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(M32, M32), (R32, R32), (XMM, XMM)],
             &[],
         ),
-        Mnm::VMOVQ => ot_chk(
+        Mnemonic::VMOVQ => ot_chk(
             ins,
             &[
                 (&[XMM, R64, M64], Optional::Needed),
@@ -2092,8 +2129,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // part2a
-        Mnm::VZEROALL | Mnm::VZEROUPPER => ot_chk(ins, &[], &[], &[]),
-        Mnm::PAVGB | Mnm::PAVGW => ot_chk(
+        Mnemonic::VZEROALL | Mnemonic::VZEROUPPER => ot_chk(ins, &[], &[], &[]),
+        Mnemonic::PAVGB | Mnemonic::PAVGW => ot_chk(
             ins,
             &[
                 (&[XMM, MMX], Optional::Needed),
@@ -2102,25 +2139,28 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPAVGB | Mnm::VPAVGW | Mnm::VPHADDW | Mnm::VPHADDD | Mnm::VPHSUBW | Mnm::VPHSUBD => {
-            avx_ot_chk(
-                ins,
-                &[
-                    (&[XMM, YMM, ZMM], Optional::Needed),
-                    (&[XMM, YMM, ZMM], Optional::Needed),
-                    (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
-                ],
-                &[],
-                &[],
-            )
-        }
-        Mnm::VBROADCASTF128 => avx_ot_chk_wthout(
+        Mnemonic::VPAVGB
+        | Mnemonic::VPAVGW
+        | Mnemonic::VPHADDW
+        | Mnemonic::VPHADDD
+        | Mnemonic::VPHSUBW
+        | Mnemonic::VPHSUBD => avx_ot_chk(
+            ins,
+            &[
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
+            ],
+            &[],
+            &[],
+        ),
+        Mnemonic::VBROADCASTF128 => avx_ot_chk_wthout(
             ins,
             &[(&[YMM], Optional::Needed), (&[M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::VBROADCASTSD => avx_ot_chk_wthout(
+        Mnemonic::VBROADCASTSD => avx_ot_chk_wthout(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2129,7 +2169,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VBROADCASTSS => avx_ot_chk_wthout(
+        Mnemonic::VBROADCASTSS => avx_ot_chk_wthout(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2138,7 +2178,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VEXTRACTF128 => avx_ot_chk_wthout(
+        Mnemonic::VEXTRACTF128 => avx_ot_chk_wthout(
             ins,
             &[
                 (&[XMM, M128], Optional::Needed),
@@ -2148,7 +2188,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VINSERTF128 => avx_ot_chk_wthout(
+        Mnemonic::VINSERTF128 => avx_ot_chk_wthout(
             ins,
             &[
                 (&[YMM], Optional::Needed),
@@ -2159,7 +2199,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPALIGNR => avx_ot_chk(
+        Mnemonic::VPALIGNR => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2171,10 +2211,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // part2b
-        Mnm::STMXCSR | Mnm::VSTMXCSR | Mnm::LDMXCSR | Mnm::VLDMXCSR => {
+        Mnemonic::STMXCSR | Mnemonic::VSTMXCSR | Mnemonic::LDMXCSR | Mnemonic::VLDMXCSR => {
             ot_chk(ins, &[(&[M32], Optional::Needed)], &[], &[])
         }
-        Mnm::VMOVMSKPS => ot_chk(
+        Mnemonic::VMOVMSKPS => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2183,7 +2223,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPERMILPD | Mnm::VPERMILPS => avx_ot_chk(
+        Mnemonic::VPERMILPD | Mnemonic::VPERMILPS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2193,7 +2233,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, MA, MA), (YMM, MA, MA)],
             &[],
         ),
-        Mnm::VPCLMULQDQ => avx_ot_chk(
+        Mnemonic::VPCLMULQDQ => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2204,7 +2244,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PCLMULQDQ => avx_ot_chk(
+        Mnemonic::PCLMULQDQ => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2214,7 +2254,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPERM2F128 | Mnm::VPERM2I128 => avx_ot_chk(
+        Mnemonic::VPERM2F128 | Mnemonic::VPERM2I128 => avx_ot_chk(
             ins,
             &[
                 (&[YMM], Optional::Needed),
@@ -2226,14 +2266,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // part2c
-        Mnm::VPMAXSW
-        | Mnm::VPMINSW
-        | Mnm::VPSIGNB
-        | Mnm::VPSIGNW
-        | Mnm::VPSIGND
-        | Mnm::VPMULUDQ
-        | Mnm::VPMULHUW
-        | Mnm::VPMULHRSW => avx_ot_chk(
+        Mnemonic::VPMAXSW
+        | Mnemonic::VPMINSW
+        | Mnemonic::VPSIGNB
+        | Mnemonic::VPSIGNW
+        | Mnemonic::VPSIGND
+        | Mnemonic::VPMULUDQ
+        | Mnemonic::VPMULHUW
+        | Mnemonic::VPMULHRSW => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2243,7 +2283,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPSRLDQ => avx_ot_chk(
+        Mnemonic::VPSRLDQ => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2253,7 +2293,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VPINSRW => avx_ot_chk(
+        Mnemonic::VPINSRW => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2265,7 +2305,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // part2c-ext
-        Mnm::VPMAXUD => avx_ot_chk(
+        Mnemonic::VPMAXUD => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2275,7 +2315,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::PMAXSW | Mnm::PMINSW | Mnm::PMULHUW => ot_chk(
+        Mnemonic::PMAXSW | Mnemonic::PMINSW | Mnemonic::PMULHUW => ot_chk(
             ins,
             &[
                 (&[XMM, MMX], Optional::Needed),
@@ -2284,13 +2324,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnm::PMAXUD => ot_chk(
+        Mnemonic::PMAXUD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::PINSRW => ot_chk(
+        Mnemonic::PINSRW => ot_chk(
             ins,
             &[
                 (&[XMM, MMX], Optional::Needed),
@@ -2301,18 +2341,18 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // fma-part1
-        Mnm::VFMADD132PD
-        | Mnm::VFMADD213PD
-        | Mnm::VFMADD231PD
-        | Mnm::VFMSUB132PD
-        | Mnm::VFMSUB213PD
-        | Mnm::VFMSUB231PD
-        | Mnm::VFMADD132PS
-        | Mnm::VFMADD213PS
-        | Mnm::VFMADD231PS
-        | Mnm::VFMSUB132PS
-        | Mnm::VFMSUB213PS
-        | Mnm::VFMSUB231PS => avx_ot_chk(
+        Mnemonic::VFMADD132PD
+        | Mnemonic::VFMADD213PD
+        | Mnemonic::VFMADD231PD
+        | Mnemonic::VFMSUB132PD
+        | Mnemonic::VFMSUB213PD
+        | Mnemonic::VFMSUB231PD
+        | Mnemonic::VFMADD132PS
+        | Mnemonic::VFMADD213PS
+        | Mnemonic::VFMADD231PS
+        | Mnemonic::VFMSUB132PS
+        | Mnemonic::VFMSUB213PS
+        | Mnemonic::VFMSUB231PS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2322,12 +2362,12 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VFMADD132SS
-        | Mnm::VFMADD213SS
-        | Mnm::VFMADD231SS
-        | Mnm::VFMSUB132SS
-        | Mnm::VFMSUB213SS
-        | Mnm::VFMSUB231SS => avx_ot_chk(
+        Mnemonic::VFMADD132SS
+        | Mnemonic::VFMADD213SS
+        | Mnemonic::VFMADD231SS
+        | Mnemonic::VFMSUB132SS
+        | Mnemonic::VFMSUB213SS
+        | Mnemonic::VFMSUB231SS => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2337,12 +2377,12 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VFMADD132SD
-        | Mnm::VFMADD213SD
-        | Mnm::VFMADD231SD
-        | Mnm::VFMSUB132SD
-        | Mnm::VFMSUB213SD
-        | Mnm::VFMSUB231SD => avx_ot_chk(
+        Mnemonic::VFMADD132SD
+        | Mnemonic::VFMADD213SD
+        | Mnemonic::VFMADD231SD
+        | Mnemonic::VFMSUB132SD
+        | Mnemonic::VFMSUB213SD
+        | Mnemonic::VFMSUB231SD => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2353,18 +2393,18 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // fma-part2
-        Mnm::VFNMADD132PD
-        | Mnm::VFNMADD213PD
-        | Mnm::VFNMADD231PD
-        | Mnm::VFNMSUB132PD
-        | Mnm::VFNMSUB213PD
-        | Mnm::VFNMSUB231PD
-        | Mnm::VFNMADD132PS
-        | Mnm::VFNMADD213PS
-        | Mnm::VFNMADD231PS
-        | Mnm::VFNMSUB132PS
-        | Mnm::VFNMSUB213PS
-        | Mnm::VFNMSUB231PS => avx_ot_chk(
+        Mnemonic::VFNMADD132PD
+        | Mnemonic::VFNMADD213PD
+        | Mnemonic::VFNMADD231PD
+        | Mnemonic::VFNMSUB132PD
+        | Mnemonic::VFNMSUB213PD
+        | Mnemonic::VFNMSUB231PD
+        | Mnemonic::VFNMADD132PS
+        | Mnemonic::VFNMADD213PS
+        | Mnemonic::VFNMADD231PS
+        | Mnemonic::VFNMSUB132PS
+        | Mnemonic::VFNMSUB213PS
+        | Mnemonic::VFNMSUB231PS => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2374,12 +2414,12 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VFNMADD132SS
-        | Mnm::VFNMADD213SS
-        | Mnm::VFNMADD231SS
-        | Mnm::VFNMSUB132SS
-        | Mnm::VFNMSUB213SS
-        | Mnm::VFNMSUB231SS => avx_ot_chk(
+        Mnemonic::VFNMADD132SS
+        | Mnemonic::VFNMADD213SS
+        | Mnemonic::VFNMADD231SS
+        | Mnemonic::VFNMSUB132SS
+        | Mnemonic::VFNMSUB213SS
+        | Mnemonic::VFNMSUB231SS => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2389,12 +2429,12 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VFNMADD132SD
-        | Mnm::VFNMADD213SD
-        | Mnm::VFNMADD231SD
-        | Mnm::VFNMSUB132SD
-        | Mnm::VFNMSUB213SD
-        | Mnm::VFNMSUB231SD => avx_ot_chk(
+        Mnemonic::VFNMADD132SD
+        | Mnemonic::VFNMADD213SD
+        | Mnemonic::VFNMADD231SD
+        | Mnemonic::VFNMSUB132SD
+        | Mnemonic::VFNMSUB213SD
+        | Mnemonic::VFNMSUB231SD => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2405,18 +2445,18 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // fma-part3
-        Mnm::VFMADDSUB132PS
-        | Mnm::VFMADDSUB213PS
-        | Mnm::VFMADDSUB231PS
-        | Mnm::VFMSUBADD132PS
-        | Mnm::VFMSUBADD213PS
-        | Mnm::VFMSUBADD231PS
-        | Mnm::VFMADDSUB132PD
-        | Mnm::VFMADDSUB213PD
-        | Mnm::VFMADDSUB231PD
-        | Mnm::VFMSUBADD132PD
-        | Mnm::VFMSUBADD213PD
-        | Mnm::VFMSUBADD231PD => avx_ot_chk(
+        Mnemonic::VFMADDSUB132PS
+        | Mnemonic::VFMADDSUB213PS
+        | Mnemonic::VFMADDSUB231PS
+        | Mnemonic::VFMSUBADD132PS
+        | Mnemonic::VFMSUBADD213PS
+        | Mnemonic::VFMSUBADD231PS
+        | Mnemonic::VFMADDSUB132PD
+        | Mnemonic::VFMADDSUB213PD
+        | Mnemonic::VFMADDSUB231PD
+        | Mnemonic::VFMSUBADD132PD
+        | Mnemonic::VFMSUBADD213PD
+        | Mnemonic::VFMSUBADD231PD => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM], Optional::Needed),
@@ -2427,13 +2467,17 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // aes
-        Mnm::AESDEC | Mnm::AESENC | Mnm::AESIMC | Mnm::VAESIMC | Mnm::AESDECLAST => avx_ot_chk(
+        Mnemonic::AESDEC
+        | Mnemonic::AESENC
+        | Mnemonic::AESIMC
+        | Mnemonic::VAESIMC
+        | Mnemonic::AESDECLAST => avx_ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::VAESDEC | Mnm::VAESENC | Mnm::VAESDECLAST => avx_ot_chk(
+        Mnemonic::VAESDEC | Mnemonic::VAESENC | Mnemonic::VAESDECLAST => avx_ot_chk(
             ins,
             &[
                 (&[XMM, YMM, ZMM], Optional::Needed),
@@ -2443,7 +2487,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::AESKEYGENASSIST | Mnm::VAESKEYGENASSIST => avx_ot_chk(
+        Mnemonic::AESKEYGENASSIST | Mnemonic::VAESKEYGENASSIST => avx_ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2454,13 +2498,13 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // cvt-part1
-        Mnm::CVTPD2PI => ot_chk(
+        Mnemonic::CVTPD2PI => ot_chk(
             ins,
             &[(&[MMX], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTSS2SI => ot_chk(
+        Mnemonic::CVTSS2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2469,25 +2513,25 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::CVTTPD2PI => ot_chk(
+        Mnemonic::CVTTPD2PI => ot_chk(
             ins,
             &[(&[MMX], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTPS2PI | Mnm::CVTTPS2PI => ot_chk(
+        Mnemonic::CVTPS2PI | Mnemonic::CVTTPS2PI => ot_chk(
             ins,
             &[(&[MMX], Optional::Needed), (&[XMM, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTPI2PS | Mnm::CVTPI2PD => ot_chk(
+        Mnemonic::CVTPI2PS | Mnemonic::CVTPI2PD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[MMX, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTSI2SS => ot_chk(
+        Mnemonic::CVTSI2SS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2496,30 +2540,30 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::CVTPD2DQ
-        | Mnm::CVTPS2DQ
-        | Mnm::CVTTPS2DQ
-        | Mnm::CVTTPD2DQ
-        | Mnm::CVTDQ2PS
-        | Mnm::CVTPD2PS => ot_chk(
+        Mnemonic::CVTPD2DQ
+        | Mnemonic::CVTPS2DQ
+        | Mnemonic::CVTTPS2DQ
+        | Mnemonic::CVTTPD2DQ
+        | Mnemonic::CVTDQ2PS
+        | Mnemonic::CVTPD2PS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTSS2SD => ot_chk(
+        Mnemonic::CVTSS2SD => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M32], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTDQ2PD | Mnm::CVTPS2PD | Mnm::CVTSD2SS => ot_chk(
+        Mnemonic::CVTDQ2PD | Mnemonic::CVTPS2PD | Mnemonic::CVTSD2SS => ot_chk(
             ins,
             &[(&[XMM], Optional::Needed), (&[XMM, M64], Optional::Needed)],
             &[],
             &[],
         ),
-        Mnm::CVTTSS2SI => ot_chk(
+        Mnemonic::CVTTSS2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2528,7 +2572,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::CVTSD2SI | Mnm::CVTTSD2SI => ot_chk(
+        Mnemonic::CVTSD2SI | Mnemonic::CVTTSD2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2537,7 +2581,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::CVTSI2SD => ot_chk(
+        Mnemonic::CVTSI2SD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2547,7 +2591,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         // cvt-part2
-        Mnm::VCVTSI2SD | Mnm::VCVTSI2SS => ot_chk(
+        Mnemonic::VCVTSI2SD | Mnemonic::VCVTSI2SS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2557,7 +2601,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTSS2SD => ot_chk(
+        Mnemonic::VCVTSS2SD => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2567,7 +2611,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTDQ2PS | Mnm::VCVTTPD2DQ | Mnm::VCVTTPS2DQ => avx_ot_chk(
+        Mnemonic::VCVTDQ2PS | Mnemonic::VCVTTPD2DQ | Mnemonic::VCVTTPS2DQ => avx_ot_chk(
             ins,
             &[
                 (&[YMM, XMM], Optional::Needed),
@@ -2576,7 +2620,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTDQ2PD => ot_chk(
+        Mnemonic::VCVTDQ2PD => ot_chk(
             ins,
             &[
                 (&[YMM, XMM], Optional::Needed),
@@ -2585,7 +2629,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[(YMM, M64), (XMM, M128)],
             &[],
         ),
-        Mnm::VCVTSD2SS => ot_chk(
+        Mnemonic::VCVTSD2SS => ot_chk(
             ins,
             &[
                 (&[XMM], Optional::Needed),
@@ -2595,7 +2639,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTTSD2SI => ot_chk(
+        Mnemonic::VCVTTSD2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2604,7 +2648,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTSS2SI | Mnm::VCVTTSS2SI => ot_chk(
+        Mnemonic::VCVTSS2SI | Mnemonic::VCVTTSS2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2613,7 +2657,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTSD2SI => ot_chk(
+        Mnemonic::VCVTSD2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2622,12 +2666,14 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnm::VCVTPD2DQ | Mnm::VCVTPD2PS | Mnm::VCVTPS2DQ | Mnm::VCVTPS2PD => ot_chk(
-            ins,
-            &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
-            &[],
-            &[],
-        ),
+        Mnemonic::VCVTPD2DQ | Mnemonic::VCVTPD2PS | Mnemonic::VCVTPS2DQ | Mnemonic::VCVTPS2PD => {
+            ot_chk(
+                ins,
+                &[(&[XMM], Optional::Needed), (&[XMM, M128], Optional::Needed)],
+                &[],
+                &[],
+            )
+        }
 
         //  ###   #   #  #   #    #  #####
         // #   #  #   #   # #     #  #   #
@@ -2799,7 +2845,7 @@ fn avx_ot_chk_wthout(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
-    addt: &[Mnm],
+    addt: &[Mnemonic],
 ) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
@@ -2842,7 +2888,7 @@ fn avx_ot_chk(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType, AType)],
-    addt: &[Mnm],
+    addt: &[Mnemonic],
 ) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
@@ -2915,7 +2961,7 @@ fn ot_chk(
     ins: &Instruction,
     ops: &[(&[AType], Optional)],
     forb: &[(AType, AType)],
-    addt: &[Mnm],
+    addt: &[Mnemonic],
 ) -> Result<(), Error> {
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
@@ -3157,7 +3203,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
     }
 }
 
-fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<Error> {
+fn addt_chk(ins: &Instruction, accpt_addt: &[Mnemonic]) -> Option<Error> {
     if let Some(addt) = &ins.addt {
         if !find_bool(accpt_addt, addt) {
             let mut er = Error::new("usage of forbidden additional mnemonic", 6);
@@ -3168,7 +3214,7 @@ fn addt_chk(ins: &Instruction, accpt_addt: &[Mnm]) -> Option<Error> {
     None
 }
 
-fn find_bool(addts: &[Mnm], searched: &Mnm) -> bool {
+fn find_bool(addts: &[Mnemonic], searched: &Mnemonic) -> bool {
     for addt in addts {
         if searched == addt {
             return true;

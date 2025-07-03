@@ -10,7 +10,7 @@
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::unnecessary_unwrap)]
 
-//  global imports go here
+// global imports go here
 use std::process;
 
 // local imports go here
@@ -111,7 +111,7 @@ fn main() {
     #[cfg(all(feature = "time", feature = "vtime"))]
     utils::vtimed_print("overall ", start);
     #[cfg(all(feature = "time", not(feature = "vtime")))]
-    utils::vtimed_print("assembling", start);
+    utils::vtimed_print(&format!("Assembling {}", infile.to_string_lossy()), start);
     process::exit(0);
 }
 

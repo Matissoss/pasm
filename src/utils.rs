@@ -5,7 +5,7 @@
 
 use std::time::SystemTime;
 #[inline(always)]
-pub fn vtimed_print(str: &'static str, tm: SystemTime) {
+pub fn vtimed_print(str: &str, tm: SystemTime) {
     println!(
         "{str} took {:03.16}s",
         SystemTime::now()

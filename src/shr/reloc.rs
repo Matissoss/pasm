@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::RError as Error, symbol::Symbol};
+use crate::shr::{error::Error, symbol::Symbol};
 
 impl RelType {
     pub fn to_elf64_rtype(&self) -> u64 {

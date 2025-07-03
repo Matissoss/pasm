@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::AST, error::RError as Error};
+use crate::shr::{ast::AST, error::Error};
 
 pub mod math;
 

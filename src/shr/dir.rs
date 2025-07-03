@@ -1,10 +1,10 @@
-// pasm - src/shr/kwd.rs
+// pasm - src/shr/dir.rs
 // ---------------------
 // made by matissoss
 // licensed under MPL 2.0
 
 #[derive(Debug, Clone, PartialEq, Copy)]
-pub enum Keyword {
+pub enum Directive {
     Word,
     Byte,
     Bits,
@@ -29,10 +29,6 @@ pub enum Keyword {
     Writeable,
     Alloc,
 
-    // symbol referencing
-    Deref,
-    Ref,
-
     Rel32,
     Abs32,
     Abs64,
@@ -56,10 +52,10 @@ pub enum Keyword {
     Output,
 }
 
-impl std::str::FromStr for Keyword {
+impl std::str::FromStr for Directive {
     type Err = ();
-    fn from_str(kwd_str: &str) -> Result<Self, <Self as std::str::FromStr>::Err> {
-        if let Some(k) = kwd_fromstr(kwd_str) {
+    fn from_str(dir_str: &str) -> Result<Self, <Self as std::str::FromStr>::Err> {
+        if let Some(k) = dir_fromstr(dir_str) {
             Ok(k)
         } else {
             Err(())
@@ -72,23 +68,16 @@ fn s<T>(t: T) -> Option<T> {
     Some(t)
 }
 
-const N: Option<Keyword> = None;
+const N: Option<Directive> = None;
 
-pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
-    use Keyword::*;
+pub fn dir_fromstr(str: &str) -> Option<Directive> {
+    use Directive::*;
     let r = str.as_bytes();
     match r.len() {
         3 => match r[0] {
             b'a' => match r[1] {
                 b'n' => match r[2] {
                     b'y' => s(Any),
-                    _ => N,
-                },
-                _ => N,
-            },
-            b'r' => match r[1] {
-                b'e' => match r[2] {
-                    b'f' => s(Ref),
                     _ => N,
                 },
                 _ => N,
@@ -267,16 +256,6 @@ pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
                 _ => N,
             },
             b'd' => match r[1] {
-                b'e' => match r[2] {
-                    b'r' => match r[3] {
-                        b'e' => match r[4] {
-                            b'f' => s(Deref),
-                            _ => N,
-                        },
-                        _ => N,
-                    },
-                    _ => N,
-                },
                 b'w' => match r[2] {
                     b'o' => match r[3] {
                         b'r' => match r[4] {
@@ -567,7 +546,7 @@ pub fn kwd_fromstr(str: &str) -> Option<Keyword> {
 }
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for Keyword {
+impl ToString for Directive {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }

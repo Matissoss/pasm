@@ -7,7 +7,7 @@ use std::{fs, io::Write, path::Path};
 
 use crate::*;
 
-use shr::{ast::AST, error::RError as Error, reloc, symbol::*, visibility::Visibility};
+use shr::{ast::AST, error::Error, reloc, symbol::*, visibility::Visibility};
 
 pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
@@ -36,55 +36,10 @@ pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
     let lcount = lines.len();
     let mut toks = Vec::with_capacity(lcount);
 
-    #[cfg(not(feature = "mthread"))]
-    {
-        let mut chars = Vec::new();
-        for l in lines {
-            toks.push(pre::tok::tokl(&mut chars, &l));
-            chars.clear();
-        }
-    }
-
-    #[cfg(feature = "mthread")]
-    {
-        let mut semaphore = crate::shr::semaphore::Semaphore::new(conf::THREAD_LIMIT as usize);
-        let mut handles = Vec::with_capacity(lcount);
-        let lcount = conf::TOK_LN_GROUP;
-        let mut lns = Vec::with_capacity(lcount);
-        for l in lines {
-            if lns.len() < lcount {
-                lns.push(l);
-                continue;
-            } else {
-                semaphore.acquire();
-            }
-            handles.push(std::thread::spawn(move || {
-                let mut toks = Vec::with_capacity(lcount);
-                let mut chars = Vec::new();
-                for l in lns {
-                    toks.push(pre::tok::tokl(&mut chars, &l));
-                    chars.clear();
-                }
-                toks
-            }));
-            lns = Vec::with_capacity(lcount);
-            semaphore.release();
-        }
-        if !lns.is_empty() {
-            handles.push(std::thread::spawn(move || {
-                let mut chars = Vec::new();
-                let mut toks = Vec::with_capacity(lcount);
-                for l in lns {
-                    toks.push(pre::tok::tokl(&mut chars, &l));
-                    chars.clear();
-                }
-                toks
-            }));
-        }
-        for handle in handles {
-            let t = handle.join().expect("Failed to join a tokenizer handle");
-            toks.extend(t);
-        }
+    let mut chars = Vec::new();
+    for l in lines {
+        toks.push(pre::tok::tokl(&mut chars, &l));
+        chars.clear();
     }
     #[cfg(feature = "vtime")]
     utils::vtimed_print("tok    ", start);
@@ -182,8 +137,7 @@ pub fn assemble(ast: AST, opath: Option<&Path>) -> Result<(), Error> {
     Ok(())
 }
 
-// TODO: reimplement multithreading
-fn assemble_file(ast: AST, opath: &std::path::PathBuf) -> Result<Vec<u8>, Error> {
+fn assemble_file(ast: AST, opath: &std::path::Path) -> Result<Vec<u8>, Error> {
     let mut wrt = Vec::new();
     let mut sym = Vec::new();
     let mut rel = Vec::new();
@@ -235,13 +189,13 @@ fn assemble_file(ast: AST, opath: &std::path::PathBuf) -> Result<Vec<u8>, Error>
         #[cfg(feature = "target_elf")]
         "elf32" => {
             sym.extend(comp::extern_trf(&ast.externs));
-            let elf = crate::obj::Elf::new(&sections, &opath, &wrt, &rel, &sym, false)?;
+            let elf = crate::obj::Elf::new(&sections, opath, &wrt, &rel, &sym, false)?;
             wrt = elf.compile(false);
         }
         #[cfg(feature = "target_elf")]
         "elf64" => {
             sym.extend(comp::extern_trf(&ast.externs));
-            let elf = crate::obj::Elf::new(&sections, &opath, &wrt, &rel, &sym, true)?;
+            let elf = crate::obj::Elf::new(&sections, opath, &wrt, &rel, &sym, true)?;
             wrt = elf.compile(true);
         }
         _ => {

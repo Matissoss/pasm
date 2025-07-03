@@ -9,19 +9,6 @@ use crate::shr::{
     size::Size,
 };
 
-pub fn atype_arr_string(arr: &[AType]) -> String {
-    let mut string = String::new();
-    string.push('[');
-    for (i, e) in arr.iter().enumerate() {
-        string.push_str(&e.to_string());
-        if i + 1 < arr.len() {
-            string.push_str(", ");
-        }
-    }
-    string.push(']');
-    string
-}
-
 pub const CS: AType = AType::Register(Register::CS, true);
 pub const DS: AType = AType::Register(Register::DS, true);
 pub const ES: AType = AType::Register(Register::ES, true);
@@ -188,6 +175,8 @@ impl PartialEq for AType {
             (AType::Immediate(lsz, ls), AType::Immediate(rsz, rs)) => {
                 if ls && rs {
                     true
+                } else if ls || rs {
+                    false
                 } else {
                     rsz <= lsz
                 }

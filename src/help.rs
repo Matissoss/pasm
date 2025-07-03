@@ -20,10 +20,6 @@ pub fn help() -> String {
     help_string.push_str(
         "\t-o=[PATH] / --output=[PATH]       ; specifies output file, by default a.out\n",
     );
-    #[cfg(feature = "target_all")]
-    help_string.push_str("\t-f=[elf64/elf32/bin]              ; specifies output format\n");
-    #[cfg(not(feature = "target_elf"))]
-    help_string.push_str("\t-f=[bin]                          ; specifies output format\n");
     help_string.push_str("\t-v / --version                    ; prints version\n");
     help_string
         .push_str("\t-c / --check                      ; checks file without assembling it\n");

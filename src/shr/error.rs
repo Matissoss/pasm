@@ -10,7 +10,7 @@ use std::{fmt::Display, path::PathBuf};
 
 // new error type
 #[derive(Debug, Clone)]
-pub struct RError {
+pub struct Error {
     // file path
     location: Location,
     context: Box<Location>,
@@ -21,7 +21,7 @@ pub struct RError {
     error_code: u16,
 }
 
-impl Display for RError {
+impl Display for Error {
     // error format (rust-like error format):
     //
     // {EXCEPTION_TYPE}[{ERROR_CODE}]: {MSG}
@@ -112,13 +112,13 @@ impl Display for RError {
     }
 }
 
-impl PartialEq for RError {
+impl PartialEq for Error {
     fn eq(&self, rhs: &Self) -> bool {
         self.error_code == rhs.error_code
     }
 }
 
-impl RError {
+impl Error {
     pub fn new_wline_actx(
         msg: impl ToString,
         ecd: u16,
@@ -171,7 +171,7 @@ impl RError {
 mod t {
     #[test]
     fn t() {
-        use super::RError as Error;
+        use super::Error;
         let er = Error::new("h", 1);
         assert_eq!(er.get_file(), None);
         assert_eq!(er.get_line(), None);

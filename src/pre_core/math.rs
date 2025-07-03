@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::shr::{
     ast::{Operand, AST},
-    error::RError as Error,
+    error::Error,
     label::Label,
     num::Number,
 };

@@ -445,9 +445,6 @@ pub enum Mnemonic {
 
     // not real x86-64 instructions
     
-    // aliases to big endian variant
-    BYTE, WORD, DWORD, QWORD,
-
     BYTEBE, WORDBE, DWORDBE, QWORDBE,
     BYTELE, WORDLE, DWORDLE, QWORDLE,
     

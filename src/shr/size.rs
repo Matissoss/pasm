@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::kwd::Keyword;
+use crate::shr::dir::Directive;
 
 use std::cmp::Ordering;
 use std::fmt::{Display, Error as FmtError, Formatter};
@@ -124,17 +124,17 @@ impl PartialEq for Size {
     }
 }
 
-impl TryFrom<Keyword> for Size {
+impl TryFrom<Directive> for Size {
     type Error = ();
-    fn try_from(kwd: Keyword) -> Result<Self, <Self as TryFrom<Keyword>>::Error> {
+    fn try_from(kwd: Directive) -> Result<Self, <Self as TryFrom<Directive>>::Error> {
         match kwd {
-            Keyword::Byte => Ok(Self::Byte),
-            Keyword::Word => Ok(Self::Word),
-            Keyword::Dword => Ok(Self::Dword),
-            Keyword::Qword => Ok(Self::Qword),
-            Keyword::Xword => Ok(Self::Xword),
-            Keyword::Yword => Ok(Self::Yword),
-            Keyword::Any => Ok(Self::Any),
+            Directive::Byte => Ok(Self::Byte),
+            Directive::Word => Ok(Self::Word),
+            Directive::Dword => Ok(Self::Dword),
+            Directive::Qword => Ok(Self::Qword),
+            Directive::Xword => Ok(Self::Xword),
+            Directive::Yword => Ok(Self::Yword),
+            Directive::Any => Ok(Self::Any),
             _ => Err(()),
         }
     }

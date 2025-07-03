@@ -30,7 +30,7 @@ use crate::{
         ins::Mnemonic,
         mem::Mem,
         reg::Register,
-        reloc::Relocation,
+        reloc::{RelType, Relocation},
         size::Size,
     },
 };
@@ -376,8 +376,11 @@ impl GenAPI {
                     shidx: 0,
                     reltype: s.reltype().unwrap_or_default(),
                 });
-                let sz: u8 = s.size().unwrap_or(Size::Dword).into();
-                base.extend(vec![0; sz as usize]);
+                if size == 0 {
+                    base.extend(vec![0; s.reltype().unwrap_or(RelType::REL32).size()])
+                } else {
+                    base.extend(vec![0; size]);
+                }
             }
             // rvrm
             else if let Some(Operand::Register(r)) = ins.get_opr(idx) {
@@ -395,7 +398,7 @@ impl GenAPI {
 
         for r in rels.iter_mut().flatten() {
             if r.is_rel() {
-                r.addend -= base.len() as i32 - 1;
+                r.addend -= r.reltype.size() as i32;
             }
         }
 
