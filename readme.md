@@ -12,10 +12,10 @@
 ## features
 
 > [!NOTE]
-> This info is for `betao` release.
+> This info is for `25.06-beta1` release.
 
-- Support for ~50%+ x86-64 ISA (~848 instructions)
-- Support for `SSE*`, `AVX`, `AVX2`, (`AVX512` coming soon) `MMX` and more x86-64 extensions
+- Support for ~50%+ x86-64 ISA (~848+ instructions)
+- Support for `SSE*`, `AVX`, `AVX2`, `AVX-512` (WIP; APX soon) `MMX` and more x86-64 extensions
 - Support for 64-bit and 32-bit ELF as export target
 - Support for multithreading to assemble your code
 

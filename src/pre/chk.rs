@@ -5,7 +5,6 @@
 
 use crate::pre::chkn;
 
-use crate::core::rex::gen_rex;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
     atype::*,
@@ -46,7 +45,7 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
 
 fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
-    if gen_rex(ins, false).is_some() {
+    if ins.needs_rex() {
         let mut er = Error::new(
             "you tried to use instruction that requires REX prefix, but bits != 64",
             10,
