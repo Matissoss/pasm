@@ -14,7 +14,7 @@ vaddph xmm20 {k2}, xmm21, xmm22
 
 ## mbcst
 
-To use broadcast on memory use `<SIZE>:bcst` modifier:
+To use broadcast on memory use `*MBCST* = *Modifier* where: PREFIX = None, VALUE = <*SIZE*>:bcst`:
 
 ```
 word:bcst (rax + rcx)

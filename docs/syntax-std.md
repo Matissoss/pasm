@@ -6,9 +6,15 @@
 
 `pasm`'s syntax is Intel-like and is very familliar to FASM's syntax.
 
+Format used to explain syntax is [psyn v1](https://github.com/Matissoss/psyn)
+
 ## terminology
 
 ### size
+
+`*SIZE* = (byte/word/dword/qword/xword/yword/zword)` 
+
+where:
 
 - `byte`: 8-bit
 - `word`: 16-bit
@@ -18,34 +24,23 @@
 - `yword`: 256-bit
 - `zword`: 512-bit
 
-### legend
-
-- `<VALUE>` - needed, variable
-- `[VALUE]` - optional, variable
-- `VALUE` - needed, static
-- `<VALUE/VALUE1>` - needed, one of static values can be used
-- `{VALUE}` - optional, static
-- `[...]` - optional, repetition
-
 ### closures
 
-Closures = `[PREFIX]()`.
+`*Closure* = [PREFIX](<VALUE>)`
 
 ### modifiers
 
-Modifiers = `[PREFIX]<VALUE>:[...]:[VALUE]`
+`*Modifier* = [PREFIX]<VALUE>:[...]`
 
 ### file structure
 
 ```
 ROOT
 
-<SECTION 0>
-    [LABEL 0]
+<section 0>
+    <label 0>
     [...]
 [...]
-[SECTION 1]
-    [LABEL 1]
 ```
 
 ## comments
@@ -59,7 +54,7 @@ Comments in `pasm` can be either `//` or `;`:
 
 ## registers
 
-Register naming conventions are same as in every other x86 assembler and do not require prefixing.
+Register naming conventions are same as in every other x86 assembler and do not require prefixing. This will be later referenced as `*Register*`.
 
 ```
 rax
@@ -74,7 +69,9 @@ ymm2
 
 ## memory addressing
 
-Memory addressing is Closure `()`. You'll have to use size directive before/after memory addressing. Inside the closure, memory is addressed as in Intel-like assembler:
+Memory addressing is `<*SIZE*> <*MEMORY*>`
+
+`*Memory* = *Closure* where: PREFIX = None` and `VALUE = [? BASE:Register] [+ ? INDEX:Register] [* ? SCALE:(1/2/4/8)] [+ ? OFFSET:(u32/i32)]`
 
 ```
 byte (rax + rcx * 4 + 10)
@@ -82,7 +79,7 @@ qword (rax + rcx)
 xword (rax)
 ```
 
-To use RIP-relative addressing use for static addresses:
+To use RIP-relative addressing use `*RIP-relative* = *Memory* where: BASE = None, INDEX = None, SCALE = None, OFFSET = (u32/i32)`
 
 ```
 word (10) ; RIP + 10
@@ -136,9 +133,9 @@ mov rax, $((2 << 4) >> (1 << 4))
 
 ## symbol referencing
 
-Symbol Referencing requires using Modifier `@symbol_name:[RELTYPE]:[ADDEND]`.
+`*SYMBOLREF* = *Modifier* where: PREFIX = @, VALUE = <SYMBOL_NAME>[:*RELTYPE*][:? ADDEND:int]`
 
-Here is the `RELTYPE` table along with their size and mapping in ELF x86-64 relocations:
+Here is the `*RELTYPE*` table along with their size and mapping in ELF x86-64 relocations:
 
 | `RELTYPE` | Size | ELF Mapping   |
 |:---------:|:----:|:-------------:|
@@ -146,7 +143,7 @@ Here is the `RELTYPE` table along with their size and mapping in ELF x86-64 relo
 |   rel32   | dword|`R_X86_64_PC32`|
 |   rel16   | word |`R_X86_64_PC16`|
 |   rel8    | byte |`R_X86_64_PC8` |
-|   [NONE]  | <d/q>word|`R_X86_64PC32` or `R_X86_64PC16` depending on `bits`|
+|   [NONE]  | (d/q)word|`R_X86_64PC32` or `R_X86_64PC16` depending on `bits`|
 
 Example:
 
@@ -155,7 +152,7 @@ Example:
 @symbol:rel32:10
 ```
 
-You can also dereference a symbol (it will be treated as RIP-relative addressing) using size directive before symbol reference:
+You can also dereference a symbol (it will be treated as RIP-relative addressing) using `<*SIZE*> <*SYMBOLREF*>`:
 
 ```
 qword @symbol:rel32:-0xFF
@@ -203,6 +200,7 @@ Example:
 ```
 public function main:
 public object hello_world:
+_start:
 ```
 
 ##### external
@@ -210,13 +208,13 @@ public object hello_world:
 External attributes are basically Closure `#()`. Syntax formula:
 
 ```
-#(<ATTRIBUTE>[=VALUE],[...],[ATTRIBUTE][=VALUE])
+#(<ATTRIBUTE>[=VALUE],[...])
 ```
 
 | Attribute | Accepted values |
 |:---------:|:---------------:|
 | bits      | 16, 32 or 64    |
-| align     | uint16_t        |
+| align     | uint16          |
 | public    |        -        |
 | protected | -               |
 | local     | -               |
@@ -235,7 +233,7 @@ public function _start:
 
 ### sections
 
-Sections can be defined using `section "<SECTION_NAME>" [ATTR] [...] [ATTR]`
+Sections can be defined using `section "<SECTION_NAME>" [ATTR] [...]`
 
 List of `[ATTR]`:
 
@@ -299,26 +297,8 @@ output <PATH>
 You can specify output's format using `format` directive:
 
 ```
-format <elf64/elf32/bin>
+format (elf64/elf32/bin)
 ```
 
 > [!NOTE]
 > `elf*` targets are only Little-Endian variants
-
-## appendix
-
-This section is very short, but densly packed with info. Use it if you encounter a "bug" in your opinion.
-
-### operands
-
-#### single token
-
-- `<Register>` - Register
-- `<Immediate>` - Immediate
-- `@<NAME>:[RELTYPE]:[ADDEND]` - SymbolRef
-- `$(<EVAL>)` - Immediate
-
-#### double token
-
-- `<SIZE> (<MEMORY>)` - Memory
-- `<SIZE> @<NAME>:[RELTYPE]:[ADDEND]` - Dereferenced Memory
