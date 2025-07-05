@@ -71,7 +71,7 @@ ymm2
 
 Memory addressing is `<*SIZE*> <*MEMORY*>`
 
-`*Memory* = *Closure* where: PREFIX = None` and `VALUE = [? BASE:Register] [+ ? INDEX:Register] [* ? SCALE:(1/2/4/8)] [+ ? OFFSET:(u32/i32)]`
+`*Memory* = *Closure* where: PREFIX = None` and `VALUE = [?BASE:Register] [+ <?INDEX:Register>] [* <?SCALE:(1/2/4/8)>] [+ <?OFFSET:(u32/i32)>]`
 
 ```
 byte (rax + rcx * 4 + 10)
@@ -133,7 +133,7 @@ mov rax, $((2 << 4) >> (1 << 4))
 
 ## symbol referencing
 
-`*SYMBOLREF* = *Modifier* where: PREFIX = @, VALUE = <SYMBOL_NAME>[:*RELTYPE*][:? ADDEND:int]`
+`*SYMBOLREF* = *Modifier* where: PREFIX = @, VALUE = <SYMBOL_NAME>[:<?reltype:*RELTYPE*>][:<?ADDEND:int>]`
 
 Here is the `*RELTYPE*` table along with their size and mapping in ELF x86-64 relocations:
 
@@ -297,7 +297,7 @@ output <PATH>
 You can specify output's format using `format` directive:
 
 ```
-format (elf64/elf32/bin)
+format elf64/elf32/bin
 ```
 
 > [!NOTE]

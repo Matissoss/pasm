@@ -4,7 +4,7 @@
 
 ## about
 
-`pasm` is modern and independent assembler for x86-64 architecture as one of key parts in (future project) `POLON` toolchain.
+`pasm` is modern and independent assembler for x86-64 architecture as one of key parts in [POLON](https://github.com/Matissoss/polon) toolchain.
 
 > [!NOTE]
 > `pasm` is still in beta phase and should not be relied on for any serious work.
