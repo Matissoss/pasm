@@ -109,7 +109,7 @@ fn main() {
         std::process::exit(1);
     };
     #[cfg(all(feature = "time", feature = "vtime"))]
-    utils::vtimed_print("overall ", start);
+    utils::vtimed_print("overall", start);
     #[cfg(all(feature = "time", not(feature = "vtime")))]
     utils::vtimed_print(&format!("Assembling {}", infile.to_string_lossy()), start);
     process::exit(0);

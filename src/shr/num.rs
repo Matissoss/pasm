@@ -92,36 +92,31 @@ impl Number {
 }
 
 fn num_from_str(str: &str) -> Result<Number, Error> {
-    let sign = str.starts_with("-");
-    let plus_sign = str.starts_with("+");
-    let sign_str = if sign {
-        "-"
-    } else if plus_sign {
-        "+"
-    } else {
-        ""
+    let sab = str.as_bytes();
+    let sign = sab.first() == Some(&b'-');
+    let str_chars: &[u8] = {
+        let mut start = 0;
+        for b in sab {
+            if *b == b'-' || *b == b'+' {
+                start += 1;
+            } else {
+                break;
+            }
+        }
+        &sab[start..]
     };
-    let hex_init = "0x";
-    let bin_init = "0b";
-    let oct_init = "0o";
-    let ef_start = 2 + sign as usize;
-    let str_chars = str.chars().collect::<Vec<char>>();
-    if str.starts_with(&format!("{sign_str}{hex_init}")) {
-        num_from_hex(&str_chars[ef_start..], sign)
-    } else if str.starts_with(&format!("{sign_str}{bin_init}")) {
-        num_from_bin(&str_chars[ef_start..], sign)
-    } else if str.starts_with(&format!("{sign_str}{oct_init}")) {
-        num_from_oct(&str_chars[ef_start..], sign)
-    } else if let Ok(u32) = u32::from_str(str) {
-        Ok(Number::uint64(u32 as u64))
+    if str_chars.starts_with(b"0x") {
+        return num_from_hex(&str_chars[2..], sign);
+    }
+    if str_chars.starts_with(b"0b") {
+        return num_from_bin(&str_chars[2..], sign);
+    }
+    if str_chars.starts_with(b"0o") {
+        num_from_oct(&str_chars[2..], sign)
     } else if let Ok(u64) = u64::from_str(str) {
         Ok(Number::uint64(u64))
-    } else if let Ok(i32) = i32::from_str(str) {
-        Ok(Number::int64(i32 as i64))
     } else if let Ok(i64) = i64::from_str(str) {
         Ok(Number::int64(i64))
-    } else if let Ok(float) = f32::from_str(str) {
-        Ok(Number::float(float))
     } else if let Ok(double) = f64::from_str(str) {
         Ok(Number::double(double))
     } else if str.starts_with("'") {
@@ -157,11 +152,11 @@ fn num(val: u64, sign: bool) -> Result<Number, Error> {
     }
 }
 
-fn num_from_bin(v: &[char], sign: bool) -> Result<Number, Error> {
+fn num_from_bin(v: &[u8], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
-        if c == &'_' {
+        if c == &b'_' {
             continue;
         } else if let Some(u) = u8_from_bin(*c) {
             n += u as u64 * (1 << idx);
@@ -175,18 +170,18 @@ fn num_from_bin(v: &[char], sign: bool) -> Result<Number, Error> {
     }
     num(n, sign)
 }
-fn u8_from_bin(c: char) -> Option<u8> {
+fn u8_from_bin(c: u8) -> Option<u8> {
     match c {
-        '0' => Some(0),
-        '1' => Some(1),
+        b'0' => Some(0),
+        b'1' => Some(1),
         _ => None,
     }
 }
-fn num_from_hex(v: &[char], sign: bool) -> Result<Number, Error> {
+fn num_from_hex(v: &[u8], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
-        if c == &'_' {
+        if c == &b'_' {
             continue;
         } else if let Some(u) = u8_from_hex(*c) {
             n += u as u64 * (16u64.pow(idx));
@@ -200,23 +195,23 @@ fn num_from_hex(v: &[char], sign: bool) -> Result<Number, Error> {
     }
     num(n, sign)
 }
-fn u8_from_hex(c: char) -> Option<u8> {
+fn u8_from_hex(c: u8) -> Option<u8> {
     match c {
-        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => Some(c as u8 - b'0'),
-        'a' | 'A' => Some(10),
-        'b' | 'B' => Some(11),
-        'c' | 'C' => Some(12),
-        'd' | 'D' => Some(13),
-        'e' | 'E' => Some(14),
-        'f' | 'F' => Some(15),
+        b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => Some(c - b'0'),
+        b'a' | b'A' => Some(10),
+        b'b' | b'B' => Some(11),
+        b'c' | b'C' => Some(12),
+        b'd' | b'D' => Some(13),
+        b'e' | b'E' => Some(14),
+        b'f' | b'F' => Some(15),
         _ => None,
     }
 }
-fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
+fn num_from_oct(v: &[u8], sign: bool) -> Result<Number, Error> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
-        if c == &'_' {
+        if c == &b'_' {
             continue;
         } else if let Some(u) = u8_from_oct(*c) {
             n += u as u64 * (8u64.pow(idx));
@@ -227,9 +222,9 @@ fn num_from_oct(v: &[char], sign: bool) -> Result<Number, Error> {
     }
     num(n, sign)
 }
-fn u8_from_oct(c: char) -> Option<u8> {
+fn u8_from_oct(c: u8) -> Option<u8> {
     match c {
-        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' => Some(c as u8 - b'0'),
+        b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' => Some(c - b'0'),
         _ => None,
     }
 }

@@ -21,12 +21,13 @@ pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
             13,
         )]);
     }
+    let file = file.unwrap();
     #[cfg(feature = "vtime")]
     utils::vtimed_print("read   ", start);
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let lines = utils::split_str_owned(&file.unwrap(), '\n');
+    let lines = utils::split_str_ref(file.as_bytes(), '\n');
 
     #[cfg(feature = "vtime")]
     utils::vtimed_print("split  ", start);
@@ -36,10 +37,8 @@ pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
     let lcount = lines.len();
     let mut toks = Vec::with_capacity(lcount);
 
-    let mut chars = Vec::new();
     for l in lines {
-        toks.push(pre::tok::tokl(&mut chars, &l));
-        chars.clear();
+        toks.push(pre::tok::tokl(l));
     }
     #[cfg(feature = "vtime")]
     utils::vtimed_print("tok    ", start);
@@ -59,6 +58,7 @@ pub fn pasm_parse_src(inpath: &Path) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
+    // TODO: reimplement this
     //ast.validate().map_err(|e| vec![e])?;
 
     pre_core::post_process(&mut ast).map_err(|e| vec![e])?;

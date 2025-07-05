@@ -15,23 +15,32 @@ pub fn vtimed_print(str: &str, tm: SystemTime) {
     );
 }
 
-pub fn split_str_owned(s: &str, chr: char) -> Vec<String> {
-    let mut tmp_buf = Vec::new();
+pub fn split_str_ref(s: &[u8], chr: char) -> Vec<&str> {
+    let mut start = 0;
+    let mut end = 0;
+
     let mut strs = Vec::new();
 
     let chrb = chr as u8;
-    for b in s.as_bytes() {
+    for b in s {
         if b == &chrb {
-            strs.push(
-                String::from_utf8(tmp_buf).expect("pasm source code should be encoded in UTF-8"),
-            );
-            tmp_buf = Vec::new();
+            if start != end {
+                strs.push(
+                    std::str::from_utf8(&s[start..end])
+                        .expect("pasm source code should be encoded in valid UTF-8"),
+                );
+            }
+            end += 1;
+            start = end;
         } else {
-            tmp_buf.push(*b);
+            end += 1;
         }
     }
-    if !tmp_buf.is_empty() {
-        strs.push(String::from_utf8_lossy(&tmp_buf).to_string());
+    if start != end {
+        strs.push(
+            std::str::from_utf8(&s[start..end])
+                .expect("pasm source code should be encoded in valid UTF-8"),
+        );
     }
     strs
 }

@@ -13,15 +13,16 @@ use crate::{
 
 use std::path::PathBuf;
 
-pub fn par_attrs(label: &mut Label, attrs: String) -> Result<(), Error> {
-    for a in crate::utils::split_str_owned(&attrs, ',') {
-        let key = a;
-        let (key, val) = if let Some((key, val)) = key.split_once('=') {
-            (key.to_string(), Some(val))
-        } else {
-            (key, None)
-        };
-        match key.as_str() {
+pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
+    for a in attrs {
+        for a in crate::utils::split_str_ref(a.as_bytes(), ',') {
+            let key = a;
+            let (key, val) = if let Some((key, val)) = key.split_once('=') {
+                (key, Some(val))
+            } else {
+                (key, None)
+            };
+            match key {
             "global"|"public" => label.attributes.set_visibility(Visibility::Public),
             "protected" => label.attributes.set_visibility(Visibility::Protected),
             "weak" => label.attributes.set_visibility(Visibility::Weak),
@@ -55,35 +56,34 @@ pub fn par_attrs(label: &mut Label, attrs: String) -> Result<(), Error> {
             },
             _ => return Err(Error::new(format!("usage of unknown key-only attribute: \"{key}\""), 20)),
         }
+        }
     }
     Ok(())
 }
 
 pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
     let mut ast = AST::default();
-    let (mut oloc, mut bloc, mut floc) = (
-        Location::default(),
-        Location::default(),
-        Location::default(),
-    );
+    let (mut oloc, mut bloc, mut floc) = (0, 0, 0);
     let mut errors = Vec::new();
 
     // setup root
     for root_node in mer.root {
-        let location = root_node.location;
+        let location = root_node.line;
         match root_node.node {
             RootNode::Format(f) => {
-                if ast.format.is_some() && ast.format.as_ref() == Some(&f) {
+                if ast.format.is_some() {
                     let mut er = Error::new_wline(
                         "you tried to redeclare format multiple times",
                         21,
-                        location.line,
+                        location,
                     );
-                    er.set_context(floc);
+                    er.set_context(Location {
+                        line: floc,
+                        ..Default::default()
+                    });
                     errors.push(er);
-                    floc = Location::default();
                 } else {
-                    ast.format = Some(f);
+                    ast.format = Some(f.into());
                     floc = location;
                 }
             }
@@ -92,10 +92,12 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                     let mut er = Error::new_wline(
                         "you tried to redeclare default bits multiple times",
                         21,
-                        location.line,
+                        location,
                     );
-                    er.set_context(bloc);
-                    bloc = Location::default();
+                    er.set_context(Location {
+                        line: bloc,
+                        ..Default::default()
+                    });
                     errors.push(er);
                 } else {
                     ast.default_bits = Some(b);
@@ -109,10 +111,12 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                     let mut er = Error::new_wline(
                         "you tried to redeclare default output path multiple times",
                         21,
-                        location.line,
+                        location,
                     );
-                    er.set_context(oloc);
-                    oloc = Location::default();
+                    er.set_context(Location {
+                        line: oloc,
+                        ..Default::default()
+                    });
                     errors.push(er);
                 } else {
                     ast.default_output = Some(PathBuf::from(o.to_string()));
@@ -120,17 +124,17 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 }
             }
             RootNode::Define(name, value) => {
-                if ast.defines.insert(name, value).is_some() {
+                if ast.defines.insert(name.into(), value).is_some() {
                     let er = Error::new_wline(
                         "tried to redeclare same define multiple times",
                         21,
-                        location.line,
+                        location,
                     );
                     errors.push(er);
                 }
             }
             RootNode::Extern(e) => {
-                ast.externs.push(e);
+                ast.externs.push(e.into());
             }
             RootNode::Include(i) => {
                 ast.includes.push(PathBuf::from(i.to_string()));
@@ -165,14 +169,14 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 if label == Label::default() {
                     label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
-                    if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+                    if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);
                     }
                 } else {
                     section.content.push(label);
                     label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
-                    if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+                    if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);
                     }
                 }
@@ -181,10 +185,10 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 if started && section != Section::default() {
                     ast.sections.push(section);
                     section = Section::default();
-                    section.name = s;
+                    section.name = s.into();
                 } else {
                     section = Section::default();
-                    section.name = s;
+                    section.name = s.into();
                     started = true;
                 }
             }
@@ -193,7 +197,7 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
 
     if label != Label::default() {
         label.attributes.set_bits(ast.default_bits.unwrap_or(16));
-        if let Err(why) = par_attrs(&mut label, attrs.join(",")) {
+        if let Err(why) = par_attrs(&mut label, &attrs) {
             errors.push(why);
         }
         section.content.push(label);

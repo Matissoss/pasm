@@ -114,55 +114,46 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnemonic::MOV => ot_chk(
-            ins,
-            &[
-                (&[R8, R16, R32, M8, M16, M32, SR, CR, DR], Optional::Needed),
-                (
-                    &[R8, R16, R32, M8, M16, M32, I8, I16, I32, SR, CR, DR],
-                    Optional::Needed,
-                ),
-            ],
-            &[
-                (MA, MA),
-                (R32, SR),
-                (M32, SR),
-                (M8, SR),
-                (R8, SR),
-                (SR, R32),
-                (SR, R8),
-                (SR, IA),
-                (SR, M32),
-                (SR, M8),
-                (CR, IA),
-                (CR, R8),
-                (CR, R16),
-                (R16, CR),
-                (R8, CR),
-                (CR, MA),
-                (MA, CR),
-                (DR, IA),
-                (DR, R8),
-                (DR, R16),
-                (DR, R32),
-                (R16, DR),
-                (R8, DR),
-                (DR, MA),
-                (MA, DR),
-                (R8, DR),
-                (DR, MA),
-                (MA, DR),
-                (SR, CR),
-                (SR, DR),
-                (CR, SR),
-                (CR, DR),
-                (DR, SR),
-                (SR, SR),
-                (DR, DR),
-                (CR, CR),
-            ],
-            &[],
-        ),
+        Mnemonic::MOV => {
+            use chkn::*;
+            CheckAPI::new()
+                .pushop([R8, R16, R32, R64, SR, CR, DR, M8, M16, M32], true)
+                .pushop([R8, R16, R32, SR, CR, DR, M8, M16, M32, I8, I16, I32], true)
+                .set_forb(&[
+                    [MA, MA],
+                    [R32, SR],
+                    [M32, SR],
+                    [M8, SR],
+                    [R8, SR],
+                    [SR, R8],
+                    [SR, IA],
+                    [SR, M8],
+                    [CR, IA],
+                    [CR, R8],
+                    [CR, R16],
+                    [R16, CR],
+                    [DR, IA],
+                    [DR, R8],
+                    [DR, R16],
+                    [R16, DR],
+                    [R8, DR],
+                    [DR, MA],
+                    [MA, DR],
+                    [R8, DR],
+                    [DR, MA],
+                    [MA, DR],
+                    [SR, CR],
+                    [SR, DR],
+                    [CR, SR],
+                    [CR, DR],
+                    [DR, SR],
+                    [SR, SR],
+                    [DR, DR],
+                    [CR, CR],
+                ])
+                .set_mode(CheckMode::X86)
+                .check(ins)
+        }
         XCHG => ot_chk(
             ins,
             &[
@@ -233,7 +224,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         Mnemonic::DIV | Mnemonic::IDIV | Mnemonic::MUL => chkn::CheckAPI::<1>::new()
-            .pushop(&[R8, R16, R32, M8, M16, M32], true)
+            .pushop([R8, R16, R32, M8, M16, M32], true)
             .check(ins),
         Mnemonic::DEC | Mnemonic::INC | Mnemonic::NEG | Mnemonic::NOT => ot_chk(
             ins,
@@ -497,8 +488,8 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
         | Mnemonic::CMOVNLE
         | Mnemonic::CMOVNGE
         | Mnemonic::CMOVNAE => chkn::CheckAPI::<2>::new()
-            .pushop(&[R16, R32, R64], true)
-            .pushop(&[R16, R32, R64, M16, M32, M64], true)
+            .pushop([R16, R32, R64], true)
+            .pushop([R16, R32, R64, M16, M32, M64], true)
             .check(ins),
         Mnemonic::CLFLUSH => ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[]),
         Mnemonic::PAUSE | Mnemonic::LFENCE | Mnemonic::MFENCE => ot_chk(ins, &[], &[], &[]),
@@ -520,9 +511,9 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
         Mnemonic::MOV => {
             use chkn::*;
             CheckAPI::new()
-                .pushop(&[R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64], true)
+                .pushop([R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64], true)
                 .pushop(
-                    &[
+                    [
                         R8, R16, R32, R64, SR, CR, DR, M8, M16, M32, M64, I8, I16, I32, I64,
                     ],
                     true,
@@ -551,6 +542,16 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                     [DR, MA],
                     [MA, DR],
                     [R8, DR],
+                    [DR, MA],
+                    [MA, DR],
+                    [SR, CR],
+                    [SR, DR],
+                    [CR, SR],
+                    [CR, DR],
+                    [DR, SR],
+                    [SR, SR],
+                    [DR, DR],
+                    [CR, CR],
                 ])
                 .set_mode(CheckMode::X86)
                 .check(ins)
@@ -558,8 +559,8 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
         XCHG => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
-                .pushop(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .pushop([R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .pushop([R8, R16, R32, R64, M8, M16, M32, M64], true)
                 .set_forb(&[[MA, MA]])
                 .set_addt(&[LOCK])
                 .set_mode(CheckMode::X86)
@@ -2684,9 +2685,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VADDPH => {
             use chkn::*;
             CheckAPI::<3>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2694,9 +2695,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VADDSH => {
             use chkn::*;
             CheckAPI::<3>::new()
-                .pushop(&[XMM], true)
-                .pushop(&[XMM], true)
-                .pushop(&[XMM, M16], true)
+                .pushop([XMM], true)
+                .pushop([XMM], true)
+                .pushop([XMM, M16], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2704,9 +2705,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBLENDMPD => {
             use chkn::*;
             CheckAPI::<3>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2714,9 +2715,9 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBLENDMPS => {
             use chkn::*;
             CheckAPI::<3>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2724,10 +2725,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VALIGND => {
             use chkn::*;
             CheckAPI::<4>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
-                .pushop(&[I8], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop([I8], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2735,10 +2736,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VALIGNQ => {
             use chkn::*;
             CheckAPI::<4>::new()
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
-                .pushop(&[I8], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop([I8], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
@@ -2746,8 +2747,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBROADCASTF32X2 => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[YMM, ZMM], true)
-                .pushop(&[XMM, M64], true)
+                .pushop([YMM, ZMM], true)
+                .pushop([XMM, M64], true)
                 .set_avx512()
                 .set_mode(CheckMode::AVX)
                 .set_mask_perm()
@@ -2756,8 +2757,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBROADCASTF32X4 | VBROADCASTF64X2 => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[YMM, ZMM], true)
-                .pushop(&[XMM, M128], true)
+                .pushop([YMM, ZMM], true)
+                .pushop([XMM, M128], true)
                 .set_avx512()
                 .set_mode(CheckMode::AVX)
                 .set_mask_perm()
@@ -2766,8 +2767,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBROADCASTF32X8 | VBROADCASTF64X4 => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[ZMM], true)
-                .pushop(&[M256], true)
+                .pushop([ZMM], true)
+                .pushop([M256], true)
                 .set_avx512()
                 .set_mode(CheckMode::AVX)
                 .set_mask_perm()
@@ -2776,23 +2777,23 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VBCSTNEBF162PS | VBCSTNESH2PS => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[XMM, YMM], true)
-                .pushop(&[M16], true)
+                .pushop([XMM, YMM], true)
+                .pushop([M16], true)
                 .check(ins)
         }
         VCOMISH => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[XMM], true)
-                .pushop(&[XMM, M16], true)
+                .pushop([XMM], true)
+                .pushop([XMM, M16], true)
                 .set_avx512()
                 .check(ins)
         }
         VCOMPRESSPD | VCOMPRESSPS => {
             use chkn::*;
             CheckAPI::<2>::new()
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
-                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop([XMM, YMM, ZMM], true)
                 .set_mask_perm()
                 .set_avx512()
                 .check(ins)
@@ -2800,10 +2801,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VCMPSH => {
             use chkn::*;
             CheckAPI::<4>::new()
-                .pushop(&[K], true)
-                .pushop(&[XMM], true)
-                .pushop(&[XMM, M128, M16], true)
-                .pushop(&[I8], true)
+                .pushop([K], true)
+                .pushop([XMM], true)
+                .pushop([XMM, M128, M16], true)
+                .pushop([I8], true)
                 .set_mask_perm()
                 .set_avx512()
                 .check(ins)
@@ -2811,10 +2812,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         VCMPPH => {
             use chkn::*;
             CheckAPI::<4>::new()
-                .pushop(&[K], true)
-                .pushop(&[XMM, YMM, ZMM], true)
-                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
-                .pushop(&[I8], true)
+                .pushop([K], true)
+                .pushop([XMM, YMM, ZMM], true)
+                .pushop([XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .pushop([I8], true)
                 .set_mask_perm()
                 .set_avx512()
                 .check(ins)

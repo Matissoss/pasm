@@ -21,38 +21,36 @@ use crate::{
     },
 };
 
-use crate::shr::location::Location;
-
 #[derive(Debug)]
-pub struct RootNode {
-    pub location: Location,
-    pub node: RootNodeEnum,
+pub struct RootNode<'a> {
+    pub line: usize,
+    pub node: RootNodeEnum<'a>,
 }
 
 #[derive(Debug)]
-pub enum RootNodeEnum {
-    Format(RString),
-    Include(RString),
-    Extern(RString),
-    Define(RString, Number),
+pub enum RootNodeEnum<'a> {
+    Format(&'a str),
+    Include(&'a str),
+    Extern(&'a str),
+    Define(&'a str, Number),
     Bits(u8),
-    Output(RString),
+    Output(&'a str),
 }
 
 #[derive(Debug)]
-pub struct BodyNode {
-    pub location: Location,
-    pub node: BodyNodeEnum,
+pub struct BodyNode<'a> {
+    pub line: usize,
+    pub node: BodyNodeEnum<'a>,
 }
 
 #[derive(Debug)]
-pub enum BodyNodeEnum {
-    Section(RString),
+pub enum BodyNodeEnum<'a> {
+    Section(&'a str),
 
     Label(Label),
     Instruction(Instruction),
 
-    Attributes(RString),
+    Attributes(&'a str),
     Bits(u8),
     Align(u16),
     // section attributes
@@ -62,9 +60,9 @@ pub enum BodyNodeEnum {
 }
 
 #[derive(Debug)]
-pub struct MergerResult {
-    pub root: Vec<RootNode>,
-    pub body: Vec<BodyNode>,
+pub struct MergerResult<'a> {
+    pub root: Vec<RootNode<'a>>,
+    pub body: Vec<BodyNode<'a>>,
 }
 
 #[allow(unused_assignments)]
@@ -73,8 +71,10 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
     let mut root = Vec::new();
     let mut body = Vec::new();
 
-    for (mut lnum, mut line) in lines.into_iter().enumerate() {
-        lnum += 1;
+    let mut idx = 0;
+    for mut line in lines {
+        idx += 1;
+        let lnum = idx + 1;
         if line.is_empty() {
             continue;
         }
@@ -113,10 +113,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 }
                 body.push(BodyNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: BodyNodeEnum::Attributes(attr),
                 });
             }
@@ -124,15 +121,12 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
             Token::Label(lname) => {
                 inroot = false;
                 let l = Label {
-                    name: lname,
+                    name: lname.into(),
                     debug_line: lnum,
                     ..Default::default()
                 };
                 body.push(BodyNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: BodyNodeEnum::Label(l),
                 });
                 match unsafe { line.take_owned(1) } {
@@ -142,10 +136,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                             Ok(mut i) => {
                                 i.line = lnum;
                                 body.push(BodyNode {
-                                    location: Location {
-                                        line: lnum,
-                                        ..Default::default()
-                                    },
+                                    line: lnum,
                                     node: BodyNodeEnum::Instruction(i),
                                 });
                             }
@@ -168,10 +159,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     Ok(mut i) => {
                         i.line = lnum;
                         body.push(BodyNode {
-                            location: Location {
-                                line: lnum,
-                                ..Default::default()
-                            },
+                            line: lnum,
                             node: BodyNodeEnum::Instruction(i),
                         });
                     }
@@ -219,10 +207,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 };
                 root.push(RootNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: RootNodeEnum::Extern(name),
                 });
             }
@@ -264,10 +249,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 };
                 root.push(RootNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: RootNodeEnum::Output(name),
                 });
             }
@@ -309,32 +291,20 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 };
                 root.push(RootNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: RootNodeEnum::Format(name),
                 });
             }
             Token::Directive(Directive::Writeable) => body.push(BodyNode {
-                location: Location {
-                    line: lnum,
-                    ..Default::default()
-                },
+                line: lnum,
                 node: BodyNodeEnum::Write,
             }),
             Token::Directive(Directive::Executable) => body.push(BodyNode {
-                location: Location {
-                    line: lnum,
-                    ..Default::default()
-                },
+                line: lnum,
                 node: BodyNodeEnum::Exec,
             }),
             Token::Directive(Directive::Alloc) => body.push(BodyNode {
-                location: Location {
-                    line: lnum,
-                    ..Default::default()
-                },
+                line: lnum,
                 node: BodyNodeEnum::Alloc,
             }),
             // assert that layout of line is: .section "name" and nothing past that
@@ -360,34 +330,22 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 };
                 body.push(BodyNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: BodyNodeEnum::Section(name),
                 });
                 let mut slice_idx = 2;
                 while let Some(t) = unsafe { line.take_owned(slice_idx) } {
                     match t {
                         Token::Directive(Directive::Executable) => body.push(BodyNode {
-                            location: Location {
                                 line: lnum,
-                                ..Default::default()
-                            },
                             node: BodyNodeEnum::Exec,
                         }),
                         Token::Directive(Directive::Writeable) => body.push(BodyNode {
-                            location: Location {
                                 line: lnum,
-                                ..Default::default()
-                            },
                             node: BodyNodeEnum::Write,
                         }),
                         Token::Directive(Directive::Alloc) => body.push(BodyNode {
-                            location: Location {
                                 line: lnum,
-                                ..Default::default()
-                            },
                             node: BodyNodeEnum::Alloc,
                         }),
                         _ => errors.push(Error::new_wline("expected writeable, alloc and executable directives after section directive, found other garbage", 17, lnum))
@@ -429,10 +387,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 };
                 body.push(BodyNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: BodyNodeEnum::Align(align),
                 });
             }
@@ -490,10 +445,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         continue;
                     };
                     root.push(RootNode {
-                        location: Location {
-                            line: lnum,
-                            ..Default::default()
-                        },
+                        line: lnum,
                         node: RootNodeEnum::Define(name, value),
                     });
                 } else {
@@ -539,10 +491,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         continue;
                     };
                     root.push(RootNode {
-                        location: Location {
-                            line: lnum,
-                            ..Default::default()
-                        },
+                        line: lnum,
                         node: RootNodeEnum::Include(path),
                     });
                 } else {
@@ -594,18 +543,12 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
 
                 if inroot {
                     root.push(RootNode {
-                        location: Location {
-                            line: lnum,
-                            ..Default::default()
-                        },
+                        line: lnum,
                         node: RootNodeEnum::Bits(bits),
                     });
                 } else {
                     body.push(BodyNode {
-                        location: Location {
-                            line: lnum,
-                            ..Default::default()
-                        },
+                        line: lnum,
                         node: BodyNodeEnum::Bits(bits),
                     });
                 }
@@ -629,7 +572,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         Token::Directive(Directive::Function) => t = SymbolType::Func,
                         Token::Directive(Directive::Object) => t = SymbolType::Object,
                         Token::Label(l) => {
-                            lname = l.clone();
+                            lname = (*l).into();
                             break;
                         }
                         Token::Error(e) => errors.push(*e.clone()),
@@ -653,10 +596,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                     continue;
                 }
                 body.push(BodyNode {
-                    location: Location {
-                        line: lnum,
-                        ..Default::default()
-                    },
+                    line: lnum,
                     node: BodyNodeEnum::Label(Label {
                         name: lname,
                         debug_line: lnum,
@@ -676,10 +616,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         Ok(mut i) => {
                             i.line = lnum;
                             body.push(BodyNode {
-                                location: Location {
-                                    line: lnum,
-                                    ..Default::default()
-                                },
+                                line: lnum,
                                 node: BodyNodeEnum::Instruction(i),
                             });
                         }
@@ -737,7 +674,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                         if let Token::Directive(Directive::Bcst) = mods[1] {} else {
                             return Err(Error::new("expected bcst directive at index 1 of modifier", 8));
                         }
-                        let mut m = Mem::new(&m, sz)?;
+                        let mut m = Mem::new(m, sz)?;
                         m.set_bcst(true);
                         Ok(Operand::Mem(m))
                     } else {
@@ -746,7 +683,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                 }
                 (Token::Closure(' ', m), Token::Directive(k))
                 |(Token::Directive(k), Token::Closure(' ', m)) =>
-                    Ok(Operand::Mem(Mem::new(&m, Size::try_from(k).unwrap_or(Size::Unknown))?)),
+                    Ok(Operand::Mem(Mem::new(m, Size::try_from(k).unwrap_or(Size::Unknown))?)),
                 (Token::Modifier(m), Token::Directive(k))
                 |(Token::Directive(k), Token::Modifier(m)) => {
                     let size = match Size::try_from(k){
@@ -786,7 +723,7 @@ pub fn make_instruction(
 ) -> Result<Instruction, Error> {
     let mut mnemonics: SmallVec<Mnemonic, 2> = SmallVec::new();
     let mut operands: SmallVec<Operand, 5> = SmallVec::new();
-    let mut subexpr: Vec<RString> = Vec::new();
+    let mut subexpr: Vec<&str> = Vec::new();
 
     let mut operand_buf: SmallVec<Token, 4> = SmallVec::new();
     unsafe {
@@ -863,7 +800,7 @@ pub fn make_instruction(
         meta: 0,
     };
     for s in subexpr {
-        match &*s {
+        match s {
             "k0" => ins.set_mask(0b000),
             "k1" => ins.set_mask(0b001),
             "k2" => ins.set_mask(0b010),

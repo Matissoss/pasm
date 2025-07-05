@@ -13,30 +13,34 @@ use crate::{
 use std::str::FromStr;
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub enum Token {
+pub enum Token<'a> {
     Register(Register),
     Immediate(Number),
     Directive(Directive),
     Mnemonic(Mnemonic),
-    Label(RString),
+    Label(&'a str),
     SymbolRef(Box<SymbolRef>),
     Comma,
 
-    String(RString),
+    String(&'a str),
     Error(Box<Error>),
     //       pfx   content
-    Closure(char, RString),
+    Closure(char, &'a str),
 
     Modifier(Shared<[Self]>),
 
     // {subexpression}
-    SubExpr(RString),
+    SubExpr(&'a str),
 
     #[default]
     None,
 }
 
-pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
+pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
+    let mut tstart: usize = 0;
+    let mut tend: usize = 0;
+    let bline = line.as_bytes();
+
     let mut tokens: SmallVec<Token, SMALLVEC_TOKENS_LEN> = SmallVec::new();
 
     // inside closure
@@ -51,81 +55,89 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
     // subexpression delimeter count
     let mut sdelcount = 0usize;
 
-    for c in line.chars() {
+    for c in line.as_bytes() {
+        let c = *c as char;
         match c {
-            '\\' => cprefix = Some('\\'),
+            //'\\' => cprefix = Some('\\'),
             CLOSURE_START => {
-                if iclosure == Some('"') {
-                    tmp_buf.push(c);
-                } else {
-                    if cdelcount == 0 && !tmp_buf.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                if iclosure != Some('"') {
+                    if cdelcount == 0 && tend != tstart {
+                        tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
                     cdelcount += 1;
+                    tend += 1;
+                    tstart = tend;
+                } else {
+                    tend += 1;
                 }
             }
             CLOSURE_END => {
-                if iclosure == Some('"') {
-                    tmp_buf.push(c);
-                } else if cdelcount == 1 {
-                    let token =
-                        Token::make_closure(cprefix.take().unwrap_or(' '), striter(tmp_buf).into());
+                if iclosure != Some('"') && cdelcount == 1 {
+                    let token = Token::make_closure(
+                        cprefix.take().unwrap_or(' '),
+                        str(bline, tstart, tend),
+                    );
                     if modf_toks.is_empty() {
                         tokens.push(token);
                     } else {
                         modf_toks.push(token);
                     }
-                    tmp_buf.clear();
+                    tend += 1;
+                    tstart = tend;
                     cdelcount = 0;
                 } else {
-                    cdelcount -= 1;
+                    cdelcount = cdelcount.saturating_sub(1);
+                    tend += 1;
                 }
             }
             SUBEXPR_CLOSE => {
-                if iclosure == Some('"') {
-                    tmp_buf.push(c);
-                } else if sdelcount == 1 {
-                    if !tmp_buf.is_empty() {
-                        tokens.push(Token::SubExpr(striter(tmp_buf).into()));
+                if iclosure != Some('"') && sdelcount == 1 {
+                    if tend != tstart {
+                        tokens.push(Token::SubExpr(str(bline, tstart, tend)));
                     }
+                    tend += 1;
+                    tstart = tend;
                     sdelcount = 0;
                 } else {
-                    sdelcount -= 1;
+                    cdelcount = cdelcount.saturating_sub(1);
+                    tend += 1;
                 }
             }
             SUBEXPR_START => {
-                if iclosure == Some('"') {
-                    tmp_buf.push(c);
-                } else if cdelcount != 0 {
-                    continue;
-                } else {
-                    if sdelcount == 0 && !tmp_buf.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                if iclosure != Some('"') && cdelcount == 0 {
+                    if sdelcount == 0 && tend != tstart {
+                        tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
                     sdelcount += 1;
+                    tend += 1;
+                    tstart = tend;
+                } else {
+                    tend += 1;
                 }
             }
             PREFIX_VAL | PREFIX_REF | '#' => {
-                if iclosure == Some('"') {
-                    tmp_buf.push(c);
-                } else if cdelcount == 0 {
-                    if !tmp_buf.is_empty() && modf_toks.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                if cdelcount == 0 {
+                    if tend != tstart && modf_toks.is_empty() {
+                        tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
+                    tend += 1;
+                    tstart = tend;
                     cprefix = Some(c);
                 } else {
-                    tmp_buf.push(c);
+                    tend += 1;
                 }
             }
             ':' => {
-                if !tmp_buf.is_empty() {
-                    modf_toks.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                if tend != tstart {
+                    modf_toks.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                 }
+                tend += 1;
+                tstart = tend;
             }
             '"' => {
                 if !(cdelcount != 0 && sdelcount != 0) {
                     if iclosure == Some('"') && cprefix != Some('\\') {
-                        tokens.push(Token::String(striter(tmp_buf).into()));
+                        tokens.push(Token::String(str(bline, tstart, tend)));
                         iclosure.take();
                     } else {
                         iclosure = Some('"');
@@ -133,15 +145,19 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
                 } else {
                     iclosure.take();
                 }
+                tend += 1;
+                tstart = tend;
             }
             ',' => {
                 if iclosure != Some('"') {
-                    if !tmp_buf.is_empty() {
-                        tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    if tend != tstart {
+                        tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
+                    tend += 1;
+                    tstart = tend;
                     tokens.push(Token::Comma);
                 } else {
-                    tmp_buf.push(',');
+                    tend += 1;
                 }
             }
             ';' => {
@@ -162,58 +178,46 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
             }
             ' ' | '\t' => {
                 if cdelcount != 0 || sdelcount != 0 || iclosure == Some('"') {
-                    tmp_buf.push(c);
+                    tend += 1;
                     continue;
                 }
                 if !modf_toks.is_empty() {
-                    if !tmp_buf.is_empty() {
-                        modf_toks.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                    if tend != tstart {
+                        modf_toks.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
                     tokens.push(Token::make_modifier(modf_toks.into_iter()));
                     modf_toks = SmallVec::new();
-                } else if !tmp_buf.is_empty() {
-                    tokens.push(Token::make_from(cprefix.take(), striter(tmp_buf)));
+                } else if tend != tstart {
+                    tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                 }
+                tend += 1;
+                tstart = tend;
             }
             _ => {
-                if cprefix == Some('\\') {
-                    match c {
-                        'n' => tmp_buf.push('\n'),
-                        't' => tmp_buf.push('\t'),
-                        '0' => tmp_buf.push('\0'),
-                        'r' => tmp_buf.push('\r'),
-                        '\"' => tmp_buf.push('\"'),
-                        '\'' => tmp_buf.push('\''),
-                        _ => tokens.push(Token::Error(Box::new(Error::new(
-                            format!("found unknown escape character: '\\{c}'"),
-                            106,
-                        )))),
-                    }
-                    cprefix = None;
-                } else {
-                    tmp_buf.push(c)
-                }
+                tend += 1;
             }
         }
     }
 
-    if cdelcount != 0 && !tmp_buf.is_empty() {
+    if cdelcount != 0 && tend != tstart {
         tokens.push(Token::make_closure(
             cprefix.take().unwrap_or(' '),
-            striter(tmp_buf).into(),
+            str(bline, tstart, tend),
         ));
         cdelcount = 0;
+        tend = tstart;
     }
 
     if !modf_toks.is_empty() {
-        if !tmp_buf.is_empty() {
-            modf_toks.push(Token::make_from(cprefix, striter(tmp_buf)));
+        if tend != tstart {
+            modf_toks.push(Token::make_from(cprefix, str(bline, tstart, tend)));
+            tend = tstart;
         }
         tokens.push(Token::make_modifier(modf_toks.into_iter()));
     }
 
-    if !tmp_buf.is_empty() {
-        tokens.push(Token::make_from(cprefix, striter(tmp_buf)));
+    if tend != tstart {
+        tokens.push(Token::make_from(cprefix, str(bline, tstart, tend)));
     }
 
     if cdelcount != 0 {
@@ -238,20 +242,20 @@ pub fn tokl(tmp_buf: &mut Vec<char>, line: &str) -> SmallVec<Token, SMALLVEC_TOK
     tokens
 }
 
-fn striter(v: &mut Vec<char>) -> String {
-    let s = String::from_iter(v.iter());
-    v.clear();
-    s
+// we can assert that code is already valid UTF-8, because of `utils.rs:split_str_ref`
+#[inline(always)]
+fn str(buf: &[u8], start: usize, end: usize) -> &str {
+    unsafe { std::str::from_utf8_unchecked(&buf[start..end]) }
 }
 
-impl Token {
+impl<'a> Token<'a> {
     fn make_modifier(mut toks: Vec<Self>) -> Self {
         match toks.len() {
             1 => {
                 return Token::Label(if let Token::String(s) = toks.pop().unwrap() {
                     s
                 } else {
-                    RString::from("")
+                    ""
                 })
             }
             2 => match &toks[..2] {
@@ -292,17 +296,17 @@ impl Token {
         }
         Token::Modifier(toks.into())
     }
-    fn make_closure(prefix: char, val: RString) -> Self {
+    fn make_closure(prefix: char, val: &'a str) -> Self {
         use math::MathematicalEvaluation as MathEval;
         match prefix {
-            PREFIX_VAL => match MathEval::from_str(&val) {
+            PREFIX_VAL => match MathEval::from_str(val) {
                 Ok(m) => Token::Immediate(Number::uint64(MathEval::eval(m).unwrap_or(0))),
                 Err(e) => Token::Error(Box::new(e)),
             },
             _ => Self::Closure(prefix, val),
         }
     }
-    fn make_from(prefix: Option<char>, val: String) -> Self {
+    fn make_from(prefix: Option<char>, val: &'a str) -> Self {
         match prefix {
             Some(PREFIX_REF) => Token::SymbolRef(Box::new(SymbolRef::new(
                 val.into(),
@@ -311,29 +315,29 @@ impl Token {
                 None,
                 None,
             ))),
-            Some(CLOSURE_START) => Self::Closure(' ', val.into()),
+            Some(CLOSURE_START) => Self::Closure(' ', val),
             _ => {
-                if let Ok(reg) = Register::from_str(&val) {
+                if let Ok(reg) = Register::from_str(val) {
                     Self::Register(reg)
-                } else if let Ok(num) = Number::from_str(&val) {
+                } else if let Ok(num) = Number::from_str(val) {
                     Self::Immediate(num)
-                } else if let Ok(dir) = Directive::from_str(&val) {
+                } else if let Ok(dir) = Directive::from_str(val) {
                     Self::Directive(dir)
                 } else {
                     #[cfg(not(feature = "refresh"))]
-                    if let Ok(mnm) = Mnemonic::from_str(&val) {
+                    if let Ok(mnm) = Mnemonic::from_str(val) {
                         return Self::Mnemonic(mnm);
                     }
-                    Self::String(val.into())
+                    Self::String(val)
                 }
             }
         }
     }
 }
 
-impl TryFrom<&Token> for RelType {
+impl<'a> TryFrom<&'a Token<'a>> for RelType {
     type Error = ();
-    fn try_from(tok: &Token) -> Result<Self, <Self as TryFrom<&Token>>::Error> {
+    fn try_from(tok: &'a Token<'a>) -> Result<Self, <Self as TryFrom<&'a Token<'a>>>::Error> {
         match tok {
             Token::Directive(Directive::Rel32) => Ok(Self::REL32),
             Token::Directive(Directive::Rel16) => Ok(Self::REL16),
@@ -344,12 +348,12 @@ impl TryFrom<&Token> for RelType {
     }
 }
 
-impl TryFrom<Token> for Operand {
+impl TryFrom<Token<'_>> for Operand {
     type Error = Error;
     fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
         match tok {
             Token::Register(reg) => Ok(Self::Register(reg)),
-            Token::String(val) => Ok(Self::String(val)),
+            Token::String(val) => Ok(Self::String(val.into())),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
             Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
             Token::Closure(' ', _) => Err(Error::new(
@@ -368,7 +372,7 @@ impl TryFrom<Token> for Operand {
 }
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for Token {
+impl ToString for Token<'_> {
     fn to_string(&self) -> String {
         match self {
             Self::Register(reg) => format!("{}{}", PREFIX_REG, reg.to_string()),
@@ -405,10 +409,9 @@ mod tokn_test {
     use super::*;
     #[test]
     fn tok_test() {
-        let mut tmp_buf = Vec::new();
         let line = "add rax, rcx";
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
+            tokl(line).into_iter(),
             vec![
                 Token::Mnemonic(Mnemonic::ADD),
                 Token::Register(Register::RAX),
@@ -416,22 +419,16 @@ mod tokn_test {
                 Token::Register(Register::RCX)
             ]
         );
-        tmp_buf.clear();
         let line = "_label:";
-        assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::Label(RString::from("_label"))]
-        );
+        assert_eq!(tokl(line).into_iter(), vec![Token::Label("_label")]);
         let line = "$(10)";
-        tmp_buf.clear();
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
+            tokl(line).into_iter(),
             vec![Token::Immediate(Number::uint64(10))]
         );
         let line = "@sref:rel32 // comment ";
-        tmp_buf.clear();
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
+            tokl(line).into_iter(),
             vec![Token::SymbolRef(Box::new(SymbolRef::new(
                 RString::from("sref"),
                 None,
@@ -440,44 +437,37 @@ mod tokn_test {
                 Some(RelType::REL32)
             )))]
         );
-        tmp_buf.clear();
         let line = "adc (rax + rcx * 4 + 10) qword, r10";
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
+            tokl(line).into_iter(),
             vec![
                 Token::Mnemonic(Mnemonic::ADC),
-                Token::Closure(' ', RString::from("rax + rcx * 4 + 10")),
+                Token::Closure(' ', "rax + rcx * 4 + 10"),
                 Token::Directive(Directive::Qword),
                 Token::Comma,
                 Token::Register(Register::R10),
             ]
         );
-        tmp_buf.clear();
         let line = "fs:(%rax + %rcx * $4 + $10) qword";
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
+            tokl(line).into_iter(),
             vec![
                 Token::Modifier(Shared::from([
                     Token::Register(Register::FS),
-                    Token::Closure(' ', RString::from("%rax + %rcx * $4 + $10"))
+                    Token::Closure(' ', "%rax + %rcx * $4 + $10")
                 ])),
                 Token::Directive(Directive::Qword),
             ]
         );
         let line = "{k1} {z}";
-        tmp_buf.clear();
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![
-                Token::SubExpr(RString::from("k1")),
-                Token::SubExpr(RString::from("z")),
-            ]
+            tokl(line).into_iter(),
+            vec![Token::SubExpr("k1"), Token::SubExpr("z"),]
         );
-        let line = "\"Hello, World!\"";
-        tmp_buf.clear();
+        let line = "\"(Hello {, World!\"";
         assert_eq!(
-            tokl(&mut tmp_buf, line).into_iter(),
-            vec![Token::String(RString::from("Hello, World!"))]
+            tokl(line).into_iter(),
+            vec![Token::String("(Hello {, World!")]
         );
     }
 }

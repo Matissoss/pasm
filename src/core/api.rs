@@ -361,11 +361,32 @@ impl GenAPI {
                 if size == 0 {
                     base.extend(s.as_bytes());
                 } else {
-                    let mut bts = s.as_bytes().to_vec();
-                    while bts.len() < size {
-                        bts.push(0x00);
+                    let bts = s.as_bytes();
+                    let mut nvc = Vec::with_capacity(bts.len());
+                    let mut escape_char = false;
+                    for b in bts {
+                        if b != &b'\\' {
+                            escape_char = true;
+                            continue;
+                        }
+                        if escape_char {
+                            match *b {
+                                b'n' => nvc.push(b'\n'),
+                                b't' => nvc.push(b'\t'),
+                                b'0' => nvc.push(b'\0'),
+                                b'r' => nvc.push(b'\r'),
+                                b'\"' => nvc.push(b'\"'),
+                                b'\'' => nvc.push(b'\''),
+                                _ => {
+                                    nvc.push(b'\\');
+                                    nvc.push(*b);
+                                }
+                            }
+                        } else {
+                            nvc.push(*b);
+                        }
                     }
-                    base.extend(bts);
+                    base.extend(nvc);
                 }
             } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
                 let addend = s.addend().unwrap_or_default();
@@ -414,7 +435,7 @@ impl GenAPI {
         self.ord.deserialize()
     }
     #[rustfmt::skip]
-    pub fn get_ord_oprs<'a>(&self, ins: &'a Instruction) -> [Option<&'a Operand>; 3] {
+    pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<&'a Operand>; 3] {
         use OpOrd::*;
         let ord = self.ord.deserialize();
         match &ord[..3] {
