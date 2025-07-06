@@ -17,8 +17,8 @@ pub enum SymbolType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Symbol {
-    pub name: crate::RString,
+pub struct Symbol<'a> {
+    pub name: &'a str,
     pub offset: u32,
     pub size: u32,
     pub sindex: u16,
@@ -26,7 +26,7 @@ pub struct Symbol {
     pub stype: SymbolType,
 }
 
-impl Symbol {
+impl Symbol<'_> {
     pub fn is_global(&self) -> bool {
         self.visibility == Visibility::Public || self.visibility == Visibility::Weak
     }
@@ -38,20 +38,20 @@ const ADED_GUARDIAN: u8 = 0x2;
 const IS_DEREF: u8 = 0x3;
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct SymbolRef {
-    pub symbol: crate::RString,
+pub struct SymbolRef<'a> {
+    pub symbol: &'a str,
     addend: i32,
     size: Size,
     reltype: RelType,
     guardians: BoolTable8,
 }
 
-impl SymbolRef {
+impl<'a> SymbolRef<'a> {
     pub fn deref(&mut self, bool: bool) {
         self.guardians.set(IS_DEREF, bool)
     }
     pub fn new(
-        symb: crate::RString,
+        symb: &'a str,
         addend: Option<i32>,
         is_deref: bool,
         sz: Option<Size>,
@@ -107,9 +107,9 @@ impl SymbolRef {
     }
 }
 
-impl ToString for SymbolRef {
+impl ToString for SymbolRef<'_> {
     fn to_string(&self) -> String {
-        let mut string = self.symbol.clone().to_string();
+        let mut string = self.symbol.to_string();
         string.push(':');
         string.push_str(if self.reltype().unwrap_or(RelType::REL32).is_rel() {
             "rel"

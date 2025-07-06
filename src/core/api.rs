@@ -223,10 +223,10 @@ impl GenAPI {
     // mov .deref @symbol, @other_symbol
     // (yes it is in fact a valid variant: first operand is mem, second is immediate)
     pub fn assemble<'a>(
-        &'a self,
+        self,
         ins: &'a Instruction,
         bits: u8,
-    ) -> (Vec<u8>, [Option<Relocation>; 2]) {
+    ) -> (Vec<u8>, [Option<Relocation<'a>>; 2]) {
         let mut rels = [None, None];
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
         let rex_flag_set = self.flags.get(REX_PFX).unwrap();
@@ -291,14 +291,14 @@ impl GenAPI {
             let mut used_evex = false;
             if vex_flag_set {
                 if ins.needs_evex() {
-                    base.extend(evex::evex(self, ins));
+                    base.extend(evex::evex(&self, ins));
                     used_evex = true;
-                } else if let Some(vex) = vex::vex(ins, self) {
+                } else if let Some(vex) = vex::vex(ins, &self) {
                     base.extend(vex);
                 }
             }
             if evex_flag_set && !used_evex {
-                base.extend(evex::evex(self, ins));
+                base.extend(evex::evex(&self, ins));
             }
             base
         };
@@ -306,7 +306,7 @@ impl GenAPI {
         let (opc, sz) = self.opcode.collect();
         base.extend(&opc[..sz]);
         if self.flags.get(USE_MODRM).unwrap() {
-            base.push(modrm::modrm(ins, self));
+            base.push(modrm::modrm(ins, &self));
             if let Some(sib) = sib::gen_sib_ins(ins) {
                 base.push(sib);
             }
@@ -317,7 +317,7 @@ impl GenAPI {
                 if let Some((s, _)) = symb {
                     let addend = s.addend().unwrap_or_default();
                     rels[0] = Some(Relocation {
-                        symbol: s.symbol.clone(),
+                        symbol: s.symbol,
                         offset: base.len() as u32,
                         addend,
                         shidx: 0,
@@ -391,7 +391,7 @@ impl GenAPI {
             } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
                 let addend = s.addend().unwrap_or_default();
                 rels[1] = Some(Relocation {
-                    symbol: s.symbol.clone(),
+                    symbol: s.symbol,
                     offset: base.len() as u32,
                     addend,
                     shidx: 0,
@@ -435,7 +435,7 @@ impl GenAPI {
         self.ord.deserialize()
     }
     #[rustfmt::skip]
-    pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<&'a Operand>; 3] {
+    pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<&'a Operand<'a>>; 3] {
         use OpOrd::*;
         let ord = self.ord.deserialize();
         match &ord[..3] {

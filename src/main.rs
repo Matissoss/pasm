@@ -9,6 +9,10 @@
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::unnecessary_unwrap)]
+// sometimes manual idx = 0; while idx < range { idx += 1 } is faster
+// than Rust's preferred .iter().enumerate()
+#![allow(clippy::explicit_counter_loop)]
+#![allow(clippy::borrowed_box)]
 
 // global imports go here
 use std::process;
@@ -17,7 +21,7 @@ use std::process;
 
 // pasm modules
 pub mod core;
-pub mod libr;
+pub mod libp;
 pub mod obj;
 pub mod pre;
 pub mod pre_core;
@@ -75,7 +79,15 @@ fn main() {
     #[cfg(feature = "time")]
     let start = time::SystemTime::now();
 
-    let ast = libr::pasm_parse_src(infile);
+    let file = match libp::get_file(infile.to_path_buf()) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    };
+
+    let ast = libp::pasm_parse_src(infile.to_path_buf(), &file);
 
     if let Err(errs) = ast {
         for mut e in errs {
@@ -104,7 +116,7 @@ fn main() {
 
     let outfile = cli_outfile(cli).clone();
 
-    if let Err(e) = libr::assemble(ast, outfile.as_deref()) {
+    if let Err(e) = libp::assemble(ast, outfile) {
         eprintln!("{e}");
         std::process::exit(1);
     };

@@ -11,9 +11,19 @@ const WRITE_FLAG: u8 = 0x3;
 const EXEC_FLAG: u8 = 0x4;
 
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct Section {
-    pub name: crate::RString,
-    pub content: Vec<label::Label>,
+pub struct SlimSection<'a> {
+    pub name: &'a str,
+    pub size: u32,
+    pub offset: u32,
+    pub align: u16,
+    pub attributes: SectionAttributes,
+    pub bits: u8,
+}
+
+#[derive(PartialEq, Clone, Debug, Default)]
+pub struct Section<'a> {
+    pub name: &'a str,
+    pub content: Vec<label::Label<'a>>,
     pub size: u32,
     pub offset: u32,
     pub align: u16,

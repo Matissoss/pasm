@@ -19,7 +19,7 @@ pub enum Token<'a> {
     Directive(Directive),
     Mnemonic(Mnemonic),
     Label(&'a str),
-    SymbolRef(Box<SymbolRef>),
+    SymbolRef(Box<SymbolRef<'a>>),
     Comma,
 
     String(&'a str),
@@ -308,13 +308,9 @@ impl<'a> Token<'a> {
     }
     fn make_from(prefix: Option<char>, val: &'a str) -> Self {
         match prefix {
-            Some(PREFIX_REF) => Token::SymbolRef(Box::new(SymbolRef::new(
-                val.into(),
-                None,
-                false,
-                None,
-                None,
-            ))),
+            Some(PREFIX_REF) => {
+                Token::SymbolRef(Box::new(SymbolRef::new(val, None, false, None, None)))
+            }
             Some(CLOSURE_START) => Self::Closure(' ', val),
             _ => {
                 if let Ok(reg) = Register::from_str(val) {
@@ -348,14 +344,14 @@ impl<'a> TryFrom<&'a Token<'a>> for RelType {
     }
 }
 
-impl TryFrom<Token<'_>> for Operand {
+impl<'a> TryFrom<Token<'a>> for Operand<'a> {
     type Error = Error;
-    fn try_from(tok: Token) -> Result<Self, <Self as TryFrom<Token>>::Error> {
+    fn try_from(tok: Token<'a>) -> Result<Self, <Self as TryFrom<Token<'a>>>::Error> {
         match tok {
             Token::Register(reg) => Ok(Self::Register(reg)),
             Token::String(val) => Ok(Self::String(val.into())),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(*val)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
             Token::Closure(' ', _) => Err(Error::new(
                 "you cannot create memory addressing without using size directive",
                 3,
@@ -430,7 +426,7 @@ mod tokn_test {
         assert_eq!(
             tokl(line).into_iter(),
             vec![Token::SymbolRef(Box::new(SymbolRef::new(
-                RString::from("sref"),
+                "sref",
                 None,
                 false,
                 None,

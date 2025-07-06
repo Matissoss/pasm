@@ -22,11 +22,11 @@ use crate::{
 use OpOrd::*;
 
 #[inline]
-pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
+pub fn extern_trf<'a>(externs: &'a Vec<&'a str>) -> Vec<Symbol<'a>> {
     let mut symbols = Vec::new();
     for extern_ in externs {
         symbols.push(Symbol {
-            name: extern_.clone(),
+            name: extern_,
             offset: 0,
             size: 0,
             sindex: 0,
@@ -37,7 +37,10 @@ pub fn extern_trf(externs: &Vec<crate::RString>) -> Vec<Symbol> {
     symbols
 }
 
-pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>, Vec<Relocation>) {
+pub fn compile_label<'a>(
+    lbl: (&'a [Instruction<'a>], u16, u8),
+    offset: usize,
+) -> (Vec<u8>, Vec<Relocation<'a>>) {
     let fn_ptr = GenAPI::assemble;
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
@@ -54,7 +57,7 @@ pub fn compile_label(lbl: (&[Instruction], u16, u8), offset: usize) -> (Vec<u8>,
         }
     }
     for ins in lbl.0 {
-        let res = fn_ptr(&get_genapi(ins, lbl_bits), ins, lbl_bits);
+        let res = fn_ptr(get_genapi(ins, lbl_bits), ins, lbl_bits);
         for mut rl in res.1.into_iter().flatten() {
             rl.offset += bytes.len() as u32;
             reallocs.push(rl);

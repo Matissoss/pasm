@@ -133,7 +133,7 @@ pub trait ToType {
     fn atype(&self) -> AType;
 }
 
-impl ToType for Operand {
+impl ToType for Operand<'_> {
     fn atype(&self) -> AType {
         match self {
             Self::Register(r) => AType::Register(*r, false),

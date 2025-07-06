@@ -46,15 +46,15 @@ const HAS_MEM: u8 = 0x4;
 //  It is different from what we search for, so slice is keys[0..2]
 //  Now we iterate over slice and search for our type.
 //  And we got it! we got R64, so it means our variant was correct.
-pub struct OperandSet {
+pub struct OperandSet<'a> {
     ptable_data: u32,
     ptable_meta: u16,
     flags: Flags8,
     _reserved: u8,
-    keys: Vec<AType>,
+    keys: &'a [AType],
 }
 
-impl OperandSet {
+impl<'a> OperandSet<'a> {
     pub fn is_optional(&self) -> bool {
         self.flags.get(OPR_NEEDED).unwrap_or(false)
     }
@@ -120,11 +120,9 @@ impl OperandSet {
         self.flags.get(HAS_REG).unwrap_or_default()
     }
     #[inline(always)]
-    pub fn new<const N: usize>(ndd: bool, ats: [AType; N]) -> Self {
+    pub const fn new<const N: usize>(ndd: bool, ats: &'a [AType; N]) -> Self {
         let mut flags = Flags8::new();
         flags.set(OPR_NEEDED, ndd);
-        let mut keys = Vec::with_capacity(ats.len());
-
         let mut ptable_data = 0;
         let mut ptable_meta = 0;
         let _reserved = 0;
@@ -136,8 +134,9 @@ impl OperandSet {
         let mut ptindx = 0;
         let mut slsize = 0;
 
-        for key in ats {
-            let crtype = match key {
+        let mut idx = 0;
+        while idx < N {
+            let crtype = match ats[idx] {
                 AType::Register(_, _) => {
                     flags.set(HAS_REG, true);
                     REG_TYPE
@@ -166,7 +165,7 @@ impl OperandSet {
             } else {
                 slsize += 1;
             }
-            keys.push(key);
+            idx += 1;
         }
         if lttype != pvtype {
             ptable_meta |= pvtype << (ptindx << 1);
@@ -178,17 +177,16 @@ impl OperandSet {
             ptable_meta,
             flags,
             _reserved,
-            keys,
+            keys: ats,
         }
     }
 }
 
-pub struct CheckAPI<const OPERAND_COUNT: usize> {
-    allowed: SmallVec<OperandSet, OPERAND_COUNT>,
+pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
+    allowed: SmallVec<OperandSet<'a>, OPERAND_COUNT>,
 
-    // less commonly used, so behind a pointer
-    forbidden: MaybeUninit<Vec<[AType; OPERAND_COUNT]>>,
-    additional: MaybeUninit<Vec<Mnemonic>>,
+    forbidden: MaybeUninit<&'a [[AType; OPERAND_COUNT]]>,
+    additional: MaybeUninit<&'a [Mnemonic]>,
 
     // layout:
     //  0bXY_00AM_ZZ:
@@ -209,7 +207,7 @@ pub enum CheckMode {
     NOSIZE = 0b11, // don't check for size diff
 }
 
-impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
+impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
@@ -252,37 +250,21 @@ impl<const OPERAND_COUNT: usize> CheckAPI<OPERAND_COUNT> {
     pub const fn has_addt(&self) -> bool {
         self.flags & 0b1000_0000 == 0b1000_0000
     }
-    pub fn set_forb(mut self, forb: &[[AType; OPERAND_COUNT]]) -> Self {
+    pub const fn set_forb(mut self, forb: &'a [[AType; OPERAND_COUNT]]) -> Self {
         self.set_forb_flag();
-        let mut vec: Vec<[AType; OPERAND_COUNT]> = Vec::with_capacity(forb.len());
-        let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
-        for f in forb {
-            for t in f {
-                smv.push(*t);
-            }
-            while smv.len() < OPERAND_COUNT {
-                smv.push(AType::NoType);
-            }
-            let mut slc = [AType::NoType; OPERAND_COUNT];
-            for (slp, k) in smv.iter().enumerate() {
-                slc[slp] = *k;
-            }
-            vec.push(slc);
-            smv.clear();
-        }
-        self.forbidden = MaybeUninit::new(vec);
+        self.forbidden = MaybeUninit::new(forb);
         self
     }
-    pub fn set_addt(mut self, addt: &[Mnemonic]) -> Self {
+    pub const fn set_addt(mut self, addt: &'a [Mnemonic]) -> Self {
         self.set_addt_flag();
-        self.additional = MaybeUninit::new(addt.into());
+        self.additional = MaybeUninit::new(addt);
         self
     }
-    pub fn pushop<const N: usize>(mut self, types: [AType; N], needed: bool) -> Self {
+    pub const fn pushop<const N: usize>(mut self, types: &'a [AType; N], needed: bool) -> Self {
         self.allowed.push(OperandSet::new(needed, types));
         self
     }
-    pub fn getops(&self, idx: usize) -> Option<&OperandSet> {
+    pub const fn getops(&self, idx: usize) -> Option<&OperandSet> {
         self.allowed.get(idx)
     }
     pub fn check_addt(&self, ins: &Instruction) -> Result<(), Error> {
@@ -441,7 +423,7 @@ mod chkn_test {
         assert_eq!((MEM_TYPE << (1 << 1)) | REG_TYPE, 0b1001);
         let o = OperandSet::new(
             true,
-            [
+            &[
                 AType::Register(Register::AL, false),
                 AType::Register(Register::BX, false),
                 M16,

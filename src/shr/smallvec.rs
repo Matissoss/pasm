@@ -110,7 +110,7 @@ impl<T, const N: usize> SmallVec<T, N> {
         unsafe { self.content[idx].assume_init_ref() }
     }
     #[inline]
-    pub fn push(&mut self, t: T) {
+    pub const fn push(&mut self, t: T) {
         self.content[self.len] = MaybeUninit::new(t);
         self.len += 1;
     }

@@ -18,20 +18,18 @@ use crate::shr::{
     smallvec::SmallVec,
     symbol::SymbolRef,
 };
-use crate::RString;
-
 #[derive(Debug, Clone, PartialEq)]
-pub enum Operand {
+pub enum Operand<'a> {
     Register(Register),
     Imm(Number),
     Mem(Mem),
-    SymbolRef(SymbolRef),
-    String(RString),
+    SymbolRef(Box<SymbolRef<'a>>),
+    String(Box<&'a str>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Instruction {
-    pub operands: SmallVec<Operand, 5>,
+pub struct Instruction<'a> {
+    pub operands: SmallVec<Operand<'a>, 4>,
     pub line: usize,
     pub addt: Option<Mnemonic>,
     pub mnem: Mnemonic,
@@ -51,13 +49,13 @@ pub struct Instruction {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct AST {
-    pub sections: Vec<Section>,
-    pub defines: HashMap<RString, Number>,
+pub struct AST<'a> {
+    pub sections: Vec<Section<'a>>,
+    pub defines: HashMap<&'a str, Number>,
     pub includes: Vec<PathBuf>,
-    pub externs: Vec<RString>,
+    pub externs: Vec<&'a str>,
 
-    pub format: Option<RString>,
+    pub format: Option<&'a str>,
     pub default_bits: Option<u8>,
     pub default_output: Option<PathBuf>,
 }
@@ -71,7 +69,7 @@ pub enum IVariant {
     YMM, // AVX
 }
 
-impl Operand {
+impl Operand<'_> {
     pub fn get_reg(&self) -> Option<&Register> {
         match self {
             Operand::Register(r) => Some(r),
@@ -107,7 +105,7 @@ impl Operand {
     }
 }
 
-impl Instruction {
+impl Instruction<'_> {
     pub fn get_bcst(&self) -> bool {
         if let Some(m) = self.get_mem() {
             return m.is_bcst();
@@ -337,7 +335,7 @@ impl Instruction {
         None
     }
     //                                  operand,  index
-    pub fn get_symbs(&self) -> [Option<(&SymbolRef, usize)>; 2] {
+    pub fn get_symbs(&self) -> [Option<(&Box<SymbolRef>, usize)>; 2] {
         let mut ops = [None, None];
         for (idx, s) in self.operands.iter().enumerate() {
             if let Operand::SymbolRef(s) = s {
@@ -374,13 +372,13 @@ impl Instruction {
     }
 }
 
-impl AST {
+impl AST<'_> {
     pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
             let attr = l.attributes;
             let align = l.align;
             let bits = l.bits;
-            let name = l.name.clone();
+            let name = l.name;
             self.sections.push(l);
             for s in 0..self.sections.len() - 1 {
                 if self.sections[s].name == name {

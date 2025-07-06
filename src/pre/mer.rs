@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
-    conf::{RString, SMALLVEC_TOKENS_LEN},
+    conf::SMALLVEC_TOKENS_LEN,
     pre::tok::Token,
     shr::{
         ast::{Instruction, Operand},
@@ -47,8 +47,8 @@ pub struct BodyNode<'a> {
 pub enum BodyNodeEnum<'a> {
     Section(&'a str),
 
-    Label(Label),
-    Instruction(Instruction),
+    Label(Box<Label<'a>>),
+    Instruction(Box<Instruction<'a>>),
 
     Attributes(&'a str),
     Bits(u8),
@@ -121,13 +121,13 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
             Token::Label(lname) => {
                 inroot = false;
                 let l = Label {
-                    name: lname.into(),
+                    name: lname,
                     debug_line: lnum,
                     ..Default::default()
                 };
                 body.push(BodyNode {
                     line: lnum,
-                    node: BodyNodeEnum::Label(l),
+                    node: BodyNodeEnum::Label(Box::new(l)),
                 });
                 match unsafe { line.take_owned(1) } {
                     Some(Token::Mnemonic(m)) => {
@@ -137,7 +137,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                                 i.line = lnum;
                                 body.push(BodyNode {
                                     line: lnum,
-                                    node: BodyNodeEnum::Instruction(i),
+                                    node: BodyNodeEnum::Instruction(Box::new(i)),
                                 });
                             }
                             Err(mut e) => {
@@ -160,7 +160,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         i.line = lnum;
                         body.push(BodyNode {
                             line: lnum,
-                            node: BodyNodeEnum::Instruction(i),
+                            node: BodyNodeEnum::Instruction(Box::new(i)),
                         });
                     }
                     Err(mut e) => {
@@ -560,7 +560,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 let mut v = Visibility::default();
                 let mut t = SymbolType::default();
                 unsafe { line.insert(0, Token::Directive(k)) };
-                let mut lname = RString::from("");
+                let mut lname = "";
                 let mut i = 0;
                 for token in line.iter() {
                     match token {
@@ -572,7 +572,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                         Token::Directive(Directive::Function) => t = SymbolType::Func,
                         Token::Directive(Directive::Object) => t = SymbolType::Object,
                         Token::Label(l) => {
-                            lname = (*l).into();
+                            lname = l;
                             break;
                         }
                         Token::Error(e) => errors.push(*e.clone()),
@@ -597,7 +597,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                 }
                 body.push(BodyNode {
                     line: lnum,
-                    node: BodyNodeEnum::Label(Label {
+                    node: BodyNodeEnum::Label(Box::new(Label {
                         name: lname,
                         debug_line: lnum,
                         attributes: {
@@ -607,7 +607,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                             a
                         },
                         ..Default::default()
-                    }),
+                    })),
                 });
 
                 if let Some(Token::Mnemonic(m)) = unsafe { line.take_owned(i + 1) } {
@@ -617,7 +617,7 @@ pub fn mer(lines: Vec<SmallVec<Token, SMALLVEC_TOKENS_LEN>>) -> Result<MergerRes
                             i.line = lnum;
                             body.push(BodyNode {
                                 line: lnum,
-                                node: BodyNodeEnum::Instruction(i),
+                                node: BodyNodeEnum::Instruction(Box::new(i)),
                             });
                         }
                         Err(mut e) => {
@@ -657,7 +657,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 4>) -> Result<Operand, Erro
                     };
                     s.set_size(size);
                     s.deref(true);
-                    Ok(Operand::SymbolRef(*s))
+                    Ok(Operand::SymbolRef(s))
                 }
                 (Token::Closure(' ', m), Token::Modifier(mods)) |
                 (Token::Modifier(mods), Token::Closure(' ', m)) => {
@@ -722,7 +722,7 @@ pub fn make_instruction(
     mut start_idx: usize,
 ) -> Result<Instruction, Error> {
     let mut mnemonics: SmallVec<Mnemonic, 2> = SmallVec::new();
-    let mut operands: SmallVec<Operand, 5> = SmallVec::new();
+    let mut operands: SmallVec<Operand, 4> = SmallVec::new();
     let mut subexpr: Vec<&str> = Vec::new();
 
     let mut operand_buf: SmallVec<Token, 4> = SmallVec::new();
@@ -747,7 +747,7 @@ pub fn make_instruction(
                         }
                     } else {
                         return Err(Error::new(
-                            "you tried to make instruction with too many (5+) operands",
+                            "you tried to make instruction with too many (4+) operands",
                             19,
                         ));
                     }

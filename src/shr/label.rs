@@ -5,13 +5,11 @@
 
 use crate::shr::{ast::Instruction, symbol::SymbolType, visibility::Visibility};
 
-use crate::RString;
-
 #[derive(Default, Debug, Clone, PartialEq)]
 #[repr(C)]
-pub struct Label {
-    pub content: Vec<Instruction>,
-    pub name: RString,
+pub struct Label<'a> {
+    pub content: Vec<Instruction<'a>>,
+    pub name: &'a str,
     pub offset: usize,
     pub size: usize,
     pub align: u16,

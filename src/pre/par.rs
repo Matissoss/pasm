@@ -83,7 +83,7 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                     });
                     errors.push(er);
                 } else {
-                    ast.format = Some(f.into());
+                    ast.format = Some(f);
                     floc = location;
                 }
             }
@@ -124,7 +124,7 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 }
             }
             RootNode::Define(name, value) => {
-                if ast.defines.insert(name.into(), value).is_some() {
+                if ast.defines.insert(name, value).is_some() {
                     let er = Error::new_wline(
                         "tried to redeclare same define multiple times",
                         21,
@@ -134,7 +134,7 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 }
             }
             RootNode::Extern(e) => {
-                ast.externs.push(e.into());
+                ast.externs.push(e);
             }
             RootNode::Include(i) => {
                 ast.includes.push(PathBuf::from(i.to_string()));
@@ -163,18 +163,18 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 attrs.push(a);
             }
             BodyNode::Instruction(i) => {
-                label.content.push(i);
+                label.content.push(*i);
             }
             BodyNode::Label(l) => {
                 if label == Label::default() {
-                    label = l;
+                    label = *l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
                     if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);
                     }
                 } else {
                     section.content.push(label);
-                    label = l;
+                    label = *l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
                     if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);
@@ -185,10 +185,10 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 if started && section != Section::default() {
                     ast.sections.push(section);
                     section = Section::default();
-                    section.name = s.into();
+                    section.name = s;
                 } else {
                     section = Section::default();
-                    section.name = s.into();
+                    section.name = s;
                     started = true;
                 }
             }

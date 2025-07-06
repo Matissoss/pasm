@@ -8,7 +8,7 @@ use std::path::Path;
 use crate::shr::{
     error::Error,
     reloc::{RelType, Relocation},
-    section::Section,
+    section::SlimSection,
     symbol::{Symbol, SymbolType},
     visibility::Visibility,
 };
@@ -124,14 +124,14 @@ pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
     ]
 }
 
-type Sections<'a> = &'a [Section];
+type Sections<'a> = &'a [SlimSection<'a>];
 
 impl<'a> Elf<'a> {
     pub fn new(
         sections: Sections<'a>,
         path: &'a Path,
         code: &'a [u8],
-        relocs: &'a [Relocation],
+        relocs: Vec<Relocation>,
         symbols: &'a [Symbol],
         is_64bit: bool,
     ) -> Result<Self, Error> {
@@ -182,7 +182,7 @@ impl<'a> Elf<'a> {
         }
     }
     fn push_symbol(&mut self, symbol: &Symbol) {
-        let name = self.push_strtab(&symbol.name);
+        let name = self.push_strtab(symbol.name);
         self.symbols.push(ElfSymbol {
             name,
             value: symbol.offset,
@@ -242,7 +242,7 @@ fn make_elf<'a>(
     sections: Sections<'a>,
     outpath: &'a Path,
     code: &'a [u8],
-    relocs: &'a [Relocation],
+    relocs: Vec<Relocation>,
     symbols: &'a [Symbol],
     is_64bit: bool,
 ) -> Result<Elf<'a>, Error> {
@@ -263,7 +263,7 @@ fn make_elf<'a>(
     });
     let iter = sections.iter();
     for section in iter {
-        let idx = elf.push_shstrtab(&section.name);
+        let idx = elf.push_shstrtab(section.name);
         elf.push_section(ElfSection {
             name: idx,
             size: section.size,
@@ -301,7 +301,7 @@ fn make_elf<'a>(
     elf.code = code;
     elf.push_symbols(symbols);
     for reloc in relocs {
-        if let Some(idx) = elf.find_symbol(&reloc.symbol) {
+        if let Some(idx) = elf.find_symbol(reloc.symbol) {
             elf.push_reloc(
                 &TmpRelocation {
                     symbol: idx as u32,

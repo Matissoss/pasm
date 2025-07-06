@@ -48,15 +48,15 @@ impl RelType {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Relocation {
-    pub symbol: crate::RString,
+pub struct Relocation<'a> {
+    pub symbol: &'a str,
     pub offset: u32,
     pub addend: i32,
     pub shidx: u16,
     pub reltype: RelType,
 }
 
-impl Relocation {
+impl Relocation<'_> {
     pub const fn is_rel(&self) -> bool {
         self.reltype.is_rel()
     }
@@ -149,7 +149,7 @@ mod tests {
         //                0     1     2     3     4     5     6     7
         let mut bytes = [0x00, 0x71, 0x00, 0x00, 0x00, 0x00, 0x81, 0x91];
         let symbol = Symbol {
-            name: "Symbol".to_string().into(),
+            name: "Symbol",
             offset: 0x01,
             stype: SymbolType::NoType,
             size: 0,
@@ -157,7 +157,7 @@ mod tests {
             visibility: Visibility::Local,
         };
         let relocation = Relocation {
-            symbol: "Symbol".to_string().into(),
+            symbol: "Symbol",
             offset: 0x02,
             addend: 0,
             reltype: RelType::REL32,
@@ -167,7 +167,7 @@ mod tests {
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0xFF, 0xFF, 0xFF, 0xFF, 0x81, 0x91]);
         let relocation = Relocation {
-            symbol: "Symbol".to_string().into(),
+            symbol: "Symbol",
             offset: 0x03,
             addend: -1,
             reltype: RelType::REL32,

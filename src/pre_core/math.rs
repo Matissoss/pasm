@@ -20,10 +20,7 @@ pub fn post_process(ast: &mut AST) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn replace_mathevals(
-    label: &mut Label,
-    mth: &HashMap<crate::RString, Number>,
-) -> Result<(), Error> {
+pub fn replace_mathevals(label: &mut Label, mth: &HashMap<&str, Number>) -> Result<(), Error> {
     for i in &mut label.content {
         for o in i.operands.iter_mut() {
             if let Operand::SymbolRef(s) = o {
