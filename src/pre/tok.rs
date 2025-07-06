@@ -12,7 +12,7 @@ use crate::{
 };
 use std::str::FromStr;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token<'a> {
     Register(Register),
     Immediate(Number),
@@ -32,16 +32,15 @@ pub enum Token<'a> {
     // {subexpression}
     SubExpr(&'a str),
 
-    #[default]
-    None,
+    EOL,
 }
 
-pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
+pub fn tokl(line: &str) -> Vec<Token> {
     let mut tstart: usize = 0;
     let mut tend: usize = 0;
     let bline = line.as_bytes();
 
-    let mut tokens: SmallVec<Token, SMALLVEC_TOKENS_LEN> = SmallVec::new();
+    let mut tokens: Vec<Token> = Vec::new();
 
     // inside closure
     let mut iclosure: Option<char> = None;
@@ -58,7 +57,6 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
     for c in line.as_bytes() {
         let c = *c as char;
         match c {
-            //'\\' => cprefix = Some('\\'),
             CLOSURE_START => {
                 if iclosure != Some('"') {
                     if cdelcount == 0 && tend != tstart {
@@ -238,6 +236,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, SMALLVEC_TOKENS_LEN> {
             0,
         ))));
     }
+    tokens.push(Token::EOL);
 
     tokens
 }
@@ -249,6 +248,7 @@ fn str(buf: &[u8], start: usize, end: usize) -> &str {
 }
 
 impl<'a> Token<'a> {
+    #[inline(always)]
     fn make_modifier(mut toks: Vec<Self>) -> Self {
         match toks.len() {
             1 => {
@@ -296,6 +296,7 @@ impl<'a> Token<'a> {
         }
         Token::Modifier(toks.into())
     }
+    #[inline(always)]
     fn make_closure(prefix: char, val: &'a str) -> Self {
         use math::MathematicalEvaluation as MathEval;
         match prefix {
@@ -306,6 +307,7 @@ impl<'a> Token<'a> {
             _ => Self::Closure(prefix, val),
         }
     }
+    #[inline(always)]
     fn make_from(prefix: Option<char>, val: &'a str) -> Self {
         match prefix {
             Some(PREFIX_REF) => {
@@ -315,7 +317,7 @@ impl<'a> Token<'a> {
             _ => {
                 if let Ok(reg) = Register::from_str(val) {
                     Self::Register(reg)
-                } else if let Ok(num) = Number::from_str(val) {
+                } else if let Some(num) = Number::from_str(val) {
                     Self::Immediate(num)
                 } else if let Ok(dir) = Directive::from_str(val) {
                     Self::Directive(dir)
@@ -395,7 +397,7 @@ impl ToString for Token<'_> {
             }
             Self::Error(e) => format!("{e}"),
             Self::SubExpr(s) => format!("{{{s}}}"),
-            Self::None => String::new(),
+            Self::EOL => String::new(),
         }
     }
 }
@@ -407,63 +409,69 @@ mod tokn_test {
     fn tok_test() {
         let line = "add rax, rcx";
         assert_eq!(
-            tokl(line).into_iter(),
+            tokl(line),
             vec![
                 Token::Mnemonic(Mnemonic::ADD),
                 Token::Register(Register::RAX),
                 Token::Comma,
-                Token::Register(Register::RCX)
+                Token::Register(Register::RCX),
+                Token::EOL,
             ]
         );
         let line = "_label:";
-        assert_eq!(tokl(line).into_iter(), vec![Token::Label("_label")]);
+        assert_eq!(tokl(line), vec![Token::Label("_label"), Token::EOL]);
         let line = "$(10)";
         assert_eq!(
-            tokl(line).into_iter(),
-            vec![Token::Immediate(Number::uint64(10))]
+            tokl(line),
+            vec![Token::Immediate(Number::uint64(10)), Token::EOL]
         );
         let line = "@sref:rel32 // comment ";
         assert_eq!(
-            tokl(line).into_iter(),
-            vec![Token::SymbolRef(Box::new(SymbolRef::new(
-                "sref",
-                None,
-                false,
-                None,
-                Some(RelType::REL32)
-            )))]
+            tokl(line),
+            vec![
+                Token::SymbolRef(Box::new(SymbolRef::new(
+                    "sref",
+                    None,
+                    false,
+                    None,
+                    Some(RelType::REL32)
+                ))),
+                Token::EOL
+            ]
         );
         let line = "adc (rax + rcx * 4 + 10) qword, r10";
         assert_eq!(
-            tokl(line).into_iter(),
+            tokl(line),
             vec![
                 Token::Mnemonic(Mnemonic::ADC),
                 Token::Closure(' ', "rax + rcx * 4 + 10"),
                 Token::Directive(Directive::Qword),
                 Token::Comma,
                 Token::Register(Register::R10),
+                Token::EOL,
             ]
         );
         let line = "fs:(%rax + %rcx * $4 + $10) qword";
         assert_eq!(
-            tokl(line).into_iter(),
+            tokl(line),
             vec![
                 Token::Modifier(Shared::from([
                     Token::Register(Register::FS),
                     Token::Closure(' ', "%rax + %rcx * $4 + $10")
                 ])),
                 Token::Directive(Directive::Qword),
+                Token::EOL,
             ]
         );
         let line = "{k1} {z}";
         assert_eq!(
-            tokl(line).into_iter(),
-            vec![Token::SubExpr("k1"), Token::SubExpr("z"),]
+            tokl(line),
+            vec![Token::SubExpr("k1"), Token::SubExpr("z"), Token::EOL]
         );
         let line = "\"(Hello {, World!\"";
         assert_eq!(
-            tokl(line).into_iter(),
-            vec![Token::String("(Hello {, World!")]
+            tokl(line),
+            vec![Token::String("(Hello {, World!"), Token::EOL]
         );
     }
 }

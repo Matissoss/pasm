@@ -471,10 +471,7 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
     if let Ok(reg) = Register::from_str(&utf8_buf) {
         Some(Token::Register(reg))
     } else {
-        match Number::from_str(&utf8_buf) {
-            Ok(num) => Some(Token::Number(num.get_as_i32())),
-            Err(_) => None,
-        }
+        Number::from_str(&utf8_buf).map(|n| Token::Number(n.get_as_i32()))
     }
 }
 

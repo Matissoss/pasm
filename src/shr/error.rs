@@ -12,11 +12,11 @@ use std::{fmt::Display, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct Error {
     // file path
-    location: Location,
+    location: Box<Location>,
     context: Box<Location>,
 
     // message
-    msg: RString,
+    msg: String,
 
     error_code: u16,
 }
@@ -141,12 +141,12 @@ impl Error {
     pub fn new(msg: impl ToString, ecd: u16) -> Self {
         Self {
             context: Box::new(Location::default()),
-            location: Location::default(),
-            msg: msg.to_string().into(),
+            location: Box::new(Location::default()),
+            msg: msg.to_string(),
             error_code: ecd,
         }
     }
-    pub fn msg(&self) -> &RString {
+    pub fn msg(&self) -> &str {
         &self.msg
     }
     pub fn set_line(&mut self, line: usize) {

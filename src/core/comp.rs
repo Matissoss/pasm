@@ -23,7 +23,7 @@ use OpOrd::*;
 
 #[inline]
 pub fn extern_trf<'a>(externs: &'a Vec<&'a str>) -> Vec<Symbol<'a>> {
-    let mut symbols = Vec::new();
+    let mut symbols = Vec::with_capacity(externs.len());
     for extern_ in externs {
         symbols.push(Symbol {
             name: extern_,
@@ -41,7 +41,6 @@ pub fn compile_label<'a>(
     lbl: (&'a [Instruction<'a>], u16, u8),
     offset: usize,
 ) -> (Vec<u8>, Vec<Relocation<'a>>) {
-    let fn_ptr = GenAPI::assemble;
     let mut bytes = Vec::new();
     let mut reallocs = Vec::new();
     let lbl_bits = lbl.2;
@@ -57,7 +56,7 @@ pub fn compile_label<'a>(
         }
     }
     for ins in lbl.0 {
-        let res = fn_ptr(get_genapi(ins, lbl_bits), ins, lbl_bits);
+        let res = get_genapi(ins, lbl_bits).assemble(ins, lbl_bits);
         for mut rl in res.1.into_iter().flatten() {
             rl.offset += bytes.len() as u32;
             reallocs.push(rl);

@@ -470,7 +470,7 @@ fn tok(str: &str) -> Vec<Token> {
 
 fn make_tok(vec: Vec<char>) -> Token {
     let str = String::from_iter(vec.iter());
-    if let Ok(num) = Number::from_str(&str) {
+    if let Some(num) = Number::from_str(&str) {
         Token::Number(num)
     } else {
         Token::Unknown(str)

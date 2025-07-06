@@ -27,7 +27,7 @@ pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
             "protected" => label.attributes.set_visibility(Visibility::Protected),
             "weak" => label.attributes.set_visibility(Visibility::Weak),
             "align" => if let Some(num) = val {
-                if let Ok(num) = Number::from_str(num) {
+                if let Some(num) = Number::from_str(num) {
                     label.align = num.get_as_u64() as u16;
                 } else {
                     return Err(Error::new("align parameter needs a number, not a string", 20));
@@ -43,7 +43,7 @@ pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
                 }
             ), 20)),
             "bits" => if let Some(num) = val {
-                if let Ok(num) = Number::from_str(num) {
+                if let Some(num) = Number::from_str(num) {
                     match num.get_as_u64() {
                         16 | 32 | 64 => label.attributes.set_bits(num.get_as_u64() as u8),
                         _ => return Err(Error::new("usage of unknown bits parameter: expected 16, 32 or 64", 20)),
@@ -163,18 +163,18 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 attrs.push(a);
             }
             BodyNode::Instruction(i) => {
-                label.content.push(*i);
+                label.content.push(i);
             }
             BodyNode::Label(l) => {
                 if label == Label::default() {
-                    label = *l;
+                    label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
                     if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);
                     }
                 } else {
                     section.content.push(label);
-                    label = *l;
+                    label = l;
                     label.attributes.set_bits(ast.default_bits.unwrap_or(16));
                     if let Err(why) = par_attrs(&mut label, &attrs) {
                         errors.push(why);

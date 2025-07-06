@@ -17,11 +17,11 @@ use shr::{
     visibility::Visibility,
 };
 
-pub fn get_file(inpath: PathBuf) -> Result<String, Error> {
+pub fn get_file(inpath: PathBuf) -> Result<Vec<u8>, Error> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let file = fs::read_to_string(&inpath);
+    let file = fs::read(&inpath);
     let pathstr = inpath.to_string_lossy();
     if file.is_err() {
         return Err(Error::new(
@@ -34,11 +34,11 @@ pub fn get_file(inpath: PathBuf) -> Result<String, Error> {
     Ok(file.unwrap())
 }
 
-pub fn pasm_parse_src(inpath: PathBuf, file: &str) -> Result<AST, Vec<Error>> {
+pub fn pasm_parse_src(inpath: PathBuf, file: &[u8]) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let lines = utils::split_str_ref(file.as_bytes(), '\n');
+    let lines = utils::split_str_ref(file, '\n');
 
     #[cfg(feature = "vtime")]
     utils::vtimed_print("split  ", start);
@@ -49,7 +49,7 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &str) -> Result<AST, Vec<Error>> {
     let mut toks = Vec::with_capacity(lcount);
 
     for l in lines {
-        toks.push(pre::tok::tokl(l));
+        toks.extend(pre::tok::tokl(l));
     }
     #[cfg(feature = "vtime")]
     utils::vtimed_print("tok    ", start);
@@ -112,7 +112,6 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &str) -> Result<AST, Vec<Error>> {
 pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
-
     let opath = if let Some(p) = opath {
         p.to_path_buf()
     } else {
@@ -156,19 +155,36 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
         (wrt, rel, sym, slims)
     };
 
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&opath);
+    if file.is_err() {
+        return Err(Error::new(
+            "failed to open output file with write permissions",
+            13,
+        ));
+    }
+
     match ast.format.unwrap_or("bin").to_string().as_str() {
-        "bin" => reloc::relocate_addresses(&mut wrt, rel, &sym)?,
+        "bin" => {
+            reloc::relocate_addresses(&mut wrt, rel, &sym)?;
+            write(&mut file.unwrap(), &wrt)?;
+        }
         #[cfg(feature = "target_elf")]
         "elf32" => {
             sym.extend(comp::extern_trf(&ast.externs));
             let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, false)?;
             wrt = elf.compile(false);
+            write(&mut file.unwrap(), &wrt)?;
         }
         #[cfg(feature = "target_elf")]
         "elf64" => {
             sym.extend(comp::extern_trf(&ast.externs));
             let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, true)?;
             wrt = elf.compile(true);
+            write(&mut file.unwrap(), &wrt)?;
         }
         _ => {
             return Err(Error::new(
@@ -177,29 +193,8 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
             ))
         }
     }
-
-    let file = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(opath);
-    if file.is_err() {
-        return Err(Error::new(
-            "failed to open output file with write permissions",
-            13,
-        ));
-    }
-
     #[cfg(feature = "vtime")]
     utils::vtimed_print("core   ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    write(&mut file.unwrap(), &wrt)?;
-
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("write  ", start);
-
     Ok(())
 }
 

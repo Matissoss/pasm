@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{error::Error, size::Size};
+use crate::shr::size::Size;
 use std::str::FromStr;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
@@ -28,7 +28,7 @@ impl Number {
         self.get_raw() as i32
     }
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(str: &str) -> Result<Self, Error> {
+    pub fn from_str(str: &str) -> Option<Self> {
         num_from_str(str)
     }
     pub fn size(&self) -> Size {
@@ -94,7 +94,7 @@ impl Number {
     }
 }
 
-fn num_from_str(str: &str) -> Result<Number, Error> {
+fn num_from_str(str: &str) -> Option<Number> {
     let sab = str.as_bytes();
     let sign = sab.first() == Some(&b'-');
     let str_chars: &[u8] = {
@@ -115,47 +115,64 @@ fn num_from_str(str: &str) -> Result<Number, Error> {
         return num_from_bin(&str_chars[2..], sign);
     }
     if str_chars.starts_with(b"0o") {
-        num_from_oct(&str_chars[2..], sign)
+        return num_from_oct(&str_chars[2..], sign);
     } else if let Ok(u64) = u64::from_str(str) {
-        Ok(Number::uint64(u64))
+        return Some(Number::uint64(u64));
     } else if let Ok(i64) = i64::from_str(str) {
-        Ok(Number::int64(i64))
-    } else if let Ok(double) = f64::from_str(str) {
-        Ok(Number::double(double))
-    } else if str.starts_with("'") {
-        let chr = str_chars.get(1);
-        match chr {
-            Some(c) => Ok(Number::uint64(*c as u64)),
-            None => Err(Error::new(
-                "found unclosed '' delimeter inside character declaration",
-                0,
-            )),
+        return Some(Number::int64(i64));
+    } else if is_float(str) {
+        if let Ok(f64) = f64::from_str(str) {
+            return Some(Number::double(f64));
         }
+    }
+    if str.starts_with("'") {
+        let chr = str_chars.get(1);
+        chr.map(|c| Number::uint64(*c as u64))
     } else {
-        Err(Error::new(
-            format!("you provided string \"{str}\", which could not be parsed into number"),
-            105,
-        ))
+        None
     }
 }
 
-fn num(val: u64, sign: bool) -> Result<Number, Error> {
+fn is_float(str: &str) -> bool {
+    let mut dot = false;
+    let mut is_float = true;
+    for b in str.as_bytes() {
+        match *b {
+            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {}
+            b'.' => {
+                if dot {
+                    is_float = false;
+                    break;
+                } else {
+                    dot = true
+                }
+            }
+            _ => {
+                is_float = false;
+                break;
+            }
+        }
+    }
+    is_float
+}
+
+fn num(val: u64, sign: bool) -> Option<Number> {
     if sign {
         // we extract number without sign
         let body = val & 0x7FFF_FFFF_FFFF_FFFF;
         // if sign is set
         if body != val {
-            Err(Error::new("you tried to use number which already occupies sign bit (consider removing sign and making it unsigned)", 1))
+            None
         } else {
             // sign extended u64
-            Ok(Number::int64(-(val as i64)))
+            Some(Number::int64(-(val as i64)))
         }
     } else {
-        Ok(Number::uint64(val))
+        Some(Number::uint64(val))
     }
 }
 
-fn num_from_bin(v: &[u8], sign: bool) -> Result<Number, Error> {
+fn num_from_bin(v: &[u8], sign: bool) -> Option<Number> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -164,10 +181,7 @@ fn num_from_bin(v: &[u8], sign: bool) -> Result<Number, Error> {
         } else if let Some(u) = u8_from_bin(*c) {
             n += u as u64 * (1 << idx);
         } else {
-            return Err(Error::new(
-                "you tried to make binary number, but you used character that isn't 0 or 1 or _",
-                2,
-            ));
+            return None;
         }
         idx += 1;
     }
@@ -180,7 +194,7 @@ fn u8_from_bin(c: u8) -> Option<u8> {
         _ => None,
     }
 }
-fn num_from_hex(v: &[u8], sign: bool) -> Result<Number, Error> {
+fn num_from_hex(v: &[u8], sign: bool) -> Option<Number> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -189,10 +203,7 @@ fn num_from_hex(v: &[u8], sign: bool) -> Result<Number, Error> {
         } else if let Some(u) = u8_from_hex(*c) {
             n += u as u64 * (16u64.pow(idx));
         } else {
-            return Err(Error::new(
-                "you tried to make hex number, but you used character that isn't hexadecimal or _",
-                2,
-            ));
+            return None;
         }
         idx += 1;
     }
@@ -210,7 +221,7 @@ fn u8_from_hex(c: u8) -> Option<u8> {
         _ => None,
     }
 }
-fn num_from_oct(v: &[u8], sign: bool) -> Result<Number, Error> {
+fn num_from_oct(v: &[u8], sign: bool) -> Option<Number> {
     let mut n: u64 = 0;
     let mut idx = 0;
     for c in v.iter().rev() {
@@ -219,7 +230,7 @@ fn num_from_oct(v: &[u8], sign: bool) -> Result<Number, Error> {
         } else if let Some(u) = u8_from_oct(*c) {
             n += u as u64 * (8u64.pow(idx));
         } else {
-            return Err(Error::new("you tried to make octal number, but you used character that isn't octal (0 to 7) or _", 2));
+            return None;
         }
         idx += 1;
     }
@@ -244,14 +255,14 @@ mod tests_1 {
     #[test]
     fn number_t_n() {
         let str = "1.050"; // should parse into float
-        assert_eq!(Number::from_str(str), Ok(Number::float(1.050)));
+        assert_eq!(Number::from_str(str), Some(Number::float(1.050)));
         let str = "0b100101";
-        assert_eq!(Number::from_str(str), Ok(Number::uint64(0b100101)));
+        assert_eq!(Number::from_str(str), Some(Number::uint64(0b100101)));
         let str = "-0b101";
-        assert_eq!(Number::from_str(str), Ok(Number::int64(-0b101)));
+        assert_eq!(Number::from_str(str), Some(Number::int64(-0b101)));
         let str = "0x0FF";
-        assert_eq!(Number::from_str(str), Ok(Number::uint64(0xFF)));
+        assert_eq!(Number::from_str(str), Some(Number::uint64(0xFF)));
         let str = "-0x0FF";
-        assert_eq!(Number::from_str(str), Ok(Number::int64(-0xFF)));
+        assert_eq!(Number::from_str(str), Some(Number::int64(-0xFF)));
     }
 }

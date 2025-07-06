@@ -68,4 +68,4 @@ pub const PREFIX_KWD: char = '.';
 // metadata for help
 
 pub const BIN: &str = "pasm";
-pub const VER: &str = "25.06-beta1";
+pub const VER: &str = "25.06-beta2";
