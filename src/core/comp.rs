@@ -93,7 +93,10 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .imm_is_be(ins.mnem != Mnemonic::QWORDLE),
         Mnemonic::ASCII | Mnemonic::STRING => GenAPI::new().opcode(&[]).imm_atindex(0, 0),
 
-        //Mnemonic::EMPTY => ins_empty(ins),
+        Mnemonic::EMPTY => GenAPI::new()
+            .opcode(&[])
+            .fixed_size(Size::Byte)
+            .imm_atindex(0, 0),
         Mnemonic::__LAST => GenAPI::new(),
         Mnemonic::CPUID => GenAPI::new().opcode(&[0x0F, 0xA2]),
         Mnemonic::RET => GenAPI::new().opcode(&[0xC3]),
@@ -4491,7 +4494,6 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG]),
-        _ => panic!("haha"),
     }
 }
 
@@ -4722,16 +4724,31 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                 .rex(true)
         } else {
             match src {
-                Operand::Imm(_) => {
-                    let size = dst.size();
-                    let opc = match size {
-                        Size::Byte => 0xB0 + r.to_byte(),
-                        Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
-                        _ => invalid(29),
-                    };
-                    // TODO: fix this
-                    let size = if size == Size::Qword { 4 } else { size.into() };
-                    GenAPI::new().opcode(&[opc]).imm_atindex(1, size as u16)
+                Operand::Imm(i) => {
+                    if i.size() == Size::Qword {
+                        GenAPI::new()
+                            .opcode(&[0xB8 + r.to_byte()])
+                            .rex(true)
+                            .imm_atindex(1, 8)
+                    } else if r.get_ext_bits()[1] && r.size() == Size::Qword {
+                        GenAPI::new()
+                            .opcode(&[0xC7])
+                            .rex(true)
+                            .modrm(true, Some(0), None)
+                            .imm_atindex(1, 4)
+                    } else {
+                        let size = dst.size();
+                        let opc = match size {
+                            Size::Byte => 0xB0 + r.to_byte(),
+                            Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
+                            _ => invalid(29),
+                        };
+                        let size = if size == Size::Qword { 4 } else { size.into() };
+                        GenAPI::new()
+                            .opcode(&[opc])
+                            .imm_atindex(1, size as u16)
+                            .rex(true)
+                    }
                 }
                 Operand::Register(r) => {
                     if r.is_sgmnt() {
@@ -4790,6 +4807,17 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             .modrm(true, None, None)
                             .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
                             .rex(true)
+                    } else if s.reltype().unwrap_or(RelType::REL32).size() == 8 {
+                        GenAPI::new()
+                            .opcode(&[0xB8 + r.to_byte()])
+                            .rex(true)
+                            .imm_atindex(1, 8)
+                    } else if r.get_ext_bits()[1] && r.size() == Size::Qword {
+                        GenAPI::new()
+                            .opcode(&[0xC7])
+                            .rex(true)
+                            .imm_atindex(1, 4)
+                            .modrm(true, Some(0), None)
                     } else {
                         let size = dst.size();
                         let opc = match size {
@@ -4797,7 +4825,6 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             Size::Word | Size::Dword | Size::Qword => 0xB8 + r.to_byte(),
                             _ => invalid(29),
                         };
-                        // TODO: fix this
                         let size = if size == Size::Qword { 4 } else { size.into() };
                         GenAPI::new()
                             .opcode(&[opc])
@@ -5305,16 +5332,6 @@ fn ins_divmul(ins: &Instruction, ovr: u8, _: u8) -> GenAPI {
     };
     GenAPI::new().opcode(&opc).modrm(true, Some(ovr), None)
 }
-
-/*
-fn ins_empty(ins: &Instruction) -> Vec<u8> {
-    if let Some(Operand::Imm(n)) = ins.get_opr(0) {
-        vec![0x00; n.get_as_u32() as usize]
-    } else {
-        vec![]
-    }
-}
-*/
 
 fn ins_in(ins: &Instruction, _: u8) -> GenAPI {
     if let Operand::Register(_) = ins.src().unwrap() {

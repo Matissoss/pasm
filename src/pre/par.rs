@@ -182,6 +182,11 @@ pub fn par(mer: MergerResult) -> Result<AST, Vec<Error>> {
                 }
             }
             BodyNode::Section(s) => {
+                if !label.name.is_empty() {
+                    section.content.push(label);
+                    label = Label::default();
+                }
+
                 if started && section != Section::default() {
                     ast.sections.push(section);
                     section = Section::default();

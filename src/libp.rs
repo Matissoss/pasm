@@ -13,7 +13,8 @@ use shr::{
     reloc,
     reloc::Relocation,
     section::{Section, SlimSection},
-    symbol::Symbol,
+    symbol::{Symbol, SymbolType},
+    visibility::Visibility,
 };
 
 pub fn get_file(inpath: PathBuf) -> Result<String, Error> {
@@ -68,8 +69,7 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &str) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    // TODO: reimplement this
-    //ast.validate().map_err(|e| vec![e])?;
+    ast.validate().map_err(|e| vec![e])?;
 
     pre_core::post_process(&mut ast).map_err(|e| vec![e])?;
 
@@ -99,6 +99,8 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &str) -> Result<AST, Vec<Error>> {
         for include in ast.includes.clone() {
             // we have to Box::leak here, because file data lives through entirety of program
             // lifetime (aka 'static) :D
+            //
+            // if we'd want to free it, then we'd return Vec<*const String> alongside AST and free it later
             let file = Box::leak(Box::new(get_file(include.clone()).map_err(|e| vec![e])?));
             ast.extend(pasm_parse_src(include, file)?)
                 .map_err(|e| vec![e])?;
@@ -140,6 +142,14 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
                 offset: soff as u32,
                 size: ssz as u32,
                 bits: s.bits,
+            });
+            sym.push(Symbol {
+                name: s.name,
+                offset: soff as u32,
+                size: ssz as u32,
+                sindex: idx,
+                stype: SymbolType::Section,
+                visibility: Visibility::Local,
             });
             idx += 1;
         }

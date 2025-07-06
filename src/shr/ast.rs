@@ -373,6 +373,35 @@ impl Instruction<'_> {
 }
 
 impl AST<'_> {
+    pub fn validate(&self) -> Result<(), Error> {
+        use std::collections::HashSet;
+        let iter = self.sections.iter().flat_map(|l| &l.content);
+        let mut set: HashSet<&str> = HashSet::with_capacity(iter.count());
+        for l in self.sections.iter().flat_map(|l| &l.content) {
+            if !set.insert(l.name) {
+                return Err(Error::new(
+                    format!(
+                        "file(s) contains multiple declarations of label of name \"{}\"",
+                        l.name
+                    ),
+                    21,
+                ));
+            }
+        }
+        set.clear();
+        for s in self.sections.iter() {
+            if !set.insert(s.name) {
+                return Err(Error::new(
+                    format!(
+                        "file(s) contains multiple declarations of sections of name \"{}\"",
+                        s.name
+                    ),
+                    21,
+                ));
+            }
+        }
+        Ok(())
+    }
     pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
         for l in rhs.sections {
             let attr = l.attributes;

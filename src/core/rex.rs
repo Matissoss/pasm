@@ -131,6 +131,11 @@ pub fn needs_rex(ins: &Instruction) -> bool {
             {
                 return true;
             }
+            if let Some(Operand::Imm(i)) = ins.src() {
+                if i.size() == Size::Qword {
+                    return true;
+                }
+            }
             false
         }
         Mnemonic::SUB

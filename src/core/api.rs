@@ -290,7 +290,7 @@ impl GenAPI {
             }
             let mut used_evex = false;
             if vex_flag_set {
-                if ins.needs_evex() {
+                if ins.needs_evex() && !self.flags.get(STRICT_PFX).unwrap() {
                     base.extend(evex::evex(&self, ins));
                     used_evex = true;
                 } else if let Some(vex) = vex::vex(ins, &self) {
@@ -331,30 +331,37 @@ impl GenAPI {
             let size = ((self.addt & 0x00_F0) >> 4) as usize;
             let idx = (self.addt & 0x00_0F) as usize;
             if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
-                let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
-                    (&i.get_raw_be()[8 - i.get_real_size()..], true)
+                // if size is equal to zero, then it maps to `empty` mnemonic
+                if size == 0 {
+                    let sz = i.get_as_usize();
+                    base.reserve_exact(sz);
+                    base.extend(vec![0; sz]);
                 } else {
-                    (&i.get_raw_le()[..i.get_real_size()], false)
-                };
-                let mut idx = 0;
-                if be {
-                    while idx < size.abs_diff(imm.len()) {
-                        base.push(0x00);
-                        idx += 1;
-                    }
-                }
-                for b in imm {
-                    if idx < size {
-                        base.push(*b);
-                        idx += 1;
+                    let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
+                        (&i.get_raw_be()[8 - i.get_real_size()..], true)
                     } else {
-                        break;
+                        (&i.get_raw_le()[..i.get_real_size()], false)
+                    };
+                    let mut idx = 0;
+                    if be {
+                        while idx < size.abs_diff(imm.len()) {
+                            base.push(0x00);
+                            idx += 1;
+                        }
                     }
-                }
-                if !be {
-                    while idx < size {
-                        base.push(0x00);
-                        idx += 1;
+                    for b in imm {
+                        if idx < size {
+                            base.push(*b);
+                            idx += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if !be {
+                        while idx < size {
+                            base.push(0x00);
+                            idx += 1;
+                        }
                     }
                 }
             } else if let Some(Operand::String(s)) = ins.get_opr(idx) {

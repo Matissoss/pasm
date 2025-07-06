@@ -15,6 +15,9 @@ impl Number {
     pub const fn new(content: u64) -> Self {
         Self { content }
     }
+    pub fn get_as_usize(&self) -> usize {
+        self.get_raw() as usize
+    }
     pub fn get_as_u64(&self) -> u64 {
         self.get_raw()
     }
