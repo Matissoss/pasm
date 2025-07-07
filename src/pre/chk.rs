@@ -60,7 +60,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         er.set_line(ins.line);
         return Err(er);
     }
-    match ins.mnem {
+    match ins.mnemonic {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
         Mnemonic::CMOVA
@@ -460,7 +460,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
 
 fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
-    match ins.mnem {
+    match ins.mnemonic {
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
         Mnemonic::CMOVA
@@ -842,7 +842,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
 
 pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
-    match ins.mnem {
+    match ins.mnemonic {
         LGDT | LIDT => ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[]),
 
         OUT => ot_chk(
@@ -2840,7 +2840,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
 // Utils
 
 // Legacy check API
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Optional {
     Needed,
     Optional,
@@ -2855,7 +2855,7 @@ fn avx_ot_chk_wthout(
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.operands.is_empty() {
+    if ops.is_empty() && !ins.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -2864,8 +2864,8 @@ fn avx_ot_chk_wthout(
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.get_opr(idx) {
-            if let Some(err) = type_check(op, allowed.0, idx) {
+        if let Some(op) = ins.get(idx) {
+            if let Some(err) = type_check(&op, allowed.0, idx) {
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
@@ -2898,7 +2898,7 @@ fn avx_ot_chk(
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.operands.is_empty() {
+    if ops.is_empty() && !ins.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -2907,8 +2907,8 @@ fn avx_ot_chk(
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.get_opr(idx) {
-            if let Some(err) = type_check(op, allowed.0, idx) {
+        if let Some(op) = ins.get(idx) {
+            if let Some(err) = type_check(&op, allowed.0, idx) {
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
@@ -2971,7 +2971,7 @@ fn ot_chk(
     if let Some(err) = addt_chk(ins, addt) {
         return Err(err);
     }
-    if ops.is_empty() && !ins.operands.is_empty() {
+    if ops.is_empty() && !ins.is_empty() {
         let mut er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
@@ -2980,8 +2980,8 @@ fn ot_chk(
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
-        if let Some(op) = ins.get_opr(idx) {
-            if let Some(err) = type_check(op, allowed.0, idx) {
+        if let Some(op) = ins.get(idx) {
+            if let Some(err) = type_check(&op, allowed.0, idx) {
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
@@ -3079,7 +3079,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Register(r0, _), AType::Immediate(s1, _)) => {
             if s1 <= r0.size() {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(r0.size()), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(r0.size()), Some(s1)) {
                 let mut er = Error::new("you tried to use immediate which is too large", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3090,7 +3090,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Memory(s0, _, _), AType::Immediate(s1, _)) => {
             if s1 <= s0 {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
                 let mut er = Error::new("you tried to use immediate which is too large", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3116,7 +3116,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 }
             } else if s1 == s0 {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
                 let mut er = Error::new("dst operand has invalid type", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3147,7 +3147,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Register(r0, _), AType::Immediate(s1, _)) => {
             if s1 <= r0.size() {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(r0.size()), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(r0.size()), Some(s1)) {
                 let mut er = Error::new("you tried to use immediate which is too large", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3158,7 +3158,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Memory(s0, _, _), AType::Immediate(s1, _)) => {
             if s1 <= s0 {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
                 let mut er = Error::new("you tried to use immediate which is too large", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3195,7 +3195,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
                         || s1 == Size::Yword))
             {
                 None
-            } else if !ins.mnem.allows_diff_size(Some(s0), Some(s1)) {
+            } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
                 let mut er = Error::new("dst operand has invalid type", 8);
                 er.set_line(ins.line);
                 Some(er)
@@ -3209,8 +3209,8 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
 }
 
 fn addt_chk(ins: &Instruction, accpt_addt: &[Mnemonic]) -> Option<Error> {
-    if let Some(addt) = &ins.addt {
-        if !find_bool(accpt_addt, addt) {
+    if let Some(addt) = ins.addt() {
+        if !find_bool(accpt_addt, &addt) {
             let mut er = Error::new("usage of forbidden additional mnemonic", 6);
             er.set_line(ins.line);
             return Some(er);

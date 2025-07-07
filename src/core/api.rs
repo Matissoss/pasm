@@ -22,6 +22,8 @@ pub const EXT_FLGS1: u8 = 0xD;
 #[allow(unused)]
 pub const EXT_FLGS2: u8 = 0xE;
 
+use std::iter::Iterator;
+
 use crate::{
     core::{disp, evex, modrm, rex, sib, vex},
     shr::{
@@ -32,6 +34,7 @@ use crate::{
         reg::Register,
         reloc::{RelType, Relocation},
         size::Size,
+        smallvec::SmallVec,
     },
 };
 
@@ -108,6 +111,11 @@ pub struct GenAPI {
 #[repr(transparent)]
 pub struct ModrmTuple {
     data: u8, // 0bXX_YYY_ZZZ : X1 = reg is Some, X2 = rm is Some, YYY = reg, ZZZ = rm
+}
+
+pub enum AssembleResult {
+    NoLargeImm(SmallVec<u8, 16>),
+    WLargeImm(Vec<u8>),
 }
 
 impl GenAPI {
@@ -226,7 +234,9 @@ impl GenAPI {
         self,
         ins: &'a Instruction,
         bits: u8,
-    ) -> (Vec<u8>, [Option<Relocation<'a>>; 2]) {
+    ) -> (AssembleResult, [Option<Relocation<'a>>; 2]) {
+        let [modrm_rm, modrm_reg, _vex_vvvv] = self.get_ord_oprs(ins);
+
         let mut rels = [None, None];
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
         let rex_flag_set = self.flags.get(REX_PFX).unwrap();
@@ -234,11 +244,25 @@ impl GenAPI {
         let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
             (sz, true)
         } else {
+            /*
+            let sz = match (&modrm_rm, &modrm_reg) {
+                (Some(o), Some(o1)) => Instruction::fast_size(o, o1),
+                (Some(o), None) => {
+                    if let Some(Operand::Imm(_)) = &modrm_rm {
+                        Size::Unknown
+                    } else {
+                        o.size()
+                    }
+                }
+                _ => Size::Unknown,
+            };
+            */
             (ins.size(), false)
         };
 
+        let mut imm: Vec<u8> = Vec::new();
         let mut base = {
-            let mut base = Vec::new();
+            let mut base: SmallVec<u8, 16> = SmallVec::new();
 
             if let Some(a) = gen_addt_pfx(ins) {
                 base.push(a);
@@ -270,7 +294,7 @@ impl GenAPI {
                     if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
                         base.push(size_ovr);
                     }
-                } else if let Some(size_ovr) = gen_size_ovr(ins, bits, rexw) {
+                } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
                     let h66 = size_ovr[0];
                     let h67 = size_ovr[1];
                     if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
@@ -291,29 +315,39 @@ impl GenAPI {
             let mut used_evex = false;
             if vex_flag_set {
                 if ins.needs_evex() && !self.flags.get(STRICT_PFX).unwrap() {
-                    base.extend(evex::evex(&self, ins));
+                    for b in evex::evex(&self, ins) {
+                        base.push(b);
+                    }
                     used_evex = true;
                 } else if let Some(vex) = vex::vex(ins, &self) {
-                    base.extend(vex);
+                    for b in vex {
+                        base.push(b);
+                    }
                 }
             }
             if evex_flag_set && !used_evex {
-                base.extend(evex::evex(&self, ins));
+                for b in evex::evex(&self, ins) {
+                    base.push(b);
+                }
             }
             base
         };
 
         let (opc, sz) = self.opcode.collect();
-        base.extend(&opc[..sz]);
+        for b in &opc[..sz] {
+            base.push(*b);
+        }
         if self.flags.get(USE_MODRM).unwrap() {
-            base.push(modrm::modrm(ins, &self));
-            if let Some(sib) = sib::gen_sib_ins(ins) {
+            base.push(modrm::modrm(&modrm_rm, &modrm_reg, &self));
+            if let Some(sib) = sib::gen_sib_ins(&modrm_rm) {
                 base.push(sib);
             }
-            if let Some(disp) = disp::gen_disp_ins(ins) {
-                base.extend(disp);
+            if let Some(disp) = disp::gen_disp_ins(&modrm_rm) {
+                for b in disp {
+                    base.push(b);
+                }
             } else {
-                let symb = ins.get_symbs()[0];
+                let symb = &ins.get_symbs()[0];
                 if let Some((s, _)) = symb {
                     let addend = s.addend().unwrap_or_default();
                     rels[0] = Some(Relocation {
@@ -323,19 +357,21 @@ impl GenAPI {
                         shidx: 0,
                         reltype: s.reltype().unwrap_or_default(),
                     });
-                    base.extend(vec![0; 4]);
+                    base.push(0);
+                    base.push(0);
+                    base.push(0);
+                    base.push(0);
                 }
             }
         }
         if self.flags.get(IMM_ATIDX).unwrap() {
             let size = ((self.addt & 0x00_F0) >> 4) as usize;
             let idx = (self.addt & 0x00_0F) as usize;
-            if let Some(Operand::Imm(i)) = ins.get_opr(idx) {
+            if let Some(Operand::Imm(i)) = ins.get(idx) {
                 // if size is equal to zero, then it maps to `empty` mnemonic
                 if size == 0 {
                     let sz = i.get_as_usize();
-                    base.reserve_exact(sz);
-                    base.extend(vec![0; sz]);
+                    imm.extend(vec![0; sz]);
                 } else {
                     let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
                         (&i.get_raw_be()[8 - i.get_real_size()..], true)
@@ -364,9 +400,9 @@ impl GenAPI {
                         }
                     }
                 }
-            } else if let Some(Operand::String(s)) = ins.get_opr(idx) {
+            } else if let Some(Operand::String(s)) = ins.get(idx) {
                 if size == 0 {
-                    base.extend(s.as_bytes());
+                    imm.extend(s.as_bytes());
                 } else {
                     let bts = s.as_bytes();
                     let mut nvc = Vec::with_capacity(bts.len());
@@ -393,9 +429,9 @@ impl GenAPI {
                             nvc.push(*b);
                         }
                     }
-                    base.extend(nvc);
+                    imm.extend(nvc);
                 }
-            } else if let Some(Operand::SymbolRef(s)) = ins.get_opr(idx) {
+            } else if let Some(Operand::SymbolRef(s)) = ins.get(idx) {
                 let addend = s.addend().unwrap_or_default();
                 rels[1] = Some(Relocation {
                     symbol: s.symbol,
@@ -405,23 +441,32 @@ impl GenAPI {
                     reltype: s.reltype().unwrap_or_default(),
                 });
                 if size == 0 {
-                    base.extend(vec![0; s.reltype().unwrap_or(RelType::REL32).size()])
+                    for _ in 0..s.reltype().unwrap_or(RelType::REL32).size() {
+                        base.push(0);
+                    }
                 } else {
-                    base.extend(vec![0; size]);
+                    for _ in 0..size {
+                        base.push(0);
+                    }
                 }
             }
             // rvrm
-            else if let Some(Operand::Register(r)) = ins.get_opr(idx) {
-                let mut v = Vec::new();
+            else if let Some(Operand::Register(r)) = ins.get(idx) {
+                let mut v = SmallVec::<u8, 8>::new();
                 v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
                 extend_imm(&mut v, size as u8);
-                base.extend(v);
+                for b in v.into_iter() {
+                    base.push(b);
+                }
             }
         } else if self.flags.get(OBY_CONST).unwrap() {
             let size = (self.addt & 0xFF00) >> 8;
-            let mut imm = vec![((self.addt & 0x00FF) as u8)];
+            let mut imm = SmallVec::new();
+            imm.push((self.addt & 0xFF) as u8);
             extend_imm(&mut imm, size as u8);
-            base.extend(imm);
+            for b in imm.into_iter() {
+                base.push(b);
+            }
         }
 
         for r in rels.iter_mut().flatten() {
@@ -430,7 +475,14 @@ impl GenAPI {
             }
         }
 
-        (base, rels)
+        if !imm.is_empty() {
+            let mut vec = Vec::with_capacity(base.len() + imm.len());
+            vec.extend(base.into_iter());
+            vec.extend(imm);
+            (AssembleResult::WLargeImm(vec), rels)
+        } else {
+            (AssembleResult::NoLargeImm(base), rels)
+        }
     }
     pub const fn modrm_reg_is_dst(&self) -> bool {
         self.ord.modrm_reg_is_dst()
@@ -442,17 +494,17 @@ impl GenAPI {
         self.ord.deserialize()
     }
     #[rustfmt::skip]
-    pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<&'a Operand<'a>>; 3] {
+    pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<Operand<'a>>; 3] {
         use OpOrd::*;
         let ord = self.ord.deserialize();
         match &ord[..3] {
             //                                    MODRM.r/m   MODRM.reg   (E)VEX.vvvv
+            [MODRM_REG, MODRM_RM , _        ] => [ins.src() , ins.dst() , ins.src2()],
+            [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.src2()],
             [MODRM_REG, VEX_VVVV , MODRM_RM ] => [ins.src2(), ins.dst() , ins.src() ],
             [MODRM_RM , VEX_VVVV , MODRM_REG] => [ins.dst() , ins.src2(), ins.src() ],
             [VEX_VVVV , MODRM_REG, _        ] => [None      , ins.src() , ins.dst() ],
             [VEX_VVVV , MODRM_RM , _        ] => [ins.src() , None      , ins.dst() ],
-            [MODRM_REG, MODRM_RM , _        ] => [ins.src() , ins.dst() , ins.src2()],
-            [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.src2()],
             _                                 => [None      , None      , None      ],
         }
     }
@@ -496,7 +548,7 @@ impl GenAPI {
 
 fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
     use Mnemonic as Ins;
-    if let Some(s) = ins.addt {
+    if let Some(s) = ins.addt() {
         match s {
             Ins::LOCK => Some(0xF0),
             Ins::REPNE | Ins::REPNZ => Some(0xF2),
@@ -508,29 +560,29 @@ fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
     }
 }
 
-fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<[Option<u8>; 2]> {
+fn gen_size_ovr(
+    ins: &Instruction,
+    dst: &Option<Operand>,
+    sz: Size,
+    bits: u8,
+    rexw: bool,
+) -> Option<[Option<u8>; 2]> {
     let mut arr = [None; 2];
-    if ins.dst().is_some() && ins.src().is_none() {
-        let dst = ins.dst().unwrap();
-        if let Operand::Imm(_) = dst {
-            return None;
-        }
-    }
     match bits {
         16 => {
-            if let Size::Dword = ins.size() {
+            if let Size::Dword = sz {
                 arr[0] = Some(0x66);
             }
         }
         32 => {
-            if let Size::Word = ins.size() {
+            if let Size::Word = sz {
                 arr[0] = Some(0x66);
             }
         }
-        64 => match ins.size() {
+        64 => match sz {
             Size::Word => arr[0] = Some(0x66),
             Size::Qword => {
-                if !(rexw || ins.mnem.defaults_to_64bit() || ins.uses_cr() || ins.uses_dr()) {
+                if !(rexw || ins.mnemonic.defaults_to_64bit() || ins.uses_cr() || ins.uses_dr()) {
                     arr[0] = Some(0x66);
                 }
             }
@@ -538,7 +590,7 @@ fn gen_size_ovr(ins: &Instruction, bits: u8, rexw: bool) -> Option<[Option<u8>; 
         },
         _ => {}
     };
-    if let Some(m) = ins.get_mem() {
+    if let Some(Operand::Mem(m)) = dst {
         match (m.addrsize(), bits) {
             (Size::Dword, 16) => arr[1] = Some(0x67),
             (Size::Dword, 64) => arr[1] = Some(0x67),
@@ -563,12 +615,12 @@ fn gen_sizeovr_fixed_size(sz: Size, bits: u8) -> Option<u8> {
 
 fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
     if let Some(mem) = ins.get_mem() {
-        return gen_segm_pref_op(mem);
+        return gen_segm_pref_op(&mem);
     }
     None
 }
 
-fn extend_imm(imm: &mut Vec<u8>, size: u8) {
+fn extend_imm(imm: &mut SmallVec<u8, 8>, size: u8) {
     let size = size as usize;
     while imm.len() < size {
         imm.push(0)

@@ -46,7 +46,7 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &[u8]) -> Result<AST, Vec<Error>> {
     let start = std::time::SystemTime::now();
 
     let lcount = lines.len();
-    let mut toks = Vec::with_capacity(lcount);
+    let mut toks = Vec::with_capacity(lcount << 2);
 
     for l in lines {
         toks.extend(pre::tok::tokl(l));

@@ -10,6 +10,9 @@ use crate::{
         reg::Register, reloc::RelType, smallvec::SmallVec, symbol::SymbolRef,
     },
 };
+
+use std::iter::Iterator;
+use std::mem::ManuallyDrop;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +30,7 @@ pub enum Token<'a> {
     //       pfx   content
     Closure(char, &'a str),
 
-    Modifier(Shared<[Self]>),
+    Modifier(Box<[Self]>),
 
     // {subexpression}
     SubExpr(&'a str),
@@ -35,12 +38,12 @@ pub enum Token<'a> {
     EOL,
 }
 
-pub fn tokl(line: &str) -> Vec<Token> {
+pub fn tokl(line: &str) -> impl Iterator<Item = Token> {
     let mut tstart: usize = 0;
     let mut tend: usize = 0;
     let bline = line.as_bytes();
 
-    let mut tokens: Vec<Token> = Vec::new();
+    let mut tokens: SmallVec<Token, 16> = SmallVec::new();
 
     // inside closure
     let mut iclosure: Option<char> = None;
@@ -183,7 +186,7 @@ pub fn tokl(line: &str) -> Vec<Token> {
                     if tend != tstart {
                         modf_toks.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
-                    tokens.push(Token::make_modifier(modf_toks.into_iter()));
+                    tokens.push(Token::make_modifier(modf_toks.into_vec()));
                     modf_toks = SmallVec::new();
                 } else if tend != tstart {
                     tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
@@ -211,7 +214,7 @@ pub fn tokl(line: &str) -> Vec<Token> {
             modf_toks.push(Token::make_from(cprefix, str(bline, tstart, tend)));
             tend = tstart;
         }
-        tokens.push(Token::make_modifier(modf_toks.into_iter()));
+        tokens.push(Token::make_modifier(modf_toks.into_vec()));
     }
 
     if tend != tstart {
@@ -238,7 +241,7 @@ pub fn tokl(line: &str) -> Vec<Token> {
     }
     tokens.push(Token::EOL);
 
-    tokens
+    tokens.into_iter()
 }
 
 // we can assert that code is already valid UTF-8, because of `utils.rs:split_str_ref`
@@ -348,12 +351,13 @@ impl<'a> TryFrom<&'a Token<'a>> for RelType {
 
 impl<'a> TryFrom<Token<'a>> for Operand<'a> {
     type Error = Error;
+    #[inline(always)]
     fn try_from(tok: Token<'a>) -> Result<Self, <Self as TryFrom<Token<'a>>>::Error> {
         match tok {
             Token::Register(reg) => Ok(Self::Register(reg)),
-            Token::String(val) => Ok(Self::String(val.into())),
+            Token::String(val) => Ok(Self::String(ManuallyDrop::new(val.into()))),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(val)),
+            Token::SymbolRef(val) => Ok(Self::SymbolRef(ManuallyDrop::new(val))),
             Token::Closure(' ', _) => Err(Error::new(
                 "you cannot create memory addressing without using size directive",
                 3,
@@ -409,7 +413,7 @@ mod tokn_test {
     fn tok_test() {
         let line = "add rax, rcx";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![
                 Token::Mnemonic(Mnemonic::ADD),
                 Token::Register(Register::RAX),
@@ -419,15 +423,18 @@ mod tokn_test {
             ]
         );
         let line = "_label:";
-        assert_eq!(tokl(line), vec![Token::Label("_label"), Token::EOL]);
+        assert_eq!(
+            tokl(line).collect::<Vec<Token>>(),
+            vec![Token::Label("_label"), Token::EOL]
+        );
         let line = "$(10)";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![Token::Immediate(Number::uint64(10)), Token::EOL]
         );
         let line = "@sref:rel32 // comment ";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![
                 Token::SymbolRef(Box::new(SymbolRef::new(
                     "sref",
@@ -441,7 +448,7 @@ mod tokn_test {
         );
         let line = "adc (rax + rcx * 4 + 10) qword, r10";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![
                 Token::Mnemonic(Mnemonic::ADC),
                 Token::Closure(' ', "rax + rcx * 4 + 10"),
@@ -453,9 +460,9 @@ mod tokn_test {
         );
         let line = "fs:(%rax + %rcx * $4 + $10) qword";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![
-                Token::Modifier(Shared::from([
+                Token::Modifier(Box::from([
                     Token::Register(Register::FS),
                     Token::Closure(' ', "%rax + %rcx * $4 + $10")
                 ])),
@@ -465,12 +472,12 @@ mod tokn_test {
         );
         let line = "{k1} {z}";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![Token::SubExpr("k1"), Token::SubExpr("z"), Token::EOL]
         );
         let line = "\"(Hello {, World!\"";
         assert_eq!(
-            tokl(line),
+            tokl(line).collect::<Vec<Token>>(),
             vec![Token::String("(Hello {, World!"), Token::EOL]
         );
     }

@@ -17,7 +17,7 @@
 - Support for ~50%+ x86-64 ISA (~848+ instructions)
 - Support for `SSE*`, `AVX`, `AVX2`, `AVX-512` (WIP; APX soon) `MMX` and more x86-64 extensions
 - Support for 64-bit and 32-bit ELF as export target
-- Very performant and optimized (2,224x faster than GAS in [some cases](perf.md))
+- Very performant and optimized (~2,75x faster than GAS in [some cases](perf.md))
 
 ## getting started
 

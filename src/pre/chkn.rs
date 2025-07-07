@@ -268,7 +268,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         self.allowed.get(idx)
     }
     pub fn check_addt(&self, ins: &Instruction) -> Result<(), Error> {
-        if let Some(found) = ins.addt {
+        if let Some(found) = ins.addt() {
             if self.has_addt() {
                 let mut f = false;
                 for allowed in &**unsafe { self.additional.assume_init_ref() } {
@@ -298,7 +298,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             return Ok(());
         }
         let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
-        for o in ins.operands.iter() {
+        for o in ins.iter() {
             smv.push(o.atype());
         }
 
@@ -337,7 +337,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             ));
         }
         for (i, o) in self.allowed.iter().enumerate() {
-            if let Some(s) = ins.get_opr(i) {
+            if let Some(s) = ins.get(i) {
                 if !o.has(s.atype()) {
                     let mut er = Error::new(
                         format!("operand at index {i} has invalid type: {}", s.atype()),
@@ -358,7 +358,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
             CheckMode::X86 => {
                 let mut sz = Size::Unknown;
-                for o in ins.operands.iter() {
+                for o in ins.iter() {
                     if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, true) =
                         o.atype()
                     {

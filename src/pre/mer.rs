@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use std::mem::ManuallyDrop;
+
 use crate::{
     conf::SMALLVEC_TOKENS_LEN,
     pre::tok::Token,
@@ -76,12 +78,12 @@ pub fn mer(lines: Vec<Token>) -> Result<MergerResult, Vec<Error>> {
     let mut idx = 0;
     let mut line = TOKS;
     for linet in lines {
-        idx += 1;
-        let lnum = idx + 1;
         if linet != Token::EOL {
             line.push(linet);
             continue;
         }
+        idx += 1;
+        let lnum = idx;
         if line.is_empty() {
             continue;
         }
@@ -663,7 +665,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Erro
                     };
                     s.set_size(size);
                     s.deref(true);
-                    Ok(Operand::SymbolRef(s))
+                    Ok(Operand::SymbolRef(ManuallyDrop::new(s)))
                 }
                 (Token::Closure(' ', m), Token::Modifier(mods)) |
                 (Token::Modifier(mods), Token::Closure(' ', m)) => {
@@ -727,8 +729,8 @@ pub fn make_instruction(
     mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>,
     mut start_idx: usize,
 ) -> Result<Instruction, Error> {
+    let mut ins = Instruction::new();
     let mut mnemonics: SmallVec<Mnemonic, 2> = SmallVec::new();
-    let mut operands: SmallVec<Operand, 4> = SmallVec::new();
     let mut subexpr: Vec<&str> = Vec::new();
 
     let mut operand_buf: SmallVec<Token, 2> = SmallVec::new();
@@ -746,9 +748,9 @@ pub fn make_instruction(
                     }
                 }
                 Some(Token::Comma) => {
-                    if operands.can_push() {
+                    if ins.len() < 4 {
                         if !operand_buf.is_empty() {
-                            operands.push(make_operand(operand_buf)?);
+                            ins.push(make_operand(operand_buf)?);
                             operand_buf = SmallVec::new();
                         }
                     } else {
@@ -775,11 +777,11 @@ pub fn make_instruction(
         }
     }
     if !operand_buf.is_empty() {
-        if operands.can_push() {
-            operands.push(make_operand(operand_buf)?);
+        if ins.len() < 4 {
+            ins.push(make_operand(operand_buf)?);
         } else {
             return Err(Error::new(
-                "you tried to make instruction with too many (5+) operands",
+                "you tried to make instruction with too many (4+) operands",
                 19,
             ));
         }
@@ -798,13 +800,8 @@ pub fn make_instruction(
             _ => panic!("too many mnems"),
         }
     };
-    let mut ins = Instruction {
-        operands,
-        mnem,
-        addt,
-        line: 0,
-        meta: 0,
-    };
+    ins.mnemonic = mnem;
+    ins.set_addt(addt);
     for s in subexpr {
         match s {
             "k0" => ins.set_mask(0b000),

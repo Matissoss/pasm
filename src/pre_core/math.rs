@@ -22,11 +22,13 @@ pub fn post_process(ast: &mut AST) -> Result<(), Error> {
 
 pub fn replace_mathevals(label: &mut Label, mth: &HashMap<&str, Number>) -> Result<(), Error> {
     for i in &mut label.content {
-        for o in i.operands.iter_mut() {
-            if let Operand::SymbolRef(s) = o {
-                if mth.contains_key(&s.symbol) {
-                    let eval = mth.get(&s.symbol).unwrap();
-                    *o = Operand::Imm(Number::uint64(eval.get_as_u64()));
+        if i.is_empty() {
+            continue;
+        }
+        for idx in 0..i.len() {
+            if let Some(Operand::SymbolRef(s)) = i.get(idx) {
+                if let Some(v) = mth.get(&s.symbol) {
+                    i.set(idx, Operand::Imm(Number::uint64(v.get_as_u64())));
                 }
             }
         }

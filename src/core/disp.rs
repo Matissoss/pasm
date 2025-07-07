@@ -3,10 +3,10 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Instruction, mem::Mem, reg::Register};
+use crate::shr::{ast::Operand, mem::Mem, reg::Register};
 
-pub fn gen_disp_ins(ins: &Instruction) -> Option<Vec<u8>> {
-    if let Some(mem) = ins.get_mem() {
+pub fn gen_disp_ins(dst: &Option<Operand>) -> Option<Vec<u8>> {
+    if let Some(Operand::Mem(mem)) = dst {
         return gen_disp(mem);
     }
     None

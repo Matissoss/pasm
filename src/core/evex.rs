@@ -7,7 +7,6 @@ use crate::core::api::*;
 
 use crate::shr::{
     ast::{Instruction, Operand},
-    reg::Register,
     size::Size,
 };
 
@@ -24,9 +23,9 @@ pub const MAP6: u8 = 0b110;
 pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 
-    let [[evex_r0, evex_r1], [_, _]] = ee_bits(modrm_reg);
-    let [[evex_b0, evex_b], [_, mut evex_x1]] = ee_bits(modrm_rm);
-    let [[evex_vd, _], [_, _]] = ee_bits(evex_vvvv);
+    let [[evex_r0, evex_r1], [_, _]] = ee_bits(&modrm_reg);
+    let [[evex_b0, evex_b], [_, mut evex_x1]] = ee_bits(&modrm_rm);
+    let [[evex_vd, _], [_, _]] = ee_bits(&evex_vvvv);
 
     if evex_b0 {
         evex_x1 = true;
@@ -38,7 +37,7 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
             | ((ins.size() == Size::Yword) as u8) << 5
             | ((ins.get_sae() | ins.get_bcst()) as u8) << 4
             | (!evex_vd as u8) << 3
-            | ins.get_mask().unwrap_or(Register::K0).to_byte()
+            | ins.get_mask().unwrap_or(0)
     };
 
     [
@@ -49,7 +48,7 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
             | (!evex_r0 as u8) << 4
             | ctx.get_map_select().unwrap() & 0b111,
         (ctx.get_vex_we().unwrap() as u8) << 7
-            | gen_evex4v(evex_vvvv) << 3
+            | gen_evex4v(&evex_vvvv) << 3
             | 1 << 2
             | ctx.get_pp().unwrap(),
         evex3,
@@ -61,7 +60,7 @@ const fn andn(num: u8, bits: u8) -> u8 {
 }
 
 #[allow(clippy::collapsible_match)]
-fn gen_evex4v(op: Option<&Operand>) -> u8 {
+fn gen_evex4v(op: &Option<Operand>) -> u8 {
     if let Some(o) = op {
         match o {
             Operand::Register(r) => {
@@ -75,7 +74,7 @@ fn gen_evex4v(op: Option<&Operand>) -> u8 {
 }
 
 // extended bits
-fn ee_bits(op: Option<&Operand>) -> [[bool; 2]; 2] {
+fn ee_bits(op: &Option<Operand>) -> [[bool; 2]; 2] {
     if let Some(op) = op {
         match op {
             Operand::Register(r) => [r.get_ext_bits(), [false; 2]],

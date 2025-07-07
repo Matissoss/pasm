@@ -12,13 +12,13 @@ const THREE_BYTE_PFX: u8 = 0xC4;
 pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
     let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
-    if let (None, None, None) = (modrm_reg, modrm_rm, vex_opr) {
+    if let (None, None, None) = (&modrm_reg, &modrm_rm, &vex_opr) {
         modrm_reg = ins.src2();
         modrm_rm = ins.dst();
         vex_opr = ins.src();
     }
 
-    let vvvv = gen_vex4v(vex_opr);
+    let vvvv = gen_vex4v(&vex_opr);
     let pp = ctx.get_pp().unwrap();
     let map_select = ctx.get_map_select().unwrap();
     let vex_we = ctx.get_vex_we().unwrap();
@@ -36,8 +36,8 @@ pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
         }
     };
 
-    let vex_b = needs_vex3(modrm_rm);
-    let vex_r = needs_vex3(modrm_reg).0;
+    let vex_b = needs_vex3(&modrm_rm);
+    let vex_r = needs_vex3(&modrm_reg).0;
 
     if (vex_b.0 || vex_b.1) || (map_select == 0b00011 || map_select == 0b00010) || vex_we {
         Some(vec![
@@ -54,7 +54,7 @@ pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
         ])
     }
 }
-fn needs_vex3(op: Option<&Operand>) -> (bool, bool) {
+fn needs_vex3(op: &Option<Operand>) -> (bool, bool) {
     if let Some(op) = op {
         match op {
             Operand::Register(r) => {
@@ -80,7 +80,7 @@ const fn andn(num: u8, bits: u8) -> u8 {
 
 // VEX.vvvv field
 #[allow(clippy::collapsible_match)]
-fn gen_vex4v(op: Option<&Operand>) -> u8 {
+fn gen_vex4v(op: &Option<Operand>) -> u8 {
     if let Some(o) = op {
         match o {
             Operand::Register(r) => {

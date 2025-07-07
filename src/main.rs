@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+#![allow(clippy::missing_transmute_annotations)]
+#![allow(clippy::type_complexity)]
 #![allow(clippy::to_string_trait_impl)]
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::needless_range_loop)]

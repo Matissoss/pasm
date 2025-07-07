@@ -61,13 +61,16 @@ pub fn compile_label<'a>(
             rl.offset += bytes.len() as u32;
             reallocs.push(rl);
         }
-        bytes.extend(res.0);
+        match res.0 {
+            AssembleResult::WLargeImm(i) => bytes.extend(i),
+            AssembleResult::NoLargeImm(i) => bytes.extend(i.into_iter()),
+        }
     }
     (bytes, reallocs)
 }
 
 pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
-    match ins.mnem {
+    match ins.mnemonic {
         Mnemonic::IN => ins_in(ins, bits),
         Mnemonic::OUT => ins_out(ins, bits),
 
@@ -79,17 +82,17 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[])
             .imm_atindex(0, 2)
             .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Mnemonic::WORDLE),
+            .imm_is_be(ins.mnemonic != Mnemonic::WORDLE),
         Mnemonic::DWORDLE | Mnemonic::DWORDBE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 4)
             .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Mnemonic::DWORDLE),
+            .imm_is_be(ins.mnemonic != Mnemonic::DWORDLE),
         Mnemonic::QWORDBE | Mnemonic::QWORDLE => GenAPI::new()
             .opcode(&[])
             .imm_atindex(0, 8)
             .fixed_size(Size::Byte)
-            .imm_is_be(ins.mnem != Mnemonic::QWORDLE),
+            .imm_is_be(ins.mnemonic != Mnemonic::QWORDLE),
         Mnemonic::ASCII | Mnemonic::STRING => GenAPI::new().opcode(&[]).imm_atindex(0, 0),
 
         Mnemonic::EMPTY => GenAPI::new()
@@ -235,7 +238,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVSS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true).prefix(0xF3);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -254,7 +257,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVAPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x28]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -263,7 +266,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVUPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -272,7 +275,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVLPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x12]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -281,7 +284,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVHPS => {
             let mut api = GenAPI::new().modrm(true, None, None).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x16]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -471,7 +474,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVAPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x29]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x28]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -480,7 +483,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVUPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -489,7 +492,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVLPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x13]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x12]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -498,7 +501,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVHPD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x17]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x16]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -507,7 +510,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVSD => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0xF2).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x11]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x10]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -516,7 +519,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::MOVDQA => {
             let mut api = GenAPI::new().modrm(true, None, None).prefix(0x66).rex(true);
             if let Some(Operand::Mem(_)) = ins.dst() {
-                api = api.opcode(&[0x0F, 0x7F]).ord(&[MODRM_REG, MODRM_RM]);
+                api = api.opcode(&[0x0F, 0x7F]).ord(&[MODRM_RM, MODRM_REG]);
             } else {
                 api = api.opcode(&[0x0F, 0x6F]).ord(&[MODRM_REG, MODRM_RM]);
             }
@@ -1775,7 +1778,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .rex(true)
             .imm_atindex(2, 1)
-            .ord(&[MODRM_REG, MODRM_RM]),
+            .ord(&[MODRM_RM, MODRM_REG]),
         Mnemonic::PHMINPOSUW => GenAPI::new()
             .opcode(&[0x0F, 0x38, 0x41])
             .prefix(0x66)
@@ -2188,7 +2191,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0x2A])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .ord(&[MODRM_REG, MODRM_RM]),
         Mnemonic::VPACKUSDW => GenAPI::new()
             .opcode(&[0x2B])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
@@ -2302,7 +2305,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0x17])
             .vex(VexDetails::new().map_select(0x38).pp(0x66).vex_we(false))
             .modrm(true, None, None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .ord(&[MODRM_REG, MODRM_RM]),
         Mnemonic::VDPPS => GenAPI::new()
             .opcode(&[0x40])
             .vex(VexDetails::new().map_select(0x3A).pp(0x66).vex_we(false))
@@ -2375,6 +2378,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0xF3).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x11]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x10]).ord(&[MODRM_REG, MODRM_RM])
             } else {
                 api = api.opcode(&[0x10]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
@@ -2386,6 +2391,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0xF2).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x11]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x10]).ord(&[MODRM_REG, MODRM_RM])
             } else {
                 api = api.opcode(&[0x10]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
@@ -2397,6 +2404,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x13]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x12]).ord(&[MODRM_REG, MODRM_RM])
             } else {
                 api = api.opcode(&[0x12]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
@@ -2408,8 +2417,10 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x13]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x12]).ord(&[MODRM_REG, MODRM_RM])
             } else {
-                api = api.opcode(&[0x12]).ord(&[MODRM_RM, VEX_VVVV, MODRM_REG]);
+                api = api.opcode(&[0x12]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
             api
         }
@@ -2419,6 +2430,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x17]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x16]).ord(&[MODRM_REG, MODRM_RM])
             } else {
                 api = api.opcode(&[0x16]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
@@ -2430,8 +2443,10 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .vex(VexDetails::new().pp(0x66).map_select(0x0F).vex_we(false));
             if ins.dst().unwrap().is_mem() {
                 api = api.opcode(&[0x17]);
+            } else if ins.src().unwrap().is_mem() {
+                api = api.opcode(&[0x16]).ord(&[MODRM_REG, MODRM_RM])
             } else {
-                api = api.opcode(&[0x16]).ord(&[MODRM_RM, VEX_VVVV, MODRM_REG]);
+                api = api.opcode(&[0x16]).ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]);
             }
             api
         }
@@ -2499,7 +2514,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .pp(0x66)
                     .map_select(0x0F)
-                    .vex_we(ins.mnem == Mnemonic::VMOVQ),
+                    .vex_we(ins.mnemonic == Mnemonic::VMOVQ),
             );
             if let Some(Operand::Register(r)) = ins.dst() {
                 if r.size() != Size::Xword {
@@ -2932,7 +2947,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VBROADCASTF128 => GenAPI::new()
             .opcode(&[0x1A])
             .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(false))
-            .modrm(true, None, None),
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM]),
         Mnemonic::STMXCSR => GenAPI::new()
             .opcode(&[0x0F, 0xAE])
             .modrm(true, Some(3), None)
@@ -2944,13 +2960,11 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VSTMXCSR => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
-            .modrm(true, Some(3), None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .modrm(true, Some(3), None),
         Mnemonic::VLDMXCSR => GenAPI::new()
             .opcode(&[0xAE])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
-            .modrm(true, Some(2), None)
-            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+            .modrm(true, Some(2), None),
         Mnemonic::VMOVMSKPS => GenAPI::new()
             .opcode(&[0x50])
             .vex(VexDetails::new().pp(0).map_select(0x0F).vex_we(false))
@@ -4489,7 +4503,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .map_select(MAP38)
                     .pp(0x66)
-                    .vex_we(ins.mnem == Mnemonic::VCOMPRESSPD),
+                    .vex_we(ins.mnemonic == Mnemonic::VCOMPRESSPD),
             )
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG]),
@@ -4517,7 +4531,7 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
         }
         Size::Word => {
             if let Some(Operand::Register(r)) = ins.dst() {
-                if r == &Register::AX {
+                if r == Register::AX {
                     let s = if let Some(Operand::Register(r1)) = ins.src() {
                         r1.to_byte()
                     } else {
@@ -4537,7 +4551,7 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
         }
         Size::Dword | Size::Qword => {
             if let Some(Operand::Register(r)) = ins.dst() {
-                if r == &Register::EAX || r == &Register::RAX {
+                if r == Register::EAX || r == Register::RAX {
                     let s = if let Some(Operand::Register(r1)) = ins.src() {
                         r1.to_byte()
                     } else {
@@ -4676,7 +4690,14 @@ fn ins_push(ins: &Instruction, _: u8) -> GenAPI {
         }
         Operand::Imm(nb) => match nb.size() {
             Size::Byte => GenAPI::new().opcode(&[0x6A]).imm_atindex(0, 1),
-            Size::Word | Size::Dword => GenAPI::new().opcode(&[0x68]).imm_atindex(0, 4),
+            Size::Word => GenAPI::new()
+                .opcode(&[0x68])
+                .imm_atindex(0, 2)
+                .fixed_size(Size::Word),
+            Size::Dword => GenAPI::new()
+                .opcode(&[0x68])
+                .imm_atindex(0, 4)
+                .fixed_size(Size::Dword),
             _ => invalid(31),
         },
         Operand::SymbolRef(s) => {
@@ -4786,7 +4807,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             .rex(true)
                     }
                 }
-                Operand::SymbolRef(s) => {
+                Operand::SymbolRef(ref s) => {
                     if s.is_deref() {
                         let opc = if let Operand::Register(_) = src {
                             match dst.size() {
@@ -5039,12 +5060,16 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
     let src = ins.src().unwrap();
     let dst = ins.dst().unwrap();
 
-    match (dst, src) {
+    match (dst, &src) {
         (Operand::Register(dstr), Operand::Imm(_) | Operand::SymbolRef(_)) => {
             let srci = ins.src().unwrap().size();
             if let Size::Dword | Size::Word = srci {
                 if let Register::RAX | Register::EAX = dstr {
-                    return GenAPI::new().opcode(&[0x3D]).imm_atindex(1, 4).rex(true);
+                    return GenAPI::new()
+                        .opcode(&[0x3D])
+                        .imm_atindex(1, 4)
+                        .rex(true)
+                        .ord(&[]);
                 } else if let Register::AX = dstr {
                     return GenAPI::new().opcode(&[0x3D]).imm_atindex(1, 2).rex(true);
                 }
@@ -5116,6 +5141,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
             GenAPI::new()
                 .opcode(&[opc])
                 .modrm(true, None, None)
+                .ord(&[MODRM_REG, MODRM_RM])
                 .rex(true)
         }
         (Operand::Mem(m), Operand::Register(_)) => {
@@ -5137,7 +5163,7 @@ fn ins_test(ins: &Instruction, _: u8) -> GenAPI {
     let src = ins.src().unwrap();
     let dst = ins.dst().unwrap();
 
-    match (dst, src) {
+    match (&dst, src) {
         (Operand::Register(dstr), Operand::Imm(_) | Operand::SymbolRef(_)) => {
             let sz = ins.src().unwrap().size();
             if let Size::Dword | Size::Word = sz {
@@ -5220,9 +5246,9 @@ fn ins_imul(ins: &Instruction, _: u8) -> GenAPI {
                 .modrm(true, Some(5), None)
                 .rex(true)
         }
-        Some(_) => match ins.get_opr(2) {
+        Some(_) => match ins.get(2) {
             Some(Operand::Imm(_)) => {
-                let (opc, size) = match ins.get_opr(2).unwrap().size() {
+                let (opc, size) = match ins.get(2).unwrap().size() {
                     Size::Byte => (0x6B, 1),
                     Size::Word => (0x69, 2),
                     _ => (0x69, 4),
@@ -5259,7 +5285,7 @@ fn ins_shllike(ins: &Instruction, opc: &[u8; 6], ovr: u8, _: u8) -> GenAPI {
             _ => panic!("CL failure"),
         },
         Operand::Imm(imm) => {
-            if imm == &Number::uint64(1) {
+            if imm == Number::uint64(1) {
                 match dst.size() {
                     Size::Byte => (opc[0], None),
                     _ => (opc[3], None),

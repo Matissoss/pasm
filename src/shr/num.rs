@@ -18,7 +18,7 @@ impl Number {
     pub fn get_as_usize(&self) -> usize {
         self.get_raw() as usize
     }
-    pub fn get_as_u64(&self) -> u64 {
+    pub const fn get_as_u64(&self) -> u64 {
         self.get_raw()
     }
     pub fn get_as_u32(&self) -> u32 {
@@ -60,7 +60,7 @@ impl Number {
     pub fn get_raw_be(&self) -> [u8; 8] {
         self.get_raw().to_be_bytes()
     }
-    pub fn get_raw(&self) -> u64 {
+    pub const fn get_raw(&self) -> u64 {
         if self.is_signed() {
             let body = self.content;
             // guess where to set sign
@@ -77,7 +77,7 @@ impl Number {
             self.content
         }
     }
-    pub fn is_signed(&self) -> bool {
+    pub const fn is_signed(&self) -> bool {
         self.content & (1 << 63) == 1 << 63
     }
     pub const fn float(f: f32) -> Self {
@@ -116,10 +116,12 @@ fn num_from_str(str: &str) -> Option<Number> {
     }
     if str_chars.starts_with(b"0o") {
         return num_from_oct(&str_chars[2..], sign);
-    } else if let Ok(u64) = u64::from_str(str) {
-        return Some(Number::uint64(u64));
-    } else if let Ok(i64) = i64::from_str(str) {
-        return Some(Number::int64(i64));
+    } else if is_num(str) {
+        if let Ok(u64) = u64::from_str(str) {
+            return Some(Number::uint64(u64));
+        } else if let Ok(i64) = i64::from_str(str) {
+            return Some(Number::int64(i64));
+        }
     } else if is_float(str) {
         if let Ok(f64) = f64::from_str(str) {
             return Some(Number::double(f64));
@@ -133,8 +135,33 @@ fn num_from_str(str: &str) -> Option<Number> {
     }
 }
 
+#[inline(always)]
+fn is_num(str: &str) -> bool {
+    let mut is_num = true;
+    let mut minus = false;
+    for b in str.as_bytes() {
+        match *b {
+            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {}
+            b'-' => {
+                if minus {
+                    is_num = false;
+                    break;
+                } else {
+                    minus = true;
+                }
+            }
+            _ => {
+                is_num = false;
+                break;
+            }
+        }
+    }
+    is_num
+}
+#[inline(always)]
 fn is_float(str: &str) -> bool {
     let mut dot = false;
+    let mut minus = false;
     let mut is_float = true;
     for b in str.as_bytes() {
         match *b {
@@ -145,6 +172,14 @@ fn is_float(str: &str) -> bool {
                     break;
                 } else {
                     dot = true
+                }
+            }
+            b'-' => {
+                if minus {
+                    is_float = false;
+                    break;
+                } else {
+                    minus = true;
                 }
             }
             _ => {

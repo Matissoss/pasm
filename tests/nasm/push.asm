@@ -4,7 +4,7 @@ _start:
 	push rax
 	push r8
 	push 10
-	push 256
+	;push 256
 	push 65537
 	push qword [rax]
 	push qword [rax+8]

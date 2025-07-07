@@ -10,7 +10,7 @@ use std::{
 };
 
 pub struct SmallVec<T, const N: usize> {
-    len: usize,
+    pub len: usize,
     pub content: [MaybeUninit<T>; N],
 }
 
@@ -152,11 +152,15 @@ impl<T, const N: usize> SmallVec<T, N> {
     pub const fn len(&self) -> usize {
         self.len
     }
-    #[allow(clippy::should_implement_trait)]
-    pub fn into_iter(self) -> Vec<T> {
+    pub fn into_vec(self) -> Vec<T> {
         (0..self.len())
             .map(|s| unsafe { self.content[s].assume_init_read() })
             .collect()
+    }
+    #[allow(clippy::should_implement_trait)]
+    #[inline]
+    pub fn into_iter(self) -> impl Iterator<Item = T> {
+        (0..self.len()).map(move |s| unsafe { self.content[s].assume_init_read() })
     }
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {

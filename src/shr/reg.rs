@@ -161,7 +161,6 @@ impl Register {
     pub fn is_ctrl_reg(&self) -> bool {
         self.purpose() == Purpose::Ctrl
     }
-
     pub const fn get_ext_bits(&self) -> [bool; 2] {
         use Register::*;
         match self {
@@ -187,6 +186,7 @@ impl Register {
         }
     }
 
+    #[inline(always)]
     #[rustfmt::skip]
     pub const fn size(&self) -> Size {
         match self {

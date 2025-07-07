@@ -3,10 +3,10 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Instruction, mem::Mem, reg::Register};
+use crate::shr::{ast::Operand, mem::Mem, reg::Register};
 
-pub fn gen_sib_ins(ins: &Instruction) -> Option<u8> {
-    if let Some(mem) = ins.get_mem() {
+pub fn gen_sib_ins(dst: &Option<Operand>) -> Option<u8> {
+    if let Some(Operand::Mem(mem)) = dst {
         return gen_sib(mem);
     }
     None

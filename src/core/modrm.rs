@@ -4,19 +4,12 @@
 // licensed under MPL 2.0
 
 use crate::core::api;
-use crate::shr::ast::{Instruction, Operand};
+use crate::shr::ast::Operand;
 
-pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
-    let [mut dst, mut src, _] = ctx.get_ord_oprs(ins);
-
-    // fallback to default
-    if let (None, None) = (dst, src) {
-        dst = ins.dst();
-        src = ins.src();
-    }
-
-    let (mut reg, mut rm) = ctx.get_modrm().deserialize();
-    let mut mod_ = if let Some(m) = ins.get_mem() {
+//          aka modrm_rm                aka modrm_reg
+pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) -> u8 {
+    let (reg, _) = ctx.get_modrm().deserialize();
+    let mut mod_ = if let Some(Operand::Mem(m)) = dst {
         if let Some((_, sz)) = m.offset_x86() {
             if m.is_riprel() {
                 0b00
@@ -28,7 +21,7 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
         } else {
             0b00
         }
-    } else if let [Some(_), _] = ins.get_symbs() {
+    } else if let Some(Operand::SymbolRef(_)) = dst {
         0b00
     } else {
         0b11
@@ -38,33 +31,41 @@ pub fn modrm(ins: &Instruction, ctx: &api::GenAPI) -> u8 {
         mod_ = ctx.get_addt2() & 0b11;
     }
 
-    if reg.is_none() {
-        reg = Some(gen_rmreg(&src));
-    }
+    let reg = if reg.is_none() {
+        gen_rmreg(src)
+    } else {
+        reg.unwrap_or(0)
+    };
 
-    if rm.is_none() {
-        rm = if ins.uses_sib() {
-            Some(0b100)
-        } else if ins.uses_rip() {
-            Some(0b101)
+    let rm = {
+        let (us, ur) = if let Some(Operand::Mem(m)) = dst {
+            (m.is_sib(), m.is_riprel())
+        } else if let Some(Operand::SymbolRef(s)) = dst {
+            (false, s.is_deref())
         } else {
-            Some(gen_rmreg(&dst))
+            (false, false)
+        };
+        if us {
+            0b100
+        } else if ur {
+            0b101
+        } else {
+            gen_rmreg(dst)
         }
-    }
-    bmodrm(mod_, reg.unwrap_or(0), rm.unwrap_or(0))
+    };
+    bmodrm(mod_, reg, rm)
 }
 
+#[inline(always)]
 const fn bmodrm(mod_: u8, reg: u8, rm: u8) -> u8 {
     (mod_ << 6) + (reg << 3) + rm
 }
 
-fn gen_rmreg(op: &Option<&Operand>) -> u8 {
-    if op.is_none() {
-        return 0;
-    };
-    match op.unwrap() {
-        Operand::Register(r) => r.to_byte(),
-        Operand::Mem(m) => {
+#[inline(always)]
+fn gen_rmreg(op: &Option<Operand>) -> u8 {
+    match op {
+        Some(Operand::Register(r)) => r.to_byte(),
+        Some(Operand::Mem(m)) => {
             if let Some(r) = m.base() {
                 r.to_byte()
             } else {

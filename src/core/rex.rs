@@ -4,33 +4,33 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    ast::{Instruction, Operand},
+    ast::{Instruction, Operand, REG},
     ins::Mnemonic,
     size::Size,
 };
 
-pub fn needs_rex(ins: &Instruction) -> bool {
-    if matches!(ins.mnem, Mnemonic::CMPXCHG16B) {
+pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>) -> bool {
+    if matches!(ins.mnemonic, Mnemonic::CMPXCHG16B) {
         return true;
     }
-    let (size_d, size_s) = match (ins.dst(), ins.src()) {
+
+    let (size_d, size_s) = match (&dst, &src) {
         (Some(d), Some(s)) => (d.size(), s.size()),
         (Some(d), None) => (d.size(), Size::Unknown),
         (None, Some(s)) => (Size::Unknown, s.size()),
         _ => (Size::Unknown, Size::Unknown),
     };
-    for o in ins.operands.iter() {
-        if let Some(r) = o.get_reg() {
-            if r.get_ext_bits()[1] {
-                return true;
-            }
+
+    for i in 0..ins.len() {
+        if REG == ins.get_type(i) && unsafe { ins.get_as_reg(i) }.get_ext_bits()[1] {
+            return true;
         }
     }
     match (size_d, size_s) {
         (Size::Qword, Size::Qword) | (Size::Qword, _) | (_, Size::Qword) => {}
         _ => return false,
     }
-    match &ins.mnem {
+    match &ins.mnemonic {
         Mnemonic::XADD
         | Mnemonic::XRSTOR
         | Mnemonic::XRSTOR64
@@ -112,9 +112,7 @@ pub fn needs_rex(ins: &Instruction) -> bool {
         Mnemonic::POPCNT => true,
         Mnemonic::EXTRACTPS => true,
         Mnemonic::MOV => {
-            if let (Some(Operand::Register(r0)), Some(Operand::Register(r1))) =
-                (ins.dst(), ins.src())
-            {
+            if let (Some(Operand::Register(r0)), Some(Operand::Register(r1))) = (&dst, &src) {
                 if r0.is_ctrl_reg()
                     || r0.is_dbg_reg()
                     || r1.is_ctrl_reg()
@@ -127,11 +125,10 @@ pub fn needs_rex(ins: &Instruction) -> bool {
                     return true;
                 }
             }
-            if let (Some(Operand::Mem(_)), _) | (_, Some(Operand::Mem(_))) = (ins.dst(), ins.src())
-            {
+            if let (Some(Operand::Mem(_)), _) | (_, Some(Operand::Mem(_))) = (&dst, &src) {
                 return true;
             }
-            if let Some(Operand::Imm(i)) = ins.src() {
+            if let Some(Operand::Imm(i)) = &src {
                 if i.size() == Size::Qword {
                     return true;
                 }
@@ -154,7 +151,7 @@ pub fn needs_rex(ins: &Instruction) -> bool {
         | Mnemonic::XCHG
         | Mnemonic::XOR => {
             matches!(
-                (ins.dst(), ins.src()),
+                (dst, src),
                 (_, Some(Operand::Register(_)))
                     | (Some(Operand::Register(_)), _)
                     | (Some(Operand::Mem(_)), _)
@@ -163,12 +160,12 @@ pub fn needs_rex(ins: &Instruction) -> bool {
         }
         Mnemonic::SAR | Mnemonic::SAL | Mnemonic::SHL | Mnemonic::SHR | Mnemonic::LEA => true,
         _ => {
-            if let Some(Operand::Register(dst)) = ins.dst() {
+            if let Some(Operand::Register(dst)) = dst {
                 if dst.get_ext_bits()[1] {
                     return true;
                 }
             }
-            if let Some(Operand::Register(src)) = ins.src() {
+            if let Some(Operand::Register(src)) = src {
                 if src.get_ext_bits()[1] {
                     return true;
                 }
@@ -178,7 +175,7 @@ pub fn needs_rex(ins: &Instruction) -> bool {
     }
 }
 
-fn get_wb(op: Option<&Operand>) -> bool {
+fn get_wb(op: &Option<Operand>) -> bool {
     match op {
         Some(Operand::Register(reg)) => reg.get_ext_bits()[1],
         _ => false,
@@ -195,21 +192,26 @@ fn fix_rev(r: &mut bool, ins: &Instruction) {
         }
         _ => {}
     }
-    if matches!(ins.mnem, Mnemonic::UD1 | Mnemonic::UD2) {
+    if matches!(ins.mnemonic, Mnemonic::UD1 | Mnemonic::UD2) {
         *r = true;
     }
 }
 
-fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
-    let wbs = get_wb(ins.src());
-    let wbd = get_wb(ins.dst());
+fn calc_rex(
+    ins: &Instruction,
+    dst: &Option<Operand>,
+    src: &Option<Operand>,
+    modrm_reg_is_dst: bool,
+) -> u8 {
+    let wbs = get_wb(src);
+    let wbd = get_wb(dst);
 
-    let sized = if let Some(o) = ins.dst() {
+    let sized = if let Some(o) = dst {
         o.size()
     } else {
         Size::Unknown
     };
-    let sizes = if let Some(o) = ins.src() {
+    let sizes = if let Some(o) = src {
         o.size()
     } else {
         Size::Unknown
@@ -218,18 +220,18 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
     let mut modrm_reg_is_dst = modrm_reg_is_dst;
     fix_rev(&mut modrm_reg_is_dst, ins);
 
-    let w = (!(ins.uses_cr() || ins.uses_dr() || ins.mnem.defaults_to_64bit())
+    let w = (!(ins.uses_cr() || ins.uses_dr() || ins.mnemonic.defaults_to_64bit())
         && (sized == Size::Qword || sizes == Size::Qword))
-        || matches!(ins.mnem, Mnemonic::CMPXCHG16B);
+        || matches!(ins.mnemonic, Mnemonic::CMPXCHG16B);
     let mut r = if !modrm_reg_is_dst { wbs } else { wbd };
     let mut b = if !modrm_reg_is_dst { wbd } else { wbs };
     let mut x = false;
 
-    match (ins.dst(), ins.src()) {
+    match (dst, src) {
         (Some(Operand::Mem(m)), _) | (_, Some(Operand::Mem(m))) => (b, x) = m.needs_rex(),
         _ => {}
     }
-    if let Some(Operand::Register(reg)) = ins.dst() {
+    if let Some(Operand::Register(reg)) = dst {
         if reg.get_ext_bits()[1] {
             if modrm_reg_is_dst {
                 r = true;
@@ -243,8 +245,9 @@ fn calc_rex(ins: &Instruction, modrm_reg_is_dst: bool) -> u8 {
 }
 
 pub fn gen_rex(ins: &Instruction, rev: bool) -> Option<u8> {
-    if needs_rex(ins) {
-        Some(calc_rex(ins, rev))
+    let (dst, src) = (ins.dst(), ins.src());
+    if needs_rex(ins, &dst, &src) {
+        Some(calc_rex(ins, &dst, &src, rev))
     } else {
         None
     }
