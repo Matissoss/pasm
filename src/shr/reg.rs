@@ -25,6 +25,15 @@ impl Purpose {
     pub const fn is_any(&self) -> bool {
         *self as u8 == Self::__ANY as u8
     }
+    pub const fn is_ctrl(&self) -> bool {
+        *self as u8 == Self::Ctrl as u8
+    }
+    pub const fn is_sgmnt(&self) -> bool {
+        *self as u8 == Self::Sgmnt as u8
+    }
+    pub const fn is_dbg(&self) -> bool {
+        *self as u8 == Self::Dbg as u8
+    }
 }
 
 impl PartialEq for Purpose {

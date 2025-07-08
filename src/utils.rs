@@ -15,6 +15,59 @@ pub fn vtimed_print(str: &str, tm: SystemTime) {
     );
 }
 
+pub struct LineIter<'a> {
+    pub start: usize,
+    pub end: usize,
+    pub line: usize,
+    pub slice: &'a [u8],
+}
+
+impl<'a> LineIter<'a> {
+    pub fn new(slice: &'a [u8]) -> Self {
+        Self {
+            start: 0,
+            end: 0,
+            line: 0,
+            slice,
+        }
+    }
+    pub fn next(&mut self) -> Option<(usize, &'a str)> {
+        if self.end >= self.slice.len() {
+            None
+        } else {
+            for b in self.start..self.slice.len() {
+                if self.slice[b] == b'\n' {
+                    let line_s = std::str::from_utf8(&self.slice[self.start..self.end])
+                        .expect("pasm source code needs to be encoded in UTF-8");
+                    self.end += 1;
+                    self.start = self.end;
+                    self.line += 1;
+                    if line_s.is_empty() {
+                        continue;
+                    } else {
+                        return Some((self.line - 1, line_s));
+                    }
+                } else {
+                    self.end += 1;
+                }
+            }
+            if self.end != self.start {
+                self.end = self.slice.len();
+                let line_s = Some((
+                    self.line,
+                    std::str::from_utf8(&self.slice[self.start..self.end])
+                        .expect("pasm source code needs to be encoded in UTF-8"),
+                ));
+                self.start = self.end;
+                self.line += 1;
+                line_s
+            } else {
+                None
+            }
+        }
+    }
+}
+
 pub fn split_str_ref(s: &[u8], chr: char) -> Vec<&str> {
     let mut start = 0;
     let mut end = 0;

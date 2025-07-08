@@ -53,7 +53,7 @@ pub struct Instruction<'a> {
     pub metadata: u16,
     pub mnemonic: Mnemonic,
     pub additional: MaybeUninit<Mnemonic>,
-    // 0bMLLL_00CB_BBAZ_YXXX:
+    // 0bMLLL_00CB_BBEZ_YXXX:
     // XXX - explicit prefix:
     //  0b000 - None
     //  0b001 - VEX
@@ -61,10 +61,10 @@ pub struct Instruction<'a> {
     //  0b... - reserved
     // M  : has additional mnemonic
     // LLL: length
-    // Y  : if XXX is EVEX: SAE
-    // Z  : if XXX is EVEX: Z
-    // E  : if XXX is EVEX: er
-    // BBB: if XXX is EVEX: mask as byte
+    // Y  : if XXX is EVEX: SAE         ; if XXX != EVEX: 1st bit of size
+    // Z  : if XXX is EVEX: Z           ; if XXX != EVEX: 2nd bit of size
+    // E  : if XXX is EVEX: er          ; if XXX != EVEX: 3rd bit of size
+    // BBB: if XXX is EVEX: mask as byte; if XXX != EVEX: B3 if 4th bit of size
     // C  : has mask
     pub metadata_2: u16,
     // debug
@@ -119,23 +119,12 @@ pub const STR: u16 = 0b100;
 pub const IMM: u16 = 0b101;
 
 impl<'a> Instruction<'a> {
+    #[inline(always)]
+    pub const fn get_evex(&self) -> bool {
+        self.metadata_2 & 0b111 == 0b10
+    }
     pub fn needs_evex(&self) -> bool {
-        if self.metadata_2 & 0b111 == 0b010 {
-            return true;
-        }
-        if self.get_mask().is_some() {
-            return true;
-        }
-        if self.get_er() {
-            return true;
-        }
-        if self.get_sae() {
-            return true;
-        }
-        if self.get_z() {
-            return true;
-        }
-        if self.get_bcst() {
+        if self.get_evex() {
             return true;
         }
         if self.size() == Size::Zword {
@@ -159,25 +148,41 @@ impl<'a> Instruction<'a> {
         }
     }
     pub const fn set_mask(&mut self, val: u16) {
+        self.set_evex();
         self.metadata_2 |= 1 << 9;
         self.metadata_2 |= (val & 0b111) << 6;
     }
     pub const fn get_z(&self) -> bool {
-        self.metadata_2 & 0b10000 == 0b10000
+        if self.get_evex() {
+            self.metadata_2 & 0b10000 == 0b10000
+        } else {
+            false
+        }
     }
     pub const fn set_z(&mut self) {
+        self.set_evex();
         self.metadata_2 |= 0b10000;
     }
     pub const fn get_sae(&self) -> bool {
-        self.metadata_2 & 0b100000 == 0b100000
+        if self.get_evex() {
+            self.metadata_2 & 0b100000 == 0b100000
+        } else {
+            false
+        }
     }
     pub const fn set_sae(&mut self) {
+        self.set_evex();
         self.metadata_2 |= 0b100000;
     }
     pub const fn get_er(&self) -> bool {
-        self.metadata_2 & 0b1000 == 0b1000
+        if self.get_evex() {
+            self.metadata_2 & 0b1000 == 0b1000
+        } else {
+            false
+        }
     }
     pub const fn set_er(&mut self) {
+        self.set_evex();
         self.metadata_2 |= 0b1000;
     }
     pub const fn set_evex(&mut self) {
@@ -204,6 +209,7 @@ impl<'a> Instruction<'a> {
     pub const unsafe fn get_as_mem(&self, idx: usize) -> &Mem {
         &self.operands[idx].mem
     }
+    #[inline(always)]
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
@@ -228,6 +234,7 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
     pub const fn set(&mut self, idx: usize, opr: Operand) {
         use std::mem::transmute;
         if idx < 4 {
@@ -246,6 +253,7 @@ impl<'a> Instruction<'a> {
             self.operands[idx] = OperandData { oth: con };
         }
     }
+    #[inline(always)]
     pub fn push(&mut self, opr: Operand) {
         self.set(self.len(), opr);
         let len = ((self.metadata_2 & (0b111 << 12)) >> 12) + 1;

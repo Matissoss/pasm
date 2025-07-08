@@ -6,7 +6,7 @@
 use std::mem::MaybeUninit;
 
 use crate::shr::{
-    ast::Instruction,
+    ast::{Instruction, Operand},
     atype::{AType, ToType, K},
     booltable::BoolTable8 as Flags8,
     error::Error,
@@ -329,7 +329,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                 ins.line,
             ));
         }
-        if (ins.get_sae() || ins.get_er() || ins.get_z()) && !self.get_avx512() {
+        if (ins.get_evex()) && !self.get_avx512() {
             return Err(Error::new_wline(
                 "you tried to use AVX-512 modifiers on instruction that is not from AVX-512",
                 16,
@@ -383,24 +383,32 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                         er.set_line(ins.line);
                         return Err(er);
                     }
-                    if let Some(r) = o.get_reg() {
-                        if sz != r.size() && !r.is_dbg_reg() && !r.is_ctrl_reg() && !r.is_sgmnt() {
-                            let mut er = Error::new(
-                                "you tried to use invalid operand size in this instruction",
-                                8,
-                            );
-                            er.set_line(ins.line);
-                            return Err(er);
+                    match o {
+                        Operand::Register(r) => {
+                            if sz != r.size()
+                                && !r.is_dbg_reg()
+                                && !r.is_ctrl_reg()
+                                && !r.is_sgmnt()
+                            {
+                                let mut er = Error::new(
+                                    "you tried to use invalid operand size in this instruction",
+                                    8,
+                                );
+                                er.set_line(ins.line);
+                                return Err(er);
+                            }
                         }
-                    } else if let Some(m) = o.get_mem() {
-                        if sz != m.size() {
-                            let mut er = Error::new(
-                                "you tried to use invalid operand size in this instruction",
-                                8,
-                            );
-                            er.set_line(ins.line);
-                            return Err(er);
+                        Operand::Mem(m) => {
+                            if sz != m.size() {
+                                let mut er = Error::new(
+                                    "you tried to use invalid operand size in this instruction",
+                                    8,
+                                );
+                                er.set_line(ins.line);
+                                return Err(er);
+                            }
                         }
+                        _ => {}
                     }
                 }
             }

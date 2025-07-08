@@ -4722,13 +4722,14 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
     let src = ins.src().unwrap();
     let dst = ins.dst().unwrap();
     if let Operand::Register(r) = dst {
-        if r.is_dbg_reg() {
+        let p = r.purpose();
+        if p.is_dbg() {
             GenAPI::new()
                 .opcode(&[0x0F, 0x23])
                 .modrm(true, None, None)
                 .ord(&[OpOrd::MODRM_REG, OpOrd::MODRM_RM])
                 .rex(true)
-        } else if r.is_sgmnt() {
+        } else if p.is_sgmnt() {
             match src {
                 Operand::Register(_) | Operand::Mem(_) => GenAPI::new()
                     .opcode(&[0x8E])
@@ -4736,7 +4737,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                     .rex(true),
                 _ => invalid(25),
             }
-        } else if r.is_ctrl_reg() {
+        } else if p.is_ctrl() {
             GenAPI::new()
                 .opcode(&[0x0F, 0x22])
                 .modrm(true, None, None)
@@ -4771,17 +4772,18 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                     }
                 }
                 Operand::Register(r) => {
-                    if r.is_sgmnt() {
+                    let p = r.purpose();
+                    if p.is_sgmnt() {
                         GenAPI::new()
                             .opcode(&[0x8C])
                             .modrm(true, None, None)
                             .rex(true)
-                    } else if r.is_ctrl_reg() {
+                    } else if p.is_ctrl() {
                         GenAPI::new()
                             .opcode(&[0x0F, 0x20])
                             .modrm(true, None, None)
                             .rex(true)
-                    } else if r.is_dbg_reg() {
+                    } else if p.is_dbg() {
                         GenAPI::new()
                             .opcode(&[0x0F, 0x21])
                             .modrm(true, None, None)

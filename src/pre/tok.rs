@@ -34,11 +34,9 @@ pub enum Token<'a> {
 
     // {subexpression}
     SubExpr(&'a str),
-
-    EOL,
 }
 
-pub fn tokl(line: &str) -> impl Iterator<Item = Token> {
+pub fn tokl(line: &str) -> SmallVec<Token, 16> {
     let mut tstart: usize = 0;
     let mut tend: usize = 0;
     let bline = line.as_bytes();
@@ -239,9 +237,7 @@ pub fn tokl(line: &str) -> impl Iterator<Item = Token> {
             0,
         ))));
     }
-    tokens.push(Token::EOL);
-
-    tokens.into_iter()
+    tokens
 }
 
 // we can assert that code is already valid UTF-8, because of `utils.rs:split_str_ref`
@@ -401,7 +397,6 @@ impl ToString for Token<'_> {
             }
             Self::Error(e) => format!("{e}"),
             Self::SubExpr(s) => format!("{{{s}}}"),
-            Self::EOL => String::new(),
         }
     }
 }
@@ -413,72 +408,70 @@ mod tokn_test {
     fn tok_test() {
         let line = "add rax, rcx";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
+            tokl(line).into_vec(),
             vec![
                 Token::Mnemonic(Mnemonic::ADD),
                 Token::Register(Register::RAX),
                 Token::Comma,
                 Token::Register(Register::RCX),
-                Token::EOL,
             ]
         );
         let line = "_label:";
-        assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
-            vec![Token::Label("_label"), Token::EOL]
-        );
+        assert_eq!(tokl(line).into_vec(), vec![Token::Label("_label")]);
         let line = "$(10)";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
-            vec![Token::Immediate(Number::uint64(10)), Token::EOL]
+            tokl(line).into_vec(),
+            vec![Token::Immediate(Number::uint64(10))]
+        );
+        let line = "@sref // comment ";
+        assert_eq!(
+            tokl(line).into_vec(),
+            vec![Token::SymbolRef(Box::new(SymbolRef::new(
+                "sref", None, false, None, None
+            ))),]
         );
         let line = "@sref:rel32 // comment ";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
-            vec![
-                Token::SymbolRef(Box::new(SymbolRef::new(
-                    "sref",
-                    None,
-                    false,
-                    None,
-                    Some(RelType::REL32)
-                ))),
-                Token::EOL
-            ]
+            tokl(line).into_vec(),
+            vec![Token::SymbolRef(Box::new(SymbolRef::new(
+                "sref",
+                None,
+                false,
+                None,
+                Some(RelType::REL32)
+            ))),]
         );
         let line = "adc (rax + rcx * 4 + 10) qword, r10";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
+            tokl(line).into_vec(),
             vec![
                 Token::Mnemonic(Mnemonic::ADC),
                 Token::Closure(' ', "rax + rcx * 4 + 10"),
                 Token::Directive(Directive::Qword),
                 Token::Comma,
                 Token::Register(Register::R10),
-                Token::EOL,
             ]
         );
         let line = "fs:(%rax + %rcx * $4 + $10) qword";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
+            tokl(line).into_vec(),
             vec![
                 Token::Modifier(Box::from([
                     Token::Register(Register::FS),
                     Token::Closure(' ', "%rax + %rcx * $4 + $10")
                 ])),
                 Token::Directive(Directive::Qword),
-                Token::EOL,
             ]
         );
         let line = "{k1} {z}";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
-            vec![Token::SubExpr("k1"), Token::SubExpr("z"), Token::EOL]
+            tokl(line).into_vec(),
+            vec![Token::SubExpr("k1"), Token::SubExpr("z")]
         );
         let line = "\"(Hello {, World!\"";
         assert_eq!(
-            tokl(line).collect::<Vec<Token>>(),
-            vec![Token::String("(Hello {, World!"), Token::EOL]
+            tokl(line).into_vec(),
+            vec![Token::String("(Hello {, World!")]
         );
     }
 }

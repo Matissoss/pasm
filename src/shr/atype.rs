@@ -163,10 +163,12 @@ impl PartialEq for AType {
             (AType::Register(lr, lf), AType::Register(rr, rf)) => {
                 if lf || rf {
                     lr == rr
+                } else if lr.purpose() == rr.purpose() && lr.size() == rr.size() {
+                    true
                 } else if lr.is_any() || rr.is_any() {
                     lr.size() == rr.size()
                 } else {
-                    lr.purpose() == rr.purpose() && lr.size() == rr.size()
+                    false
                 }
             }
             (AType::Memory(lsz, laddr, lbcst), AType::Memory(rsz, raddr, rbcst)) => {

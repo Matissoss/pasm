@@ -7,6 +7,8 @@ use std::{fs, io::Write, path::PathBuf};
 
 use crate::*;
 
+use pre::mer::{MergerResult, MergerToken};
+
 use shr::{
     ast::AST,
     error::Error,
@@ -38,31 +40,41 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &[u8]) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let lines = utils::split_str_ref(file, '\n');
+    let mut lines = utils::LineIter::new(file);
 
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("split  ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    let lcount = lines.len();
-    let mut toks = Vec::with_capacity(lcount << 2);
-
-    for l in lines {
-        toks.extend(pre::tok::tokl(l));
+    let mut mer = MergerResult {
+        body: Vec::new(),
+        root: Vec::new(),
+    };
+    let mut errors = Vec::new();
+    while let Some((lnum, line)) = lines.next() {
+        if line.is_empty() {
+            continue;
+        }
+        match pre::mer::mer(pre::tok::tokl(line), lnum) {
+            Ok(m) => {
+                for t in m.into_iter() {
+                    match t {
+                        MergerToken::Root(r) => mer.root.push(r),
+                        MergerToken::Body(b) => mer.body.push(b),
+                    }
+                }
+            }
+            Err(e) => {
+                errors.push(e);
+            }
+        }
     }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
     #[cfg(feature = "vtime")]
-    utils::vtimed_print("tok    ", start);
+    utils::vtimed_print("tok/mer", start);
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let mer = pre::mer::mer(toks);
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("mer    ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    let mut ast = pre::par::par(mer?)?;
+    let mut ast = pre::par::par(mer)?;
 
     #[cfg(feature = "vtime")]
     utils::vtimed_print("par    ", start);
@@ -229,7 +241,6 @@ fn process_section<'a>(
         });
         wrt.extend(bts);
     }
-
     (wrt, rel, sym)
 }
 
