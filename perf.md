@@ -27,7 +27,7 @@ _start:
     ; [...] same as before
 ```
 
-Tests were done using `perf`. Here are arguments for (GAS) `as` (version: `2.41-38.fc40`): `as <SOURCE_FILE>` and for `pasm` (compiled using `release` profile without anything else; for version `25.06-beta2` after patch from 07.07.2025): `pasm -i=<SOURCE_FILE>`.
+Tests were done using `perf`. Here are arguments for (GAS) `as` (version: `2.41-38.fc40`): `as <SOURCE_FILE>` and for `pasm` (compiled using `release` profile without anything else; for version `25.06-beta2` after patch from 08.07.2025): `pasm -i=<SOURCE_FILE>`.
 
 Following results are the best one of 5 iterations.
 
