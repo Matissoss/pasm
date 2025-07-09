@@ -13,8 +13,8 @@ const EXEC_FLAG: u8 = 0x4;
 #[derive(PartialEq, Clone, Debug, Default)]
 pub struct SlimSection<'a> {
     pub name: &'a str,
-    pub size: u32,
-    pub offset: u32,
+    pub size: usize,
+    pub offset: usize,
     pub align: u16,
     pub attributes: SectionAttributes,
     pub bits: u8,
@@ -24,8 +24,8 @@ pub struct SlimSection<'a> {
 pub struct Section<'a> {
     pub name: &'a str,
     pub content: Vec<label::Label<'a>>,
-    pub size: u32,
-    pub offset: u32,
+    pub size: usize,
+    pub offset: usize,
     pub align: u16,
     pub attributes: SectionAttributes,
     pub bits: u8,

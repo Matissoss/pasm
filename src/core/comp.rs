@@ -58,7 +58,7 @@ pub fn compile_label<'a>(
     for ins in lbl.0 {
         let res = get_genapi(ins, lbl_bits).assemble(ins, lbl_bits);
         for mut rl in res.1.into_iter().flatten() {
-            rl.offset += bytes.len() as u32;
+            rl.offset += bytes.len();
             reallocs.push(rl);
         }
         match res.0 {

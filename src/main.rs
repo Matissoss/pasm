@@ -3,6 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::missing_transmute_annotations)]
 #![allow(clippy::type_complexity)]

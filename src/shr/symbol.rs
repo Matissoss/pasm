@@ -19,8 +19,8 @@ pub enum SymbolType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol<'a> {
     pub name: &'a str,
-    pub offset: u32,
-    pub size: u32,
+    pub offset: usize,
+    pub size: usize,
     pub sindex: u16,
     pub visibility: Visibility,
     pub stype: SymbolType,

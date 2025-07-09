@@ -50,7 +50,7 @@ impl RelType {
 #[derive(Clone, PartialEq, Debug)]
 pub struct Relocation<'a> {
     pub symbol: &'a str,
-    pub offset: u32,
+    pub offset: usize,
     pub addend: i32,
     pub shidx: u16,
     pub reltype: RelType,
@@ -63,11 +63,10 @@ impl Relocation<'_> {
     pub const fn size(&self) -> usize {
         self.reltype.size()
     }
-    pub fn lea(&self, addr: u32) -> u32 {
-        // this might not work very well with larger numbers, so
-        // later i might need to cast as i64/u64.
+    pub fn lea(&self, addr: usize) -> usize {
         let addend: i64 = self.addend.into();
-        let offset: i64 = self.offset.into();
+        // we can cast offset as i64, because it would be currently impossible (?) to utilize 63-bit address (?)
+        let offset: i64 = self.offset as i64;
         if self.is_rel() {
             // S + A - P
             //
@@ -75,9 +74,9 @@ impl Relocation<'_> {
             // S = Symbol, A = Addend, P = Offset
             //             BUT NOT
             // S = Offset, A = Addend, P = Symbol
-            (<u32 as Into<i64>>::into(addr) + addend - offset) as u32
+            (addr as i64 + addend - offset) as usize
         } else {
-            (offset + addend).abs_diff(0) as u32
+            (offset + addend).abs_diff(0) as usize
         }
     }
 }
@@ -104,26 +103,12 @@ pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(
     };
     let addr = rel.lea(symbol.offset);
 
-    let rs = match rel.reltype.size() {
-        1 => u8::MAX as u32,
-        2 => u16::MAX as u32,
-        _ => u32::MAX,
-    };
-    if addr > rs {
-        return Err(Error::new(
-            format!(
-                "tried to perform {}-bit relocation on smaller slice",
-                rs << 3
-            ),
-            5,
-        ));
-    }
     let addr = addr.to_le_bytes();
-    let buf_offset = rel.offset as usize;
+    let buf_offset = rel.offset;
 
     if buf.len() + rel.size() < buf_offset {
         return Err(Error::new(
-            "internal error: tried to write outside of buffer",
+            "tried to perform relocation, but we tried to write out of bounds",
             500,
         ));
     }
@@ -163,7 +148,7 @@ mod tests {
             reltype: RelType::REL32,
             shidx: 0,
         };
-        assert_eq!(relocation.lea(0x01), (-1i32) as u32);
+        assert_eq!(relocation.lea(0x01), (-1i64) as usize);
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
         assert_eq!(bytes, [0x00, 0x71, 0xFF, 0xFF, 0xFF, 0xFF, 0x81, 0x91]);
         let relocation = Relocation {

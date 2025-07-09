@@ -7,7 +7,7 @@ use std::{fs, io::Write, path::PathBuf};
 
 use crate::*;
 
-use pre::mer::{MergerResult, MergerToken};
+use pre::par::ParserStatus;
 
 use shr::{
     ast::AST,
@@ -45,22 +45,25 @@ pub fn pasm_parse_src(
     let start = std::time::SystemTime::now();
 
     let mut lines = utils::LineIter::new(file);
-    let mut mer = MergerResult {
-        body: Vec::new(),
-        root: Vec::new(),
-    };
     let mut errors = Vec::new();
+    let mut par = ParserStatus {
+        inroot: true,
+        ..Default::default()
+    };
+    let mut ast = AST::default();
     while let Some((lnum, line)) = lines.next() {
         if line.is_empty() {
             continue;
         }
-        match pre::mer::mer(pre::tok::tokl(line), lnum) {
+        let tok = pre::tok::tokl(line);
+        if tok.is_empty() {
+            continue;
+        }
+        match pre::mer::mer(tok, lnum) {
             Ok(m) => {
-                for t in m.into_iter() {
-                    match t {
-                        MergerToken::Root(r) => mer.root.push(r),
-                        MergerToken::Body(b) => mer.body.push(b),
-                    }
+                let err = pre::par::par(&mut ast, m, &mut par);
+                if !err.is_null() {
+                    errors.push(unsafe { std::ptr::read(err) });
                 }
             }
             Err(e) => {
@@ -68,21 +71,24 @@ pub fn pasm_parse_src(
             }
         }
     }
+
+    if !par.label.name.is_empty() {
+        par.section.content.push(par.label);
+    }
+    if par.section != Section::default() {
+        ast.sections.push(par.section);
+    }
+
     if !errors.is_empty() {
         return Err(errors);
     }
 
     #[cfg(feature = "vtime")]
-    utils::vtimed_print("tok/mer", start);
+    utils::vtimed_print("pre    ", start);
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let mut ast = pre::par::par(mer)?;
-
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("par    ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
+    //let mut ast = pre::par::par(mer)?;
 
     ast.validate().map_err(|e| vec![e])?;
 
@@ -155,14 +161,14 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
                 name: s.name,
                 align: s.align,
                 attributes: s.attributes,
-                offset: soff as u32,
-                size: ssz as u32,
+                offset: soff,
+                size: ssz,
                 bits: s.bits,
             });
             sym.push(Symbol {
                 name: s.name,
-                offset: soff as u32,
-                size: ssz as u32,
+                offset: soff,
+                size: ssz,
                 sindex: idx,
                 stype: SymbolType::Section,
                 visibility: Visibility::Local,
@@ -232,7 +238,7 @@ fn process_section<'a>(
             comp::compile_label((&lbl.content, lbl.align, lbl.attributes.get_bits()), plen);
         for rel in &mut rels {
             rel.shidx = idx;
-            rel.offset += wrt.len() as u32;
+            rel.offset += wrt.len();
         }
         rel.extend(rels);
 
@@ -240,8 +246,8 @@ fn process_section<'a>(
             stype: st,
             name: nm,
             visibility: vi,
-            offset: wrt.len() as u32 - section.offset,
-            size: bts.len() as u32,
+            offset: wrt.len() - section.offset,
+            size: bts.len(),
             sindex: idx,
         });
         wrt.extend(bts);

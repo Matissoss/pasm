@@ -22,19 +22,19 @@ const SHT_RELA: u32 = 4;
 
 // .bss
 #[allow(unused)]
-const SHT_NOBITS: u32 = 8;
+const SHT_NOBITS: usize = 8;
 
-const RELA_SIZE_64: u32 = 24;
-const RELA_SIZE_32: u32 = 12;
+const RELA_SIZE_64: usize = 24;
+const RELA_SIZE_32: usize = 12;
 
-const SYM_SIZE_64: u32 = 24;
-const SYM_SIZE_32: u32 = 16;
+const SYM_SIZE_64: usize = 24;
+const SYM_SIZE_32: usize = 16;
 
-const EHDR_SIZE_64: u32 = 64;
-const EHDR_SIZE_32: u32 = 52;
+const EHDR_SIZE_64: usize = 64;
+const EHDR_SIZE_32: usize = 52;
 
-const SHDR_SIZE_64: u32 = 64;
-const SHDR_SIZE_32: u32 = 40;
+const SHDR_SIZE_64: usize = 64;
+const SHDR_SIZE_32: usize = 40;
 
 // flags
 const SHF_WRITE: u32 = 0x01;
@@ -48,7 +48,7 @@ const EM_X86_64: u8 = 62;
 pub struct ElfHeader {
     shstrtab_index: usize,
     section_count: usize,
-    section_offset: u32,
+    section_offset: usize,
     machine: u8,
 }
 
@@ -56,8 +56,8 @@ pub struct ElfHeader {
 pub struct ElfSymbol {
     name: usize,
     // always address
-    value: u32,
-    size: u32,
+    value: usize,
+    size: usize,
     // currently can be set to 1
     section_index: u32,
 
@@ -81,8 +81,8 @@ pub struct ElfRelocation {
 pub struct ElfSection {
     // index in shstrtab
     name: usize,
-    size: u32,
-    offset: u32,
+    size: usize,
+    offset: usize,
     stype: u32,
     addralign: u32,
     entry_count: u32,
@@ -156,14 +156,14 @@ impl<'a> Elf<'a> {
     fn push_reloc(&mut self, reloc: &TmpRelocation, is_64bit: bool) {
         let symb = reloc.symbol as u64;
         self.relocations.push(ElfRelocation {
-            offset: reloc.offset.into(),
+            offset: reloc.offset as u64,
             info: symb << 32
                 | if is_64bit {
                     (reloc.reltype.to_elf64_rtype() & 0xFF) as u32
                 } else {
                     reloc.reltype.to_elf32_rtype() & 0xFF
                 } as u64,
-            addend: reloc.addend.into(),
+            addend: reloc.addend,
             sindex: reloc.sindex,
             iglob: false,
         });
@@ -231,9 +231,9 @@ impl<'a> Elf<'a> {
 }
 
 struct TmpRelocation {
-    symbol: u32,
-    offset: u32,
-    addend: i32,
+    symbol: usize,
+    offset: usize,
+    addend: i64,
     sindex: u16,
     reltype: RelType,
 }
@@ -304,9 +304,9 @@ fn make_elf<'a>(
         if let Some(idx) = elf.find_symbol(reloc.symbol) {
             elf.push_reloc(
                 &TmpRelocation {
-                    symbol: idx as u32,
+                    symbol: idx,
                     offset: reloc.offset,
-                    addend: reloc.addend,
+                    addend: reloc.addend.into(),
                     reltype: reloc.reltype,
                     sindex: reloc.shidx,
                 },
@@ -323,7 +323,7 @@ fn make_elf<'a>(
 }
 
 fn shdr_collect(e: ElfSection, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::with_capacity(SHDR_SIZE_32 as usize);
+    let mut b = Vec::with_capacity(SHDR_SIZE_32);
     if is_64bit {
         b.extend((e.name as u32).to_le_bytes());
         b.extend(e.stype.to_le_bytes());
@@ -351,7 +351,7 @@ fn shdr_collect(e: ElfSection, is_64bit: bool) -> Vec<u8> {
 }
 
 fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::with_capacity(EHDR_SIZE_32 as usize);
+    let mut b = Vec::with_capacity(EHDR_SIZE_32);
     if is_64bit {
         b.extend(1u16.to_le_bytes());
         b.extend((e.machine as u16).to_le_bytes());
@@ -386,7 +386,7 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
 }
 
 fn reloc_collect(rel: ElfRelocation, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::with_capacity(RELA_SIZE_32 as usize);
+    let mut b = Vec::with_capacity(RELA_SIZE_32);
     if is_64bit {
         b.extend(rel.offset.to_le_bytes());
         b.extend(rel.info.to_le_bytes());
@@ -402,7 +402,7 @@ fn reloc_collect(rel: ElfRelocation, is_64bit: bool) -> Vec<u8> {
 }
 
 fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
-    let mut b = Vec::with_capacity(SYM_SIZE_32 as usize);
+    let mut b = Vec::with_capacity(SYM_SIZE_32);
     if is_64bit {
         b.extend((symb.name as u32).to_le_bytes());
         b.extend(symb.info.to_le_bytes());
@@ -421,7 +421,7 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
     b
 }
 
-// rasm's ELF layout:
+// pasm's ELF layout:
 // - Elf Header (obviously)
 // - Section headers (in order):
 //      - .shstrtab
@@ -502,11 +502,11 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         rela_info[idx].name = elf.push_shstrtab(&cstr);
     }
 
-    let content_offset = ehdr_size + (elf.header.section_count as u32 * shdr_size);
-    let strtab_offset = content_offset + elf.shstrtab.len() as u32;
-    let symtab_offset = strtab_offset + elf.strtab.len() as u32;
-    let code_offset = symtab_offset + (sym_size * elf.symbols.len() as u32);
-    let rela_offset = code_offset + elf.code.len() as u32;
+    let content_offset = ehdr_size + (elf.header.section_count * shdr_size);
+    let strtab_offset = content_offset + elf.shstrtab.len();
+    let symtab_offset = strtab_offset + elf.strtab.len();
+    let code_offset = symtab_offset + (sym_size * elf.symbols.len());
+    let rela_offset = code_offset + elf.code.len();
     // Section headers:
     bytes.extend(shdr_collect(NULL_SHDR, is_64bit));
     // .shstrtab
@@ -517,7 +517,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
             addralign: 1,
             info: 0,
             link: 0,
-            size: elf.shstrtab.len() as u32,
+            size: elf.shstrtab.len(),
             entry_count: 0,
             entry_size: 0,
             flags: 0,
@@ -530,7 +530,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         ElfSection {
             name: strtab_name,
             offset: strtab_offset,
-            size: elf.strtab.len() as u32,
+            size: elf.strtab.len(),
             stype: SHT_STRTAB,
             entry_count: 0,
             entry_size: 1,
@@ -551,9 +551,9 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
             entry_count: 0,
             link: 2, // ref to .strtab(?)
             info: elf.get_local_symbol_count() as u32,
-            entry_size: sym_size,
+            entry_size: sym_size as u32,
             addralign: 0,
-            size: elf.symbols.len() as u32 * sym_size,
+            size: elf.symbols.len() * sym_size,
         },
         is_64bit,
     ));
@@ -571,8 +571,8 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
                     stype: SHT_RELA,
                     info: 4 + idx as u32,
                     link: 3,
-                    size: relc.relcount as u32 * rela_size,
-                    entry_size: rela_size,
+                    size: relc.relcount * rela_size,
+                    entry_size: rela_size as u32,
                     addralign: 0,
                     offset: rela_offset + offs,
                     entry_count: relc.relcount as u32,
@@ -580,7 +580,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
                 },
                 is_64bit,
             ));
-            offs += relc.relcount as u32 * rela_size;
+            offs += relc.relcount * rela_size;
         }
     }
 

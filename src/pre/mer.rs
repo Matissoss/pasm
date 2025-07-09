@@ -65,17 +65,7 @@ pub enum MergerToken<'a> {
     Root(RootNode<'a>),
 }
 
-#[derive(Debug)]
-pub struct MergerResult<'a> {
-    pub root: Vec<RootNode<'a>>,
-    pub body: Vec<BodyNode<'a>>,
-}
-
-#[allow(unused_assignments)]
 pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<MergerToken, 4>, Error> {
-    if line.is_empty() {
-        return Ok(SmallVec::new());
-    }
     let lnum = lnum + 1;
 
     let mut root = SmallVec::<MergerToken, 4>::new();
@@ -465,17 +455,10 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                 ));
             };
 
-            /*if inroot {*/
             root.push(MergerToken::Root(RootNode {
                 line: lnum,
                 node: RootNodeEnum::Bits(bits),
             }));
-            /*} else {
-                root.push(MergerToken::Body(BodyNode {
-                    line: lnum,
-                    node: BodyNodeEnum::Bits(bits),
-                }));
-            }*/
         }
         // possible layout:
         // assert that layout of line is something like: .visibility .type "label_name": <instruction>

@@ -339,7 +339,7 @@ impl GenAPI {
                     let addend = s.addend().unwrap_or_default();
                     rels[0] = Some(Relocation {
                         symbol: s.symbol,
-                        offset: base.len() as u32,
+                        offset: base.len(),
                         addend,
                         shidx: 0,
                         reltype: s.reltype().unwrap_or_default(),
@@ -422,7 +422,7 @@ impl GenAPI {
                 let addend = s.addend().unwrap_or_default();
                 rels[1] = Some(Relocation {
                     symbol: s.symbol,
-                    offset: base.len() as u32,
+                    offset: base.len(),
                     addend,
                     shidx: 0,
                     reltype: s.reltype().unwrap_or_default(),

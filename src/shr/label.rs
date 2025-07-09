@@ -10,8 +10,6 @@ use crate::shr::{ast::Instruction, symbol::SymbolType, visibility::Visibility};
 pub struct Label<'a> {
     pub content: Vec<Instruction<'a>>,
     pub name: &'a str,
-    pub offset: usize,
-    pub size: usize,
     pub align: u16,
     pub attributes: LabelAttributes,
 }
@@ -21,7 +19,6 @@ pub struct LabelAttributes {
     pub symbol_type: SymbolType,
     pub visibility: Visibility,
     pub bits: u8,
-    pub _reserved: u8,
 }
 
 // we make manual getters and setters, because i might
