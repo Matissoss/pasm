@@ -69,7 +69,7 @@ Goal: implement most of AVX based (E)VEX instructions
 - [x] Prepare `pasm`'s syntax for AVX-512
 - [x] Prepare backend for AVX-512 (add `IS_BCST` flag to Mem, add support for masks, etc. in parser)
 - [x] implement EVEX support
-- ISA implementation (divided in 16 parts; add all instructions starting with `v`):
+- ISA implementation (divided in 15 parts):
     - [x] avx-ext-0
     - [x] avx-ext-1
     - [ ] avx-ext-2
@@ -85,7 +85,6 @@ Goal: implement most of AVX based (E)VEX instructions
     - [ ] avx-ext-c
     - [ ] avx-ext-d
     - [ ] avx-ext-e
-    - [ ] avx-ext-f
 - [ ] implement EEVEX (enchanced EVEX) support (for Intel APX)
 - ISA implementantation (divided in 8 parts):
     - [ ] intel-apx-0
@@ -102,10 +101,11 @@ Goal: implement most of AVX based (E)VEX instructions
 
 Goal: support for smaller x86-64 ISA extensions
 
-- [ ] x87 ISA
+- [ ] CMPCCXADD
 - [ ] CET_SS (Shadow Stack)
 - [ ] GFNI
 - [ ] BMI*
+- [ ] x87 ISA
 - [ ] missing x86-64 instructions
 - [ ] move to beta-macro
 - [ ] move to rc

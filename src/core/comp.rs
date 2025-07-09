@@ -5096,6 +5096,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api.vex(vd)
         }
+        _ => panic!("haha"),
     }
 }
 
@@ -5213,35 +5214,6 @@ fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
     }
     api
 }
-
-/*
-fn ins_enter(ins: &Instruction, bits: u8) -> Vec<u8> {
-    let immw = if let Some(Operand::Imm(w)) = ins.dst() {
-        let mut vec = w.split_into_bytes();
-        if vec.len() == 1 {
-            vec.push(0);
-        }
-        vec![vec[0], vec[1]]
-    } else {
-        vec![0x00, 0x00]
-    };
-    let immb = if let Some(Operand::Imm(w)) = ins.src() {
-        let vec = w.split_into_bytes();
-        if vec[0] == 0x00 {
-            vec![0x00]
-        } else if vec[0] == 0x01 {
-            vec![0x01]
-        } else {
-            vec![vec[0]]
-        }
-    } else {
-        vec![0x00]
-    };
-    GenAPI::new()
-        .opcode(&[0xC8, immw[0], immw[1], immb[0]])
-        .assemble(ins, bits)
-}
-*/
 
 fn ins_bt(ins: &Instruction, opc_noimm: &[u8], opc_imm: &[u8], _: u8, modrm: u8) -> GenAPI {
     let mut api = GenAPI::new().rex(true);
