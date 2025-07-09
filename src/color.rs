@@ -61,7 +61,7 @@ impl ColString {
 
 impl Display for ColString {
     fn fmt(&self, frm: &mut Formatter<'_>) -> Result<(), FmtError> {
-        if cli_nocolor(&CLI) {
+        if CLI.nocolor() {
             write!(frm, "{}", self.val)
         } else {
             write!(

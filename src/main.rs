@@ -47,32 +47,31 @@ use cli::*;
 #[cfg(feature = "time")]
 use std::time;
 
-use crate::conf::RString;
 // start
 fn main() {
     switch_panichandler();
     let cli = &*CLI;
 
-    if cli_version(cli) {
+    if cli.version() {
         println!("{}", help::version());
         process::exit(0)
     }
-    if cli_help(cli) {
+    if cli.help() {
         println!("{}", help::help());
         process::exit(0)
     }
     #[cfg(feature = "iinfo")]
-    if cli_supported_instructions(cli) {
+    if cli.supported_instructions() {
         print_supported_instructions();
         return;
     }
     #[cfg(feature = "iinfo")]
-    if cli_supported_instructions_raw(cli) {
+    if cli.supported_instructions_raw() {
         print_supported_instructions_raw();
         return;
     }
 
-    let infile = if let Some(s) = cli_infile(cli) {
+    let infile = if let Some(s) = cli.infile() {
         s
     } else {
         eprintln!("error: you forgot to provide -i=[PATH] flag");
@@ -90,7 +89,7 @@ fn main() {
         }
     };
 
-    let ast = libp::pasm_parse_src(infile.to_path_buf(), &file);
+    let ast = libp::pasm_parse_src(infile.to_path_buf(), &file, cli.nocheck());
 
     if let Err(errs) = ast {
         for mut e in errs {
@@ -99,9 +98,9 @@ fn main() {
         }
         std::process::exit(1);
     }
-    let ast = ast.unwrap();
+    let (ast, ptrs) = ast.unwrap();
 
-    if cli_check(cli) {
+    if cli.check() {
         #[cfg(feature = "time")]
         {
             let end = time::SystemTime::now();
@@ -117,12 +116,15 @@ fn main() {
         return;
     }
 
-    let outfile = cli_outfile(cli).clone();
+    let outfile = cli.outfile().clone();
 
     if let Err(e) = libp::assemble(ast, outfile) {
         eprintln!("{e}");
         std::process::exit(1);
     };
+    for p in ptrs {
+        unsafe { std::ptr::drop_in_place(p) };
+    }
     #[cfg(all(feature = "time", feature = "vtime"))]
     utils::vtimed_print("overall", start);
     #[cfg(all(feature = "time", not(feature = "vtime")))]

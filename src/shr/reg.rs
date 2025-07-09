@@ -22,6 +22,12 @@ pub enum Purpose {
 }
 
 impl Purpose {
+    pub const fn is_gpr(&self) -> bool {
+        *self as u8 == Self::General as u8
+    }
+    pub const fn is_mask(&self) -> bool {
+        *self as u8 == Self::Mask as u8
+    }
     pub const fn is_any(&self) -> bool {
         *self as u8 == Self::__ANY as u8
     }

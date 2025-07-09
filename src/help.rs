@@ -29,7 +29,8 @@ pub fn help() -> String {
     help_string.push_str(
         "\t-S / --supported-instructions-raw ; prints supported instructions in raw format\n",
     );
-
+    help_string
+        .push_str("\t-s / --skip-check                   ; skips checking part to gain performance (up to 25%)\n");
     help_string
         .push_str("\t-n / --nocolor                    ; prints all colored text without color\n");
 

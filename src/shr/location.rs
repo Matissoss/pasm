@@ -3,20 +3,18 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::RString;
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Location {
     pub line: usize, // if 0, then NULL
-    pub file: RString,
+    pub file: String,
 }
 
 impl Location {
-    pub fn get_file(&self) -> Option<RString> {
+    pub fn get_file(&self) -> Option<&str> {
         if self.file.is_empty() {
             None
         } else {
-            Some(self.file.clone())
+            Some(&self.file)
         }
     }
     pub const fn get_char(&self) -> Option<usize> {
@@ -35,7 +33,7 @@ impl Location {
     pub const fn set_line(&mut self, line: usize) {
         self.line = line;
     }
-    pub fn set_file(&mut self, path: RString) {
-        self.file = path.clone();
+    pub fn set_file(&mut self, path: String) {
+        self.file = path;
     }
 }

@@ -244,19 +244,6 @@ impl GenAPI {
         let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
             (sz, true)
         } else {
-            /*
-            let sz = match (&modrm_rm, &modrm_reg) {
-                (Some(o), Some(o1)) => Instruction::fast_size(o, o1),
-                (Some(o), None) => {
-                    if let Some(Operand::Imm(_)) = &modrm_rm {
-                        Size::Unknown
-                    } else {
-                        o.size()
-                    }
-                }
-                _ => Size::Unknown,
-            };
-            */
             (ins.size(), false)
         };
 
@@ -543,6 +530,10 @@ impl GenAPI {
         } else {
             None
         }
+    }
+
+    pub const fn get_opcode(&self) -> ([u8; 8], usize) {
+        self.opcode.collect()
     }
 }
 

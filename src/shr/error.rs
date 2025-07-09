@@ -4,7 +4,6 @@
 // licensed under MPL 2.0
 
 use crate::shr::location::Location;
-use crate::RString;
 
 use std::{fmt::Display, path::PathBuf};
 
@@ -54,7 +53,7 @@ impl Display for Error {
                 )?;
             }
 
-            let file = std::fs::read_to_string(&*file).expect("should exist");
+            let file = std::fs::read_to_string(file).expect("should exist");
             let src_file = file.lines().collect::<Vec<&str>>();
 
             if let Some(line_num) = self.get_line() {
@@ -64,7 +63,7 @@ impl Display for Error {
                 let destination = line_num;
                 let mut context = 0;
 
-                while context < 2 {
+                while context < 3 {
                     if let Some(l) = src_file.get(start + context) {
                         if start + context == destination - 1 {
                             writeln!(f, "{} >| {}", destination, l)?;
@@ -77,7 +76,7 @@ impl Display for Error {
 
                 let uctx = &*self.context;
                 if let Some(ctx_file) = uctx.get_file() {
-                    let ctx_file = std::fs::read_to_string(&*ctx_file).expect("should exist");
+                    let ctx_file = std::fs::read_to_string(ctx_file).expect("should exist");
                     let ctx_file = ctx_file.lines().collect::<Vec<&str>>();
                     if let Some(ctx_line) = uctx.get_line() {
                         write!(f, "\nadditional context:\n")?;
@@ -86,7 +85,7 @@ impl Display for Error {
                         let destination = uctx.line;
                         let mut context = 0;
 
-                        while context <= 3 {
+                        while context < 3 {
                             if let Some(l) = ctx_file.get(start + context) {
                                 if start + context == destination - 1 {
                                     writeln!(f, "{} >| {}", destination, l)?;
@@ -124,7 +123,7 @@ impl Error {
         ecd: u16,
         line: usize,
         actx: usize,
-        file: RString,
+        file: String,
     ) -> Self {
         let mut s = Self::new(msg, ecd);
         s.set_line(line);
@@ -153,13 +152,12 @@ impl Error {
         self.location.set_line(line);
     }
     pub fn set_file(&mut self, fl: PathBuf) {
-        self.location
-            .set_file(fl.to_string_lossy().to_string().into());
+        self.location.set_file(fl.to_string_lossy().to_string());
     }
     pub fn set_context(&mut self, ctx: Location) {
         self.context = Box::new(ctx);
     }
-    pub fn get_file(&self) -> Option<RString> {
+    pub fn get_file(&self) -> Option<&str> {
         self.location.get_file()
     }
     pub fn get_line(&self) -> Option<usize> {

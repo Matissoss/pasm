@@ -6,7 +6,6 @@
 use std::mem::ManuallyDrop;
 
 use crate::{
-    conf::SMALLVEC_TOKENS_LEN,
     pre::tok::Token,
     shr::{
         ast::{Instruction, Operand},
@@ -73,13 +72,11 @@ pub struct MergerResult<'a> {
 }
 
 #[allow(unused_assignments)]
-pub fn mer(
-    mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>,
-    lnum: usize,
-) -> Result<SmallVec<MergerToken, 4>, Error> {
+pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<MergerToken, 4>, Error> {
     if line.is_empty() {
         return Ok(SmallVec::new());
     }
+    let lnum = lnum + 1;
 
     let mut root = SmallVec::<MergerToken, 4>::new();
     // defines if we are in root, set false if we meet first section/label
@@ -638,7 +635,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Erro
 }
 
 pub fn make_instruction(
-    mut line: SmallVec<Token, SMALLVEC_TOKENS_LEN>,
+    mut line: SmallVec<Token, 16>,
     mut start_idx: usize,
 ) -> Result<Instruction, Error> {
     let mut ins = Instruction::new();

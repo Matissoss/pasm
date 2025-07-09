@@ -36,12 +36,15 @@ pub fn get_file(inpath: PathBuf) -> Result<Vec<u8>, Error> {
     Ok(file.unwrap())
 }
 
-pub fn pasm_parse_src(inpath: PathBuf, file: &[u8]) -> Result<AST, Vec<Error>> {
+pub fn pasm_parse_src(
+    inpath: PathBuf,
+    file: &[u8],
+    nocheck: bool,
+) -> Result<(AST, Vec<*mut Vec<u8>>), Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
     let mut lines = utils::LineIter::new(file);
-
     let mut mer = MergerResult {
         body: Vec::new(),
         root: Vec::new(),
@@ -90,35 +93,37 @@ pub fn pasm_parse_src(inpath: PathBuf, file: &[u8]) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let res = pre::chk::check_ast(&ast);
+    if !nocheck {
+        let res = pre::chk::check_ast(&ast);
 
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("chk    ", start);
+        #[cfg(feature = "vtime")]
+        utils::vtimed_print("chk    ", start);
 
-    if let Some(errs) = res {
-        let pathstr = inpath.to_string_lossy();
-        for (lname, errs) in errs {
-            println!("-- {pathstr}:{lname} --");
-            for mut e in errs {
-                e.set_file(inpath.to_path_buf());
-                eprintln!("{e}");
+        if let Some(errs) = res {
+            let pathstr = inpath.to_string_lossy();
+            for (lname, errs) in errs {
+                println!("-- {pathstr}:{lname} --");
+                for mut e in errs {
+                    e.set_file(inpath.to_path_buf());
+                    eprintln!("{e}");
+                }
             }
+            std::process::exit(1);
         }
-        std::process::exit(1);
     }
-
+    let mut ptrs = Vec::new();
     if !ast.includes.is_empty() {
         for include in ast.includes.clone() {
-            // we have to Box::leak here, because file data lives through entirety of program
-            // lifetime (aka 'static) :D
-            //
-            // if we'd want to free it, then we'd return Vec<*const String> alongside AST and free it later
-            let file = Box::leak(Box::new(get_file(include.clone()).map_err(|e| vec![e])?));
-            ast.extend(pasm_parse_src(include, file)?)
-                .map_err(|e| vec![e])?;
+            ptrs.push(std::ptr::from_mut(Box::leak(Box::new(
+                get_file(include.clone()).map_err(|e| vec![e])?,
+            ))));
+            let (ast1, ptrs1) =
+                pasm_parse_src(include, unsafe { &**ptrs.last().unwrap() }, nocheck)?;
+            ast.extend(ast1).map_err(|e| vec![e])?;
+            ptrs.extend(ptrs1)
         }
     }
-    Ok(ast)
+    Ok((ast, ptrs))
 }
 
 pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {

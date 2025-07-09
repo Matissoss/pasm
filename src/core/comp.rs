@@ -4507,6 +4507,595 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             )
             .modrm(true, None, None)
             .ord(&[MODRM_RM, MODRM_REG]),
+        Mnemonic::KADDB => GenAPI::new()
+            .opcode(&[0x4A])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KADDW => GenAPI::new()
+            .opcode(&[0x4A])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KADDD => GenAPI::new()
+            .opcode(&[0x4A])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KADDQ => GenAPI::new()
+            .opcode(&[0x4A])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDB => GenAPI::new()
+            .opcode(&[0x41])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDW => GenAPI::new()
+            .opcode(&[0x41])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDD => GenAPI::new()
+            .opcode(&[0x41])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDQ => GenAPI::new()
+            .opcode(&[0x41])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDNB => GenAPI::new()
+            .opcode(&[0x42])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDNW => GenAPI::new()
+            .opcode(&[0x42])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDND => GenAPI::new()
+            .opcode(&[0x42])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KANDNQ => GenAPI::new()
+            .opcode(&[0x42])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KNOTB => GenAPI::new()
+            .opcode(&[0x44])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KNOTW => GenAPI::new()
+            .opcode(&[0x44])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KNOTD => GenAPI::new()
+            .opcode(&[0x44])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KNOTQ => GenAPI::new()
+            .opcode(&[0x44])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KORB => GenAPI::new()
+            .opcode(&[0x45])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KORW => GenAPI::new()
+            .opcode(&[0x45])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KORD => GenAPI::new()
+            .opcode(&[0x45])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KORQ => GenAPI::new()
+            .opcode(&[0x45])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXORB => GenAPI::new()
+            .opcode(&[0x47])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXORW => GenAPI::new()
+            .opcode(&[0x47])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXORD => GenAPI::new()
+            .opcode(&[0x47])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXORQ => GenAPI::new()
+            .opcode(&[0x47])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KTESTB => GenAPI::new()
+            .opcode(&[0x99])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KTESTW => GenAPI::new()
+            .opcode(&[0x99])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KTESTD => GenAPI::new()
+            .opcode(&[0x99])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KTESTQ => GenAPI::new()
+            .opcode(&[0x99])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .strict_pfx()
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KXNORB => GenAPI::new()
+            .opcode(&[0x46])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXNORW => GenAPI::new()
+            .opcode(&[0x46])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXNORD => GenAPI::new()
+            .opcode(&[0x46])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KXNORQ => GenAPI::new()
+            .opcode(&[0x46])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(true))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KUNPCKBW => GenAPI::new()
+            .opcode(&[0x4B])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(true)),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KUNPCKWD => GenAPI::new()
+            .opcode(&[0x4B])
+            .vex(VexDetails::new().map_select(0x0F).vlength(Some(true)))
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KUNPCKDQ => GenAPI::new()
+            .opcode(&[0x4B])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vex_we(true)
+                    .vlength(Some(true)),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
+        Mnemonic::KORTESTB => GenAPI::new()
+            .opcode(&[0x98])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .pp(0x66)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KORTESTW => GenAPI::new()
+            .opcode(&[0x98])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KORTESTD => GenAPI::new()
+            .opcode(&[0x98])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KORTESTQ => GenAPI::new()
+            .opcode(&[0x98])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x0F)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTLB => GenAPI::new()
+            .opcode(&[0x32])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x3A)
+                    .pp(0x66)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTLW => GenAPI::new()
+            .opcode(&[0x32])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTLD => GenAPI::new()
+            .opcode(&[0x33])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTLQ => GenAPI::new()
+            .opcode(&[0x33])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTRB => GenAPI::new()
+            .opcode(&[0x30])
+            .vex(
+                VexDetails::new()
+                    .map_select(0x3A)
+                    .pp(0x66)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTRW => GenAPI::new()
+            .opcode(&[0x30])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTRD => GenAPI::new()
+            .opcode(&[0x31])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(false),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KSHIFTRQ => GenAPI::new()
+            .opcode(&[0x31])
+            .vex(
+                VexDetails::new()
+                    .pp(0x66)
+                    .map_select(0x3A)
+                    .vlength(Some(false))
+                    .vex_we(true),
+            )
+            .modrm(true, None, None)
+            .strict_pfx()
+            .imm_atindex(2, 1)
+            .ord(&[MODRM_REG, MODRM_RM]),
+        Mnemonic::KMOVB => ins_kmov(ins).vex(
+            VexDetails::new()
+                .map_select(0x0F)
+                .pp(0x66)
+                .vex_we(false)
+                .vlength(Some(false)),
+        ),
+        Mnemonic::KMOVW => ins_kmov(ins).vex(
+            VexDetails::new()
+                .map_select(0x0F)
+                .vex_we(false)
+                .vlength(Some(false)),
+        ),
+        Mnemonic::KMOVD => {
+            let api = ins_kmov(ins);
+            let mut vd = VexDetails::new()
+                .map_select(0x0F)
+                .pp(0x66)
+                .vex_we(true)
+                .vlength(Some(false));
+            let (opc, _) = api.get_opcode();
+            let opc = opc[0];
+
+            if opc == 0x92 || opc == 0x93 {
+                vd = vd.pp(0xF2).vex_we(false);
+            }
+            api.vex(vd)
+        }
+        Mnemonic::KMOVQ => {
+            let api = ins_kmov(ins);
+            let mut vd = VexDetails::new()
+                .map_select(0x0F)
+                .vex_we(true)
+                .vlength(Some(false));
+            let (opc, _) = api.get_opcode();
+            let opc = opc[0];
+
+            if opc == 0x92 || opc == 0x93 {
+                vd = vd.pp(0xF2);
+            }
+            api.vex(vd)
+        }
     }
 }
 
@@ -4516,6 +5105,37 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+// k - mask
+// r - register
+// m - memory
+fn ins_kmov(ins: &Instruction) -> GenAPI {
+    let mut api = GenAPI::new()
+        .modrm(true, None, None)
+        .ord(&[MODRM_REG, MODRM_RM]);
+    let dst = ins.dst().unwrap();
+    let src = ins.src().unwrap();
+    if let Operand::Register(r) = dst {
+        let purp = r.purpose();
+        if purp.is_mask() {
+            if let Operand::Mem(_) = src {
+                api = api.opcode(&[0x90]);
+            } else if let Operand::Register(r) = src {
+                let purp = r.purpose();
+                if purp.is_mask() {
+                    api = api.opcode(&[0x90]);
+                } else {
+                    api = api.opcode(&[0x92]);
+                }
+            }
+        } else {
+            api = api.opcode(&[0x93]);
+        }
+    } else if let Operand::Mem(_) | Operand::SymbolRef(_) = dst {
+        api = api.opcode(&[0x91]).ord(&[MODRM_RM, MODRM_REG]);
+    }
+    api
+}
 
 fn ins_xchg(ins: &Instruction) -> GenAPI {
     let mut api = GenAPI::new().rex(true);

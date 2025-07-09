@@ -71,7 +71,7 @@ Goal: implement most of AVX based (E)VEX instructions
 - [x] implement EVEX support
 - ISA implementation (divided in 16 parts; add all instructions starting with `v`):
     - [x] avx-ext-0
-    - [ ] avx-ext-1
+    - [x] avx-ext-1
     - [ ] avx-ext-2
     - [ ] avx-ext-3
     - [ ] avx-ext-4

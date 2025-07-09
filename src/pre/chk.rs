@@ -2825,6 +2825,64 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_avx512()
                 .check(ins)
         }
+        KADDB | KADDW | KADDD | KADDQ | KANDB | KANDW | KANDD | KANDQ | KANDNB | KANDNW
+        | KANDND | KANDNQ | KNOTB | KNOTW | KNOTD | KNOTQ | KORB | KORW | KORD | KORQ | KXORB
+        | KXORW | KXORD | KXORQ | KXNORB | KXNORW | KXNORD | KXNORQ | KUNPCKBW | KUNPCKWD
+        | KUNPCKDQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[K], true)
+                .pushop(&[K], true)
+                .check(ins)
+        }
+        KTESTB | KTESTW | KTESTD | KTESTQ | KORTESTB | KORTESTW | KORTESTD | KORTESTQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K], true)
+                .pushop(&[K], true)
+                .check(ins)
+        }
+        KSHIFTLB | KSHIFTLW | KSHIFTLD | KSHIFTLQ | KSHIFTRB | KSHIFTRW | KSHIFTRD | KSHIFTRQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[K], true)
+                .pushop(&[I8], true)
+                .check(ins)
+        }
+        KMOVB => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K, R32, M8], true)
+                .pushop(&[K, R32, M8], true)
+                .set_forb(&[[R32, M8], [M8, M8], [M8, R32], [R32, R32]])
+                .check(ins)
+        }
+        KMOVW => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K, R32, M16], true)
+                .pushop(&[K, R32, M16], true)
+                .set_forb(&[[R32, M16], [M16, M16], [M16, R32], [R32, R32]])
+                .check(ins)
+        }
+        KMOVD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K, R32, M32], true)
+                .pushop(&[K, R32, M32], true)
+                .set_forb(&[[R32, M32], [M32, M32], [M32, R32], [R32, R32]])
+                .check(ins)
+        }
+        KMOVQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K, R64, M64], true)
+                .pushop(&[K, R64, M64], true)
+                .set_forb(&[[R64, M64], [M64, R64], [M64, M64], [R64, R64]])
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
