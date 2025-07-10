@@ -3400,6 +3400,136 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        VEXPANDPD | VEXPANDPS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VDBPSADBW => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VDIVPH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VDIVSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFCMADDCSH | VFMADDCSH | VFCMULCSH | VFMULCSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFIXUPIMMSS => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFIXUPIMMSD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFIXUPIMMPS => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFIXUPIMMPD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VDPBF16PS | VFCMADDCPH | VFMADDCPH | VFCMULCPH | VFMULCPH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VEXTRACTF32X4 | VEXTRACTF64X2 | VEXTRACTI32X4 | VEXTRACTI64X2 | VEXTRACTI128 => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, M128], true)
+                .pushop(&[YMM, ZMM], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VEXTRACTF32X8 | VEXTRACTF64X4 | VEXTRACTI32X8 | VEXTRACTI64X4 => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[YMM, M256], true)
+                .pushop(&[ZMM], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
