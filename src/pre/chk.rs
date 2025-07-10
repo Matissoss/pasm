@@ -2653,7 +2653,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        Mnemonic::VCVTSS2SI | Mnemonic::VCVTTSS2SI => ot_chk(
+        Mnemonic::VCVTSS2SI => ot_chk(
             ins,
             &[
                 (&[R32, R64], Optional::Needed),
@@ -2881,6 +2881,523 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .pushop(&[K, R64, M64], true)
                 .pushop(&[K, R64, M64], true)
                 .set_forb(&[[R64, M64], [M64, R64], [M64, M64], [R64, R64]])
+                .check(ins)
+        }
+        VCVTDQ2PH | VCVTNEPS2BF16 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_forb(&[
+                    [XMM, ZMM],
+                    [XMM, M512],
+                    [YMM, M128],
+                    [YMM, XMM],
+                    [YMM, YMM],
+                    [YMM, M256],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTNE2PS2BF16 => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTNEEBF162PS | VCVTNEEPH2PS | VCVTNEOBF162PS | VCVTNEOPH2PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[M128, M256], true)
+                .check(ins)
+        }
+        VCVTPD2PH | VCVTPD2UQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPS2UQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, M64, M128, M256, MBCST32], true)
+                .set_forb(&[
+                    [XMM, M256],
+                    [XMM, M128],
+                    [XMM, YMM],
+                    [YMM, YMM],
+                    [YMM, M256],
+                    [ZMM, XMM],
+                    [ZMM, M128],
+                    [ZMM, M128],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTQQ2PH => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mode(CheckMode::AVX)
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTQQ2PD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPS2UDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPH2DQ | VCVTPH2PD | VCVTPH2PSX | VCVTPH2UW | VCVTPH2W => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTQQ2PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_forb(&[
+                    [XMM, ZMM],
+                    [XMM, M512],
+                    [YMM, M128],
+                    [YMM, XMM],
+                    [YMM, YMM],
+                    [YMM, M256],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPD2UDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_forb(&[
+                    [XMM, ZMM],
+                    [XMM, M512],
+                    [YMM, M128],
+                    [YMM, XMM],
+                    [YMM, YMM],
+                    [YMM, M256],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPH2PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, M64, M128, M256], true)
+                .set_forb(&[
+                    [YMM, M64],
+                    [YMM, M256],
+                    [XMM, M128],
+                    [ZMM, M64],
+                    [ZMM, M128],
+                    [ZMM, XMM],
+                    [XMM, ZMM],
+                    [XMM, YMM],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPH2QQ | VCVTPH2UQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M32, M64, M128, MBCST16], true)
+                .set_forb(&[
+                    [XMM, M64],
+                    [XMM, M128],
+                    [YMM, M32],
+                    [YMM, M128],
+                    [ZMM, M32],
+                    [ZMM, M64],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPH2UDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M64, M128, M256, MBCST16], true)
+                .set_forb(&[
+                    [XMM, M128],
+                    [XMM, M256],
+                    [YMM, M64],
+                    [YMM, M256],
+                    [ZMM, M64],
+                    [ZMM, M128],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPS2PH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, M64, M128, M256], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[I8], true)
+                .set_forb(&[
+                    [M64, YMM, I8],
+                    [M256, YMM, I8],
+                    [M128, XMM, I8],
+                    [M64, ZMM, I8],
+                    [M128, ZMM, I8],
+                    [XMM, ZMM, I8],
+                    [YMM, XMM, I8],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPS2PHX => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_forb(&[
+                    [XMM, ZMM],
+                    [XMM, M512],
+                    [YMM, XMM],
+                    [YMM, YMM],
+                    [YMM, M128],
+                    [YMM, M256],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTPS2QQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, M64, M128, M256, MBCST32], true)
+                .set_forb(&[
+                    [XMM, YMM],
+                    [XMM, M128],
+                    [XMM, M256],
+                    [YMM, M256],
+                    [YMM, M64],
+                    [ZMM, M128],
+                    [ZMM, XMM],
+                    [ZMM, YMM],
+                    [ZMM, M256],
+                ])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTUSI2SD | VCVTUSI2SS | VCVTUSI2SH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, R64, R32, M32, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSD2SH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSH2SI | VCVTSH2USI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSS2USI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSD2USI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSS2SH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSH2SD | VCVTSH2SS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTSI2SH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[R32, R64, M32, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VCVTTSH2SI | VCVTTSH2USI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VCVTTSS2SI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VCVTTSD2USI => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[R32, R64], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VCVTTPD2QQ | VCVTTPD2UQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPS2UQQ | VCVTUDQ2PD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, M64, M128, M256, MBCST32], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [XMM, M128],
+                    [XMM, M256],
+                    [XMM, YMM],
+                    [ZMM, XMM],
+                    [ZMM, M128],
+                    [YMM, M64],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTUQQ2PD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPS2UDQ | VCVTUDQ2PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTUDQ2PH => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [XMM, M512],
+                    [XMM, ZMM],
+                    [YMM, XMM],
+                    [YMM, M128],
+                    [YMM, M256],
+                    [YMM, YMM],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPH2DQ | VCVTTPH2UW | VCVTTPH2W | VCVTUW2PH | VCVTW2PH => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTUQQ2PH => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPH2UQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M32, M64, M128, MBCST16], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [YMM, M64],
+                    [YMM, M128],
+                    [ZMM, M32],
+                    [ZMM, M64],
+                    [XMM, M64],
+                    [XMM, M128],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPH2QQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M64, M128, M256, MBCST16], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [YMM, M128],
+                    [YMM, M256],
+                    [ZMM, M64],
+                    [ZMM, M128],
+                    [XMM, M128],
+                    [XMM, M256],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPS2QQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M64, M128, M256, MBCST32], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [YMM, M128],
+                    [YMM, M256],
+                    [ZMM, M64],
+                    [ZMM, M128],
+                    [XMM, M128],
+                    [XMM, M256],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VCVTTPD2UDQ | VCVTUQQ2PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [XMM, ZMM],
+                    [XMM, M512],
+                    [YMM, XMM],
+                    [YMM, YMM],
+                    [YMM, M128],
+                    [YMM, M256],
+                ])
+                .set_avx512()
+                .set_mask_perm()
                 .check(ins)
         }
 

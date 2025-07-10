@@ -72,8 +72,8 @@ Goal: implement most of AVX based (E)VEX instructions
 - ISA implementation (divided in 15 parts):
     - [x] avx-ext-0
     - [x] avx-ext-1
-    - [ ] avx-ext-2
-    - [ ] avx-ext-3
+    - [x] avx-ext-2
+    - [x] avx-ext-3
     - [ ] avx-ext-4
     - [ ] avx-ext-5
     - [ ] avx-ext-6
@@ -114,7 +114,11 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing/polish of assembler, less updates/commits
 
-- [ ] To Be Defined: polish
+- [ ] Support for 16-bit addressing
+- [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
+- [ ] Support for `offset` (aka `ORG`) directive
+- [ ] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
+- [ ] Rework `src/shr/math.rs` (it is not effective) and allow for symbol referencing.
 - [ ] move to stable
 
 ## stable

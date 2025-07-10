@@ -13,7 +13,7 @@ use crate::shr::{
 const EVEX: u8 = 0x62;
 
 // opcode maps
-pub const MAP1: u8 = 0b000; // 0x0F
+pub const MAP0F: u8 = 0b000; // 0x0F
 pub const MAP38: u8 = 0b010; // 0x0F 0x38
 pub const MAP3A: u8 = 0b011; // 0x0F 0x3A
 pub const MAP4: u8 = 0b100;
