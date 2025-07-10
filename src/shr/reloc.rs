@@ -108,7 +108,7 @@ pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(
 
     if buf.len() + rel.size() < buf_offset {
         return Err(Error::new(
-            "tried to perform relocation, but we tried to write out of bounds",
+            "src/shr/rel.rs: tried to perform relocation, but we tried to write out of bounds",
             500,
         ));
     }

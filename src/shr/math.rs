@@ -200,7 +200,7 @@ enum Mode {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-enum Token {
+enum Token<'a> {
     Add,
     Sub,
     Div,
@@ -218,7 +218,7 @@ enum Token {
     Gt, // >
 
     Number(Number),
-    Unknown(String),
+    Unknown(&'a str),
 }
 
 type ME = MathElement;
@@ -430,17 +430,22 @@ fn mer2(mode: &Mode, lhs: MathElement, rhs: MathElement) -> MathElement {
 }
 
 fn tok(str: &str) -> Vec<Token> {
-    let mut tmp_buf = Vec::new();
+    let mut sstart = 0;
+    let mut send = 0;
+
+    let buf = str.as_bytes();
     let mut tokens = Vec::new();
 
     for c in str.chars() {
         match c {
             '+' | '-' | '*' | '/' | '&' | '|' | '%' | '!' | '^' | '(' | ')' | ' ' | '<' | '>'
             | '~' | '\t' => {
-                if !tmp_buf.is_empty() {
-                    tokens.push(make_tok(tmp_buf));
-                    tmp_buf = Vec::new();
+                let buf = &buf[sstart..send];
+                if sstart != send {
+                    tokens.push(make_tok(buf));
                 }
+                send += 1;
+                sstart = send;
                 match c {
                     '<' => tokens.push(Token::Lt),
                     '>' => tokens.push(Token::Gt),
@@ -459,18 +464,18 @@ fn tok(str: &str) -> Vec<Token> {
                     _ => {}
                 }
             }
-            _ => tmp_buf.push(c),
+            _ => send += 1,
         }
     }
-    if !tmp_buf.is_empty() {
-        tokens.push(make_tok(tmp_buf));
+    if sstart != send {
+        tokens.push(make_tok(&buf[sstart..send]));
     }
     tokens
 }
 
-fn make_tok(vec: Vec<char>) -> Token {
-    let str = String::from_iter(vec.iter());
-    if let Some(num) = Number::from_str(&str) {
+fn make_tok(vec: &[u8]) -> Token {
+    let str = unsafe { std::str::from_utf8_unchecked(vec) };
+    if let Some(num) = Number::from_str(str) {
         Token::Number(num)
     } else {
         Token::Unknown(str)

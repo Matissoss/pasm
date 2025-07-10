@@ -11,6 +11,7 @@ use crate::shr::{
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
+    smallvec::SmallVec,
 };
 
 use std::str::FromStr;
@@ -270,7 +271,7 @@ impl Mem {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Token {
     Register(Register),
     Number(i32),
@@ -301,7 +302,7 @@ fn mem_chk(mem: &mut Mem) {
     }
 }
 
-fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
+fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
     let mut mem = Mem::blank();
 
     let mut unspec_reg: Option<Register> = None;
@@ -313,7 +314,7 @@ fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
     // if number was prefixed with *
     let mut mul_modf = false;
     let mut num_ismin = false;
-    for tok in toks {
+    for tok in toks.into_iter() {
         match tok {
             Token::Register(r) => {
                 if unspec_reg.is_none() {
@@ -423,39 +424,53 @@ fn mem_par(toks: Vec<Token>) -> Result<Mem, Error> {
 
 const MS: u8 = CLOSURE_START as u8;
 const ME: u8 = CLOSURE_END as u8;
-fn mem_tok(str: &str) -> Vec<Token> {
-    let mut tokens = Vec::with_capacity(8);
+fn mem_tok(str: &str) -> SmallVec<Token, 8> {
+    let mut tokens = SmallVec::new();
     let bytes: &[u8] = str.as_bytes();
-    let mut tmp_buf: Vec<u8> = Vec::with_capacity(16);
+    let mut sstart = 0;
+    let mut send = 0;
     for b in bytes {
         match *b {
             b'*' => {
-                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                let b = &bytes[sstart..send];
+                send += 1;
+                sstart = send;
+                if let Some(tok) = mem_tok_from_buf(b) {
                     tokens.push(tok);
-                    tmp_buf.clear();
                 }
                 tokens.push(Token::Mul);
             }
             b'-' => {
-                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                let b = &bytes[sstart..send];
+                send += 1;
+                sstart = send;
+                if let Some(tok) = mem_tok_from_buf(b) {
                     tokens.push(tok);
-                    tmp_buf.clear();
                 }
                 tokens.push(Token::Sub);
             }
             b'+' => {
-                if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+                let b = &bytes[sstart..send];
+                send += 1;
+                sstart = send;
+                if let Some(tok) = mem_tok_from_buf(b) {
                     tokens.push(tok);
-                    tmp_buf.clear();
                 }
                 tokens.push(Token::Add);
             }
-            MS | ME | b' ' | b'\t' => continue,
-            _ => tmp_buf.push(*b),
+            MS | ME | b' ' | b'\t' => {
+                let b = &bytes[sstart..send];
+                send += 1;
+                sstart = send;
+                if let Some(tok) = mem_tok_from_buf(b) {
+                    tokens.push(tok);
+                }
+            }
+            _ => send += 1,
         }
     }
-    if !tmp_buf.is_empty() {
-        if let Some(tok) = mem_tok_from_buf(&tmp_buf) {
+    if sstart != send {
+        if let Some(tok) = mem_tok_from_buf(&bytes[sstart..send]) {
             tokens.push(tok);
         }
     }
@@ -467,11 +482,11 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
     if buf.is_empty() {
         return None;
     }
-    let utf8_buf = String::from_utf8_lossy(buf);
-    if let Ok(reg) = Register::from_str(&utf8_buf) {
+    let utf8_buf = unsafe { std::str::from_utf8_unchecked(buf) };
+    if let Ok(reg) = Register::from_str(utf8_buf) {
         Some(Token::Register(reg))
     } else {
-        Number::from_str(&utf8_buf).map(|n| Token::Number(n.get_as_i32()))
+        Number::from_str(utf8_buf).map(|n| Token::Number(n.get_as_i32()))
     }
 }
 
@@ -532,6 +547,23 @@ mod new_test {
         mem.set_addrsize(Size::Qword);
         mem.set_index(Register::RCX);
         assert_eq!(mem.index(), Some(Register::RCX));
+    }
+    #[test]
+    fn mem_tok_t() {
+        let str = "rax";
+        assert_eq!(
+            mem_tok(str).into_vec(),
+            vec![Token::Register(Register::RAX)]
+        );
+        let str = "rax + rcx";
+        assert_eq!(
+            mem_tok(str).into_vec(),
+            vec![
+                Token::Register(Register::RAX),
+                Token::Add,
+                Token::Register(Register::RCX)
+            ]
+        );
     }
     #[test]
     fn mem_par_check() {
