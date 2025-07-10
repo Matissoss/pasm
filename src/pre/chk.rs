@@ -3530,6 +3530,31 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        VFMADD132PH | VFMADD213PH | VFMADD231PH | VFNMADD132PH | VFNMADD213PH | VFNMADD231PH
+        | VFMSUB132PH | VFMSUB213PH | VFMSUB231PH | VFNMSUB132PH | VFNMSUB213PH | VFNMSUB231PH
+        | VFMADDSUB132PH | VFMADDSUB213PH | VFMADDSUB231PH | VFMSUBADD132PH | VFMSUBADD213PH
+        | VFMSUBADD231PH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VFMADD132SH | VFMADD213SH | VFMADD231SH | VFNMADD132SH | VFNMADD213SH | VFNMADD231SH
+        | VFMSUB132SH | VFMSUB213SH | VFMSUB231SH | VFNMSUB132SH | VFNMSUB213SH | VFNMSUB231SH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
