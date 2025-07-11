@@ -75,8 +75,8 @@ Goal: implement most of AVX based (E)VEX instructions
     - [x] avx-ext-2
     - [x] avx-ext-3
     - [x] avx-ext-4
-    - [ ] avx-ext-5
-    - [ ] avx-ext-6
+    - [x] avx-ext-5
+    - [x] avx-ext-6
     - [ ] avx-ext-7
     - [ ] avx-ext-8
     - [ ] avx-ext-9
