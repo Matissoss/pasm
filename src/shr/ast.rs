@@ -519,6 +519,9 @@ impl Operand<'_> {
             _ => None,
         }
     }
+    pub fn is_reg(&self) -> bool {
+        matches!(self, Operand::Register(_))
+    }
     pub fn is_imm(&self) -> bool {
         matches!(self, Operand::Imm(_) | Operand::String(_))
     }

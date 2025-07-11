@@ -3784,6 +3784,245 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        VMAXPH | VMINPH | VMULPH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VMAXSH | VMINSH | VMULSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VMOVSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, M16], true)
+                .pushop(&[XMM, M16], true)
+                .pushop(&[XMM], false)
+                .set_forb(&[[MA, MA, XMM], [MA, XMM, XMM], [XMM, MA, XMM]])
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VMOVW => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, R16, M16], true)
+                .pushop(&[XMM, R16, M16], true)
+                .set_forb(&[[MA, MA]])
+                .set_mode(CheckMode::AVX)
+                .check(ins)
+        }
+        VP2INTERSECTQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VP2INTERSECTD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBLENDD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, M128, M256], true)
+                .pushop(&[I8], true)
+                .check(ins)
+        }
+        VPBLENDMB | VPBLENDMW => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBLENDMD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBLENDMQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTB => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTW => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTI32X2 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTI32X8 | VPBROADCASTI64X4 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[ZMM], true)
+                .pushop(&[M256], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTI32X4 | VPBROADCASTI64X2 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[YMM, ZMM], true)
+                .pushop(&[M128], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTI128 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[YMM], true)
+                .pushop(&[M128], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPBROADCASTMB2Q | VPBROADCASTMW2D => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[K], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VPCMPB | VPCMPUB | VPCMPW | VPCMPUW => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCMPQ | VPCMPUQ => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCMPD | VPCMPUD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCOMPRESSB | VPCOMPRESSW => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
