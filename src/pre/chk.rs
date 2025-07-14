@@ -2231,11 +2231,11 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         Mnemonic::VPERMILPD | Mnemonic::VPERMILPS => avx_ot_chk(
             ins,
             &[
-                (&[XMM, YMM], Optional::Needed),
-                (&[XMM, YMM, M128, M256], Optional::Needed),
-                (&[XMM, YMM, M256, M128, I8], Optional::Needed),
+                (&[XMM, YMM, ZMM], Optional::Needed),
+                (&[XMM, YMM, ZMM, M128, M256, M512], Optional::Needed),
+                (&[XMM, YMM, ZMM, M256, M128, M512, I8], Optional::Needed),
             ],
-            &[(XMM, MA, MA), (YMM, MA, MA)],
+            &[(XMM, MA, MA), (YMM, MA, MA), (ZMM, MA, MA)],
             &[],
         ),
         Mnemonic::VPCLMULQDQ => avx_ot_chk(
@@ -4018,7 +4018,120 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             CheckAPI::<2>::new()
                 .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
                 .pushop(&[XMM, YMM, ZMM], true)
-                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCOMPRESSD | VPCOMPRESSQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCONFLICTD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPCONFLICTQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPDPBSSD | VPDPBSSDS | VPDPBSUD | VPDPBSUDS | VPDPBUUD | VPDPBUUDS | VPDPWSUD
+        | VPDPWSUDS | VPDPWUSD | VPDPWUUD | VPDPWUUDS | VPDPWUSDS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, M128, M256], true)
+                .check(ins)
+        }
+        VPERMI2Q | VPERMI2PD | VPERMT2Q | VPERMT2PD | VPMADD52HUQ | VPMADD52LUQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPDPBUSD | VPDPBUSDS | VPDPWSSD | VPDPWSSDS | VPERMD | VPERMI2D | VPERMI2PS | VPERMT2D
+        | VPERMT2PS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPERMB | VPERMW | VPERMI2B | VPERMI2W | VPERMT2B | VPERMT2W => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPERMPS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[YMM, ZMM], true)
+                .pushop(&[YMM, ZMM], true)
+                .pushop(&[YMM, ZMM, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPERMPD | VPERMQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[YMM, ZMM], true)
+                .pushop(&[YMM, ZMM, M256, M512, MBCST64], true)
+                .pushop(&[YMM, ZMM, M256, M512, MBCST64, I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPEXPANDB | VPEXPANDW | VPEXPANDD | VPEXPANDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPLZCNTD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPLZCNTQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)
