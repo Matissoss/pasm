@@ -557,7 +557,7 @@ impl AST<'_> {
         let iter = self.sections.iter().flat_map(|l| &l.content);
         let mut set: HashSet<&str> = HashSet::with_capacity(iter.count());
         for l in self.sections.iter().flat_map(|l| &l.content) {
-            if !set.insert(l.name) {
+            if !l.name.is_empty() && !set.insert(l.name) {
                 return Err(Error::new(
                     format!(
                         "file(s) contains multiple declarations of label of name \"{}\"",

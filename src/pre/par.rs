@@ -64,15 +64,15 @@ pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
 #[derive(PartialEq, Default)]
 pub struct ParserStatus<'a> {
     pub inroot: bool,
-    // idk why we need it, but it is needed
     pub started: bool,
 
     pub label: Label<'a>,
     pub attrs: Vec<&'a str>,
     pub section: Section<'a>,
-    pub sec_idx: usize,
 }
 
+// we have to use raw pointers, because if we used &mut instead, then rust would rip us apart :D
+// also *mut Error, because it is cheaper than Option<Error>
 pub fn par<'a>(
     ast: *mut AST<'a>,
     mer: SmallVec<MergerToken<'a>, 4>,
@@ -102,6 +102,10 @@ pub fn par<'a>(
                 }
                 BodyNode::Label(l) => {
                     if !status.label.name.is_empty() {
+                        status
+                            .section
+                            .content
+                            .push(std::mem::take(&mut status.label));
                         status.label = l;
                         status
                             .label
@@ -112,10 +116,6 @@ pub fn par<'a>(
                             return ptr;
                         }
                     } else {
-                        status
-                            .section
-                            .content
-                            .push(std::mem::take(&mut status.label));
                         status.label = l;
                         status
                             .label

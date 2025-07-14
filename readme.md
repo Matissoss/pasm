@@ -39,7 +39,7 @@ Here is exhaustive list of features you can use:
 
 - `time`: measures time it took for assembling (as a whole)
 - `vtime`: for benchmarking
-- `iinfo` : instruction info (also stores Mnemonics as strings)
+- `iinfo` : instruction info (stores mnemonics as strings)
 - `target_all`: every `target_*`
 - `target_elf`: elf target handling
 
