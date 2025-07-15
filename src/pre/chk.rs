@@ -4214,6 +4214,247 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_avx512()
                 .check(ins)
         }
+        VPOPCNTD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPMULTISHIFTQB | VPOPCNTQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPOPCNTB | VPOPCNTW | VPSHLDVW => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPROLVQ | VPRORVQ | VPSHLDVD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPROLVD | VPRORVD | VPSHLDVQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPROLQ | VPRORQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPROLD | VPRORD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+
+        VPSHLDW | VPSHRDW => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSHLDD | VPSHRDD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSHLDQ | VPSHRDQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSHUFBITQMB => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSLLVW | VPSRAVW | VPSRLVW => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSLLVQ | VPSRAVQ | VPSRLVQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSLLVD | VPSRLVD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+
+        VPTERNLOGQ => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPTERNLOGD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPTESTMB | VPTESTMW | VPTESTNMB | VPTESTNMW => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPTESTMD | VPTESTNMD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPTESTMQ | VPTESTNMQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRANGESS => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRANGESD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRANGEPS => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRANGEPD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
