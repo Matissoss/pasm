@@ -21,8 +21,6 @@ pub fn help() -> String {
         "\t-o=[PATH] / --output=[PATH]       ; specifies output file, by default a.out\n",
     );
     help_string.push_str("\t-v / --version                    ; prints version\n");
-    help_string
-        .push_str("\t-c / --check                      ; checks file without assembling it\n");
     #[cfg(feature = "iinfo")]
     help_string.push_str("\t-s / --supported-instructions     ; prints supported instructions\n");
     #[cfg(feature = "iinfo")]
@@ -30,7 +28,7 @@ pub fn help() -> String {
         "\t-S / --supported-instructions-raw ; prints supported instructions in raw format\n",
     );
     help_string
-        .push_str("\t-s / --skip-check                 ; skips checking part to gain performance (up to 25%)\n");
+        .push_str("\t-C / --skip-check                 ; skips checking part to gain performance (up to 25%)\n");
     help_string
         .push_str("\t-n / --nocolor                    ; prints all colored text without color\n");
 

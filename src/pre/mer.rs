@@ -15,6 +15,7 @@ use crate::{
         label::{Label, LabelAttributes},
         mem::Mem,
         num::Number,
+        section::Section,
         size::Size,
         smallvec::SmallVec,
         symbol::SymbolType,
@@ -23,13 +24,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct RootNode<'a> {
-    pub line: usize,
-    pub node: RootNodeEnum<'a>,
-}
-
-#[derive(Debug)]
-pub enum RootNodeEnum<'a> {
+pub enum RootNode<'a> {
     Format(&'a str),
     Include(&'a str),
     Extern(&'a str),
@@ -39,14 +34,8 @@ pub enum RootNodeEnum<'a> {
 }
 
 #[derive(Debug)]
-pub struct BodyNode<'a> {
-    pub line: usize,
-    pub node: BodyNodeEnum<'a>,
-}
-
-#[derive(Debug)]
-pub enum BodyNodeEnum<'a> {
-    Section(&'a str),
+pub enum BodyNode<'a> {
+    Section(Section<'a>),
 
     Label(Label<'a>),
     Instruction(Instruction<'a>),
@@ -65,12 +54,7 @@ pub enum MergerToken<'a> {
     Root(RootNode<'a>),
 }
 
-pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<MergerToken, 4>, Error> {
-    let lnum = lnum + 1;
-
-    let mut root = SmallVec::<MergerToken, 4>::new();
-    // defines if we are in root, set false if we meet first section/label
-    // scary :D
+pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Error> {
     let start = unsafe { line.take_owned(0).unwrap() };
 
     // legend:
@@ -78,7 +62,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
     match start {
         Token::Error(mut e) => {
             e.set_line(lnum);
-            return Err(*e);
+            Err(*e)
         }
 
         // attributes
@@ -99,31 +83,21 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     ));
                 }
             }
-            root.push(MergerToken::Body(BodyNode {
-                line: lnum,
-                node: BodyNodeEnum::Attributes(attr),
-            }));
+            Ok(MergerToken::Body(BodyNode::Attributes(attr)))
         }
         // assert that layout of line is something like label: <instruction>
         Token::Label(lname) => {
-            let l = Label {
+            let mut l = Label {
                 name: lname,
                 ..Default::default()
             };
-            root.push(MergerToken::Body(BodyNode {
-                line: lnum,
-                node: BodyNodeEnum::Label(l),
-            }));
             match unsafe { line.take_owned(1) } {
                 Some(Token::Mnemonic(m)) => {
                     unsafe { line.insert(1, Token::Mnemonic(m)) };
                     match make_instruction(line, 1) {
                         Ok(mut i) => {
                             i.line = lnum;
-                            root.push(MergerToken::Body(BodyNode {
-                                line: lnum,
-                                node: BodyNodeEnum::Instruction(i),
-                            }));
+                            l.content.push(i);
                         }
                         Err(mut e) => {
                             e.set_line(lnum);
@@ -140,20 +114,18 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                 }
                 None => {}
             }
+            Ok(MergerToken::Body(BodyNode::Label(l)))
         }
         Token::Mnemonic(m) => {
             unsafe { line.insert(0, Token::Mnemonic(m)) };
             match make_instruction(line, 0) {
                 Ok(mut i) => {
                     i.line = lnum;
-                    root.push(MergerToken::Body(BodyNode {
-                        line: lnum,
-                        node: BodyNodeEnum::Instruction(i),
-                    }));
+                    Ok(MergerToken::Body(BodyNode::Instruction(i)))
                 }
                 Err(mut e) => {
                     e.set_line(lnum);
-                    return Err(e);
+                    Err(e)
                 }
             }
         }
@@ -183,10 +155,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Root(RootNode {
-                line: lnum,
-                node: RootNodeEnum::Extern(name),
-            }));
+            Ok(MergerToken::Root(RootNode::Extern(name)))
         }
         // assert that layout of line is: .output "path" and nothing past that
         Token::Directive(Directive::Output) => {
@@ -214,10 +183,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Root(RootNode {
-                line: lnum,
-                node: RootNodeEnum::Output(name),
-            }));
+            Ok(MergerToken::Root(RootNode::Output(name)))
         }
         // assert that layout of line is: .format "name" and nothing past that
         Token::Directive(Directive::Format) => {
@@ -245,23 +211,11 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Root(RootNode {
-                line: lnum,
-                node: RootNodeEnum::Format(name),
-            }));
+            Ok(MergerToken::Root(RootNode::Format(name)))
         }
-        Token::Directive(Directive::Writeable) => root.push(MergerToken::Body(BodyNode {
-            line: lnum,
-            node: BodyNodeEnum::Write,
-        })),
-        Token::Directive(Directive::Executable) => root.push(MergerToken::Body(BodyNode {
-            line: lnum,
-            node: BodyNodeEnum::Exec,
-        })),
-        Token::Directive(Directive::Alloc) => root.push(MergerToken::Body(BodyNode {
-            line: lnum,
-            node: BodyNodeEnum::Alloc,
-        })),
+        Token::Directive(Directive::Writeable) => Ok(MergerToken::Body(BodyNode::Write)),
+        Token::Directive(Directive::Executable) => Ok(MergerToken::Body(BodyNode::Exec)),
+        Token::Directive(Directive::Alloc) => Ok(MergerToken::Body(BodyNode::Alloc)),
         // assert that layout of line is: .section "name" and nothing past that
         Token::Directive(Directive::Section) => {
             let name = unsafe { line.take_owned(1) };
@@ -280,30 +234,22 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Body(BodyNode {
-                line: lnum,
-                node: BodyNodeEnum::Section(name),
-            }));
+            let mut section = Section {
+                name,
+                ..Default::default()
+            };
             let mut slice_idx = 2;
             while let Some(t) = unsafe { line.take_owned(slice_idx) } {
                 match t {
-                        Token::Directive(Directive::Executable) => root.push(MergerToken::Body(BodyNode {
-                                line: lnum,
-                            node: BodyNodeEnum::Exec,
-                        })),
-                        Token::Directive(Directive::Writeable) => root.push(MergerToken::Body(BodyNode {
-                                line: lnum,
-                            node: BodyNodeEnum::Write,
-                        })),
-                        Token::Directive(Directive::Alloc) => root.push(MergerToken::Body(BodyNode {
-                                line: lnum,
-                            node: BodyNodeEnum::Alloc,
-                        })),
+                        Token::Directive(Directive::Executable) => section.attributes.set_exec(true),
+                        Token::Directive(Directive::Writeable) => section.attributes.set_write(true),
+                        Token::Directive(Directive::Alloc) => section.attributes.set_alloc(true),
                         _ => return Err(Error::new_wline("expected writeable, alloc and executable directives after section directive, found other garbage", 17, lnum))
                     }
 
                 slice_idx += 1;
             }
+            Ok(MergerToken::Body(BodyNode::Section(section)))
         }
         // assert that layout of line is .align $align
         Token::Directive(Directive::Align) => {
@@ -333,10 +279,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Body(BodyNode {
-                line: lnum,
-                node: BodyNodeEnum::Align(align),
-            }));
+            Ok(MergerToken::Body(BodyNode::Align(align)))
         }
         // assert that layout of line is .define name $value
         Token::Directive(Directive::Define) => {
@@ -383,10 +326,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             };
-            root.push(MergerToken::Root(RootNode {
-                line: lnum,
-                node: RootNodeEnum::Define(name, value),
-            }));
+            Ok(MergerToken::Root(RootNode::Define(name, value)))
         }
         // assert that layout of line is .include "file_path"
         Token::Directive(Directive::Include) => {
@@ -403,23 +343,20 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
             }
 
             if let Some(Token::String(s)) = path {
-                root.push(MergerToken::Root(RootNode {
-                    line: lnum,
-                    node: RootNodeEnum::Include(s),
-                }));
+                Ok(MergerToken::Root(RootNode::Include(s)))
             } else if path.is_none() {
-                return Err(Error::new_wline(
+                Err(Error::new_wline(
                     "include directive requires path at index 1, found nothing",
                     17,
                     lnum,
-                ));
+                ))
             } else {
-                return Err(Error::new_wline(
+                Err(Error::new_wline(
                     "you provided invalid token at index 1, expected string",
                     17,
                     lnum,
-                ));
-            };
+                ))
+            }
         }
         // assert that layout of line is .bits $align
         Token::Directive(Directive::Bits) => {
@@ -455,10 +392,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                 ));
             };
 
-            root.push(MergerToken::Root(RootNode {
-                line: lnum,
-                node: RootNodeEnum::Bits(bits),
-            }));
+            Ok(MergerToken::Root(RootNode::Bits(bits)))
         }
         // possible layout:
         // assert that layout of line is something like: .visibility .type "label_name": <instruction>
@@ -499,29 +433,23 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     lnum,
                 ));
             }
-            root.push(MergerToken::Body(BodyNode {
-                line: lnum,
-                node: BodyNodeEnum::Label(Label {
-                    name: lname,
-                    attributes: {
-                        let mut a = LabelAttributes::default();
-                        a.set_symbol_type(t);
-                        a.set_visibility(v);
-                        a
-                    },
-                    ..Default::default()
-                }),
-            }));
+            let mut label = Label {
+                name: lname,
+                attributes: {
+                    let mut a = LabelAttributes::default();
+                    a.set_symbol_type(t);
+                    a.set_visibility(v);
+                    a
+                },
+                ..Default::default()
+            };
 
             if let Some(Token::Mnemonic(m)) = unsafe { line.take_owned(i + 1) } {
                 unsafe { line.insert(i + 1, Token::Mnemonic(m)) };
                 match make_instruction(line, i + 1) {
                     Ok(mut i) => {
                         i.line = lnum;
-                        root.push(MergerToken::Body(BodyNode {
-                            line: lnum,
-                            node: BodyNodeEnum::Instruction(i),
-                        }));
+                        label.content.push(i);
                     }
                     Err(mut e) => {
                         e.set_line(lnum);
@@ -529,18 +457,15 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<SmallVec<Merger
                     }
                 }
             }
+            Ok(MergerToken::Body(BodyNode::Label(label)))
         }
 
-        _ => {
-            return Err(Error::new_wline(
-                "tried to start line with unknown token",
-                3,
-                lnum,
-            ))
-        }
+        _ => Err(Error::new_wline(
+            "tried to start line with unknown token",
+            3,
+            lnum,
+        )),
     }
-
-    Ok(root)
 }
 
 pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Error> {

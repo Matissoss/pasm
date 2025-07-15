@@ -27,22 +27,22 @@ _start:
     ; [...] same as before
 ```
 
-Tests were done using `perf`. Here are arguments for (GAS) `as` (version: `2.41-38.fc40`): `as <SOURCE_FILE>` and for `pasm` (compiled using `release` profile without anything else; for version `25.06-beta2` after patch from 08.07.2025): `pasm -i=<SOURCE_FILE>`.
+Tests were done using `perf stat -e cycles,instructions,branches,branch-misses`. `pasm` version `beta-avx` (`release` profile) and `as` version `2.41-38.fc40`.
 
-Following results are the best one of 5 iterations.
+Following results are the best of 5 iterations.
 
 ### PASM
 
 ```
-13 340 703 854      cycles:u                                                   (66,71%)
-31 133 614 154      instructions:u      #    2,33  insn per cycle              (83,37%)
- 6 178 595 883      branches:u                                                 (83,32%)
-    29 335 888      branch-misses:u     #    0,47% of all branches             (83,32%)
+13 147 148 822      cycles:u                                                                (66,65%)
+30 481 804 331      instructions:u                   #    2,32  insn per cycle              (83,34%)
+ 6 248 733 133      branches:u                                                              (83,33%)
+    29 936 930      branch-misses:u                  #    0,48% of all branches             (83,35%)
 
-    4,005931614 seconds time elapsed
+3,721079105 seconds time elapsed
 
-    3,545263000 seconds user
-    0,399712000 seconds sys
+3,499439000 seconds user
+0,179778000 seconds sys
 ```
 
 ### GAS

@@ -79,7 +79,6 @@ impl Cli {
                 }
                 "-C" | "--no-check" => cli.flags.set(NO_CHECK, true),
                 "-v" | "--version" => cli.flags.set(VER, true),
-                "-c" | "--check" => cli.flags.set(NO_ASSEMBLE, true),
                 "-s" | "--supported-instructions" => cli.flags.set(SUPPORTED_INS, true),
                 "-S" | "--supported-instructions-raw" => cli.flags.set(SUPPORTEDINSR, true),
                 "-n" | "--nocolor" => cli.flags.set(NOCOL, true),

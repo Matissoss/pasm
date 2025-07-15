@@ -51,7 +51,7 @@ pub fn pasm_parse_src(
         ..Default::default()
     };
     let mut ast = AST::default();
-    while let Some((lnum, line)) = lines.next() {
+    while let Some((mut lnum, line)) = lines.next() {
         if line.is_empty() {
             continue;
         }
@@ -59,9 +59,10 @@ pub fn pasm_parse_src(
         if tok.is_empty() {
             continue;
         }
+        lnum += 1;
         match pre::mer::mer(tok, lnum) {
             Ok(m) => {
-                let err = pre::par::par(&mut ast, m, &mut par);
+                let err = pre::par::par(&mut ast, m, &mut par, lnum);
                 if !err.is_null() {
                     errors.push(unsafe { std::ptr::read(err) });
                 }

@@ -4,10 +4,9 @@
 // licensed under MPL 2.0
 
 use crate::{
-    pre::mer::{BodyNodeEnum as BodyNode, MergerToken, RootNodeEnum as RootNode},
+    pre::mer::{BodyNode, MergerToken, RootNode},
     shr::{
-        ast::AST, error::Error, label::Label, num::Number, section::Section, smallvec::SmallVec,
-        visibility::Visibility,
+        ast::AST, error::Error, label::Label, num::Number, section::Section, visibility::Visibility,
     },
 };
 
@@ -75,143 +74,133 @@ pub struct ParserStatus<'a> {
 // also *mut Error, because it is cheaper than Option<Error>
 pub fn par<'a>(
     ast: *mut AST<'a>,
-    mer: SmallVec<MergerToken<'a>, 4>,
+    node: MergerToken<'a>,
     status: *mut ParserStatus<'a>,
+    lnum: usize,
 ) -> *mut Error {
     let ast = unsafe { &mut *ast };
     let status = unsafe { &mut *status };
-    for node in mer.into_iter() {
-        if let MergerToken::Body(b) = node {
-            status.inroot = false;
-            let body_node = b.node;
-            match body_node {
-                BodyNode::Exec => status.section.attributes.set_exec(true),
-                BodyNode::Alloc => status.section.attributes.set_alloc(true),
-                BodyNode::Write => status.section.attributes.set_write(true),
-                BodyNode::Bits(b) => {
-                    status.section.bits = b;
-                }
-                BodyNode::Align(a) => {
-                    status.section.align = a;
-                }
-                BodyNode::Attributes(a) => {
-                    status.attrs.push(a);
-                }
-                BodyNode::Instruction(i) => {
-                    status.label.content.push(i);
-                }
-                BodyNode::Label(l) => {
-                    if !status.label.name.is_empty() {
-                        status
-                            .section
-                            .content
-                            .push(std::mem::take(&mut status.label));
-                        status.label = l;
-                        status
-                            .label
-                            .attributes
-                            .set_bits(ast.default_bits.unwrap_or(16));
-                        if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
-                            let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                            return ptr;
-                        }
-                    } else {
-                        status.label = l;
-                        status
-                            .label
-                            .attributes
-                            .set_bits(ast.default_bits.unwrap_or(16));
-                        if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
-                            let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                            return ptr;
-                        }
+    if let MergerToken::Body(b) = node {
+        status.inroot = false;
+        let body_node = b;
+        match body_node {
+            BodyNode::Exec => status.section.attributes.set_exec(true),
+            BodyNode::Alloc => status.section.attributes.set_alloc(true),
+            BodyNode::Write => status.section.attributes.set_write(true),
+            BodyNode::Bits(b) => {
+                status.section.bits = b;
+            }
+            BodyNode::Align(a) => {
+                status.section.align = a;
+            }
+            BodyNode::Attributes(a) => {
+                status.attrs.push(a);
+            }
+            BodyNode::Instruction(i) => {
+                status.label.content.push(i);
+            }
+            BodyNode::Label(l) => {
+                if !status.label.name.is_empty() {
+                    status
+                        .section
+                        .content
+                        .push(std::mem::take(&mut status.label));
+                    status.label = l;
+                    status
+                        .label
+                        .attributes
+                        .set_bits(ast.default_bits.unwrap_or(16));
+                    if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
+                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                        return ptr;
                     }
-                }
-                BodyNode::Section(s) => {
-                    if !status.label.name.is_empty() {
-                        status
-                            .section
-                            .content
-                            .push(std::mem::take(&mut status.label));
-                        status.label = Label::default();
-                    }
-                    if status.started && status.section != Section::default() {
-                        ast.sections.push(std::mem::take(&mut status.section));
-                        status.section = Section::default();
-                        status.section.name = s;
-                    } else {
-                        status.section = Section::default();
-                        status.section.name = s;
-                        status.started = true;
+                } else {
+                    status.label = l;
+                    status
+                        .label
+                        .attributes
+                        .set_bits(ast.default_bits.unwrap_or(16));
+                    if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
+                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                        return ptr;
                     }
                 }
             }
-        } else if let MergerToken::Root(r) = node {
-            if !status.inroot {
-                let er = Error::new_wline("you tried to use root node outside of root", 21, r.line);
-                let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                return ptr;
+            BodyNode::Section(s) => {
+                if !status.label.name.is_empty() {
+                    status
+                        .section
+                        .content
+                        .push(std::mem::take(&mut status.label));
+                    status.label = Label::default();
+                }
+                if status.started && status.section != Section::default() {
+                    ast.sections.push(std::mem::take(&mut status.section));
+                    status.section = s;
+                } else {
+                    status.section = s;
+                    status.started = true;
+                }
             }
-            let location = r.line;
-            match r.node {
-                RootNode::Format(f) => {
-                    if ast.format.is_some() {
-                        let er = Error::new_wline(
-                            "you tried to redeclare format multiple times",
-                            21,
-                            location,
-                        );
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    } else {
-                        ast.format = Some(f);
-                    }
+        }
+    } else if let MergerToken::Root(r) = node {
+        if !status.inroot {
+            let er = Error::new_wline("you tried to use root node outside of root", 21, lnum);
+            let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+            return ptr;
+        }
+        match r {
+            RootNode::Format(f) => {
+                if ast.format.is_some() {
+                    let er =
+                        Error::new_wline("you tried to redeclare format multiple times", 21, lnum);
+                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                    return ptr;
+                } else {
+                    ast.format = Some(f);
                 }
-                RootNode::Bits(b) => {
-                    if ast.default_bits.is_some() && ast.default_bits == Some(b) {
-                        let er = Error::new_wline(
-                            "you tried to redeclare default bits multiple times",
-                            21,
-                            location,
-                        );
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    } else {
-                        ast.default_bits = Some(b);
-                    }
+            }
+            RootNode::Bits(b) => {
+                if ast.default_bits.is_some() && ast.default_bits == Some(b) {
+                    let er = Error::new_wline(
+                        "you tried to redeclare default bits multiple times",
+                        21,
+                        lnum,
+                    );
+                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                    return ptr;
+                } else {
+                    ast.default_bits = Some(b);
                 }
-                RootNode::Output(o) => {
-                    if ast.default_output.is_some()
-                        && ast.default_output == Some(PathBuf::from(o.to_string()))
-                    {
-                        let er = Error::new_wline(
-                            "you tried to redeclare default output path multiple times",
-                            21,
-                            location,
-                        );
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    } else {
-                        ast.default_output = Some(PathBuf::from(o.to_string()));
-                    }
+            }
+            RootNode::Output(o) => {
+                if ast.default_output.is_some()
+                    && ast.default_output == Some(PathBuf::from(o.to_string()))
+                {
+                    let er = Error::new_wline(
+                        "you tried to redeclare default output path multiple times",
+                        21,
+                        lnum,
+                    );
+                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                    return ptr;
+                } else {
+                    ast.default_output = Some(PathBuf::from(o.to_string()));
                 }
-                RootNode::Define(name, value) => {
-                    if ast.defines.insert(name, value).is_some() {
-                        let er = Error::new_wline(
-                            "tried to redeclare same define multiple times",
-                            21,
-                            location,
-                        );
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    }
+            }
+            RootNode::Define(name, value) => {
+                if ast.defines.insert(name, value).is_some() {
+                    let er =
+                        Error::new_wline("tried to redeclare same define multiple times", 21, lnum);
+                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
+                    return ptr;
                 }
-                RootNode::Extern(e) => {
-                    ast.externs.push(e);
-                }
-                RootNode::Include(i) => {
-                    ast.includes.push(PathBuf::from(i.to_string()));
-                }
+            }
+            RootNode::Extern(e) => {
+                ast.externs.push(e);
+            }
+            RootNode::Include(i) => {
+                ast.includes.push(PathBuf::from(i.to_string()));
             }
         }
     }

@@ -84,16 +84,25 @@ Goal: implement most of AVX based (E)VEX instructions
     - [ ] avx-ext-b
     - [ ] avx-ext-c
     - [ ] avx-ext-d
-    - [ ] avx-ext-e
-- [ ] implement EEVEX (enchanced EVEX) support (for Intel APX)
-- ISA implementantation (divided in 8 parts):
-    - [ ] intel-apx-0
-    - [ ] intel-apx-1
-    - [ ] intel-apx-2
-    - [ ] intel-apx-3
-    - [ ] intel-apx-4
-    - [ ] intel-apx-5
-    - [ ] intel-apx-6
+    - [ ] avx-ext-e (vsib)
+- [ ] Move to beta-intel-apx
+
+## beta-intel-apx
+
+Goal: implement support for Intel APX
+
+- [ ] cleanup `Instruction` in `src/shr/ast.rs` (it is barely readable) and prepare it for Intel APX
+- [ ] cleanup `CheckAPI` in `src/pre/chkn.rs` for better readability, performance and preparations for Intel APX
+- [ ] implement support for APX in syntax
+- [ ] implement EEVEX (extended EVEX) and REX2 prefixes support (for Intel APX)
+- ISA implementantation (divided in 8 parts; legacy instructions included):
+    - [ ] intel-apx-0 (legacy instructions without setcc)
+    - [ ] intel-apx-1 (ccmpcc)
+    - [ ] intel-apx-2 (cfcmovcc)
+    - [ ] intel-apx-3 (ctestcc)
+    - [ ] intel-apx-4 (setcc)
+    - [ ] intel-apx-6 (cmpccxadd)
+    - [ ] intel-apx-5 (push2/pop2)
     - [ ] intel-apx-7
 - [ ] Move to beta-min
 
@@ -101,24 +110,35 @@ Goal: implement most of AVX based (E)VEX instructions
 
 Goal: support for smaller x86-64 ISA extensions
 
-- [ ] CMPCCXADD
 - [ ] CET_SS (Shadow Stack)
+- [ ] Xeon PHI
+- [ ] VMX
+- [ ] SMX
+- [ ] SGX
 - [ ] GFNI
 - [ ] BMI*
 - [ ] x87 ISA
 - [ ] missing x86-64 instructions
-- [ ] move to beta-macro
 - [ ] move to rc
 
 ## rc
 
-Goal: extensive testing/polish of assembler, less updates/commits
+Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
 - [ ] Support for 16-bit addressing
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
+- [ ] Allow for `protected public function label_name:`
 - [ ] Support for `offset` (aka `ORG`) directive
 - [ ] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
-- [ ] Rework `src/shr/math.rs` (it is not effective) and allow for symbol referencing.
+- [ ] Rework `src/shr/math.rs` (it is not effective currently) and allow for symbol referencing inside `$()` closure
+- [ ] Allow for usage of memory addressing without size directive
+- [ ] Better support of `include` directive (test it)
+- [ ] Support for anonymous labels (like in FASM `@@:`) and references like `@previous`, `@next` (reserved relocation names)
+- [ ] Allow for symbol referencing with section specifier
+- [ ] Allow for `gotpcrel` relocation type
+- [ ] Support for `repeatX` instruction (custom one; aka `times` in other assemblers)
+- [ ] Support for `align` instruction
+- [ ] Support for `fixedsize` directive (throws an error, if buffer len is gt fixedsize)
 - [ ] move to stable
 
 ## stable
