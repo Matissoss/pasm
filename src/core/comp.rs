@@ -6455,6 +6455,175 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true)),
+        Mnemonic::VPMASKMOVD => {
+            if let Some(Operand::Mem(_) | Operand::SymbolRef(_)) = ins.dst() {
+                GenAPI::new()
+                    .opcode(&[0x8E])
+                    .modrm(true, None, None)
+                    .ord(&[MODRM_RM, VEX_VVVV, MODRM_REG])
+                    .vex(VexDetails::new().pp(0x66).map_select(0x38))
+                    .strict_pfx()
+            } else {
+                GenAPI::new()
+                    .opcode(&[0x8C])
+                    .modrm(true, None, None)
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .vex(VexDetails::new().pp(0x66).map_select(0x38))
+                    .strict_pfx()
+            }
+        }
+        Mnemonic::VPMASKMOVQ => {
+            if let Some(Operand::Mem(_) | Operand::SymbolRef(_)) = ins.dst() {
+                GenAPI::new()
+                    .opcode(&[0x8E])
+                    .modrm(true, None, None)
+                    .ord(&[MODRM_RM, VEX_VVVV, MODRM_REG])
+                    .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                    .strict_pfx()
+            } else {
+                GenAPI::new()
+                    .opcode(&[0x8C])
+                    .modrm(true, None, None)
+                    .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+                    .vex(VexDetails::new().pp(0x66).map_select(0x38).vex_we(true))
+                    .strict_pfx()
+            }
+        }
+        Mnemonic::VPMOVB2M => GenAPI::new()
+            .opcode(&[0x29])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVW2M => GenAPI::new()
+            .opcode(&[0x29])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(true)),
+        Mnemonic::VPMOVD2M => GenAPI::new()
+            .opcode(&[0x39])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVQ2M => GenAPI::new()
+            .opcode(&[0x39])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(true)),
+        Mnemonic::VPMOVDB => GenAPI::new()
+            .opcode(&[0x31])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSDB => GenAPI::new()
+            .opcode(&[0x21])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSDB => GenAPI::new()
+            .opcode(&[0x11])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVDW => GenAPI::new()
+            .opcode(&[0x33])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSDW => GenAPI::new()
+            .opcode(&[0x23])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSDW => GenAPI::new()
+            .opcode(&[0x13])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+
+        Mnemonic::VPMOVM2B => GenAPI::new()
+            .opcode(&[0x28])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVM2W => GenAPI::new()
+            .opcode(&[0x28])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(true)),
+        Mnemonic::VPMOVM2D => GenAPI::new()
+            .opcode(&[0x38])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVM2Q => GenAPI::new()
+            .opcode(&[0x38])
+            .modrm(true, None, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(true)),
+
+        Mnemonic::VPMOVQB => GenAPI::new()
+            .opcode(&[0x32])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSQB => GenAPI::new()
+            .opcode(&[0x22])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSQB => GenAPI::new()
+            .opcode(&[0x12])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+
+        Mnemonic::VPMOVQD => GenAPI::new()
+            .opcode(&[0x35])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSQD => GenAPI::new()
+            .opcode(&[0x25])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSQD => GenAPI::new()
+            .opcode(&[0x15])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+
+        Mnemonic::VPMOVQW => GenAPI::new()
+            .opcode(&[0x34])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSQW => GenAPI::new()
+            .opcode(&[0x24])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSQW => GenAPI::new()
+            .opcode(&[0x14])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+
+        Mnemonic::VPMOVWB => GenAPI::new()
+            .opcode(&[0x30])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVSWB => GenAPI::new()
+            .opcode(&[0x20])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
+        Mnemonic::VPMOVUSWB => GenAPI::new()
+            .opcode(&[0x10])
+            .modrm(true, None, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .evex(VexDetails::new().pp(0xF3).map_select(MAP38).vex_we(false)),
         _ => panic!("haha"),
     }
 }

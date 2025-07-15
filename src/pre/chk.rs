@@ -4136,6 +4136,84 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        VPMASKMOVD | VPMASKMOVQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, M128, M256], true)
+                .pushop(&[XMM, YMM], true)
+                .pushop(&[XMM, YMM, M128, M256], true)
+                .set_forb(&[[MA, RA, MA]])
+                .check(ins)
+        }
+        VPMOVB2M | VPMOVW2M | VPMOVD2M | VPMOVQ2M => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[K], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_avx512()
+                .check(ins)
+        }
+        VPMOVDB | VPMOVSDB | VPMOVUSDB | VPMOVQW | VPMOVSQW | VPMOVUSQW => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, M32, M64, M128], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [M32, YMM],
+                    [M32, ZMM],
+                    [M64, XMM],
+                    [M64, ZMM],
+                    [M128, XMM],
+                    [M128, YMM],
+                ])
+                .set_avx512()
+                .check(ins)
+        }
+        VPMOVDW | VPMOVSDW | VPMOVUSDW | VPMOVQD | VPMOVSQD | VPMOVUSQD | VPMOVWB | VPMOVSWB
+        | VPMOVUSWB => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, M64, M128, M256], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [M64, YMM],
+                    [M64, ZMM],
+                    [M128, XMM],
+                    [M128, ZMM],
+                    [M256, XMM],
+                    [M256, YMM],
+                ])
+                .set_avx512()
+                .check(ins)
+        }
+        VPMOVM2B | VPMOVM2W | VPMOVM2D | VPMOVM2Q => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[K], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .check(ins)
+        }
+        VPMOVQB | VPMOVSQB | VPMOVUSQB => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, M16, M32, M64], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_mode(CheckMode::AVX)
+                .set_forb(&[
+                    [M16, YMM],
+                    [M16, ZMM],
+                    [M32, XMM],
+                    [M32, ZMM],
+                    [M64, XMM],
+                    [M64, YMM],
+                ])
+                .set_avx512()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(
