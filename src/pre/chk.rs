@@ -4456,6 +4456,128 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .check(ins)
         }
 
+        VRCP14SS | VRSQRT14SS | VSCALEFSS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCP14SD | VRSQRT14SD | VSCALEFSD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCPPH | VRSQRTPH | VSCALEFPH => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCP14PS | VRSQRT14PS | VSCALEFPS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCP14PD | VRSQRT14PD | VSCALEFPD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCPSH | VRSQRTSH | VSCALEFSH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+
+        VREDUCEPH | VRNDSCALEPH => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST16], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VREDUCEPS | VRNDSCALEPS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VREDUCEPD | VRNDSCALEPD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[XMM, YMM, ZMM, M128, M256, M512, MBCST64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VREDUCESH | VRNDSCALESH => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M16], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VREDUCESS | VRNDSCALESS => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VREDUCESD | VRNDSCALESD => {
+            use chkn::*;
+            CheckAPI::<4>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .pushop(&[I8], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+
         _ => {
             let mut er = Error::new(
                 "internal error: instruction does not have entry in check layer",
