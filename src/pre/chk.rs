@@ -4657,6 +4657,74 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
+        PREFETCHWT1 => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .pushop(&[M8], true)
+                .check(ins)
+        }
+        V4FMADDSS | V4FNMADDSS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M128], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        V4FMADDPS | V4FNMADDPS | VP4DPWSSDS | VP4DPWSSD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[ZMM], true)
+                .pushop(&[ZMM], true)
+                .pushop(&[ZMM, M128], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VEXP2PS | VRCP28PS | VRSQRT28PS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[ZMM], true)
+                .pushop(&[ZMM, M512, MBCST32], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        
+        VRCP28SS | VRSQRT28SS => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M32], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VRCP28SD | VRSQRT28SD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_mode(CheckMode::AVX)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VEXP2PD | VRCP28PD | VRSQRT28PD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[ZMM], true)
+                .pushop(&[ZMM, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
 
         _ => {
             let mut er = Error::new(

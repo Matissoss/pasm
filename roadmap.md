@@ -83,7 +83,7 @@ Goal: implement most of AVX based (E)VEX instructions
     - [x] avx-ext-a
     - [x] avx-ext-b
     - [x] avx-ext-c
-    - [ ] avx-ext-d
+    - [x] avx-ext-d
     - [ ] avx-ext-e (vsib)
 - [ ] Move to beta-intel-apx
 
