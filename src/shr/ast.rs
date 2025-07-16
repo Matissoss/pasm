@@ -67,8 +67,6 @@ pub struct Instruction<'a> {
     // BBB: if XXX is EVEX: mask as byte; if XXX != EVEX: B3 if 4th bit of size
     // C  : has mask
     pub metadata_2: u16,
-    // debug
-    pub line: usize,
 }
 
 impl Clone for Instruction<'_> {
@@ -77,7 +75,6 @@ impl Clone for Instruction<'_> {
         for o in self.iter() {
             new.push(o);
         }
-        new.line = self.line;
         new.metadata = self.metadata;
         new.metadata_2 = self.metadata_2;
         new.mnemonic = self.mnemonic;
@@ -108,7 +105,15 @@ impl Debug for Instruction<'_> {
 
 impl PartialEq for Instruction<'_> {
     fn eq(&self, rhs: &Self) -> bool {
-        self.line == rhs.line
+        if self.mnemonic != rhs.mnemonic || self.len() != rhs.len() {
+            return false;
+        }
+        for i in 0..self.len() {
+            if self.get(i) != rhs.get(i) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -218,7 +223,6 @@ impl<'a> Instruction<'a> {
             metadata_2: 0,
             mnemonic: Mnemonic::__LAST,
             additional: MaybeUninit::uninit(),
-            line: 0,
         }
     }
     pub const fn set_addt(&mut self, addt: Option<Mnemonic>) {
@@ -501,6 +505,7 @@ pub struct AST<'a> {
     pub format: Option<&'a str>,
     pub default_bits: Option<u8>,
     pub default_output: Option<PathBuf>,
+    pub blank_lines: Vec<usize>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -552,6 +557,20 @@ impl Operand<'_> {
 }
 
 impl AST<'_> {
+    pub fn effective_line(&self, base_line: usize) -> usize {
+        if self.blank_lines.is_empty() {
+            return base_line;
+        }
+        let mut nline = base_line;
+        for line in &self.blank_lines {
+            if *line < base_line {
+                nline += 1;
+            } else {
+                break;
+            }
+        }
+        nline
+    }
     pub fn validate(&self) -> Result<(), Error> {
         use std::collections::HashSet;
         let iter = self.sections.iter().flat_map(|l| &l.content);

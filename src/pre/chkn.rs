@@ -278,16 +278,14 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                     }
                 }
                 if !f {
-                    let mut er = Error::new("you tried to use prefix mnemonic, but primary mnemonic does not allow for this one", 6);
-                    er.set_line(ins.line);
+                    let er = Error::new("you tried to use prefix mnemonic, but primary mnemonic does not allow for this one", 6);
                     return Err(er);
                 }
             } else {
-                let mut er = Error::new(
+                let er = Error::new(
                     "you tried to use prefix mnemonic, but primary mnemonic does not allow for one",
                     6,
                 );
-                er.set_line(ins.line);
                 return Err(er);
             }
         }
@@ -312,8 +310,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                 }
             }
             if at == smv.len() {
-                let mut er = Error::new("you tried to use forbidden operand combination", 7);
-                er.set_line(ins.line);
+                let er = Error::new("you tried to use forbidden operand combination", 7);
                 return Err(er);
             }
         }
@@ -323,34 +320,30 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     pub fn check(&self, ins: &Instruction) -> Result<(), Error> {
         self.check_addt(ins)?;
         if ins.get_mask().is_some() && !self.get_mask() {
-            return Err(Error::new_wline(
+            return Err(Error::new(
                 "you tried to use mask on instruction that does not support it",
                 16,
-                ins.line,
             ));
         }
         if (ins.get_evex()) && !self.get_avx512() {
-            return Err(Error::new_wline(
+            return Err(Error::new(
                 "you tried to use AVX-512 modifiers on instruction that is not from AVX-512",
                 16,
-                ins.line,
             ));
         }
         for (i, o) in self.allowed.iter().enumerate() {
             if let Some(s) = ins.get(i) {
                 if !o.has(s.atype()) {
-                    let mut er = Error::new(
+                    let er = Error::new(
                         format!("operand at index {i} has invalid type: {}", s.atype()),
                         8,
                     );
-                    er.set_line(ins.line);
                     return Err(er);
                 }
             } else if o.is_optional() {
                 break;
             } else {
-                let mut er = Error::new("you didn't provide valid amount of operands", 9);
-                er.set_line(ins.line);
+                let er = Error::new("you didn't provide valid amount of operands", 9);
                 return Err(er);
             }
         }
@@ -377,11 +370,10 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                         continue;
                     }
                     if o.is_imm() && sz < o.size() {
-                        let mut er = Error::new(
+                        let er = Error::new(
                             "you provided immediate which size was larger than other operands",
                             8,
                         );
-                        er.set_line(ins.line);
                         return Err(er);
                     }
                     match o {
@@ -391,21 +383,19 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                                 && !r.is_ctrl_reg()
                                 && !r.is_sgmnt()
                             {
-                                let mut er = Error::new(
+                                let er = Error::new(
                                     "you tried to use invalid operand size in this instruction",
                                     8,
                                 );
-                                er.set_line(ins.line);
                                 return Err(er);
                             }
                         }
                         Operand::Mem(m) => {
                             if sz != m.size() {
-                                let mut er = Error::new(
+                                let er = Error::new(
                                     "you tried to use invalid operand size in this instruction",
                                     8,
                                 );
-                                er.set_line(ins.line);
                                 return Err(er);
                             }
                         }

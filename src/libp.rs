@@ -52,14 +52,16 @@ pub fn pasm_parse_src(
     };
     let mut ast = AST::default();
     while let Some((mut lnum, line)) = lines.next() {
+        lnum += 1;
         if line.is_empty() {
+            ast.blank_lines.push(lnum);
             continue;
         }
         let tok = pre::tok::tokl(line);
         if tok.is_empty() {
+            ast.blank_lines.push(lnum);
             continue;
         }
-        lnum += 1;
         match pre::mer::mer(tok, lnum) {
             Ok(m) => {
                 let err = pre::par::par(&mut ast, m, &mut par, lnum);
@@ -88,8 +90,6 @@ pub fn pasm_parse_src(
     utils::vtimed_print("pre    ", start);
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
-
-    //let mut ast = pre::par::par(mer)?;
 
     ast.validate().map_err(|e| vec![e])?;
 

@@ -14,21 +14,23 @@ use crate::shr::{
     size::Size,
 };
 
-pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
+pub fn check_ast(ast: &AST) -> Option<Vec<(String, Vec<Error>)>> {
     let mut errors: Vec<(String, Vec<Error>)> = Vec::new();
 
-    for section in &file.sections {
+    for section in &ast.sections {
         for label in &section.content {
             let chk_ins: fn(&Instruction) -> Result<(), Error> = match label.attributes.get_bits() {
                 64 => check_ins64bit,
                 _ => check_ins32bit,
             };
             let mut errs = Vec::new();
+            let mut idx = 0;
             for inst in &label.content {
                 if let Err(mut err) = chk_ins(inst) {
-                    err.set_line(inst.line);
+                    err.set_line(ast.effective_line(idx + label.base_line));
                     errs.push(err);
                 }
+                idx += 1;
             }
             if !errs.is_empty() {
                 errors.push((label.name.to_string(), errs));
@@ -46,18 +48,16 @@ pub fn check_ast(file: &AST) -> Option<Vec<(String, Vec<Error>)>> {
 fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     if ins.needs_rex() {
-        let mut er = Error::new(
+        let er = Error::new(
             "you tried to use instruction that requires REX prefix, but bits != 64",
             10,
         );
-        er.set_line(ins.line);
         return Err(er);
     } else if ins.needs_evex() {
-        let mut er = Error::new(
+        let er = Error::new(
             "you tried to use instruction that requires EVEX prefix, but bits != 64",
             10,
         );
-        er.set_line(ins.line);
         return Err(er);
     }
     match ins.mnemonic {
@@ -447,11 +447,10 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[],
         ),
         Mnemonic::MOVQ | MOVSTRQ | SCASQ | STOSQ => {
-            let mut er = Error::new(
+            let er = Error::new(
                 "you tried to use instruction that is invalid when bits != 64",
                 10,
             );
-            er.set_line(ins.line);
             Err(er)
         }
         _ => shr_chk(ins),
@@ -4889,11 +4888,10 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         }
 
         _ => {
-            let mut er = Error::new(
+            let er = Error::new(
                 "internal error: instruction does not have entry in check layer",
                 500,
             );
-            er.set_line(ins.line);
             Err(er)
         }
     }
@@ -4918,11 +4916,10 @@ fn avx_ot_chk_wthout(
         return Err(err);
     }
     if ops.is_empty() && !ins.is_empty() {
-        let mut er = Error::new(
+        let er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
         );
-        er.set_line(ins.line);
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
@@ -4931,11 +4928,10 @@ fn avx_ot_chk_wthout(
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
-            let mut er = Error::new(
+            let er = Error::new(
                 format!("this mnemonic requires operand at index {idx}, but one was not found"),
                 9,
             );
-            er.set_line(ins.line);
             return Err(er);
         } else {
             break;
@@ -4961,11 +4957,10 @@ fn avx_ot_chk(
         return Err(err);
     }
     if ops.is_empty() && !ins.is_empty() {
-        let mut er = Error::new(
+        let er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
         );
-        er.set_line(ins.line);
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
@@ -4974,11 +4969,10 @@ fn avx_ot_chk(
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
-            let mut er = Error::new(
+            let er = Error::new(
                 format!("this mnemonic requires operand at index {idx}, but one was not found"),
                 9,
             );
-            er.set_line(ins.line);
             return Err(er);
         } else {
             break;
@@ -5013,11 +5007,10 @@ fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<Err
     };
     for f in forb {
         if (dst_t, src_t, ssrc_t) == *f {
-            let mut er = Error::new(
+            let er = Error::new(
                 "you provided instruction, which has forbidden operand combination",
                 7,
             );
-            er.set_line(ins.line);
             return Some(er);
         }
     }
@@ -5034,11 +5027,10 @@ fn ot_chk(
         return Err(err);
     }
     if ops.is_empty() && !ins.is_empty() {
-        let mut er = Error::new(
+        let er = Error::new(
             "this mnemonic does not accept any operand, but you tried to use one",
             9,
         );
-        er.set_line(ins.line);
         return Err(er);
     }
     for (idx, allowed) in ops.iter().enumerate() {
@@ -5047,11 +5039,10 @@ fn ot_chk(
                 return Err(err);
             }
         } else if allowed.1 == Optional::Needed {
-            let mut er = Error::new(
+            let er = Error::new(
                 format!("this mnemonic requires operand at index {idx}, but one was not found"),
                 9,
             );
-            er.set_line(ins.line);
             return Err(er);
         } else {
             break;
@@ -5092,11 +5083,10 @@ fn forb_chk(ins: &Instruction, forb: &[(AType, AType)]) -> Option<Error> {
     };
     for f in forb {
         if (dst_t, src_t) == *f {
-            let mut er = Error::new(
+            let er = Error::new(
                 "you provided instruction, which has forbidden operand combination",
                 7,
             );
-            er.set_line(ins.line);
             return Some(er);
         }
     }
@@ -5142,8 +5132,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
             if s1 <= r0.size() {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(r0.size()), Some(s1)) {
-                let mut er = Error::new("you tried to use immediate which is too large", 8);
-                er.set_line(ins.line);
+                let er = Error::new("you tried to use immediate which is too large", 8);
                 Some(er)
             } else {
                 None
@@ -5153,16 +5142,14 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
             if s1 <= s0 {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
-                let mut er = Error::new("you tried to use immediate which is too large", 8);
-                er.set_line(ins.line);
+                let er = Error::new("you tried to use immediate which is too large", 8);
                 Some(er)
             } else {
                 None
             }
         }
         (AType::Memory(_, _, _), AType::Memory(_, _, _)) => {
-            let mut er = Error::new("combination of memory and memory is forbidden", 8);
-            er.set_line(ins.line);
+            let er = Error::new("combination of memory and memory is forbidden", 8);
             Some(er)
         }
         (AType::Register(r0, _), AType::Register(r1, _)) => {
@@ -5172,15 +5159,13 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
                 if s1 == s0 && ssrc.size() == s0 {
                     None
                 } else {
-                    let mut er = Error::new("dst operand has invalid type", 8);
-                    er.set_line(ins.line);
+                    let er = Error::new("dst operand has invalid type", 8);
                     Some(er)
                 }
             } else if s1 == s0 {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
-                let mut er = Error::new("dst operand has invalid type", 8);
-                er.set_line(ins.line);
+                let er = Error::new("dst operand has invalid type", 8);
                 Some(er)
             } else {
                 None
@@ -5210,8 +5195,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
             if s1 <= r0.size() {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(r0.size()), Some(s1)) {
-                let mut er = Error::new("you tried to use immediate which is too large", 8);
-                er.set_line(ins.line);
+                let er = Error::new("you tried to use immediate which is too large", 8);
                 Some(er)
             } else {
                 None
@@ -5221,16 +5205,14 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
             if s1 <= s0 {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
-                let mut er = Error::new("you tried to use immediate which is too large", 8);
-                er.set_line(ins.line);
+                let er = Error::new("you tried to use immediate which is too large", 8);
                 Some(er)
             } else {
                 None
             }
         }
         (AType::Memory(_, _, _), AType::Memory(_, _, _)) => {
-            let mut er = Error::new("combination of memory and memory is forbidden", 8);
-            er.set_line(ins.line);
+            let er = Error::new("combination of memory and memory is forbidden", 8);
             Some(er)
         }
         (AType::Register(r0, f0), AType::Register(r1, f1)) => {
@@ -5258,8 +5240,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
             {
                 None
             } else if !ins.mnemonic.allows_diff_size(Some(s0), Some(s1)) {
-                let mut er = Error::new("dst operand has invalid type", 8);
-                er.set_line(ins.line);
+                let er = Error::new("dst operand has invalid type", 8);
                 Some(er)
             } else {
                 None
@@ -5273,8 +5254,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
 fn addt_chk(ins: &Instruction, accpt_addt: &[Mnemonic]) -> Option<Error> {
     if let Some(addt) = ins.addt() {
         if !find_bool(accpt_addt, &addt) {
-            let mut er = Error::new("usage of forbidden additional mnemonic", 6);
-            er.set_line(ins.line);
+            let er = Error::new("usage of forbidden additional mnemonic", 6);
             return Some(er);
         }
     }

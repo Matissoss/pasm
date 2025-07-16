@@ -12,6 +12,7 @@ pub struct Label<'a> {
     pub name: &'a str,
     pub align: u16,
     pub attributes: LabelAttributes,
+    pub base_line: usize,
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

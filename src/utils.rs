@@ -42,11 +42,7 @@ impl<'a> LineIter<'a> {
                     self.end += 1;
                     self.start = self.end;
                     self.line += 1;
-                    if line_s.is_empty() {
-                        continue;
-                    } else {
-                        return Some((self.line - 1, line_s));
-                    }
+                    return Some((self.line - 1, line_s));
                 } else {
                     self.end += 1;
                 }

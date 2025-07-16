@@ -89,14 +89,14 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
         Token::Label(lname) => {
             let mut l = Label {
                 name: lname,
+                base_line: lnum,
                 ..Default::default()
             };
             match unsafe { line.take_owned(1) } {
                 Some(Token::Mnemonic(m)) => {
                     unsafe { line.insert(1, Token::Mnemonic(m)) };
                     match make_instruction(line, 1) {
-                        Ok(mut i) => {
-                            i.line = lnum;
+                        Ok(i) => {
                             l.content.push(i);
                         }
                         Err(mut e) => {
@@ -119,10 +119,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
         Token::Mnemonic(m) => {
             unsafe { line.insert(0, Token::Mnemonic(m)) };
             match make_instruction(line, 0) {
-                Ok(mut i) => {
-                    i.line = lnum;
-                    Ok(MergerToken::Body(BodyNode::Instruction(i)))
-                }
+                Ok(i) => Ok(MergerToken::Body(BodyNode::Instruction(i))),
                 Err(mut e) => {
                     e.set_line(lnum);
                     Err(e)
@@ -435,6 +432,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             }
             let mut label = Label {
                 name: lname,
+                base_line: lnum,
                 attributes: {
                     let mut a = LabelAttributes::default();
                     a.set_symbol_type(t);
@@ -447,8 +445,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             if let Some(Token::Mnemonic(m)) = unsafe { line.take_owned(i + 1) } {
                 unsafe { line.insert(i + 1, Token::Mnemonic(m)) };
                 match make_instruction(line, i + 1) {
-                    Ok(mut i) => {
-                        i.line = lnum;
+                    Ok(i) => {
                         label.content.push(i);
                     }
                     Err(mut e) => {
