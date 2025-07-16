@@ -82,7 +82,7 @@ Goal: implement most of AVX based (E)VEX instructions
     - [x] avx-ext-9
     - [x] avx-ext-a
     - [x] avx-ext-b
-    - [ ] avx-ext-c
+    - [x] avx-ext-c
     - [ ] avx-ext-d
     - [ ] avx-ext-e (vsib)
 - [ ] Move to beta-intel-apx
@@ -111,7 +111,7 @@ Goal: implement support for Intel APX
 Goal: support for smaller x86-64 ISA extensions
 
 - [ ] CET_SS (Shadow Stack)
-- [ ] Xeon PHI
+- [ ] Xeon PHI (with MVEX prefix)
 - [ ] VMX
 - [ ] SMX
 - [ ] SGX
