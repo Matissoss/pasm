@@ -12,10 +12,10 @@
 ## features
 
 > [!NOTE]
-> This info is for `25.06-beta1` release.
+> This info is for `25.07-beta-avx` release.
 
-- Support for ~50%+ x86-64 ISA (~848+ instructions)
-- Support for `SSE*`, `AVX`, `AVX2`, `AVX-512` (WIP; APX soon) `MMX` and more x86-64 extensions
+- Support for ~75%+ x86-64 ISA (~1339+ instructions)
+- Support for `SSE*`, `AVX`, `AVX2`, `AVX-512`/`AVX-10`, (APX, x87, Xeon PHI with MVEX soon) `MMX` and more x86-64 extensions
 - Support for 64-bit and 32-bit ELF as export target
 - Very performant and optimized (~3,37x faster than GAS in [some cases](perf.md))
 
