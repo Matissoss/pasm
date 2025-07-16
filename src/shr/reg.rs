@@ -22,6 +22,11 @@ pub enum Purpose {
 }
 
 impl Purpose {
+    pub const fn is_avx(&self) -> bool {
+        *self as u8 == Self::F128 as u8
+            || *self as u8 == Self::F256 as u8
+            || *self as u8 == Self::F512 as u8
+    }
     pub const fn is_gpr(&self) -> bool {
         *self as u8 == Self::General as u8
     }

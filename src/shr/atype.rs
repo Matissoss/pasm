@@ -5,10 +5,15 @@
 
 use crate::shr::{
     ast::Operand,
+    booltable::BoolTable8,
     reg::{Purpose, Register},
     size::Size,
 };
 
+pub const BCST_FLAG: u8 = 0x0;
+pub const VSIB_FLAG: u8 = 0x1;
+
+pub const ANY: AType = AType::Any;
 pub const CS: AType = AType::Register(Register::CS, true);
 pub const DS: AType = AType::Register(Register::DS, true);
 pub const ES: AType = AType::Register(Register::ES, true);
@@ -38,17 +43,61 @@ pub const YMM: AType = AType::Register(Register::YMM0, false);
 pub const ZMM: AType = AType::Register(Register::ZMM0, false);
 pub const K: AType = AType::Register(Register::K0, false);
 
-pub const MA: AType = AType::Memory(Size::Any, Size::Any, false);
-pub const M8: AType = AType::Memory(Size::Byte, Size::Any, false);
-pub const M16: AType = AType::Memory(Size::Word, Size::Any, false);
-pub const MBCST16: AType = AType::Memory(Size::Word, Size::Any, true);
-pub const M32: AType = AType::Memory(Size::Dword, Size::Any, false);
-pub const MBCST32: AType = AType::Memory(Size::Dword, Size::Any, true);
-pub const M64: AType = AType::Memory(Size::Qword, Size::Any, false);
-pub const MBCST64: AType = AType::Memory(Size::Qword, Size::Any, true);
-pub const M128: AType = AType::Memory(Size::Xword, Size::Any, false);
-pub const M256: AType = AType::Memory(Size::Yword, Size::Any, false);
-pub const M512: AType = AType::Memory(Size::Zword, Size::Any, false);
+pub const MA: AType = AType::Memory(Size::Any, Size::Any, BoolTable8::new());
+pub const M8: AType = AType::Memory(Size::Byte, Size::Any, BoolTable8::new());
+pub const M16: AType = AType::Memory(Size::Word, Size::Any, BoolTable8::new());
+pub const MBCST16: AType = AType::Memory(
+    Size::Word,
+    Size::Any,
+    BoolTable8::new().setc(BCST_FLAG, true),
+);
+pub const M32: AType = AType::Memory(Size::Dword, Size::Any, BoolTable8::new());
+pub const MBCST32: AType = AType::Memory(
+    Size::Dword,
+    Size::Any,
+    BoolTable8::new().setc(BCST_FLAG, true),
+);
+pub const M64: AType = AType::Memory(Size::Qword, Size::Any, BoolTable8::new());
+pub const MBCST64: AType = AType::Memory(
+    Size::Qword,
+    Size::Any,
+    BoolTable8::new().setc(BCST_FLAG, true),
+);
+pub const M128: AType = AType::Memory(Size::Xword, Size::Any, BoolTable8::new());
+pub const M256: AType = AType::Memory(Size::Yword, Size::Any, BoolTable8::new());
+pub const M512: AType = AType::Memory(Size::Zword, Size::Any, BoolTable8::new());
+
+pub const VM64Z: AType = AType::Memory(
+    Size::Qword,
+    Size::Zword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
+pub const VM64Y: AType = AType::Memory(
+    Size::Qword,
+    Size::Yword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
+pub const VM64X: AType = AType::Memory(
+    Size::Qword,
+    Size::Xword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
+
+pub const VM32Z: AType = AType::Memory(
+    Size::Dword,
+    Size::Zword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
+pub const VM32Y: AType = AType::Memory(
+    Size::Dword,
+    Size::Yword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
+pub const VM32X: AType = AType::Memory(
+    Size::Dword,
+    Size::Xword,
+    BoolTable8::new().setc(VSIB_FLAG, true),
+);
 
 pub const IA: AType = AType::Immediate(Size::Any, false);
 pub const I8: AType = AType::Immediate(Size::Byte, false);
@@ -60,11 +109,12 @@ pub const STRING: AType = AType::Immediate(Size::Any, true);
 #[derive(Debug, Clone, Copy)]
 pub enum AType {
     NoType,
+    Any,
 
     //                fixed register
     Register(Register, bool),
-    //     size|address size  (registers used) | is_bcst
-    Memory(Size, Size, bool),
+    //     size|address size  (registers used) | flags (vsib and bcst)
+    Memory(Size, Size, BoolTable8),
     //              is_string
     Immediate(Size, bool),
 }
@@ -96,34 +146,53 @@ impl std::fmt::Display for AType {
                 _ => write!(f, "immANY")?,
             },
             Self::Immediate(_, true) => write!(f, "string")?,
-            Self::Memory(sz, addrsz, bcst) => match addrsz {
-                Size::Any => write!(
-                    f,
-                    "m{}{}",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Word => write!(
-                    f,
-                    "m{}{}&16",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Dword => write!(
-                    f,
-                    "m{}{}&32",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                Size::Qword => write!(
-                    f,
-                    "m{}{}&64",
-                    if *bcst { "bcst" } else { "" },
-                    (<Size as Into<u8>>::into(*sz) as u16) << 3
-                )?,
-                _ => write!(f, "")?,
-            },
-            Self::NoType => write!(f, "")?,
+            Self::Memory(sz, addrsz, flags) => {
+                let vsib = flags.get(VSIB_FLAG).unwrap();
+                let bcst = flags.get(BCST_FLAG).unwrap();
+                if vsib {
+                    match addrsz {
+                        Size::Xword => {
+                            write!(f, "vm{}x", (<Size as Into<u8>>::into(*sz) as u16) << 3)?
+                        }
+                        Size::Yword => {
+                            write!(f, "vm{}y", (<Size as Into<u8>>::into(*sz) as u16) << 3)?
+                        }
+                        Size::Zword => {
+                            write!(f, "vm{}z", (<Size as Into<u8>>::into(*sz) as u16) << 3)?
+                        }
+                        _ => write!(f, "")?,
+                    }
+                } else {
+                    match addrsz {
+                        Size::Any => write!(
+                            f,
+                            "m{}{}",
+                            if bcst { "bcst" } else { "" },
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3
+                        )?,
+                        Size::Word => write!(
+                            f,
+                            "m{}{}&16",
+                            if bcst { "bcst" } else { "" },
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3
+                        )?,
+                        Size::Dword => write!(
+                            f,
+                            "m{}{}&32",
+                            if bcst { "bcst" } else { "" },
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3
+                        )?,
+                        Size::Qword => write!(
+                            f,
+                            "m{}{}&64",
+                            if bcst { "bcst" } else { "" },
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3
+                        )?,
+                        _ => write!(f, "")?,
+                    }
+                }
+            }
+            Self::Any | Self::NoType => write!(f, "")?,
         };
         Ok(())
     }
@@ -137,10 +206,20 @@ impl ToType for Operand<'_> {
     fn atype(&self) -> AType {
         match self {
             Self::Register(r) => AType::Register(*r, false),
-            Self::Mem(m) => AType::Memory(m.size(), m.addrsize(), m.is_bcst()),
+            Self::Mem(m) => AType::Memory(
+                m.size(),
+                m.addrsize(),
+                BoolTable8::new()
+                    .setc(BCST_FLAG, m.is_bcst())
+                    .setc(VSIB_FLAG, m.is_vsib()),
+            ),
             Self::SymbolRef(s) => {
                 if s.is_deref() {
-                    AType::Memory(s.size().unwrap_or(Size::Unknown), Size::Any, false)
+                    AType::Memory(
+                        s.size().unwrap_or(Size::Unknown),
+                        Size::Any,
+                        BoolTable8::new(),
+                    )
                 } else {
                     AType::Immediate(Size::Dword, false)
                 }
@@ -183,6 +262,7 @@ impl PartialEq for AType {
                     rsz <= lsz
                 }
             }
+            (AType::Any, _) | (_, AType::Any) => true,
             _ => false,
         }
     }

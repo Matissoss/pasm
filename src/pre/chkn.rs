@@ -7,7 +7,7 @@ use std::mem::MaybeUninit;
 
 use crate::shr::{
     ast::{Instruction, Operand},
-    atype::{AType, ToType, K},
+    atype::{AType, ToType, BCST_FLAG, K, VSIB_FLAG},
     booltable::BoolTable8 as Flags8,
     error::Error,
     ins::Mnemonic,
@@ -81,7 +81,7 @@ impl<'a> OperandSet<'a> {
                     return false;
                 }
             }
-            AType::NoType => return false,
+            AType::Any | AType::NoType => return false,
         };
         let mut idx = 0;
         let mut off = 0;
@@ -149,7 +149,7 @@ impl<'a> OperandSet<'a> {
                     flags.set(HAS_IMM, true);
                     IMM_TYPE
                 }
-                AType::NoType => 0b00,
+                AType::Any | AType::NoType => 0b00,
             };
             if pvtype == 0 {
                 pvtype = crtype;
@@ -359,10 +359,11 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             CheckMode::X86 => {
                 let mut sz = Size::Unknown;
                 for o in ins.iter() {
-                    if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, true) =
-                        o.atype()
+                    if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, fl) = o.atype()
                     {
-                        continue;
+                        if fl.get(BCST_FLAG).unwrap() || fl.get(VSIB_FLAG).unwrap() {
+                            continue;
+                        }
                     } else if o.atype() == K {
                         continue;
                     }

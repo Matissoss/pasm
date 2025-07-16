@@ -4659,9 +4659,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         }
         PREFETCHWT1 => {
             use chkn::*;
-            CheckAPI::<1>::new()
-                .pushop(&[M8], true)
-                .check(ins)
+            CheckAPI::<1>::new().pushop(&[M8], true).check(ins)
         }
         V4FMADDSS | V4FNMADDSS => {
             use chkn::*;
@@ -4693,7 +4691,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .set_mask_perm()
                 .check(ins)
         }
-        
+
         VRCP28SS | VRSQRT28SS => {
             use chkn::*;
             CheckAPI::<3>::new()
@@ -4721,6 +4719,170 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             CheckAPI::<2>::new()
                 .pushop(&[ZMM], true)
                 .pushop(&[ZMM, M512, MBCST64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPGATHERDD | VPGATHERDQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[VM32X, VM32Y, VM32Z], true)
+                .pushop(&[XMM, YMM, ZMM], false)
+                .set_forb(&[
+                    [XMM, VM32Y, ANY],
+                    [XMM, VM32Z, ANY],
+                    [YMM, VM32X, ANY],
+                    [YMM, VM32Z, ANY],
+                    [ZMM, VM32X, ANY],
+                    [ZMM, VM32Y, ANY],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPGATHERQD | VPGATHERQQ => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[VM64X, VM64Y, VM64Z], true)
+                .pushop(&[XMM, YMM, ZMM], false)
+                .set_forb(&[
+                    [XMM, VM64Y, ANY],
+                    [XMM, VM64Z, ANY],
+                    [YMM, VM64X, ANY],
+                    [YMM, VM64Z, ANY],
+                    [ZMM, VM64X, ANY],
+                    [ZMM, VM64Y, ANY],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VSCATTERDPS | VSCATTERDPD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[VM32X, VM32Y, VM32Z], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_forb(&[
+                    [VM32Y, XMM],
+                    [VM32Z, XMM],
+                    [VM32X, YMM],
+                    [VM32Z, YMM],
+                    [VM32X, ZMM],
+                    [VM32Y, ZMM],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VSCATTERQPS | VSCATTERQPD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[VM64X, VM64Y, VM64Z], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_forb(&[
+                    [VM64Y, XMM],
+                    [VM64Z, XMM],
+                    [VM64X, YMM],
+                    [VM64Z, YMM],
+                    [VM64X, ZMM],
+                    [VM64Y, ZMM],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGATHERPF0QPS | VGATHERPF1QPS | VSCATTERPF0QPS | VSCATTERPF1QPS => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .pushop(&[VM64Z], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGATHERPF0QPD | VGATHERPF1QPD | VSCATTERPF0QPD | VSCATTERPF1QPD => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .pushop(&[VM64Z], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGATHERPF0DPD | VGATHERPF1DPD | VSCATTERPF0DPD | VSCATTERPF1DPD => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .pushop(&[VM32Y], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGATHERPF0DPS | VGATHERPF1DPS | VSCATTERPF0DPS | VSCATTERPF1DPS => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .pushop(&[VM32Z], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGETEXPSD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM], true)
+                .pushop(&[XMM], true)
+                .pushop(&[XMM, M64], true)
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VGATHERQPS | VGATHERQPD | VGATHERDPS | VGATHERDPD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .pushop(&[XMM, YMM, ZMM], true)
+                .pushop(&[VM64X, VM64Y, VM64Z], true)
+                .pushop(&[XMM, YMM], false)
+                .set_forb(&[
+                    [XMM, VM64Y, ANY],
+                    [XMM, VM64Z, ANY],
+                    [YMM, VM64X, ANY],
+                    [YMM, VM64Z, ANY],
+                    [ZMM, VM64X, ANY],
+                    [ZMM, VM64Y, ANY],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSCATTERQD | VPSCATTERQQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[VM64X, VM64Y, VM64Z], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_forb(&[
+                    [VM64Y, XMM],
+                    [VM64Z, XMM],
+                    [VM64X, YMM],
+                    [VM64Z, YMM],
+                    [VM64X, ZMM],
+                    [VM64Y, ZMM],
+                ])
+                .set_avx512()
+                .set_mask_perm()
+                .check(ins)
+        }
+        VPSCATTERDD | VPSCATTERDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .pushop(&[VM32X, VM32Y, VM32Z], true)
+                .pushop(&[XMM, YMM, ZMM], true)
+                .set_forb(&[
+                    [VM32Y, XMM],
+                    [VM32Z, XMM],
+                    [VM32X, YMM],
+                    [VM32Z, YMM],
+                    [VM32X, ZMM],
+                    [VM32Y, ZMM],
+                ])
                 .set_avx512()
                 .set_mask_perm()
                 .check(ins)

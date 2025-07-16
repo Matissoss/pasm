@@ -22,6 +22,9 @@ pub const IS_BCST: u8 = 0x2;
 pub const HAS_BASE: u8 = 0x3;
 pub const HAS_INDEX: u8 = 0x4;
 
+// is index a vector register
+pub const IS_VSIB_IDX: u8 = 0x5;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct Mem {
@@ -39,6 +42,11 @@ pub struct Mem {
     // - 7th: metadata_2:
     //      BBBF_FFCD
     //      BBB - size of used registers (byte, word, dword or qword registers)
+    //          if IS_VSIB_IDX flag is set, then:
+    //              0b001 - xword
+    //              0b010 - yword
+    //              0b011 - zword
+    //          assert that address size is 64-bit for base
     //      FFF - segment:
     //          0b000 - no segment
     //          0b001 - CS
@@ -84,6 +92,9 @@ impl Mem {
     }
     pub fn is_riprel(&self) -> bool {
         self.get_flag(RIP_ADDRESSING).unwrap_or(false)
+    }
+    pub fn is_vsib(&self) -> bool {
+        self.get_flag(IS_VSIB_IDX).unwrap_or(false)
     }
     pub fn is_sib(&self) -> bool {
         self.index().is_some() && self.base().is_some() && !self.is_riprel()
@@ -134,6 +145,12 @@ impl Mem {
     pub fn size(&self) -> Size {
         Size::de((self.metadata_1 & 0b1111_0000) >> 4)
     }
+    pub fn base_evex(&self) -> bool {
+        self.metadata_2 & 0b0000_0010 == 0b0000_0010
+    }
+    pub fn index_evex(&self) -> bool {
+        self.metadata_2 & 0b0000_0001 == 0b0000_0001
+    }
     pub fn base_rex(&self) -> bool {
         self.regs & 0b1000_0000 == 0b1000_0000
     }
@@ -145,13 +162,23 @@ impl Mem {
             return Some(Register::RIP);
         }
         if self.flags.get(HAS_BASE).unwrap() {
-            Some(Register::de(Register::mksek(
-                false,
-                self.base_rex(),
-                self.addrsize() as u16,
-                RPurpose::General as u16,
-                ((self.regs & 0b0111_0000) >> 4) as u16,
-            )))
+            if self.flags.get(IS_VSIB_IDX).unwrap() {
+                Some(Register::de(Register::mksek(
+                    self.base_evex(),
+                    self.base_rex(),
+                    Size::Qword as u16,
+                    RPurpose::General as u16,
+                    ((self.regs & 0b0111_0000) >> 4) as u16,
+                )))
+            } else {
+                Some(Register::de(Register::mksek(
+                    self.base_evex(),
+                    self.base_rex(),
+                    self.addrsize() as u16,
+                    RPurpose::General as u16,
+                    ((self.regs & 0b0111_0000) >> 4) as u16,
+                )))
+            }
         } else {
             None
         }
@@ -161,13 +188,29 @@ impl Mem {
             return None;
         }
         if self.flags.get(HAS_INDEX).unwrap() {
-            Some(Register::de(Register::mksek(
-                false,
-                self.base_rex(),
-                self.addrsize() as u16,
-                RPurpose::General as u16,
-                (self.regs & 0b000_0111) as u16,
-            )))
+            if self.flags.get(IS_VSIB_IDX).unwrap() {
+                let (asz, rpr) = match self.addrsize() {
+                    Size::Byte => (Size::Xword, RPurpose::F128),
+                    Size::Word => (Size::Yword, RPurpose::F256),
+                    Size::Dword => (Size::Zword, RPurpose::F512),
+                    _ => (Size::Unknown, RPurpose::F128),
+                };
+                Some(Register::de(Register::mksek(
+                    self.index_evex(),
+                    self.index_rex(),
+                    asz as u16,
+                    rpr as u16,
+                    (self.regs & 0b000_0111) as u16,
+                )))
+            } else {
+                Some(Register::de(Register::mksek(
+                    self.index_evex(),
+                    self.index_rex(),
+                    self.addrsize() as u16,
+                    RPurpose::General as u16,
+                    (self.regs & 0b000_0111) as u16,
+                )))
+            }
         } else {
             None
         }
@@ -211,10 +254,10 @@ impl Mem {
     // fails, if addrsize != base.size()
     pub fn set_base(&mut self, base: Register) -> bool {
         let bb = base.to_byte();
-        let rx = base.get_ext_bits()[1] as u8;
+        let [ex, rx] = base.get_ext_bits();
 
         // check
-        if self.addrsize() != base.size() {
+        if self.addrsize() != base.size() && !self.is_vsib() {
             return false;
         }
         // set guardian
@@ -222,17 +265,27 @@ impl Mem {
 
         // set base
         let mask = !0b1111_0000;
-        self.regs = (self.regs & mask) | rx << 7 | bb << 4;
+        self.regs = (self.regs & mask) | (rx as u8) << 7 | bb << 4;
+        self.metadata_2 = (self.metadata_2 & !0b10) | (ex as u8) << 1;
         true
     }
     // false if it fails
     // fails, if addrsize != base.size()
     pub fn set_index(&mut self, index: Register) -> bool {
         let bb = index.to_byte();
-        let rx = index.get_ext_bits()[1] as u8;
+        let [ex, rx] = index.get_ext_bits();
 
         // check
-        if self.addrsize() != index.size() {
+        if index.purpose().is_avx() {
+            self.flags.set(IS_VSIB_IDX, true);
+            self.set_addrsize(match index.size() {
+                Size::Xword => Size::Byte,
+                Size::Yword => Size::Word,
+                Size::Zword => Size::Dword,
+                _ => Size::Unknown,
+            });
+        }
+        if self.addrsize() != index.size() && !self.is_vsib() {
             return false;
         }
         // set guardian
@@ -240,7 +293,8 @@ impl Mem {
 
         // set index
         let mask = !0b0000_1111;
-        self.regs = (self.regs & mask) | rx << 3 | bb;
+        self.regs = (self.regs & mask) | (rx as u8) << 3 | bb;
+        self.metadata_2 = (self.metadata_2 & !0b01) | ex as u8;
         true
     }
     pub fn set_offset(&mut self, offset: i32) {
@@ -372,7 +426,8 @@ fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
         }
     }
     if let (Some(base), Some(index)) = (base, index) {
-        if base.size() != index.size() {
+        let ipr = index.purpose();
+        if base.size() != index.size() && !ipr.is_avx() {
             return Err(Error::new(
                 "base and index registers in SIB memory declaration have different sizes",
                 11,
@@ -620,5 +675,10 @@ mod new_test {
         assert_eq!(mem.base(), Some(Register::EAX));
         assert_eq!(mem.index(), Some(Register::EBX));
         assert_eq!(mem.scale(), Size::Byte);
+        let mem = Mem::new("rax + zmm23", Size::Qword);
+        assert!(mem.is_ok());
+        let mem = mem.unwrap();
+        assert_eq!(mem.base(), Some(Register::RAX));
+        assert_eq!(mem.index(), Some(Register::ZMM23));
     }
 }
