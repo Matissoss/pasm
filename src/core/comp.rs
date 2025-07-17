@@ -41,7 +41,7 @@ pub fn compile_label<'a>(
     lbl: (&'a [Instruction<'a>], u16, u8),
     offset: usize,
 ) -> (Vec<u8>, Vec<Relocation<'a>>) {
-    let mut bytes = Vec::new();
+    let mut bytes = Vec::with_capacity(lbl.0.len() << 1);
     let mut reallocs = Vec::new();
     let lbl_bits = lbl.2;
     let lbl_align = lbl.1;
@@ -57,7 +57,7 @@ pub fn compile_label<'a>(
     }
     for ins in lbl.0 {
         let res = get_genapi(ins, lbl_bits).assemble(ins, lbl_bits);
-        for mut rl in res.1.into_iter().flatten() {
+        for mut rl in res.1.into_iter() {
             rl.offset += bytes.len();
             reallocs.push(rl);
         }
@@ -3833,7 +3833,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::CDQE => GenAPI::new().opcode(&[0x48, 0x98]),
         Mnemonic::CLAC => GenAPI::new().opcode(&[0x0F, 0x01, 0xCA]),
         Mnemonic::CLTS => GenAPI::new().opcode(&[0x0F, 0x06]),
-        Mnemonic::CLUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEE]),
+        Mnemonic::CLUI => GenAPI::new().prefix(0xF3).opcode(&[0x0F, 0x01, 0xEE]),
         Mnemonic::CLWB => {
             GenAPI::new()
                 .opcode(&[0x0F, 0xAE])
@@ -3896,8 +3896,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::CMPSTRW => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Word),
         Mnemonic::CMPSTRD => GenAPI::new().opcode(&[0xA7]).fixed_size(Size::Dword),
         Mnemonic::CMPSTRQ => GenAPI::new().opcode(&[0x48, 0xA7]).fixed_size(Size::Qword),
-        Mnemonic::ENDBR64 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFA]),
-        Mnemonic::ENDBR32 => GenAPI::new().opcode(&[0xF3, 0x0F, 0x1E, 0xFB]),
+        Mnemonic::ENDBR64 => GenAPI::new().prefix(0xF3).opcode(&[0x0F, 0x1E, 0xFA]),
+        Mnemonic::ENDBR32 => GenAPI::new().prefix(0xF3).opcode(&[0x0F, 0x1E, 0xFB]),
         Mnemonic::CMPXCHG => GenAPI::new()
             .opcode(&[0x0F, (0xB1 - ((ins.size() == Size::Byte) as u8))])
             .modrm(true, None, None)
@@ -3932,7 +3932,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         }
         Mnemonic::HLT => GenAPI::new().opcode(&[0xF4]),
         Mnemonic::HRESET => GenAPI::new()
-            .opcode(&[0xF3, 0x0F, 0x3A, 0xF0, 0xC0])
+            .prefix(0xF3)
+            .opcode(&[0x0F, 0x3A, 0xF0, 0xC0])
             .modrm(false, None, None)
             .imm_atindex(0, 1),
         Mnemonic::INSB => GenAPI::new().opcode(&[0x6C]).fixed_size(Size::Byte),
@@ -4253,7 +4254,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::STC => GenAPI::new().opcode(&[0xF9]),
         Mnemonic::STD => GenAPI::new().opcode(&[0xFD]),
         Mnemonic::STI => GenAPI::new().opcode(&[0xFB]),
-        Mnemonic::STUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xEF]),
+        Mnemonic::STUI => GenAPI::new().prefix(0xF3).opcode(&[0x0F, 0x01, 0xEF]),
         Mnemonic::STOSB => GenAPI::new().opcode(&[0xAA]),
         Mnemonic::STOSW => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Word),
         Mnemonic::STOSD => GenAPI::new().opcode(&[0xAB]).fixed_size(Size::Dword),
@@ -4261,7 +4262,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::SYSENTER => GenAPI::new().opcode(&[0x0F, 0x34]),
         Mnemonic::SYSEXIT => GenAPI::new().opcode(&[0x0F, 0x35]),
         Mnemonic::SYSRET => GenAPI::new().opcode(&[0x0F, 0x07]),
-        Mnemonic::TESTUI => GenAPI::new().opcode(&[0xF3, 0x0F, 0x01, 0xED]),
+        Mnemonic::TESTUI => GenAPI::new().prefix(0xF3).opcode(&[0x0F, 0x01, 0xED]),
         Mnemonic::UD2 => GenAPI::new().opcode(&[0x0F, 0x0B]),
         Mnemonic::UD0 => GenAPI::new()
             .opcode(&[0x0F, 0xFF])
@@ -4320,7 +4321,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::XGETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD0]),
         Mnemonic::XLAT | Mnemonic::XLATB => GenAPI::new().opcode(&[0xD7]),
         Mnemonic::XLATB64 => GenAPI::new().opcode(&[0x48, 0xD7]),
-        Mnemonic::XRESLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE9]),
+        Mnemonic::XRESLDTRK => GenAPI::new().prefix(0xF2).opcode(&[0x0F, 0x01, 0xE9]),
 
         Mnemonic::XRSTOR | Mnemonic::XRSTOR64 => {
             GenAPI::new()
@@ -4348,7 +4349,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, Some(5), None)
             .rex(true),
         Mnemonic::XSETBV => GenAPI::new().opcode(&[0x0F, 0x01, 0xD1]),
-        Mnemonic::XSUSLDTRK => GenAPI::new().opcode(&[0xF2, 0x0F, 0x01, 0xE8]),
+        Mnemonic::XSUSLDTRK => GenAPI::new().prefix(0xF2).opcode(&[0x0F, 0x01, 0xE8]),
         Mnemonic::XTEST => GenAPI::new().opcode(&[0x0F, 0x01, 0xD6]),
         // sha.asm
         Mnemonic::SHA1MSG1 => GenAPI::new()
@@ -5074,7 +5075,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .pp(0x66)
                 .vex_we(true)
                 .vlength(Some(false));
-            let (opc, _) = api.get_opcode();
+            let opc = api.get_opcode();
             let opc = opc[0];
 
             if opc == 0x92 || opc == 0x93 {
@@ -5088,7 +5089,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 .map_select(0x0F)
                 .vex_we(true)
                 .vlength(Some(false));
-            let (opc, _) = api.get_opcode();
+            let opc = api.get_opcode();
             let opc = opc[0];
 
             if opc == 0x92 || opc == 0x93 {

@@ -121,10 +121,12 @@ impl<'a> Instruction<'a> {
         self.len() == 0
     }
     // get (operand) type
+    #[inline(always)]
     pub fn gett(&self, idx: usize) -> u16 {
         let mask = self.get_op_mask(idx);
         (self.operand_data & !mask) >> (idx as u16 * 3)
     }
+    #[inline(always)]
     pub fn set(&mut self, idx: usize, opr: OperandOwned) {
         use std::mem::transmute;
         self.operand_data &= self.get_op_mask(idx);
@@ -140,6 +142,7 @@ impl<'a> Instruction<'a> {
         self.operands[idx].oth = val;
         self.operand_data |= opt << (idx * 3) as u16;
     }
+    #[inline(always)]
     pub fn get(&'a self, idx: usize) -> Option<Operand<'a>> {
         let ot = self.gett(idx);
         if ot != 0 {
@@ -158,18 +161,23 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
     pub fn dst(&'a self) -> Option<Operand<'a>> {
         self.get(0)
     }
+    #[inline(always)]
     pub fn src(&'a self) -> Option<Operand<'a>> {
         self.get(1)
     }
+    #[inline(always)]
     pub fn ssrc(&'a self) -> Option<Operand<'a>> {
         self.get(2)
     }
+    #[inline(always)]
     pub fn tsrc(&'a self) -> Option<Operand<'a>> {
         self.get(3)
     }
+    #[inline(always)]
     pub fn size_lt(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
@@ -190,6 +198,7 @@ impl<'a> Instruction<'a> {
             dst
         }
     }
+    #[inline(always)]
     pub fn size_gt(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
@@ -210,6 +219,7 @@ impl<'a> Instruction<'a> {
             dst
         }
     }
+    #[inline(always)]
     pub fn size(&self) -> Size {
         self.size_gt()
     }
@@ -337,6 +347,7 @@ impl<'a> Instruction<'a> {
     }
 
     // operands
+    #[inline(always)]
     pub fn iter(&'a self) -> impl Iterator<Item = Operand<'a>> {
         (0..self.len()).map(|o| self.get(o).unwrap())
     }
@@ -356,6 +367,7 @@ impl<'a> Instruction<'a> {
         }
         false
     }
+    #[inline(always)]
     pub fn needs_rex(&self) -> bool {
         crate::core::rex::needs_rex(self, &self.dst(), &self.src())
     }
@@ -449,7 +461,7 @@ impl<'a> Instruction<'a> {
         if let Some(m) = self.get_mem() {
             return m.is_riprel();
         }
-        if self.get_symbs().iter().flatten().count() >= 1 {
+        if !self.get_symbs().is_empty() {
             return true;
         }
         false
@@ -463,22 +475,18 @@ impl<'a> Instruction<'a> {
         }
     }
     #[inline]
-    pub fn get_symbs(&self) -> [Option<(&ManuallyDrop<Box<SymbolRef>>, usize)>; 2] {
-        let mut ops = [None, None];
+    pub fn get_symbs(&self) -> SmallVec<(&Box<SymbolRef>, usize), 2> {
+        let mut syms = SmallVec::new();
 
         let mut idx = 0;
         while idx < self.len() {
             if SYM == self.gett(idx) {
-                let sym = unsafe { &self.operands[idx].sym };
-                if sym.is_deref() {
-                    ops[0] = Some((sym, idx));
-                } else {
-                    ops[1] = Some((sym, idx));
-                }
+                let sym = unsafe { &*self.operands[idx].sym };
+                syms.push((sym, idx));
             }
             idx += 1;
         }
-        ops
+        syms
     }
     #[inline]
     pub fn get_mem(&self) -> Option<Mem> {

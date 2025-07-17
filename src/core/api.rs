@@ -69,15 +69,22 @@ pub enum OpOrd {
 
 pub const EVEX_VVVV: u8 = OpOrd::VEX_VVVV as u8;
 
-#[repr(transparent)]
-struct Opcode {
-    opcode: u64,
-}
-
 // size = 16B (could be 37B!)
 #[repr(C)]
 pub struct GenAPI {
-    opcode: Opcode,
+    // layout:
+    opcode: [u8; 4],
+    // layout:
+    //  0bPPP0_0LLL:
+    //   PPP: prefix:
+    //      0b000 - None
+    //      0b001 - REX
+    //      0b010 - VEX
+    //      0b011 - EVEX
+    //      0b... - reserved
+    //   LLL: opcode length
+    meta_0: u8,
+    reserved: [u8; 3],
 
     flags: BoolTable16,
 
@@ -121,7 +128,9 @@ pub enum AssembleResult {
 impl GenAPI {
     pub fn new() -> Self {
         Self {
-            opcode: Opcode { opcode: 0 },
+            opcode: [0; 4],
+            meta_0: 0,
+            reserved: [0; 3],
             prefix: 0,
             flags: BoolTable16::new().setc(CAN_H66O, true).setc(CAN_SEGM, true),
             ord: OperandOrder::new(&[
@@ -140,11 +149,16 @@ impl GenAPI {
         self.prefix = pfx;
         self
     }
-    pub fn opcode(mut self, opc: &[u8]) -> Self {
-        if opc.len() > 0b0000_0111 {
-            panic!("Tried to use opcode of len() >= 8");
+    pub fn opcode_len(&self) -> usize {
+        (self.meta_0 & 0b111) as usize
+    }
+    pub const fn opcode(mut self, opc: &[u8]) -> Self {
+        let mut idx = 0;
+        while idx < opc.len() {
+            self.opcode[idx] = opc[idx];
+            idx += 1;
         }
-        self.opcode = Opcode::from_bytes(opc);
+        self.meta_0 |= idx as u8 & 0b111;
         self
     }
     pub fn modrm(mut self, modrm: bool, reg: Option<u8>, rm: Option<u8>) -> Self {
@@ -227,17 +241,20 @@ impl GenAPI {
             None
         }
     }
+    pub fn get_opcode(&self) -> &[u8] {
+        &self.opcode[0..self.opcode_len()]
+    }
     // you can have max 2 relocations returned, because of variants like:
     // mov .deref @symbol, @other_symbol
-    // (yes it is in fact a valid variant: first operand is mem, second is immediate)
+    // (it is in fact a valid variant: first operand is mem, second is immediate)
     pub fn assemble<'a>(
         self,
         ins: &'a Instruction,
         bits: u8,
-    ) -> (AssembleResult, [Option<Relocation<'a>>; 2]) {
+    ) -> (AssembleResult, SmallVec<Relocation<'a>, 2>) {
         let [modrm_rm, modrm_reg, _vex_vvvv] = self.get_ord_oprs(ins);
 
-        let mut rels = [None, None];
+        let mut rels = SmallVec::<Relocation, 2>::new();
         let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
         let rex_flag_set = self.flags.get(REX_PFX).unwrap();
         let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
@@ -257,6 +274,7 @@ impl GenAPI {
 
             let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
                 && !self.get_flag(STRICT_PFX).unwrap()
+                && bits == 64
             {
                 rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
             } else {
@@ -320,10 +338,10 @@ impl GenAPI {
             base
         };
 
-        let (opc, sz) = self.opcode.collect();
-        for b in &opc[..sz] {
+        for b in self.get_opcode() {
             base.push(*b);
         }
+
         if self.flags.get(USE_MODRM).unwrap() {
             base.push(modrm::modrm(&modrm_rm, &modrm_reg, &self));
             if let Some(sib) = sib::gen_sib_ins(&modrm_rm) {
@@ -334,10 +352,13 @@ impl GenAPI {
                     base.push(b);
                 }
             } else {
-                let symb = &ins.get_symbs()[0];
-                if let Some((s, _)) = symb {
+                for (s, _) in ins.get_symbs().into_iter() {
+                    if !s.is_deref() {
+                        continue;
+                    }
+
                     let addend = s.addend().unwrap_or_default();
-                    rels[0] = Some(Relocation {
+                    rels.push(Relocation {
                         symbol: s.symbol,
                         offset: base.len(),
                         addend,
@@ -348,6 +369,7 @@ impl GenAPI {
                     base.push(0);
                     base.push(0);
                     base.push(0);
+                    break;
                 }
             }
         }
@@ -420,7 +442,7 @@ impl GenAPI {
                 }
             } else if let Some(Operand::Symbol(s)) = ins.get(idx) {
                 let addend = s.addend().unwrap_or_default();
-                rels[1] = Some(Relocation {
+                rels.push(Relocation {
                     symbol: s.symbol,
                     offset: base.len(),
                     addend,
@@ -456,7 +478,7 @@ impl GenAPI {
             }
         }
 
-        for r in rels.iter_mut().flatten() {
+        for r in rels.iter_mut() {
             if r.is_rel() {
                 r.addend -= r.reltype.size() as i32;
             }
@@ -530,10 +552,6 @@ impl GenAPI {
         } else {
             None
         }
-    }
-
-    pub const fn get_opcode(&self) -> ([u8; 8], usize) {
-        self.opcode.collect()
     }
 }
 
@@ -755,29 +773,6 @@ impl ModrmTuple {
 impl Default for GenAPI {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl Opcode {
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let size = bytes.len();
-        assert!(size <= 0b110);
-        let opcode: u64 = {
-            (*bytes.first().unwrap_or(&0) as u64) << 56
-                | (*bytes.get(1).unwrap_or(&0) as u64) << 48
-                | (*bytes.get(2).unwrap_or(&0) as u64) << 40
-                | (*bytes.get(3).unwrap_or(&0) as u64) << 32
-                | (*bytes.get(4).unwrap_or(&0) as u64) << 24
-                | (*bytes.get(5).unwrap_or(&0) as u64) << 16
-                | (*bytes.get(6).unwrap_or(&0) as u64) << 8
-                | (size as u64 & 0xFF)
-        };
-        Self { opcode }
-    }
-    const fn collect(&self) -> ([u8; 8], usize) {
-        let size = (self.opcode & 0x0000_0000_0000_00FF) as usize;
-        let opc = self.opcode & 0xFFFF_FFFF_FFFF_FF00;
-        (opc.to_be_bytes(), size)
     }
 }
 

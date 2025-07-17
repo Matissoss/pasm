@@ -108,22 +108,20 @@ fn num_from_str(str: &str) -> Option<Number> {
         }
         &sab[start..]
     };
-    if str_chars.starts_with(b"0x") {
-        return num_from_hex(&str_chars[2..], sign);
-    }
-    if str_chars.starts_with(b"0b") {
-        return num_from_bin(&str_chars[2..], sign);
-    }
-    if str_chars.starts_with(b"0o") {
-        return num_from_oct(&str_chars[2..], sign);
+    if str_chars.first() == Some(&b'0') {
+        return match str_chars.get(1) {
+            Some(&b'x') => num_from_hex(&str_chars[2..], sign),
+            Some(&b'o') => num_from_oct(&str_chars[2..], sign),
+            Some(&b'b') => num_from_bin(&str_chars[2..], sign),
+            None => Some(Number::uint64(0)),
+            _ => None,
+        };
     } else if is_num(str) {
         if let Ok(u64) = u64::from_str(str) {
             return Some(Number::uint64(u64));
         } else if let Ok(i64) = i64::from_str(str) {
             return Some(Number::int64(i64));
-        }
-    } else if is_float(str) {
-        if let Ok(f64) = f64::from_str(str) {
+        } else if let Ok(f64) = f64::from_str(str) {
             return Some(Number::double(f64));
         }
     }
@@ -137,58 +135,31 @@ fn num_from_str(str: &str) -> Option<Number> {
 
 #[inline(always)]
 fn is_num(str: &str) -> bool {
-    let mut is_num = true;
     let mut minus = false;
+    let mut dot = false;
     for b in str.as_bytes() {
         match *b {
             b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {}
             b'-' => {
                 if minus {
-                    is_num = false;
-                    break;
+                    return false;
                 } else {
                     minus = true;
                 }
             }
-            _ => {
-                is_num = false;
-                break;
-            }
-        }
-    }
-    is_num
-}
-#[inline(always)]
-fn is_float(str: &str) -> bool {
-    let mut dot = false;
-    let mut minus = false;
-    let mut is_float = true;
-    for b in str.as_bytes() {
-        match *b {
-            b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {}
             b'.' => {
                 if dot {
-                    is_float = false;
-                    break;
+                    return false;
                 } else {
                     dot = true
                 }
             }
-            b'-' => {
-                if minus {
-                    is_float = false;
-                    break;
-                } else {
-                    minus = true;
-                }
-            }
             _ => {
-                is_float = false;
-                break;
+                return false;
             }
         }
     }
-    is_float
+    true
 }
 
 fn num(val: u64, sign: bool) -> Option<Number> {

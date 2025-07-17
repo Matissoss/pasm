@@ -7,28 +7,97 @@ use crate::shr::size::Size;
 use std::str::FromStr;
 
 #[allow(clippy::to_string_trait_impl)]
-impl ToString for Purpose {
-    fn to_string(&self) -> String {
-        match self {
-            Self::General => "r".to_string(),
-            Self::Mmx => "mm".to_string(),
-            Self::F128 => "xmm".to_string(),
-            Self::F256 => "ymm".to_string(),
-            Self::Sgmnt => "segment".to_string(),
-            Self::IPtr => "ip".to_string(),
-            Self::Dbg => "dr".to_string(),
-            Self::Ctrl => "cr".to_string(),
-            Self::__ANY => "any".to_string(),
-            Self::F512 => "zmm".to_string(),
-            Self::Mask => "k".to_string(),
-        }
-    }
-}
-
-#[allow(clippy::to_string_trait_impl)]
 impl ToString for Register {
+    #[rustfmt::skip]
     fn to_string(&self) -> String {
-        "".to_string()
+        match *self {
+            Self::ES => String::from("es"), Self::SS => String::from("ss"), Self::DS => String::from("ds"),
+            Self::CS => String::from("cs"), Self::FS => String::from("fs"), Self::GS => String::from("gs"),
+            Self::AL   => String::from("al")  , Self::CL   => String::from("cl")  , Self::DL => String::from("dl"),
+            Self::BL   => String::from("bl")  , Self::AH   => String::from("ah")  , Self::CH => String::from("ch"),
+            Self::DH   => String::from("dh")  , Self::BH   => String::from("bh")  , Self::R8B => String::from("r8b"),
+            Self::R9B  => String::from("r9b") , Self::R10B => String::from("r10b"), Self::R11B => String::from("r11b"),
+            Self::R12B => String::from("r12b"), Self::R13B => String::from("r13b"), Self::R14B => String::from("r14b"),
+            Self::R15B => String::from("r15b"),
+            Self::AX   => String::from("ax")  , Self::CX   => String::from("cx")  , Self::DX   => String::from("dx"),
+            Self::BX   => String::from("bx")  , Self::DI   => String::from("di")  , Self::SI   => String::from("si"),
+            Self::BP   => String::from("bp")  , Self::SP   => String::from("sp")  , Self::R8W  => String::from("r8w"),
+            Self::R9W  => String::from("r9w") , Self::R10W => String::from("r10w"), Self::R11W => String::from("r11w"),
+            Self::R12W => String::from("r12w"), Self::R13W => String::from("r13w"), Self::R14W => String::from("r14w"),
+            Self::R15W => String::from("r15w"),
+            Self::EAX  => String::from("eax") , Self::ECX  => String::from("ecx") , Self::EDX  => String::from("edx") , Self::EBX => String::from("ebx"),
+            Self::EDI  => String::from("edi") , Self::ESI  => String::from("esi") , Self::EBP  => String::from("ebp") , Self::ESP => String::from("esp"),
+            Self::R8D  => String::from("r8d") , Self::R9D  => String::from("r9d") , Self::R10D => String::from("r10d"), Self::R11D => String::from("r11d"),
+            Self::R12D => String::from("r12d"), Self::R13D => String::from("r13d"), Self::R14D => String::from("r14d"), Self::R15D => String::from("r15d"),
+            Self::RAX => String::from("rax"), Self::RCX => String::from("rcx"), Self::RDX => String::from("rdx"), Self::RBX => String::from("rbx"),
+            Self::RDI => String::from("rdi"), Self::RSI => String::from("rsi"), Self::RBP => String::from("rbp"), Self::RSP => String::from("rsp"),
+            Self::R8  => String::from("r8") , Self::R9  => String::from("r9") , Self::R10 => String::from("r10"), Self::R11 => String::from("r11"),
+            Self::R12 => String::from("r12"), Self::R13 => String::from("r13"), Self::R14 => String::from("r14"), Self::R15 => String::from("r15"),
+            Self::MM0 => String::from("mm0"), Self::MM1 => String::from("mm1"), Self::MM2 => String::from("mm2"), Self::MM3 => String::from("mm3"),
+            Self::MM4 => String::from("mm4"), Self::MM5 => String::from("mm5"), Self::MM6 => String::from("mm6"), Self::MM7 => String::from("mm7"),
+            Self::K0 => String::from("k0"), Self::K1 => String::from("k1"), Self::K2 => String::from("k2"), Self::K3 => String::from("k3"),
+            Self::K4 => String::from("k4"), Self::K5 => String::from("k5"), Self::K6 => String::from("k6"), Self::K7 => String::from("k7"),
+            Self::XMM0  => String::from("xmm0") , Self::XMM1  => String::from("xmm1") , Self::XMM2  => String::from("xmm2") , Self::XMM3  => String::from("xmm3"),
+            Self::XMM4  => String::from("xmm4") , Self::XMM5  => String::from("xmm5") , Self::XMM6  => String::from("xmm6") , Self::XMM7  => String::from("xmm7"),
+            Self::XMM8  => String::from("xmm8") , Self::XMM9  => String::from("xmm9") , Self::XMM10 => String::from("xmm10"), Self::XMM11 => String::from("xmm11"),
+            Self::XMM12 => String::from("xmm12"), Self::XMM13 => String::from("xmm13"), Self::XMM14 => String::from("xmm14"), Self::XMM15 => String::from("xmm15"),
+            Self::XMM16 => String::from("xmm16"), Self::XMM17 => String::from("xmm17"), Self::XMM18 => String::from("xmm18"), Self::XMM19 => String::from("xmm19"),
+            Self::XMM20 => String::from("xmm20"), Self::XMM21 => String::from("xmm21"), Self::XMM22 => String::from("xmm22"), Self::XMM23 => String::from("xmm23"),
+            Self::XMM24 => String::from("xmm24"), Self::XMM25 => String::from("xmm25"), Self::XMM26 => String::from("xmm26"), Self::XMM27 => String::from("xmm27"),
+            Self::XMM28 => String::from("xmm28"), Self::XMM29 => String::from("xmm29"), Self::XMM30 => String::from("xmm30"), Self::XMM31 => String::from("xmm31"),
+            Self::YMM0  => String::from("ymm0") , Self::YMM1  => String::from("ymm1") , Self::YMM2  => String::from("ymm2") , Self::YMM3  => String::from("ymm3"),
+            Self::YMM4  => String::from("ymm4") , Self::YMM5  => String::from("ymm5") , Self::YMM6  => String::from("ymm6") , Self::YMM7  => String::from("ymm7"),
+            Self::YMM8  => String::from("ymm8") , Self::YMM9  => String::from("ymm9") , Self::YMM10 => String::from("ymm10"), Self::YMM11 => String::from("ymm11"),
+            Self::YMM12 => String::from("ymm12"), Self::YMM13 => String::from("ymm13"), Self::YMM14 => String::from("ymm14"), Self::YMM15 => String::from("ymm15"),
+            Self::YMM16 => String::from("ymm16"), Self::YMM17 => String::from("ymm17"), Self::YMM18 => String::from("ymm18"), Self::YMM19 => String::from("ymm19"),
+            Self::YMM20 => String::from("ymm20"), Self::YMM21 => String::from("ymm21"), Self::YMM22 => String::from("ymm22"), Self::YMM23 => String::from("ymm23"),
+            Self::YMM24 => String::from("ymm24"), Self::YMM25 => String::from("ymm25"), Self::YMM26 => String::from("ymm26"), Self::YMM27 => String::from("ymm27"),
+            Self::YMM28 => String::from("ymm28"), Self::YMM29 => String::from("ymm29"), Self::YMM30 => String::from("ymm30"), Self::YMM31 => String::from("ymm31"),
+            Self::ZMM0  => String::from("zmm0") , Self::ZMM1  => String::from("zmm1") , Self::ZMM2  => String::from("zmm2") , Self::ZMM3  => String::from("zmm3"),
+            Self::ZMM4  => String::from("zmm4") , Self::ZMM5  => String::from("zmm5") , Self::ZMM6  => String::from("zmm6") , Self::ZMM7  => String::from("zmm7"),
+            Self::ZMM8  => String::from("zmm8") , Self::ZMM9  => String::from("zmm9") , Self::ZMM10 => String::from("zmm10"), Self::ZMM11 => String::from("zmm11"),
+            Self::ZMM12 => String::from("zmm12"), Self::ZMM13 => String::from("zmm13"), Self::ZMM14 => String::from("zmm14"), Self::ZMM15 => String::from("zmm15"),
+            Self::ZMM16 => String::from("zmm16"), Self::ZMM17 => String::from("zmm17"), Self::ZMM18 => String::from("zmm18"), Self::ZMM19 => String::from("zmm19"),
+            Self::ZMM20 => String::from("zmm20"), Self::ZMM21 => String::from("zmm21"), Self::ZMM22 => String::from("zmm22"), Self::ZMM23 => String::from("zmm23"),
+            Self::ZMM24 => String::from("zmm24"), Self::ZMM25 => String::from("zmm25"), Self::ZMM26 => String::from("zmm26"), Self::ZMM27 => String::from("zmm27"),
+            Self::ZMM28 => String::from("zmm28"), Self::ZMM29 => String::from("zmm29"), Self::ZMM30 => String::from("zmm30"), Self::ZMM31 => String::from("zmm31"),
+            Self::CR0 => String::from("cr0"),
+            Self::CR1 => String::from("cr1"),
+            Self::CR2 => String::from("cr2"),
+            Self::CR3 => String::from("cr3"),
+            Self::CR4 => String::from("cr4"),
+            Self::CR5 => String::from("cr5"),
+            Self::CR6 => String::from("cr6"),
+            Self::CR7 => String::from("cr7"),
+            Self::CR8 => String::from("cr8"),
+            Self::CR9 => String::from("cr9"),
+            Self::CR10 => String::from("cr10"),
+            Self::CR11 => String::from("cr11"),
+            Self::CR12 => String::from("cr12"),
+            Self::CR13 => String::from("cr13"),
+            Self::CR14 => String::from("cr14"),
+            Self::CR15 => String::from("cr15"),
+            Self::DR0 => String::from("dr0"),
+            Self::DR1 => String::from("dr1"),
+            Self::DR2 => String::from("dr2"),
+            Self::DR3 => String::from("dr3"),
+            Self::DR4 => String::from("dr4"),
+            Self::DR5 => String::from("dr5"),
+            Self::DR6 => String::from("dr6"),
+            Self::DR7 => String::from("dr7"),
+            Self::DR8 => String::from("dr8"),
+            Self::DR9 => String::from("dr9"),
+            Self::DR10 => String::from("dr10"),
+            Self::DR11 => String::from("dr11"),
+            Self::DR12 => String::from("dr12"),
+            Self::DR13 => String::from("dr13"),
+            Self::DR14 => String::from("dr14"),
+            Self::DR15 => String::from("dr15"),
+            Self::RIP => String::from("rip"),
+            Self::EIP => String::from("eip"),
+            Self::IP => String::from("ip"),
+            _ => String::new(),
+        }
     }
 }
 
@@ -871,5 +940,9 @@ impl Register {
     }
     pub fn is_sgmnt(&self) -> bool {
         self.purpose() == Purpose::Sgmnt
+    }
+    // prepare to check
+    pub const fn preptochk(&self) -> u16 {
+        self.0 >> 5
     }
 }

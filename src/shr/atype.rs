@@ -240,28 +240,14 @@ impl PartialEq for AType {
     fn eq(&self, rhs: &Self) -> bool {
         match (*self, *rhs) {
             (AType::Register(lr, lf), AType::Register(rr, rf)) => {
-                if lf || rf {
-                    lr == rr
-                } else if lr.purpose() == rr.purpose() && lr.size() == rr.size() {
-                    true
-                } else if lr.is_any() || rr.is_any() {
-                    lr.size() == rr.size()
-                } else {
-                    false
-                }
+                ((lf || rf) && lr.0 == rr.0)
+                    || (lr.preptochk() == rr.preptochk())
+                    || (rr.is_any() || lr.is_any())
             }
             (AType::Memory(lsz, laddr, lbcst), AType::Memory(rsz, raddr, rbcst)) => {
                 (lbcst == rbcst || raddr.is_any() || laddr.is_any() || laddr == raddr) && lsz == rsz
             }
-            (AType::Immediate(lsz, ls), AType::Immediate(rsz, rs)) => {
-                if ls && rs {
-                    true
-                } else if ls || rs {
-                    false
-                } else {
-                    rsz <= lsz
-                }
-            }
+            (AType::Immediate(lsz, ls), AType::Immediate(rsz, rs)) => ls == rs && rsz <= lsz,
             (AType::Any, _) | (_, AType::Any) => true,
             _ => false,
         }

@@ -77,7 +77,7 @@ impl Cli {
                 "-f" => {
                     cli.target = val.map(|v| v.into());
                 }
-                "-C" | "--no-check" => cli.flags.set(NO_CHECK, true),
+                "-C" | "--skip-check" => cli.flags.set(NO_CHECK, true),
                 "-v" | "--version" => cli.flags.set(VER, true),
                 "-s" | "--supported-instructions" => cli.flags.set(SUPPORTED_INS, true),
                 "-S" | "--supported-instructions-raw" => cli.flags.set(SUPPORTEDINSR, true),

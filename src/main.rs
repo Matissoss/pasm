@@ -159,6 +159,7 @@ fn print_supported_instructions() {
         }
         mod_ -= 1;
     }
+    println!()
 }
 #[cfg(feature = "iinfo")]
 fn print_supported_instructions_raw() {

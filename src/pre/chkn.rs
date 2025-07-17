@@ -290,20 +290,25 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         }
         Ok(())
     }
-    pub fn check_forb(&self, ins: &Instruction) -> Result<(), Error> {
+    // TODO: fix check_forb
+    pub fn check_forb(&self, ops: &SmallVec<Operand, 4>) -> Result<(), Error> {
         if !self.has_forb() {
             return Ok(());
         }
         let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
-        for o in ins.iter() {
+        for o in ops.iter() {
             smv.push(o.atype());
         }
 
         let mut at = 0;
         for f in unsafe { self.forbidden.assume_init_ref() }.iter() {
-            for (i, k) in f.iter().enumerate() {
-                if Some(k) == smv.get(i) {
-                    at += 1;
+            for (i, lhs) in f.iter().enumerate() {
+                if let Some(rhs) = smv.get(i) {
+                    if rhs == lhs {
+                        at += 1;
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -317,6 +322,12 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         Ok(())
     }
     pub fn check(&self, ins: &Instruction) -> Result<(), Error> {
+        let mut smv: SmallVec<Operand, 4> = SmallVec::new();
+
+        for o in ins.iter() {
+            smv.push(o);
+        }
+
         self.check_addt(ins)?;
         if ins.evex_mask().is_some() && ins.evex_mask() != Some(0) && !self.get_mask() {
             return Err(Error::new(
@@ -331,7 +342,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             ));
         }
         for (i, o) in self.allowed.iter().enumerate() {
-            if let Some(s) = ins.get(i) {
+            if let Some(s) = smv.get(i) {
                 if !o.has(s.atype()) {
                     let er = Error::new(
                         format!("operand at index {i} has invalid type: {}", s.atype()),
@@ -346,11 +357,12 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                 return Err(er);
             }
         }
+        //self.check_forb(&smv)?;
         match self.get_mode() {
             CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
             CheckMode::X86 => {
                 let mut sz = Size::Unknown;
-                for o in ins.iter() {
+                for o in smv.into_iter() {
                     if let AType::Memory(Size::Word | Size::Dword | Size::Qword, _, fl) = o.atype()
                     {
                         if fl.get(BCST_FLAG).unwrap() || fl.get(VSIB_FLAG).unwrap() {
