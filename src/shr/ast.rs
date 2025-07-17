@@ -19,15 +19,16 @@ use crate::shr::{
     reg::{Purpose as RPurpose, Register},
     section::Section,
     size::Size,
+    smallvec::SmallVec,
     symbol::SymbolRef,
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Operand<'a> {
+pub enum OperandOwned<'a> {
     Register(Register),
     Imm(Number),
     Mem(Mem),
-    SymbolRef(ManuallyDrop<Box<SymbolRef<'a>>>),
+    Symbol(ManuallyDrop<Box<SymbolRef<'a>>>),
     String(ManuallyDrop<Box<&'a str>>),
 }
 
@@ -41,79 +42,26 @@ pub union OperandData<'a> {
     oth: u64,
 }
 
-pub struct Instruction<'a> {
-    // 32B
-    pub operands: [OperandData<'a>; 4],
-    // layout:
-    // 0bXXXX_YYYY_ZZZZ_AAAA:
-    // XXXX - operand type for 4th operand
-    // YYYY - operand type for ssrc.
-    // ZZZZ - operand type for src.
-    // AAAA - operand type for dst.
-    pub metadata: u16,
-    pub mnemonic: Mnemonic,
-    pub additional: MaybeUninit<Mnemonic>,
-    // 0bMLLL_00CB_BBEZ_YXXX:
-    // XXX - explicit prefix:
-    //  0b000 - None
-    //  0b001 - VEX
-    //  0b010 - EVEX
-    //  0b... - reserved
-    // M  : has additional mnemonic
-    // LLL: length
-    // Y  : if XXX is EVEX: SAE         ; if XXX != EVEX: 1st bit of size
-    // Z  : if XXX is EVEX: Z           ; if XXX != EVEX: 2nd bit of size
-    // E  : if XXX is EVEX: er          ; if XXX != EVEX: 3rd bit of size
-    // BBB: if XXX is EVEX: mask as byte; if XXX != EVEX: B3 if 4th bit of size
-    // C  : has mask
-    pub metadata_2: u16,
+#[derive(PartialEq, Debug)]
+pub enum Operand<'a> {
+    String(&'a Box<&'a str>),
+    Symbol(&'a Box<SymbolRef<'a>>),
+    Register(Register),
+    Mem(Mem),
+    Imm(Number),
 }
 
-impl Clone for Instruction<'_> {
-    fn clone(&self) -> Self {
-        let mut new = Self::new();
-        for o in self.iter() {
-            new.push(o);
-        }
-        new.metadata = self.metadata;
-        new.metadata_2 = self.metadata_2;
-        new.mnemonic = self.mnemonic;
-        new.additional = self.additional;
-        new
-    }
-}
-
-impl Debug for Instruction<'_> {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
-        write!(fmt, "Instruction {{")?;
-        write!(fmt, "Additional: {:?}, ", self.addt())?;
-        write!(fmt, "Mnemonic: {:?}, ", self.mnemonic)?;
-        write!(fmt, "Operands: [")?;
-        let mut i = 0;
-        for o in self.iter() {
-            write!(fmt, "{:?}", o)?;
-            if i + 1 != self.len() {
-                write!(fmt, ", ")?;
-            }
-            i += 1;
-        }
-        write!(fmt, "]")?;
-        write!(fmt, "}}")?;
-        Ok(())
-    }
-}
-
-impl PartialEq for Instruction<'_> {
-    fn eq(&self, rhs: &Self) -> bool {
-        if self.mnemonic != rhs.mnemonic || self.len() != rhs.len() {
-            return false;
-        }
-        for i in 0..self.len() {
-            if self.get(i) != rhs.get(i) {
-                return false;
+impl Default for Instruction<'_> {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                mnemonic: Mnemonic::__LAST,
+                operand_data: 0,
+                metadata: 0,
+                additional: MaybeUninit::uninit(),
+                operands: MaybeUninit::uninit().assume_init_read(),
             }
         }
-        true
     }
 }
 
@@ -123,20 +71,286 @@ pub const SYM: u16 = 0b011;
 pub const STR: u16 = 0b100;
 pub const IMM: u16 = 0b101;
 
+const ADDT_MASK: u16 = !0b0001_0000_0000_0000;
+const LEN_MASK: u16 = !0b1110_0000_0000_0000;
+const DST_MASK: u16 = !0b0000_0000_0000_0111;
+const SRC_MASK: u16 = !0b0000_0000_0011_1000;
+const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
+const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
+const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
+
+#[allow(unused)]
+const FPFX_NONE: u16 = 0b0000;
+const FPFX_VEX: u16 = 0b0001;
+const FPFX_EVEX: u16 = 0b0010;
+const FPFX_APX: u16 = 0b0011;
+
 impl<'a> Instruction<'a> {
     #[inline(always)]
-    pub const fn get_evex(&self) -> bool {
-        self.metadata_2 & 0b111 == 0b10
+    const fn get_op_mask(&self, idx: usize) -> u16 {
+        match idx {
+            0 => DST_MASK,
+            1 => SRC_MASK,
+            2 => SSRC_MASK,
+            3 => TSRC_MASK,
+            _ => 0,
+        }
     }
+    pub fn push(&mut self, opr: OperandOwned) {
+        self.set(self.len(), opr);
+        self.set_len(self.len() + 1);
+    }
+    pub fn with_operands(operands: SmallVec<OperandOwned, 4>) -> Self {
+        let mut ins = Self::default();
+        ins.set_len(operands.len());
+        let mut idx = 0;
+        for o in operands.into_iter() {
+            ins.set(idx, o);
+            idx += 1;
+        }
+        ins
+    }
+    pub fn set_len(&mut self, len: usize) {
+        self.operand_data &= LEN_MASK;
+        self.operand_data |= (len as u16 & 0b111) << 13;
+    }
+    pub fn len(&self) -> usize {
+        ((self.operand_data & !LEN_MASK) >> 13) as usize
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    // get (operand) type
+    pub fn gett(&self, idx: usize) -> u16 {
+        let mask = self.get_op_mask(idx);
+        (self.operand_data & !mask) >> (idx as u16 * 3)
+    }
+    pub fn set(&mut self, idx: usize, opr: OperandOwned) {
+        use std::mem::transmute;
+        self.operand_data &= self.get_op_mask(idx);
+        let (val, opt): (u64, u16) = unsafe {
+            match opr {
+                OperandOwned::Mem(m) => (transmute(m), MEM),
+                OperandOwned::Register(r) => (r.0 as u64, REG),
+                OperandOwned::String(s) => (transmute(s), STR),
+                OperandOwned::Symbol(s) => (transmute(s), SYM),
+                OperandOwned::Imm(i) => (transmute(i), IMM),
+            }
+        };
+        self.operands[idx].oth = val;
+        self.operand_data |= opt << (idx * 3) as u16;
+    }
+    pub fn get(&'a self, idx: usize) -> Option<Operand<'a>> {
+        let ot = self.gett(idx);
+        if ot != 0 {
+            let od = &self.operands[idx];
+            unsafe {
+                match ot {
+                    REG => Some(Operand::Register(od.reg)),
+                    MEM => Some(Operand::Mem(od.mem)),
+                    IMM => Some(Operand::Imm(od.num)),
+                    STR => Some(Operand::String(&od.str)),
+                    SYM => Some(Operand::Symbol(&od.sym)),
+                    _ => None,
+                }
+            }
+        } else {
+            None
+        }
+    }
+    pub fn dst(&'a self) -> Option<Operand<'a>> {
+        self.get(0)
+    }
+    pub fn src(&'a self) -> Option<Operand<'a>> {
+        self.get(1)
+    }
+    pub fn ssrc(&'a self) -> Option<Operand<'a>> {
+        self.get(2)
+    }
+    pub fn tsrc(&'a self) -> Option<Operand<'a>> {
+        self.get(3)
+    }
+    pub fn size_lt(&self) -> Size {
+        let dst = match &self.dst() {
+            Some(o) => o.size(),
+            None => Size::Unknown,
+        };
+        let src = match &self.src() {
+            Some(o) => o.size(),
+            None => Size::Unknown,
+        };
+
+        if dst == Size::Unknown && src != Size::Unknown {
+            src
+        } else if dst != Size::Unknown && src == Size::Unknown {
+            dst
+        } else if dst > src {
+            src
+        } else {
+            dst
+        }
+    }
+    pub fn size_gt(&self) -> Size {
+        let dst = match &self.dst() {
+            Some(o) => o.size(),
+            None => Size::Unknown,
+        };
+        let src = match &self.src() {
+            Some(o) => o.size(),
+            None => Size::Unknown,
+        };
+
+        if dst == Size::Unknown && src != Size::Unknown {
+            src
+        } else if dst != Size::Unknown && src == Size::Unknown {
+            dst
+        } else if dst < src {
+            src
+        } else {
+            dst
+        }
+    }
+    pub fn size(&self) -> Size {
+        self.size_gt()
+    }
+
+    pub const fn set_addt(&mut self, am: Mnemonic) {
+        self.operand_data &= ADDT_MASK;
+        self.operand_data |= 1 << 12;
+        self.additional = MaybeUninit::new(am);
+    }
+    pub const fn get_addt(&self) -> Option<Mnemonic> {
+        if (self.operand_data & !ADDT_MASK) >> 12 == 1 {
+            unsafe { Some(self.additional.assume_init()) }
+        } else {
+            None
+        }
+    }
+    // metadata
+
+    pub const fn set_vex(&mut self) {
+        self.set_fpfx(FPFX_VEX);
+    }
+    pub const fn set_evex(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+    }
+
+    pub const fn set_fpfx(&mut self, v: u16) {
+        self.metadata &= FPFX_MASK;
+        self.metadata |= v << 12;
+    }
+    pub const fn get_fpfx(&self) -> u16 {
+        (self.metadata & !FPFX_MASK) >> 12
+    }
+
+    pub const fn is_evex(&self) -> bool {
+        self.get_fpfx() == FPFX_EVEX
+    }
+    pub const fn is_vex(&self) -> bool {
+        self.get_fpfx() == FPFX_VEX
+    }
+    pub const fn is_apx(&self) -> bool {
+        self.get_fpfx() == FPFX_APX
+    }
+    pub const fn is_eevex(&self) -> bool {
+        self.get_fpfx() == FPFX_APX && self.apx_is_eevex().unwrap()
+    }
+    pub const fn is_rex2(&self) -> bool {
+        self.get_fpfx() == FPFX_APX && self.apx_is_rex2().unwrap()
+    }
+
+    // evex
+    pub fn set_evex_mask(&mut self, o: u8) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_0000_0111_0000;
+        self.metadata |= (o as u16 & 0b111) << 4;
+    }
+    pub fn evex_mask(&self) -> Option<u8> {
+        if self.is_evex() {
+            Some(((self.metadata & 0b0000_0000_0111_0000) >> 4) as u8)
+        } else {
+            None
+        }
+    }
+    pub fn set_evex_z(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_0100_0000_0000;
+        self.metadata |= 0b0000_0100_0000_0000;
+    }
+    pub fn evex_z(&self) -> Option<bool> {
+        if self.is_evex() {
+            Some(self.metadata & 0b0000_0100_0000_0000 == 0b0000_0100_0000_0000)
+        } else {
+            None
+        }
+    }
+    pub fn set_evex_er(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_0010_0000_0000;
+        self.metadata |= 0b0000_0010_0000_0000;
+    }
+    pub fn evex_er(&self) -> Option<bool> {
+        if self.is_evex() {
+            Some(self.metadata & 0b0000_0010_0000_0000 == 0b0000_0010_0000_0000)
+        } else {
+            None
+        }
+    }
+    pub fn set_evex_sae(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_1000_0000_0000;
+        self.metadata |= 0b0000_1000_0000_0000;
+    }
+    pub fn evex_sae(&self) -> Option<bool> {
+        if self.is_evex() {
+            Some(self.metadata & 0b0000_1000_0000_0000 == 0b0000_1000_0000_0000)
+        } else {
+            None
+        }
+    }
+
+    // apx
+    pub fn set_apx_eevex(&mut self) {
+        self.metadata &= !0b0000_1000_0000_0000;
+    }
+    pub fn set_apx_rex2(&mut self) {
+        self.metadata &= !0b0000_1000_0000_0000;
+        self.metadata |= 0b0000_1000_0000_0000;
+    }
+    pub const fn apx_is_eevex(&self) -> Option<bool> {
+        if let Some(b) = self.apx_is_rex2() {
+            Some(!b)
+        } else {
+            None
+        }
+    }
+    pub const fn apx_is_rex2(&self) -> Option<bool> {
+        if self.is_apx() {
+            Some(self.metadata & 0b0000_1000_0000_0000 == 0b0000_1000_0000_0000)
+        } else {
+            None
+        }
+    }
+
+    // operands
+    pub fn iter(&'a self) -> impl Iterator<Item = Operand<'a>> {
+        (0..self.len()).map(|o| self.get(o).unwrap())
+    }
+
+    // legacy
     pub fn needs_evex(&self) -> bool {
-        if self.get_evex() {
+        if self.is_evex() {
             return true;
         }
         if self.size() == Size::Zword {
             return true;
         }
         for i in 0..self.len() {
-            if REG == self.get_type(i) && unsafe { self.get_as_reg(i) }.get_ext_bits()[0] {
+            if REG == self.gett(i) && unsafe { self.get_as_reg(i) }.get_ext_bits()[0] {
                 return true;
             }
         }
@@ -145,64 +359,9 @@ impl<'a> Instruction<'a> {
     pub fn needs_rex(&self) -> bool {
         crate::core::rex::needs_rex(self, &self.dst(), &self.src())
     }
-    pub const fn get_mask(&self) -> Option<u8> {
-        if self.metadata_2 & 1 << 9 == 1 << 9 {
-            Some(((self.metadata_2 & 0b111 << 6) >> 6) as u8)
-        } else {
-            None
-        }
-    }
-    pub const fn set_mask(&mut self, val: u16) {
-        self.set_evex();
-        self.metadata_2 |= 1 << 9;
-        self.metadata_2 |= (val & 0b111) << 6;
-    }
-    pub const fn get_z(&self) -> bool {
-        if self.get_evex() {
-            self.metadata_2 & 0b10000 == 0b10000
-        } else {
-            false
-        }
-    }
-    pub const fn set_z(&mut self) {
-        self.set_evex();
-        self.metadata_2 |= 0b10000;
-    }
-    pub const fn get_sae(&self) -> bool {
-        if self.get_evex() {
-            self.metadata_2 & 0b100000 == 0b100000
-        } else {
-            false
-        }
-    }
-    pub const fn set_sae(&mut self) {
-        self.set_evex();
-        self.metadata_2 |= 0b100000;
-    }
-    pub const fn get_er(&self) -> bool {
-        if self.get_evex() {
-            self.metadata_2 & 0b1000 == 0b1000
-        } else {
-            false
-        }
-    }
-    pub const fn set_er(&mut self) {
-        self.set_evex();
-        self.metadata_2 |= 0b1000;
-    }
-    pub const fn set_evex(&mut self) {
-        if self.metadata_2 & 0b111 == 0b000 {
-            self.metadata_2 |= 0b010;
-        }
-    }
-    pub const fn set_vex(&mut self) {
-        if self.metadata_2 & 0b111 == 0b000 {
-            self.metadata_2 |= 0b001;
-        }
-    }
     pub fn get_bcst(&self) -> bool {
         for i in 0..self.len() {
-            if MEM == self.get_type(i) {
+            if MEM == self.gett(i) {
                 return unsafe { self.get_as_mem(i).is_bcst() };
             }
         }
@@ -213,104 +372,6 @@ impl<'a> Instruction<'a> {
     }
     pub const unsafe fn get_as_mem(&self, idx: usize) -> &Mem {
         &self.operands[idx].mem
-    }
-    #[inline(always)]
-    #[allow(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self {
-            operands: unsafe { MaybeUninit::uninit().assume_init() },
-            metadata: 0,
-            metadata_2: 0,
-            mnemonic: Mnemonic::__LAST,
-            additional: MaybeUninit::uninit(),
-        }
-    }
-    pub const fn set_addt(&mut self, addt: Option<Mnemonic>) {
-        if let Some(mnem) = addt {
-            self.metadata_2 |= 1 << 15;
-            self.additional = MaybeUninit::new(mnem);
-        }
-    }
-    pub const fn addt(&self) -> Option<Mnemonic> {
-        if self.metadata_2 & 1 << 15 == 1 << 15 {
-            Some(unsafe { self.additional.assume_init() })
-        } else {
-            None
-        }
-    }
-    #[inline(always)]
-    pub const fn set(&mut self, idx: usize, opr: Operand) {
-        use std::mem::transmute;
-        if idx < 4 {
-            let idt = (idx as u16) << 2;
-            let (con, opt) = unsafe {
-                match opr {
-                    Operand::Register(r) => (r as u64, REG),
-                    Operand::Mem(m) => (transmute(m), MEM),
-                    Operand::Imm(i) => (i.get_as_u64(), IMM),
-                    Operand::String(s) => (transmute(s), STR),
-                    Operand::SymbolRef(s) => (transmute(s), SYM),
-                }
-            };
-            self.metadata &= !(0b1111 << idt);
-            self.metadata |= opt << idt;
-            self.operands[idx] = OperandData { oth: con };
-        }
-    }
-    #[inline(always)]
-    pub fn push(&mut self, opr: Operand) {
-        self.set(self.len(), opr);
-        let len = ((self.metadata_2 & (0b111 << 12)) >> 12) + 1;
-        self.metadata_2 &= !(0b111 << 12);
-        self.metadata_2 |= len << 12;
-    }
-    #[inline(always)]
-    pub fn get_type(&'a self, idx: usize) -> u16 {
-        if idx >= self.len() {
-            return 0;
-        }
-        let idt = (idx as u16) << 2;
-        (self.metadata & (0b1111 << idt)) >> idt
-    }
-    #[inline(always)]
-    pub fn get(&'a self, idx: usize) -> Option<Operand<'a>> {
-        if idx >= self.len() {
-            return None;
-        }
-        let op = self.operands.get(idx).unwrap();
-        let idt = (idx as u16) << 2;
-        let opt = (self.metadata & (0b1111 << idt)) >> idt;
-        unsafe {
-            match opt {
-                REG => Some(Operand::Register(op.reg)),
-                IMM => Some(Operand::Imm(op.num)),
-                MEM => Some(Operand::Mem(op.mem)),
-                STR => Some(Operand::String(op.str.clone())),
-                SYM => Some(Operand::SymbolRef(op.sym.clone())),
-                _ => None,
-            }
-        }
-    }
-    #[inline(always)]
-    pub fn src2(&'a self) -> Option<Operand<'a>> {
-        self.get(2)
-    }
-    #[inline(always)]
-    pub fn src(&'a self) -> Option<Operand<'a>> {
-        self.get(1)
-    }
-    #[inline(always)]
-    pub fn dst(&'a self) -> Option<Operand<'a>> {
-        self.get(0)
-    }
-    pub const fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-    pub const fn len(&self) -> usize {
-        ((self.metadata_2 & (0b111 << 12)) >> 12) as usize
-    }
-    pub fn iter(&'a self) -> impl Iterator<Item = Operand<'a>> {
-        (0..self.len()).map(|i| self.get(i).unwrap())
     }
     pub fn which_variant(&self) -> IVariant {
         match self.dst() {
@@ -361,36 +422,6 @@ impl<'a> Instruction<'a> {
             _ => IVariant::STD,
         }
     }
-    #[inline(always)]
-    pub fn fast_size(dst: &Operand, src: &Operand) -> Size {
-        let dst = dst.size();
-        let src = src.size();
-        if dst < src {
-            src
-        } else {
-            dst
-        }
-    }
-    pub fn size(&self) -> Size {
-        let dst = match &self.dst() {
-            Some(o) => o.size(),
-            None => Size::Unknown,
-        };
-        let src = match &self.src() {
-            Some(o) => o.size(),
-            None => Size::Unknown,
-        };
-
-        if dst == Size::Unknown && src != Size::Unknown {
-            src
-        } else if dst != Size::Unknown && src == Size::Unknown {
-            dst
-        } else if dst < src {
-            src
-        } else {
-            dst
-        }
-    }
     #[inline]
     pub fn uses_cr(&self) -> bool {
         for o in self.iter() {
@@ -437,7 +468,7 @@ impl<'a> Instruction<'a> {
 
         let mut idx = 0;
         while idx < self.len() {
-            if SYM == self.get_type(idx) {
+            if SYM == self.gett(idx) {
                 let sym = unsafe { &self.operands[idx].sym };
                 if sym.is_deref() {
                     ops[0] = Some((sym, idx));
@@ -471,7 +502,7 @@ impl<'a> Instruction<'a> {
     pub fn get_mem_idx(&self) -> Option<usize> {
         let mut idx = 0;
         while idx < 4 {
-            if MEM == self.get_type(idx) {
+            if MEM == self.gett(idx) {
                 return Some(idx);
             }
             idx += 1;
@@ -482,20 +513,96 @@ impl<'a> Instruction<'a> {
 
 impl Drop for Instruction<'_> {
     fn drop(&mut self) {
-        let mut idx = 0;
-        while idx < 4 {
-            let t = self.get_type(idx);
-            if t == STR {
-                unsafe { ManuallyDrop::drop(&mut self.operands[idx].str) }
-            } else if t == SYM {
-                unsafe { ManuallyDrop::drop(&mut self.operands[idx].sym) }
+        for i in 0..self.len() {
+            let ot = self.gett(i);
+            unsafe {
+                match ot {
+                    SYM => ManuallyDrop::drop(&mut self.operands[i].sym),
+                    STR => ManuallyDrop::drop(&mut self.operands[i].str),
+                    _ => {}
+                }
             }
-            idx += 1;
         }
     }
 }
 
-#[derive(Default, Clone, Debug)]
+pub struct Instruction<'a> {
+    pub operands: [OperandData<'a>; 4],
+    pub mnemonic: Mnemonic,
+    pub additional: MaybeUninit<Mnemonic>,
+
+    // layout:
+    //
+    //  0bLLLM_XXX_YYY_ZZZ_AAA:
+    //   - XXX: operand type for 4th operand
+    //   - YYY: operand type for ssrc.
+    //   - ZZZ: operand type for src.
+    //   - AAA: operand type for dst.
+    //   - LLL: length
+    //   - M  : has additional mnemonic
+    pub operand_data: u16,
+    //  0bXXXX_RRRR_RRRR_RRRR
+    //   - XXXX: forced prefix (fpfx)
+    //      0b0000 - None
+    //      0b0001 - VEX
+    //      0b0010 - EVEX
+    //      0b0011 - APX (variants)
+    //      0b.... - reserved
+    //   - RRRR_RRRR_RRRR - forced prefix specific:
+    //      if EVEX:
+    //          0bSZE0_MMM0_0000:
+    //              - S: {sae}
+    //              - Z: {z}
+    //              - E: {er}
+    //              - M: {k0/1/2/3/4/5/6/7}
+    //      if APX:
+    //          0bMRRR_RRRR_RRRR:
+    //              - M: if 0 then EEVEX, if 1 then REX2
+    //              - RRR_RRRR_RRRR:
+    //                  if EEVEX:
+    //                      [...]
+    //                  if REX2:
+    //                      [...]
+    //      else:
+    //          reserved
+    pub metadata: u16,
+}
+
+impl Debug for Instruction<'_> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
+        write!(fmt, "Instruction {{")?;
+        write!(fmt, "Additional: {:?}, ", self.get_addt())?;
+        write!(fmt, "Mnemonic: {:?}, ", self.mnemonic)?;
+        write!(fmt, "Operands: [")?;
+        let mut i = 0;
+        for o in self.iter() {
+            write!(fmt, "{:?}", o)?;
+            if i + 1 != self.len() {
+                write!(fmt, ", ")?;
+            }
+            i += 1;
+        }
+        write!(fmt, "]")?;
+        write!(fmt, "}}")?;
+        Ok(())
+    }
+}
+
+impl PartialEq for Instruction<'_> {
+    fn eq(&self, rhs: &Self) -> bool {
+        if self.mnemonic != rhs.mnemonic || self.len() != rhs.len() {
+            return false;
+        }
+        for i in 0..self.len() {
+            if self.get(i) != rhs.get(i) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct AST<'a> {
     pub sections: Vec<Section<'a>>,
     pub defines: HashMap<&'a str, Number>,
@@ -544,7 +651,7 @@ impl Operand<'_> {
             Self::Imm(n) => n.size(),
             Self::Register(r) => r.size(),
             Self::Mem(m) => m.size(),
-            Self::SymbolRef(s) => {
+            Self::Symbol(s) => {
                 if let Some(sz) = s.size() {
                     sz
                 } else {
@@ -651,16 +758,23 @@ mod t {
     #[test]
     fn test() {
         assert_eq!(0b111 << (4 << (0 * 3)) >> (0 * 3) >> 4, 0b111);
-        let mut ins = Instruction::new();
-        ins.push(Operand::Imm(Number::uint64(10)));
-        println!("{:016b}", ins.metadata);
+        let mut ins = Instruction::default();
+        ins.set(0, OperandOwned::Imm(Number::uint64(10)));
+        ins.set_len(1);
         assert_eq!(ins.get(0), Some(Operand::Imm(Number::uint64(10))));
-        assert_eq!(ins.len(), 1);
-        ins.push(Operand::Register(Register::EAX));
+        ins.set(1, OperandOwned::Register(Register::EAX));
+        ins.set_len(2);
         assert_eq!(ins.get(1), Some(Operand::Register(Register::EAX)));
         assert_eq!(ins.len(), 2);
-        ins.set(0, Operand::Register(Register::EAX));
+        ins.set(0, OperandOwned::Register(Register::EAX));
         assert_eq!(ins.get(0), Some(Operand::Register(Register::EAX)));
         assert_eq!(ins.len(), 2);
+        ins.set_fpfx(FPFX_EVEX);
+        ins.set_fpfx(FPFX_EVEX);
+        assert_eq!(ins.is_evex(), true);
+        ins.set_evex_mask(1);
+        assert_eq!(ins.evex_mask(), Some(1));
+        ins.set_evex_z();
+        assert_eq!(ins.evex_z(), Some(true));
     }
 }

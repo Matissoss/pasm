@@ -69,3 +69,17 @@ Examples should be introduced like:
     EXAMPLE
     ```
 ```
+
+## terminology
+
+`pasm` often uses it's own terminology, so here is list so you won't be confused if you see them:
+
+- `dst` - destination (0th operand)
+- `src` - source (1st operand)
+- `ssrc`/`src2` - second source (2nd operand; often referred in official x86 documents as (E)VEX source or NDD)
+- `tsrc` - third source (terminology currently not used)
+- `xword` - 128-bit size; why not `oword`? because `xword` is most commonly used with `xmm` registers, `yword` with `ymm` and `zword` with `zmm`
+- `EEVEX` - Extended EVEX (in ctx. of Intel APX)
+- `ebits` - extension bits (most commonly represented with `[bool; 2]`): `EECCC` - `EE` are the extension bits, `CCC` - code
+    - `e1`: first extension bit (idx 0)
+    - `e2`: second extension bit (idx 1)

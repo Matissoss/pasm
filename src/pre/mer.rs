@@ -8,7 +8,7 @@ use std::mem::ManuallyDrop;
 use crate::{
     pre::tok::Token,
     shr::{
-        ast::{Instruction, Operand},
+        ast::{Instruction, OperandOwned},
         dir::Directive,
         error::Error,
         ins::Mnemonic,
@@ -465,11 +465,11 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
     }
 }
 
-pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Error> {
+pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<OperandOwned, Error> {
     unsafe {
         match operand_buf.len() {
             0 => Err(Error::new("cannot make operand from nothing", 3)),
-            1 => Ok(Operand::try_from(operand_buf.take_owned(0).unwrap_unchecked())?),
+            1 => Ok(OperandOwned::try_from(operand_buf.take_owned(0).unwrap_unchecked())?),
             2 => match (operand_buf.take_owned_unchecked(0), operand_buf.take_owned_unchecked(1)) {
                 (Token::Directive(sz), Token::SymbolRef(mut s)) | (Token::SymbolRef(mut s), Token::Directive(sz)) => {
                     let size = match Size::try_from(sz){
@@ -479,7 +479,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Erro
                     };
                     s.set_size(size);
                     s.deref(true);
-                    Ok(Operand::SymbolRef(ManuallyDrop::new(s)))
+                    Ok(OperandOwned::Symbol(ManuallyDrop::new(s)))
                 }
                 (Token::Closure(' ', m), Token::Modifier(mods)) |
                 (Token::Modifier(mods), Token::Closure(' ', m)) => {
@@ -498,14 +498,14 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Erro
                         }
                         let mut m = Mem::new(m, sz)?;
                         m.set_bcst(true);
-                        Ok(Operand::Mem(m))
+                        Ok(OperandOwned::Mem(m))
                     } else {
                         Err(Error::new("expected modifier of size directive and bcst keyword", 8))
                     }
                 }
                 (Token::Closure(' ', m), Token::Directive(k))
                 |(Token::Directive(k), Token::Closure(' ', m)) =>
-                    Ok(Operand::Mem(Mem::new(m, Size::try_from(k).unwrap_or(Size::Unknown))?)),
+                    Ok(OperandOwned::Mem(Mem::new(m, Size::try_from(k).unwrap_or(Size::Unknown))?)),
                 (Token::Modifier(m), Token::Directive(k))
                 |(Token::Directive(k), Token::Modifier(m)) => {
                     let size = match Size::try_from(k){
@@ -528,7 +528,7 @@ pub fn make_operand(mut operand_buf: SmallVec<Token, 2>) -> Result<Operand, Erro
                         return Err(Error::new("expected memory address at index 1", 8))
                     };
                     mem.set_segment(*seg_reg);
-                    Ok(Operand::Mem(mem))
+                    Ok(OperandOwned::Mem(mem))
                 }
                 _ => {
                     Err(Error::new("you tried to make operand from two tokens, but ones you provided could not be parsed into one", 8))
@@ -543,7 +543,7 @@ pub fn make_instruction(
     mut line: SmallVec<Token, 16>,
     mut start_idx: usize,
 ) -> Result<Instruction, Error> {
-    let mut ins = Instruction::new();
+    let mut ins = Instruction::default();
     let mut mnemonics: SmallVec<Mnemonic, 2> = SmallVec::new();
     let mut subexpr: Vec<&str> = Vec::new();
 
@@ -614,21 +614,24 @@ pub fn make_instruction(
             _ => panic!("too many mnems"),
         }
     };
+
     ins.mnemonic = mnem;
-    ins.set_addt(addt);
+    if let Some(addt) = addt {
+        ins.set_addt(addt);
+    }
     for s in subexpr {
         match s {
-            "k0" => ins.set_mask(0b000),
-            "k1" => ins.set_mask(0b001),
-            "k2" => ins.set_mask(0b010),
-            "k3" => ins.set_mask(0b011),
-            "k4" => ins.set_mask(0b100),
-            "k5" => ins.set_mask(0b101),
-            "k6" => ins.set_mask(0b110),
-            "k7" => ins.set_mask(0b111),
-            "sae" => ins.set_sae(),
-            "er" => ins.set_er(),
-            "z" => ins.set_z(),
+            "k0" => ins.set_evex_mask(0b000),
+            "k1" => ins.set_evex_mask(0b001),
+            "k2" => ins.set_evex_mask(0b010),
+            "k3" => ins.set_evex_mask(0b011),
+            "k4" => ins.set_evex_mask(0b100),
+            "k5" => ins.set_evex_mask(0b101),
+            "k6" => ins.set_evex_mask(0b110),
+            "k7" => ins.set_evex_mask(0b111),
+            "sae" => ins.set_evex_sae(),
+            "er" => ins.set_evex_er(),
+            "z" => ins.set_evex_z(),
             "m" => {}
             "evex" => ins.set_evex(),
             "vex" => ins.set_vex(),

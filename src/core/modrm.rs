@@ -21,7 +21,7 @@ pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) ->
         } else {
             0b00
         }
-    } else if let Some(Operand::SymbolRef(_)) = dst {
+    } else if let Some(Operand::Symbol(_)) = dst {
         0b00
     } else {
         0b11
@@ -40,7 +40,7 @@ pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) ->
     let rm = {
         let (us, ur) = if let Some(Operand::Mem(m)) = dst {
             (m.is_sib(), m.is_riprel())
-        } else if let Some(Operand::SymbolRef(s)) = dst {
+        } else if let Some(Operand::Symbol(s)) = dst {
             (false, s.is_deref())
         } else {
             (false, false)

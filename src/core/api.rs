@@ -418,7 +418,7 @@ impl GenAPI {
                     }
                     imm.extend(nvc);
                 }
-            } else if let Some(Operand::SymbolRef(s)) = ins.get(idx) {
+            } else if let Some(Operand::Symbol(s)) = ins.get(idx) {
                 let addend = s.addend().unwrap_or_default();
                 rels[1] = Some(Relocation {
                     symbol: s.symbol,
@@ -486,10 +486,10 @@ impl GenAPI {
         let ord = self.ord.deserialize();
         match &ord[..3] {
             //                                    MODRM.r/m   MODRM.reg   (E)VEX.vvvv
-            [MODRM_REG, MODRM_RM , _        ] => [ins.src() , ins.dst() , ins.src2()],
-            [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.src2()],
-            [MODRM_REG, VEX_VVVV , MODRM_RM ] => [ins.src2(), ins.dst() , ins.src() ],
-            [MODRM_RM , VEX_VVVV , MODRM_REG] => [ins.dst() , ins.src2(), ins.src() ],
+            [MODRM_REG, MODRM_RM , _        ] => [ins.src() , ins.dst() , ins.ssrc()],
+            [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.ssrc()],
+            [MODRM_REG, VEX_VVVV , MODRM_RM ] => [ins.ssrc(), ins.dst() , ins.src() ],
+            [MODRM_RM , VEX_VVVV , MODRM_REG] => [ins.dst() , ins.ssrc(), ins.src() ],
             [VEX_VVVV , MODRM_REG, _        ] => [None      , ins.src() , ins.dst() ],
             [VEX_VVVV , MODRM_RM , _        ] => [ins.src() , None      , ins.dst() ],
             _                                 => [None      , None      , None      ],
@@ -539,7 +539,7 @@ impl GenAPI {
 
 fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
     use Mnemonic as Ins;
-    if let Some(s) = ins.addt() {
+    if let Some(s) = ins.get_addt() {
         match s {
             Ins::LOCK => Some(0xF0),
             Ins::REPNE | Ins::REPNZ => Some(0xF2),

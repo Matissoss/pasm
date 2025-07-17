@@ -20,7 +20,7 @@ pub struct SlimSection<'a> {
     pub bits: u8,
 }
 
-#[derive(PartialEq, Clone, Debug, Default)]
+#[derive(PartialEq, Debug, Default)]
 pub struct Section<'a> {
     pub name: &'a str,
     pub content: Vec<label::Label<'a>>,

@@ -13,7 +13,7 @@ pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
     let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
     if let (None, None, None) = (&modrm_reg, &modrm_rm, &vex_opr) {
-        modrm_reg = ins.src2();
+        modrm_reg = ins.ssrc();
         modrm_rm = ins.dst();
         vex_opr = ins.src();
     }

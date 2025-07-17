@@ -34,15 +34,15 @@ Following results are the best of 5 iterations.
 ### PASM
 
 ```
-13 147 148 822      cycles:u                                                                (66,65%)
-30 481 804 331      instructions:u                   #    2,32  insn per cycle              (83,34%)
- 6 248 733 133      branches:u                                                              (83,33%)
-    29 936 930      branch-misses:u                  #    0,48% of all branches             (83,35%)
+27 876 814 154      instructions:u                   #    2,35  insn per cycle              (83,33%)
+11 874 834 579      cycles:u                                                                (83,35%)
+ 5 762 763 623      branches:u                                                              (83,35%)
+    29 924 131      branch-misses:u                  #    0,52% of all branches             (83,33%)
 
-3,721079105 seconds time elapsed
+3,387894262 seconds time elapsed
 
-3,499439000 seconds user
-0,179778000 seconds sys
+3,163660000 seconds user
+0,184637000 seconds sys
 ```
 
 ### GAS

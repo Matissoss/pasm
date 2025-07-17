@@ -213,7 +213,7 @@ impl ToType for Operand<'_> {
                     .setc(BCST_FLAG, m.is_bcst())
                     .setc(VSIB_FLAG, m.is_vsib()),
             ),
-            Self::SymbolRef(s) => {
+            Self::Symbol(s) => {
                 if s.is_deref() {
                     AType::Memory(
                         s.size().unwrap_or(Size::Unknown),

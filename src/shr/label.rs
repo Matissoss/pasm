@@ -5,7 +5,7 @@
 
 use crate::shr::{ast::Instruction, symbol::SymbolType, visibility::Visibility};
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 #[repr(C)]
 pub struct Label<'a> {
     pub content: Vec<Instruction<'a>>,

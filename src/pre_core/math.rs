@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use crate::shr::{
-    ast::{Operand, AST},
+    ast::{Operand, OperandOwned, AST},
     error::Error,
     label::Label,
     num::Number,
@@ -26,9 +26,9 @@ pub fn replace_mathevals(label: &mut Label, mth: &HashMap<&str, Number>) -> Resu
             continue;
         }
         for idx in 0..i.len() {
-            if let Some(Operand::SymbolRef(s)) = i.get(idx) {
+            if let Some(Operand::Symbol(s)) = i.get(idx) {
                 if let Some(v) = mth.get(&s.symbol) {
-                    i.set(idx, Operand::Imm(Number::uint64(v.get_as_u64())));
+                    i.set(idx, OperandOwned::Imm(Number::uint64(v.get_as_u64())));
                 }
             }
         }

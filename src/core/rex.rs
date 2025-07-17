@@ -22,7 +22,7 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
     };
 
     for i in 0..ins.len() {
-        if REG == ins.get_type(i) && unsafe { ins.get_as_reg(i) }.get_ext_bits()[1] {
+        if REG == ins.gett(i) && unsafe { ins.get_as_reg(i) }.get_ext_bits()[1] {
             return true;
         }
     }

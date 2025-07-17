@@ -6,7 +6,7 @@
 use crate::{
     conf::*,
     shr::{
-        ast::Operand, dir::Directive, error::Error, ins::Mnemonic, math, num::Number,
+        ast::OperandOwned, dir::Directive, error::Error, ins::Mnemonic, math, num::Number,
         reg::Register, reloc::RelType, smallvec::SmallVec, symbol::SymbolRef,
     },
 };
@@ -345,7 +345,7 @@ impl<'a> TryFrom<&'a Token<'a>> for RelType {
     }
 }
 
-impl<'a> TryFrom<Token<'a>> for Operand<'a> {
+impl<'a> TryFrom<Token<'a>> for OperandOwned<'a> {
     type Error = Error;
     #[inline(always)]
     fn try_from(tok: Token<'a>) -> Result<Self, <Self as TryFrom<Token<'a>>>::Error> {
@@ -353,7 +353,7 @@ impl<'a> TryFrom<Token<'a>> for Operand<'a> {
             Token::Register(reg) => Ok(Self::Register(reg)),
             Token::String(val) => Ok(Self::String(ManuallyDrop::new(val.into()))),
             Token::Immediate(nm) => Ok(Self::Imm(nm)),
-            Token::SymbolRef(val) => Ok(Self::SymbolRef(ManuallyDrop::new(val))),
+            Token::SymbolRef(val) => Ok(Self::Symbol(ManuallyDrop::new(val))),
             Token::Closure(' ', _) => Err(Error::new(
                 "you cannot create memory addressing without using size directive",
                 3,

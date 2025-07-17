@@ -5000,7 +5000,7 @@ fn avx_forb_chk(ins: &Instruction, forb: &[(AType, AType, AType)]) -> Option<Err
     } else {
         return None;
     };
-    let ssrc_t = if let Some(ssrc) = ins.src2() {
+    let ssrc_t = if let Some(ssrc) = ins.ssrc() {
         ssrc.atype()
     } else {
         return None;
@@ -5155,7 +5155,7 @@ fn avx_size_chk(ins: &Instruction) -> Option<Error> {
         (AType::Register(r0, _), AType::Register(r1, _)) => {
             let s0 = r0.size();
             let s1 = r1.size();
-            if let Some(ssrc) = ins.src2() {
+            if let Some(ssrc) = ins.ssrc() {
                 if s1 == s0 && ssrc.size() == s0 {
                     None
                 } else {
@@ -5252,7 +5252,7 @@ fn size_chk(ins: &Instruction) -> Option<Error> {
 }
 
 fn addt_chk(ins: &Instruction, accpt_addt: &[Mnemonic]) -> Option<Error> {
-    if let Some(addt) = ins.addt() {
+    if let Some(addt) = ins.get_addt() {
         if !find_bool(accpt_addt, &addt) {
             let er = Error::new("usage of forbidden additional mnemonic", 6);
             return Some(er);

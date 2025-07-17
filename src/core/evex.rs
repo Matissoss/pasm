@@ -32,12 +32,12 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
     }
 
     let evex3 = {
-        (ins.get_z() as u8) << 7
+        (ins.evex_z().unwrap() as u8) << 7
             | ((ins.size() == Size::Zword) as u8) << 6
             | ((ins.size() == Size::Yword) as u8) << 5
-            | ((ins.get_sae() | ins.get_bcst()) as u8) << 4
+            | ((ins.evex_sae().unwrap() || ins.get_bcst()) as u8) << 4
             | (!evex_vd as u8) << 3
-            | ins.get_mask().unwrap_or(0)
+            | ins.evex_mask().unwrap_or(0)
     };
 
     [

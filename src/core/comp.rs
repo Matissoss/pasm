@@ -2587,7 +2587,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSLLW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x71])
                     .imm_atindex(2, 1)
@@ -2604,7 +2604,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSLLD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x72])
                     .imm_atindex(2, 1)
@@ -2621,7 +2621,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSLLQ => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x73])
                     .imm_atindex(2, 1)
@@ -2638,7 +2638,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSRLW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x71])
                     .imm_atindex(2, 1)
@@ -2655,7 +2655,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSRLD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x72])
                     .imm_atindex(2, 1)
@@ -2672,7 +2672,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSRLQ => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x73])
                     .imm_atindex(2, 1)
@@ -2689,7 +2689,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSRAW => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x71])
                     .imm_atindex(2, 1)
@@ -2706,7 +2706,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::VPSRAD => {
             let mut api =
                 GenAPI::new().vex(VexDetails::new().vex_we(false).pp(0x66).map_select(0x0F));
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 api = api
                     .opcode(&[0x72])
                     .imm_atindex(2, 1)
@@ -2971,7 +2971,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
         Mnemonic::VPERMILPS => {
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 GenAPI::new()
                     .modrm(true, None, None)
                     .opcode(&[0x04])
@@ -2987,7 +2987,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
         }
         Mnemonic::VPERMILPD => {
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 GenAPI::new()
                     .modrm(true, None, None)
                     .opcode(&[0x05])
@@ -3688,7 +3688,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .map_select(0x0F)
                     .pp(0xF2)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             )
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .modrm(true, None, None),
@@ -3698,7 +3698,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .map_select(0x0F)
                     .pp(0xF3)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             )
             .modrm(true, None, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM]),
@@ -5294,7 +5294,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .pp(0xF3)
                     .map_select(MAP5)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             ),
         Mnemonic::VCVTSS2SH => GenAPI::new()
             .opcode(&[0x1D])
@@ -5449,7 +5449,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .pp(0xF2)
                     .map_select(MAP0F)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             ),
         Mnemonic::VCVTUSI2SH => GenAPI::new()
             .opcode(&[0x7B])
@@ -5459,7 +5459,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .pp(0xF3)
                     .map_select(MAP5)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             ),
         Mnemonic::VCVTUSI2SS => GenAPI::new()
             .opcode(&[0x7B])
@@ -5469,7 +5469,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new()
                     .pp(0xF3)
                     .map_select(MAP0F)
-                    .vex_we(ins.src2().unwrap().size() == Size::Qword),
+                    .vex_we(ins.ssrc().unwrap().size() == Size::Qword),
             ),
         Mnemonic::VCVTUW2PH => GenAPI::new()
             .opcode(&[0x7D])
@@ -6349,7 +6349,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true)),
         Mnemonic::VPERMPD => {
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 GenAPI::new()
                     .opcode(&[0x01])
                     .modrm(true, None, None)
@@ -6370,7 +6370,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(false)),
         Mnemonic::VPERMQ => {
-            if let Some(Operand::Imm(_)) = ins.src2() {
+            if let Some(Operand::Imm(_)) = ins.ssrc() {
                 GenAPI::new()
                     .opcode(&[0x00])
                     .modrm(true, None, None)
@@ -6456,7 +6456,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true)),
         Mnemonic::VPMASKMOVD => {
-            if let Some(Operand::Mem(_) | Operand::SymbolRef(_)) = ins.dst() {
+            if let Some(Operand::Mem(_) | Operand::Symbol(_)) = ins.dst() {
                 GenAPI::new()
                     .opcode(&[0x8E])
                     .modrm(true, None, None)
@@ -6473,7 +6473,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
         }
         Mnemonic::VPMASKMOVQ => {
-            if let Some(Operand::Mem(_) | Operand::SymbolRef(_)) = ins.dst() {
+            if let Some(Operand::Mem(_) | Operand::Symbol(_)) = ins.dst() {
                 GenAPI::new()
                     .opcode(&[0x8E])
                     .modrm(true, None, None)
@@ -7453,7 +7453,7 @@ fn ins_kmov(ins: &Instruction) -> GenAPI {
         } else {
             api = api.opcode(&[0x93]);
         }
-    } else if let Operand::Mem(_) | Operand::SymbolRef(_) = dst {
+    } else if let Operand::Mem(_) | Operand::Symbol(_) = dst {
         api = api.opcode(&[0x91]).ord(&[MODRM_RM, MODRM_REG]);
     }
     api
@@ -7528,7 +7528,7 @@ fn ins_xbegin(_: &Instruction) -> GenAPI {
 
 fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
     let mut api = GenAPI::new().rex(true).modrm(true, None, None);
-    if let Some(Operand::Imm(_) | Operand::SymbolRef(_)) = ins.src2() {
+    if let Some(Operand::Imm(_) | Operand::Symbol(_)) = ins.ssrc() {
         api = api.opcode(opc_imm).imm_atindex(2, 1);
     } else {
         api = api.opcode(opc_rm);
@@ -7538,7 +7538,7 @@ fn ins_shlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
 
 fn ins_bt(ins: &Instruction, opc_noimm: &[u8], opc_imm: &[u8], _: u8, modrm: u8) -> GenAPI {
     let mut api = GenAPI::new().rex(true);
-    if let Some(Operand::Imm(_) | Operand::SymbolRef(_)) = ins.src() {
+    if let Some(Operand::Imm(_) | Operand::Symbol(_)) = ins.src() {
         api = api
             .opcode(opc_imm)
             .modrm(true, Some(modrm), None)
@@ -7574,7 +7574,7 @@ fn ins_pop(ins: &Instruction, _: u8) -> GenAPI {
                 GenAPI::new().opcode(&[0x58 + r.to_byte()]).rex(true)
             }
         }
-        Operand::Mem(_) | Operand::SymbolRef(_) => {
+        Operand::Mem(_) | Operand::Symbol(_) => {
             GenAPI::new()
                 .opcode(&[0x8F])
                 .rex(true)
@@ -7613,7 +7613,7 @@ fn ins_push(ins: &Instruction, _: u8) -> GenAPI {
                 .fixed_size(Size::Dword),
             _ => invalid(31),
         },
-        Operand::SymbolRef(s) => {
+        Operand::Symbol(s) => {
             if s.is_deref() {
                 GenAPI::new()
                     .opcode(&[0xFF])
@@ -7722,7 +7722,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             .rex(true)
                     }
                 }
-                Operand::SymbolRef(ref s) => {
+                Operand::Symbol(s) => {
                     if s.is_deref() {
                         let opc = if let Operand::Register(_) = src {
                             match dst.size() {
@@ -7790,7 +7790,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                 _ => invalid(26),
             }
         }
-    } else if let Operand::Mem(_) | Operand::SymbolRef(_) = dst {
+    } else if let Operand::Mem(_) | Operand::Symbol(_) = dst {
         match src {
             Operand::Register(_) => {
                 let opc = match dst.size() {
@@ -7803,7 +7803,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                     .modrm(true, None, None)
                     .rex(true)
             }
-            Operand::Imm(_) | Operand::SymbolRef(_) => {
+            Operand::Imm(_) | Operand::Symbol(_) => {
                 let size = dst.size();
                 let opc = match size {
                     Size::Byte => 0xC6,
@@ -7837,7 +7837,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
     let dst = ins.dst().unwrap();
 
     match (dst, src) {
-        (Operand::Register(dstr), Operand::SymbolRef(s)) => {
+        (Operand::Register(dstr), Operand::Symbol(s)) => {
             if s.is_deref() {
                 let opc = match dstr.size() {
                     Size::Byte => opc[7],
@@ -7913,7 +7913,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
                 .rex(true)
                 .imm_atindex(1, 1)
         }
-        (Operand::Mem(_) | Operand::SymbolRef(_), Operand::Imm(_) | Operand::SymbolRef(_)) => {
+        (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dstm = ins.dst().unwrap().size();
             let srci = ins.src().unwrap().size();
             let opc = match dstm {
@@ -7956,7 +7956,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
                 .modrm(true, None, None)
                 .rex(true)
         }
-        (Operand::Mem(_) | Operand::SymbolRef(_), Operand::Register(_)) => {
+        (Operand::Mem(_) | Operand::Symbol(_), Operand::Register(_)) => {
             let opc = match ins.dst().unwrap().size() {
                 Size::Byte => opc[7],
                 Size::Word | Size::Dword | Size::Qword => opc[6],
@@ -7976,7 +7976,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
     let dst = ins.dst().unwrap();
 
     match (dst, &src) {
-        (Operand::Register(dstr), Operand::Imm(_) | Operand::SymbolRef(_)) => {
+        (Operand::Register(dstr), Operand::Imm(_) | Operand::Symbol(_)) => {
             let srci = ins.src().unwrap().size();
             if let Size::Dword | Size::Word = srci {
                 if let Register::RAX | Register::EAX = dstr {
@@ -8012,7 +8012,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
                 .rex(true)
                 .imm_atindex(1, 1)
         }
-        (Operand::Mem(_) | Operand::SymbolRef(_), Operand::Imm(_) | Operand::SymbolRef(_)) => {
+        (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dstm = ins.dst().unwrap().size();
             let srci = ins.src().unwrap().size();
             let opc = match dstm {
@@ -8079,18 +8079,18 @@ fn ins_test(ins: &Instruction, _: u8) -> GenAPI {
     let dst = ins.dst().unwrap();
 
     match (&dst, src) {
-        (Operand::Register(dstr), Operand::Imm(_) | Operand::SymbolRef(_)) => {
+        (Operand::Register(dstr), Operand::Imm(_) | Operand::Symbol(_)) => {
             let sz = ins.src().unwrap().size();
             if let Size::Dword | Size::Word = sz {
-                if let Register::RAX | Register::EAX = dstr {
+                if let &Register::RAX | &Register::EAX = dstr {
                     return GenAPI::new().opcode(&[0xA9]).imm_atindex(1, 4).rex(true);
-                } else if let Register::AX = dstr {
+                } else if let &Register::AX = dstr {
                     return GenAPI::new().opcode(&[0xA9]).imm_atindex(1, 2).rex(true);
                 }
             }
-            if let Register::AL = dstr {
+            if let &Register::AL = dstr {
                 return GenAPI::new().opcode(&[0xA8]).imm_atindex(1, 1).rex(true);
-            } else if let Register::AX = dstr {
+            } else if let &Register::AX = dstr {
                 return GenAPI::new().opcode(&[0xA9]).imm_atindex(1, 2).rex(true);
             }
 
@@ -8111,7 +8111,7 @@ fn ins_test(ins: &Instruction, _: u8) -> GenAPI {
                 .imm_atindex(1, size)
                 .rex(true)
         }
-        (Operand::Mem(_) | Operand::SymbolRef(_), Operand::Imm(_) | Operand::SymbolRef(_)) => {
+        (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dsts = ins.dst().unwrap().size();
             let srci = ins.src().unwrap().size();
             let opc = match dsts {
@@ -8134,7 +8134,7 @@ fn ins_test(ins: &Instruction, _: u8) -> GenAPI {
                 .rex(true)
                 .imm_atindex(1, size)
         }
-        (Operand::Register(_) | Operand::Mem(_) | Operand::SymbolRef(_), Operand::Register(_)) => {
+        (Operand::Register(_) | Operand::Mem(_) | Operand::Symbol(_), Operand::Register(_)) => {
             let opc = match dst.size() {
                 Size::Byte => 0x84,
                 Size::Word | Size::Dword | Size::Qword => 0x85,
@@ -8249,7 +8249,7 @@ fn ins_jmplike<'a>(ins: &'a Instruction, opc: [&'a [u8]; 3], addt: u8, _: u8) ->
             };
             GenAPI::new().opcode(opc).imm_atindex(0, 0)
         }
-        Operand::SymbolRef(s) => {
+        Operand::Symbol(s) => {
             let sz = s.reltype().unwrap_or(RelType::REL32).size();
             let base = match sz {
                 1 => opc[2].to_vec(),

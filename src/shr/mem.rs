@@ -163,21 +163,19 @@ impl Mem {
         }
         if self.flags.get(HAS_BASE).unwrap() {
             if self.flags.get(IS_VSIB_IDX).unwrap() {
-                Some(Register::de(Register::mksek(
-                    self.base_evex(),
-                    self.base_rex(),
-                    Size::Qword as u16,
-                    RPurpose::General as u16,
-                    ((self.regs & 0b0111_0000) >> 4) as u16,
-                )))
+                Some(Register::new(
+                    RPurpose::General,
+                    Size::Qword,
+                    [self.base_evex(), self.base_rex()],
+                    (self.regs & 0b0111_0000) >> 4,
+                ))
             } else {
-                Some(Register::de(Register::mksek(
-                    self.base_evex(),
-                    self.base_rex(),
-                    self.addrsize() as u16,
-                    RPurpose::General as u16,
-                    ((self.regs & 0b0111_0000) >> 4) as u16,
-                )))
+                Some(Register::new(
+                    RPurpose::General,
+                    self.addrsize(),
+                    [self.base_evex(), self.base_rex()],
+                    (self.regs & 0b0111_0000) >> 4,
+                ))
             }
         } else {
             None
@@ -195,21 +193,19 @@ impl Mem {
                     Size::Dword => (Size::Zword, RPurpose::F512),
                     _ => (Size::Unknown, RPurpose::F128),
                 };
-                Some(Register::de(Register::mksek(
-                    self.index_evex(),
-                    self.index_rex(),
-                    asz as u16,
-                    rpr as u16,
-                    (self.regs & 0b000_0111) as u16,
-                )))
+                Some(Register::new(
+                    rpr,
+                    asz,
+                    [self.index_evex(), self.index_rex()],
+                    self.regs & 0b0000_0111,
+                ))
             } else {
-                Some(Register::de(Register::mksek(
-                    self.index_evex(),
-                    self.index_rex(),
-                    self.addrsize() as u16,
-                    RPurpose::General as u16,
-                    (self.regs & 0b000_0111) as u16,
-                )))
+                Some(Register::new(
+                    RPurpose::General,
+                    self.addrsize(),
+                    [self.index_evex(), self.index_rex()],
+                    self.regs & 0b0000_0111,
+                ))
             }
         } else {
             None

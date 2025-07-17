@@ -102,7 +102,6 @@ impl<'a> OperandSet<'a> {
         let slice_start = off as usize;
         let slice_end = (off + lsz) as usize;
         let slice = &self.keys[slice_start..slice_end];
-
         for key in slice {
             if key == &rhs {
                 return true;
@@ -268,7 +267,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         self.allowed.get(idx)
     }
     pub fn check_addt(&self, ins: &Instruction) -> Result<(), Error> {
-        if let Some(found) = ins.addt() {
+        if let Some(found) = ins.get_addt() {
             if self.has_addt() {
                 let mut f = false;
                 for allowed in &**unsafe { self.additional.assume_init_ref() } {
@@ -319,13 +318,13 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     }
     pub fn check(&self, ins: &Instruction) -> Result<(), Error> {
         self.check_addt(ins)?;
-        if ins.get_mask().is_some() && !self.get_mask() {
+        if ins.evex_mask().is_some() && ins.evex_mask() != Some(0) && !self.get_mask() {
             return Err(Error::new(
                 "you tried to use mask on instruction that does not support it",
                 16,
             ));
         }
-        if (ins.get_evex()) && !self.get_avx512() {
+        if (ins.is_evex()) && !self.get_avx512() {
             return Err(Error::new(
                 "you tried to use AVX-512 modifiers on instruction that is not from AVX-512",
                 16,
