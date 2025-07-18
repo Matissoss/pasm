@@ -47,6 +47,10 @@ impl BoolTable16 {
         self.set(idx, bool);
         self
     }
+    pub const fn at(&self, idx: u8) -> bool {
+        let tmp = 0x01 << idx;
+        self.data & tmp == tmp
+    }
     pub const fn get(&self, idx: u8) -> Option<bool> {
         if idx < 16 {
             let tmp = 0x01 << idx;

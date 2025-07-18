@@ -3,24 +3,20 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-pub const REX_PFX: u8 = 0x0;
-pub const VEX_PFX: u8 = 0x1;
-pub const EVEX_PFX: u8 = 0x2;
+const _RESERVED_FLAG_0: u8 = 0x0;
+const _RESERVED_FLAG_1: u8 = 0x1;
+const _RESERVED_FLAG_2: u8 = 0x2;
+
 pub const CAN_H66O: u8 = 0x3; // can use 0x66 override
 pub const IMM_LEBE: u8 = 0x4; // immediate must be formatted as little endian or big endian; 0 = le, 1 = be
 pub const CAN_SEGM: u8 = 0x5; // can use segment override
 pub const USE_MODRM: u8 = 0x6; // can use modrm
-pub const OBY_CONST: u8 = 0x7; // one byte const - 1st addt B goes as metadata, 2nd as immediate
-pub const TBY_CONST: u8 = 0x8; // two byte const
-pub const IMM_ATIDX: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
+const _RESERVED_FLAG_7: u8 = 0x7;
+const _RESERVED_FLAG_8: u8 = 0x8;
+pub const IMM: u8 = 0x9; // immediate at index (second byte of addt is index, first one is size)
 pub const SET_MODRM: u8 = 0xA; // MODRM.mod is set to byte specified in addt2
-pub const STRICT_PFX: u8 = 0xB; // makes all prefixes exclusive (e.g. if REX isn't set, then it cannot be generated)
+pub const STRICT_PFX: u8 = 0xB; // makes all prefixes exclusive (e.g. if EVEX isn't set, then it cannot be generated)
 pub const FIXED_SIZE: u8 = 0xC;
-
-#[allow(unused)]
-pub const EXT_FLGS1: u8 = 0xD;
-#[allow(unused)]
-pub const EXT_FLGS2: u8 = 0xE;
 
 use std::iter::Iterator;
 
@@ -69,6 +65,12 @@ pub enum OpOrd {
 
 pub const EVEX_VVVV: u8 = OpOrd::VEX_VVVV as u8;
 
+pub const PREFIX_NONE: u8 = 0b000;
+pub const PREFIX_REX: u8 = 0b001;
+pub const PREFIX_VEX: u8 = 0b010;
+pub const PREFIX_EVEX: u8 = 0b011;
+pub const PREFIX_APX: u8 = 0b100;
+
 // size = 16B (could be 37B!)
 #[repr(C)]
 pub struct GenAPI {
@@ -76,7 +78,7 @@ pub struct GenAPI {
     opcode: [u8; 4],
     // layout:
     //  0bPPP0_0LLL:
-    //   PPP: prefix:
+    //   PPP: forced prefix (fpfx):
     //      0b000 - None
     //      0b001 - REX
     //      0b010 - VEX
@@ -84,9 +86,9 @@ pub struct GenAPI {
     //      0b... - reserved
     //   LLL: opcode length
     meta_0: u8,
-    reserved: [u8; 3],
+    _reserved: [u8; 3],
 
-    flags: BoolTable16,
+    pub flags: BoolTable16,
 
     // if (E)VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
     // X = (E)VEX.w/e,
@@ -108,7 +110,7 @@ pub struct GenAPI {
     addt2: u8,
 
     // depending on flags:
-    // - IMM_ATIDX, OBY_CONST, TBY_CONST - immediate + metadata,
+    // - IMM - immediate + metadata,
     // - (E)VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
     // otherwise unused
     addt: u16,
@@ -126,11 +128,12 @@ pub enum AssembleResult {
 }
 
 impl GenAPI {
+    #[inline(always)]
     pub fn new() -> Self {
         Self {
             opcode: [0; 4],
             meta_0: 0,
-            reserved: [0; 3],
+            _reserved: [0; 3],
             prefix: 0,
             flags: BoolTable16::new().setc(CAN_H66O, true).setc(CAN_SEGM, true),
             ord: OperandOrder::new(&[
@@ -140,18 +143,30 @@ impl GenAPI {
                 OpOrd::TSRC,
             ])
             .unwrap(),
-            modrm_ovr: ModrmTuple::new(None, None),
+            modrm_ovr: ModrmTuple::new(None),
             addt: 0,
             addt2: 0,
         }
     }
-    pub const fn prefix(mut self, pfx: u8) -> Self {
+    #[inline(always)]
+    pub const fn set_fpfx(&mut self, v: u8) {
+        self.meta_0 &= !0b1110_0000;
+        self.meta_0 |= v << 5;
+    }
+    #[inline(always)]
+    pub const fn get_fpfx(&self) -> u8 {
+        (self.meta_0 & 0b1110_0000) >> 5
+    }
+    #[inline(always)]
+    pub const fn opcode_prefix(mut self, pfx: u8) -> Self {
         self.prefix = pfx;
         self
     }
+    #[inline(always)]
     pub fn opcode_len(&self) -> usize {
         (self.meta_0 & 0b111) as usize
     }
+    #[inline(always)]
     pub const fn opcode(mut self, opc: &[u8]) -> Self {
         let mut idx = 0;
         while idx < opc.len() {
@@ -161,38 +176,45 @@ impl GenAPI {
         self.meta_0 |= idx as u8 & 0b111;
         self
     }
-    pub fn modrm(mut self, modrm: bool, reg: Option<u8>, rm: Option<u8>) -> Self {
+    #[inline(always)]
+    pub fn modrm(mut self, modrm: bool, reg: Option<u8>) -> Self {
         self.flags.set(USE_MODRM, modrm);
-        self.modrm_ovr = ModrmTuple::new(reg, rm);
+        self.modrm_ovr = ModrmTuple::new(reg);
         self
     }
+    #[inline(always)]
     pub const fn fixed_size(mut self, sz: Size) -> Self {
         self.flags.set(FIXED_SIZE, true);
         self.addt2 |= sz as u8;
         self
     }
+    #[inline(always)]
     pub const fn modrm_mod(mut self, mod_: u8) -> Self {
         self.flags.set(SET_MODRM, true);
         self.addt2 = mod_ & 0b11;
         self
     }
+    #[inline(always)]
     pub const fn can_h66(mut self, h66: bool) -> Self {
         self.flags.set(CAN_H66O, h66);
         self
     }
-    pub const fn rex(mut self, rex: bool) -> Self {
-        self.flags.set(REX_PFX, rex);
+    #[inline(always)]
+    pub const fn rex(mut self) -> Self {
+        self.set_fpfx(PREFIX_REX);
         self
     }
+    #[inline(always)]
     pub const fn evex(mut self, vex_details: VexDetails) -> Self {
-        self.flags.set(EVEX_PFX, true);
+        self.set_fpfx(PREFIX_EVEX);
         self.prefix =
             (vex_details.vex_we as u8) << 7 | vex_details.map_select << 2 | pp(vex_details.pp);
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
+    #[inline(always)]
     pub const fn vex(mut self, vex_details: VexDetails) -> Self {
-        self.flags.set(VEX_PFX, true);
+        self.set_fpfx(PREFIX_VEX);
         self.prefix = {
             (vex_details.vex_we as u8) << 7
                 | map_select(vex_details.map_select) << 2
@@ -201,46 +223,35 @@ impl GenAPI {
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
+    #[inline(always)]
     pub const fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
-        self.flags.set(IMM_ATIDX, true);
+        self.flags.set(IMM, true);
         self.addt = ((size << 4) | idx & 0b1111) | self.addt & 0xFF00;
         self
     }
+    #[inline(always)]
     pub const fn imm_is_be(mut self, bool: bool) -> Self {
         self.flags.set(IMM_LEBE, bool);
         self
     }
-    pub const fn imm_const8(mut self, extend_to: u8, imm: u8) -> Self {
-        self.flags.set(OBY_CONST, true);
-        self.addt = (extend_to as u16) << 8 | imm as u16;
-        self
-    }
-    pub const fn imm_const16(mut self, imm: u16) -> Self {
-        self.flags.set(TBY_CONST, true);
-        self.addt = imm;
-        self
-    }
+    #[inline(always)]
     pub const fn ord(mut self, ord: &[OpOrd]) -> Self {
         self.ord = OperandOrder::new(ord).expect("Failed to create operand order");
         self
     }
-    pub const fn get_flag(&self, idx: u8) -> Option<bool> {
-        self.flags.get(idx)
-    }
-    pub const fn set_flag(mut self, idx: u8) -> Self {
-        self.flags.set(idx, true);
-        self
-    }
+    #[inline(always)]
     pub const fn get_addt2(&self) -> u8 {
         self.addt2
     }
+    #[inline(always)]
     pub fn get_size(&self) -> Option<Size> {
-        if self.flags.get(FIXED_SIZE).unwrap_or(false) {
+        if self.flags.at(FIXED_SIZE) {
             Some(unsafe { std::mem::transmute::<u8, Size>(self.addt2) })
         } else {
             None
         }
     }
+    #[inline(always)]
     pub fn get_opcode(&self) -> &[u8] {
         &self.opcode[0..self.opcode_len()]
     }
@@ -254,10 +265,10 @@ impl GenAPI {
     ) -> (AssembleResult, SmallVec<Relocation<'a>, 2>) {
         let [modrm_rm, modrm_reg, _vex_vvvv] = self.get_ord_oprs(ins);
 
+        let prefix_flag = self.get_fpfx();
+
         let mut rels = SmallVec::<Relocation, 2>::new();
-        let vex_flag_set = self.flags.get(VEX_PFX).unwrap();
-        let rex_flag_set = self.flags.get(REX_PFX).unwrap();
-        let evex_flag_set = self.flags.get(EVEX_PFX).unwrap();
+
         let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
             (sz, true)
         } else {
@@ -265,88 +276,91 @@ impl GenAPI {
         };
 
         let mut imm: Vec<u8> = Vec::new();
-        let mut base = {
-            let mut base: SmallVec<u8, 16> = SmallVec::new();
+        let mut base: SmallVec<u8, 16> = SmallVec::new();
 
-            if let Some(a) = gen_addt_pfx(ins) {
-                base.push(a);
+        if let Some(a) = gen_addt_pfx(ins) {
+            base.push(a);
+        }
+
+        let rex = if prefix_flag == PREFIX_REX && !self.flags.at(STRICT_PFX) && bits == 64 {
+            rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
+        } else {
+            0x00
+        };
+
+        let rexw = if bits == 64 {
+            if rex != 0x00 {
+                rex & 0x08 == 0x08
+            } else {
+                ins_size == Size::Qword || ins_size == Size::Any
+            }
+        } else {
+            false
+        };
+
+        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX {
+            if let Some(segm) = gen_segm_pref(ins) {
+                base.push(segm);
             }
 
-            let rex = if (rex_flag_set || !(vex_flag_set || evex_flag_set))
-                && !self.get_flag(STRICT_PFX).unwrap()
-                && bits == 64
-            {
-                rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
-            } else {
-                0x00
-            };
+            if fx_size {
+                if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
+                    base.push(size_ovr);
+                }
+            } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
+                let h66 = size_ovr[0];
+                let h67 = size_ovr[1];
+                if h66.is_some() && self.prefix != 0x66 && self.flags.at(CAN_H66O) {
+                    base.push(0x66);
+                }
+                if h67.is_some() {
+                    base.push(0x67);
+                }
+            }
 
-            let rexw = if bits == 64 {
+            if self.prefix != 0 {
+                base.push(self.prefix);
+            }
+        }
+
+        match prefix_flag {
+            PREFIX_REX => {
                 if rex != 0x00 {
-                    rex & 0x08 == 0x08
-                } else {
-                    ins_size == Size::Qword || ins_size == Size::Any
-                }
-            } else {
-                false
-            };
-
-            if !(vex_flag_set || evex_flag_set) {
-                if let Some(segm) = gen_segm_pref(ins) {
-                    base.push(segm);
-                }
-                if fx_size {
-                    if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
-                        base.push(size_ovr);
-                    }
-                } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
-                    let h66 = size_ovr[0];
-                    let h67 = size_ovr[1];
-                    if h66.is_some() && self.prefix != 0x66 && self.get_flag(CAN_H66O).unwrap() {
-                        base.push(0x66);
-                    }
-                    if h67.is_some() && self.prefix != 0x67 {
-                        base.push(0x67);
-                    }
-                }
-                if matches!(self.prefix, 0xF0 | 0xF2 | 0xF3 | 0x66) {
-                    base.push(self.prefix);
+                    base.push(rex);
                 }
             }
-
-            if rex_flag_set && rex != 0x00 {
-                base.push(rex);
-            }
-            let mut used_evex = false;
-            if vex_flag_set {
-                if ins.needs_evex() && !self.flags.get(STRICT_PFX).unwrap() {
+            PREFIX_VEX => {
+                if ins.needs_evex() && !self.flags.at(STRICT_PFX) {
                     for b in evex::evex(&self, ins) {
                         base.push(b);
                     }
-                    used_evex = true;
-                } else if let Some(vex) = vex::vex(ins, &self) {
-                    for b in vex {
+                } else {
+                    for b in vex::vex(ins, &self).into_iter() {
                         base.push(b);
                     }
                 }
             }
-            if evex_flag_set && !used_evex {
+            PREFIX_EVEX => {
                 for b in evex::evex(&self, ins) {
                     base.push(b);
                 }
             }
-            base
-        };
+            _ => {}
+        }
 
+        // Opcode, max. 3-4B
         for b in self.get_opcode() {
             base.push(*b);
         }
 
-        if self.flags.get(USE_MODRM).unwrap() {
+        // ModRM, max. 1B
+        if self.flags.at(USE_MODRM) {
             base.push(modrm::modrm(&modrm_rm, &modrm_reg, &self));
+            // SIB, max. 1B
             if let Some(sib) = sib::gen_sib_ins(&modrm_rm) {
                 base.push(sib);
             }
+            // DISP, max. 4B
             if let Some(disp) = disp::gen_disp_ins(&modrm_rm) {
                 for b in disp {
                     base.push(b);
@@ -357,13 +371,14 @@ impl GenAPI {
                         continue;
                     }
 
+                    let reltype = s.reltype().unwrap_or_default();
                     let addend = s.addend().unwrap_or_default();
                     rels.push(Relocation {
                         symbol: s.symbol,
                         offset: base.len(),
-                        addend,
+                        addend: addend - reltype.size() as i32,
                         shidx: 0,
-                        reltype: s.reltype().unwrap_or_default(),
+                        reltype,
                     });
                     base.push(0);
                     base.push(0);
@@ -373,114 +388,104 @@ impl GenAPI {
                 }
             }
         }
-        if self.flags.get(IMM_ATIDX).unwrap() {
+        // Immediate, max. 8B or more (if string)
+        if self.flags.at(IMM) {
             let size = ((self.addt & 0x00_F0) >> 4) as usize;
             let idx = (self.addt & 0x00_0F) as usize;
-            if let Some(Operand::Imm(i)) = ins.get(idx) {
-                // if size is equal to zero, then it maps to `empty` mnemonic
-                if size == 0 {
-                    let sz = i.get_as_usize();
-                    imm.extend(vec![0; sz]);
-                } else {
-                    let (imm, be) = if self.get_flag(IMM_LEBE).unwrap_or(false) {
-                        (&i.get_raw_be()[8 - i.get_real_size()..], true)
-                    } else {
-                        (&i.get_raw_le()[..i.get_real_size()], false)
-                    };
-                    let mut idx = 0;
-                    if be {
-                        while idx < size.abs_diff(imm.len()) {
-                            base.push(0x00);
-                            idx += 1;
-                        }
-                    }
-                    for b in imm {
-                        if idx < size {
-                            base.push(*b);
-                            idx += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                    if !be {
-                        while idx < size {
-                            base.push(0x00);
-                            idx += 1;
-                        }
-                    }
-                }
-            } else if let Some(Operand::String(s)) = ins.get(idx) {
-                if size == 0 {
-                    imm.extend(s.as_bytes());
-                } else {
-                    let bts = s.as_bytes();
-                    let mut nvc = Vec::with_capacity(bts.len());
-                    let mut escape_char = false;
-                    for b in bts {
-                        if b != &b'\\' {
-                            escape_char = true;
-                            continue;
-                        }
-                        if escape_char {
-                            match *b {
-                                b'n' => nvc.push(b'\n'),
-                                b't' => nvc.push(b'\t'),
-                                b'0' => nvc.push(b'\0'),
-                                b'r' => nvc.push(b'\r'),
-                                b'\"' => nvc.push(b'\"'),
-                                b'\'' => nvc.push(b'\''),
-                                _ => {
-                                    nvc.push(b'\\');
-                                    nvc.push(*b);
-                                }
-                            }
-                        } else {
-                            nvc.push(*b);
-                        }
-                    }
-                    imm.extend(nvc);
-                }
-            } else if let Some(Operand::Symbol(s)) = ins.get(idx) {
-                let addend = s.addend().unwrap_or_default();
-                rels.push(Relocation {
-                    symbol: s.symbol,
-                    offset: base.len(),
-                    addend,
-                    shidx: 0,
-                    reltype: s.reltype().unwrap_or_default(),
-                });
-                if size == 0 {
-                    for _ in 0..s.reltype().unwrap_or(RelType::REL32).size() {
-                        base.push(0);
-                    }
-                } else {
-                    for _ in 0..size {
-                        base.push(0);
-                    }
-                }
-            }
-            // rvrm
-            else if let Some(Operand::Register(r)) = ins.get(idx) {
-                let mut v = SmallVec::<u8, 8>::new();
-                v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
-                extend_imm(&mut v, size as u8);
-                for b in v.into_iter() {
-                    base.push(b);
-                }
-            }
-        } else if self.flags.get(OBY_CONST).unwrap() {
-            let size = (self.addt & 0xFF00) >> 8;
-            let mut imm = SmallVec::new();
-            imm.push((self.addt & 0xFF) as u8);
-            extend_imm(&mut imm, size as u8);
-            for b in imm.into_iter() {
-                base.push(b);
-            }
-        }
 
-        for r in rels.iter_mut() {
-            if r.is_rel() {
-                r.addend -= r.reltype.size() as i32;
+            match ins.get(idx) {
+                Some(Operand::Imm(i)) => {
+                    // if size is equal to zero, then it maps to `empty` mnemonic
+                    if size == 0 {
+                        let sz = i.get_as_usize();
+                        imm.extend(vec![0; sz]);
+                    } else {
+                        let (imm, be) = if self.flags.at(IMM_LEBE) {
+                            (&i.get_raw_be()[8 - i.get_real_size()..], true)
+                        } else {
+                            (&i.get_raw_le()[..i.get_real_size()], false)
+                        };
+                        let mut idx = 0;
+                        if be {
+                            while idx < size.abs_diff(imm.len()) {
+                                base.push(0x00);
+                                idx += 1;
+                            }
+                        }
+                        for b in imm {
+                            if idx < size {
+                                base.push(*b);
+                                idx += 1;
+                            } else {
+                                break;
+                            }
+                        }
+                        if !be {
+                            while idx < size {
+                                base.push(0x00);
+                                idx += 1;
+                            }
+                        }
+                    }
+                }
+                Some(Operand::String(s)) => {
+                    if size == 0 {
+                        imm.extend(s.as_bytes());
+                    } else {
+                        let mut escape_char = false;
+                        for b in s.as_bytes() {
+                            if b != &b'\\' {
+                                escape_char = true;
+                                continue;
+                            }
+                            if escape_char {
+                                match *b {
+                                    b'n' => imm.push(b'\n'),
+                                    b't' => imm.push(b'\t'),
+                                    b'0' => imm.push(b'\0'),
+                                    b'r' => imm.push(b'\r'),
+                                    b'\"' => imm.push(b'\"'),
+                                    b'\'' => imm.push(b'\''),
+                                    _ => {
+                                        imm.push(b'\\');
+                                        imm.push(*b);
+                                    }
+                                }
+                            } else {
+                                imm.push(*b);
+                            }
+                        }
+                    }
+                }
+                Some(Operand::Symbol(s)) => {
+                    let reltype = s.reltype().unwrap_or_default();
+                    rels.push(Relocation {
+                        symbol: s.symbol,
+                        offset: base.len(),
+                        addend: s.addend().unwrap_or_default() - reltype.size() as i32,
+                        shidx: 0,
+                        reltype,
+                    });
+                    if size == 0 {
+                        for _ in 0..s.reltype().unwrap_or(RelType::REL32).size() {
+                            base.push(0);
+                        }
+                    } else {
+                        for _ in 0..size {
+                            base.push(0);
+                        }
+                    }
+                }
+                // rvrm
+                Some(Operand::Register(r)) => {
+                    let mut v = SmallVec::<u8, 8>::new();
+                    v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
+                    extend_imm(&mut v, size as u8);
+                    for b in v.into_iter() {
+                        base.push(b);
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -488,20 +493,23 @@ impl GenAPI {
             let mut vec = Vec::with_capacity(base.len() + imm.len());
             vec.extend(base.into_iter());
             vec.extend(imm);
-            (AssembleResult::WLargeImm(vec), rels)
-        } else {
-            (AssembleResult::NoLargeImm(base), rels)
+            return (AssembleResult::WLargeImm(vec), rels);
         }
+        (AssembleResult::NoLargeImm(base), rels)
     }
+    #[inline(always)]
     pub const fn modrm_reg_is_dst(&self) -> bool {
         self.ord.modrm_reg_is_dst()
     }
+    #[inline(always)]
     pub const fn get_modrm(&self) -> ModrmTuple {
         self.modrm_ovr
     }
+    #[inline(always)]
     pub fn get_ord(&self) -> [OpOrd; 4] {
         self.ord.deserialize()
     }
+    #[inline(always)]
     #[rustfmt::skip]
     pub fn get_ord_oprs<'a>(&'a self, ins: &'a Instruction) -> [Option<Operand<'a>>; 3] {
         use OpOrd::*;
@@ -517,37 +525,42 @@ impl GenAPI {
             _                                 => [None      , None      , None      ],
         }
     }
+    #[inline(always)]
     pub const fn strict_pfx(mut self) -> Self {
         self.flags.set(STRICT_PFX, true);
         self
     }
     // fails if (E)VEX flag is not set
+    #[inline(always)]
     pub const fn get_pp(&self) -> Option<u8> {
-        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
+        if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
             Some(self.prefix & 0b11)
         } else {
             None
         }
     }
     // fails if (E)VEX flag is not set
+    #[inline(always)]
     pub const fn get_map_select(&self) -> Option<u8> {
-        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
+        if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
             Some((self.prefix & 0b0111_1100) >> 2)
         } else {
             None
         }
     }
     // fails if (E)VEX flag is not set
+    #[inline(always)]
     pub const fn get_vex_we(&self) -> Option<bool> {
-        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
+        if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
             Some(self.prefix & 0b1000_0000 == 0b1000_0000)
         } else {
             None
         }
     }
     // fails if (E)VEX flag is not set
+    #[inline(always)]
     pub const fn get_vex_vlength(&self) -> Option<MegaBool> {
-        if self.flags.get(VEX_PFX).unwrap() || self.flags.get(EVEX_PFX).unwrap() {
+        if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
             Some(MegaBool::from_byte(((self.addt & 0xFF00) >> 8) as u8))
         } else {
             None
@@ -740,14 +753,15 @@ impl OperandOrder {
 }
 
 impl ModrmTuple {
-    pub fn new(reg: Option<u8>, rm: Option<u8>) -> Self {
+    pub fn new(reg: Option<u8>) -> Self {
         Self {
-            data: ((reg.is_some() as u8) << 7
-                | (rm.is_some() as u8) << 6
+            data: /*(*/(reg.is_some() as u8) << 7
+                //| (rm.is_some() as u8) << 6
                 | reg.unwrap_or(0) << 3
-                | rm.unwrap_or(0)),
+                //| rm.unwrap_or(0)),
         }
     }
+    /*
     pub const fn rm(&self) -> Option<u8> {
         if self.data & 0b01_000000 == 0b01_000000 {
             Some(self.data & 0b000111)
@@ -755,6 +769,7 @@ impl ModrmTuple {
             None
         }
     }
+    */
     pub const fn reg(&self) -> Option<u8> {
         if self.data & 0b10_000000 == 0b10_000000 {
             Some((self.data & 0b00_111000) >> 3)
@@ -762,8 +777,8 @@ impl ModrmTuple {
             None
         }
     }
-    pub const fn deserialize(&self) -> (Option<u8>, Option<u8>) {
-        (self.reg(), self.rm())
+    pub const fn deserialize(&self) -> Option<u8> {
+        self.reg()
     }
     pub const fn data(&self) -> u8 {
         self.data
@@ -814,11 +829,12 @@ mod tests {
                 .vex_we(true)
                 .vlength(Some(true)),
         );
+        assert_eq!(api.get_fpfx(), PREFIX_VEX);
         assert_eq!(api.get_vex_vlength(), Some(MegaBool::set(Some(true))));
         assert!(api.get_vex_vlength().unwrap().get().unwrap_or(false));
         let api = GenAPI::new()
             .opcode(&[0x19])
-            .modrm(true, None, None)
+            .modrm(true, None)
             .imm_atindex(2, 1)
             .vex(
                 VexDetails::new()

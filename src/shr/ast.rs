@@ -23,6 +23,48 @@ use crate::shr::{
     symbol::SymbolRef,
 };
 
+pub const REG: u16 = 0b001;
+pub const MEM: u16 = 0b010;
+pub const SYM: u16 = 0b011;
+pub const STR: u16 = 0b100;
+pub const IMM: u16 = 0b101;
+
+const ADDT_MASK: u16 = !0b0001_0000_0000_0000;
+const LEN_MASK: u16 = !0b1110_0000_0000_0000;
+const DST_MASK: u16 = !0b0000_0000_0000_0111;
+const SRC_MASK: u16 = !0b0000_0000_0011_1000;
+const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
+const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
+const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
+
+#[allow(unused)]
+const FPFX_NONE: u16 = 0b0000;
+const FPFX_VEX: u16 = 0b0001;
+const FPFX_EVEX: u16 = 0b0010;
+const FPFX_APX: u16 = 0b0011;
+
+#[derive(Default, Debug)]
+pub struct AST<'a> {
+    pub sections: Vec<Section<'a>>,
+    pub defines: HashMap<&'a str, Number>,
+    pub includes: Vec<PathBuf>,
+    pub externs: Vec<&'a str>,
+
+    pub format: Option<&'a str>,
+    pub default_bits: Option<u8>,
+    pub default_output: Option<PathBuf>,
+    pub blank_lines: Vec<usize>,
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
+pub enum IVariant {
+    #[default]
+    STD,
+    MMX,
+    XMM, // SSE/AVX
+    YMM, // AVX
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum OperandOwned<'a> {
     Register(Register),
@@ -51,39 +93,52 @@ pub enum Operand<'a> {
     Imm(Number),
 }
 
-impl Default for Instruction<'_> {
-    fn default() -> Self {
-        unsafe {
-            Self {
-                mnemonic: Mnemonic::__LAST,
-                operand_data: 0,
-                metadata: 0,
-                additional: MaybeUninit::uninit(),
-                operands: MaybeUninit::uninit().assume_init_read(),
-            }
-        }
-    }
+pub struct Instruction<'a> {
+    pub operands: [OperandData<'a>; 4],
+    pub mnemonic: Mnemonic,
+    pub additional: MaybeUninit<Mnemonic>,
+
+    // layout:
+    //
+    //  0bLLLM_XXX_YYY_ZZZ_AAA:
+    //   - XXX: operand type for 4th operand
+    //   - YYY: operand type for ssrc.
+    //   - ZZZ: operand type for src.
+    //   - AAA: operand type for dst.
+    //   - LLL: length
+    //   - M  : has additional mnemonic
+    pub operand_data: u16,
+    //  0bXXXX_RRRR_RRRR_RRRR
+    //   - XXXX: forced prefix (fpfx)
+    //      0b0000 - None
+    //      0b0001 - VEX
+    //      0b0010 - EVEX
+    //      0b0011 - APX (variants)
+    //      0b.... - reserved
+    //   - RRRR_RRRR_RRRR - forced prefix specific:
+    //      if EVEX:
+    //          0bSZ00_MMM0_0EEE:
+    //              - S: {sae}
+    //              - Z: {z}
+    //              - EEE: er:
+    //                  0b000 - none
+    //                  0b001 - rn
+    //                  0b010 - rd
+    //                  0b011 - ru
+    //                  0b100 - rz
+    //              - MMM: {k0/1/2/3/4/5/6/7}
+    //      if APX:
+    //          0bMRRR_RRRR_RRRR:
+    //              - M: if 0 then EEVEX, if 1 then REX2
+    //              - RRR_RRRR_RRRR:
+    //                  if EEVEX:
+    //                      [...]
+    //                  if REX2:
+    //                      [...]
+    //      else:
+    //          reserved
+    pub metadata: u16,
 }
-
-pub const REG: u16 = 0b001;
-pub const MEM: u16 = 0b010;
-pub const SYM: u16 = 0b011;
-pub const STR: u16 = 0b100;
-pub const IMM: u16 = 0b101;
-
-const ADDT_MASK: u16 = !0b0001_0000_0000_0000;
-const LEN_MASK: u16 = !0b1110_0000_0000_0000;
-const DST_MASK: u16 = !0b0000_0000_0000_0111;
-const SRC_MASK: u16 = !0b0000_0000_0011_1000;
-const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
-const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
-const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
-
-#[allow(unused)]
-const FPFX_NONE: u16 = 0b0000;
-const FPFX_VEX: u16 = 0b0001;
-const FPFX_EVEX: u16 = 0b0010;
-const FPFX_APX: u16 = 0b0011;
 
 impl<'a> Instruction<'a> {
     #[inline(always)]
@@ -96,10 +151,12 @@ impl<'a> Instruction<'a> {
             _ => 0,
         }
     }
+    #[inline(always)]
     pub fn push(&mut self, opr: OperandOwned) {
         self.set(self.len(), opr);
         self.set_len(self.len() + 1);
     }
+    #[inline(always)]
     pub fn with_operands(operands: SmallVec<OperandOwned, 4>) -> Self {
         let mut ins = Self::default();
         ins.set_len(operands.len());
@@ -110,13 +167,16 @@ impl<'a> Instruction<'a> {
         }
         ins
     }
+    #[inline(always)]
     pub fn set_len(&mut self, len: usize) {
         self.operand_data &= LEN_MASK;
         self.operand_data |= (len as u16 & 0b111) << 13;
     }
+    #[inline(always)]
     pub fn len(&self) -> usize {
         ((self.operand_data & !LEN_MASK) >> 13) as usize
     }
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -181,18 +241,14 @@ impl<'a> Instruction<'a> {
     pub fn size_lt(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
-            None => Size::Unknown,
+            None => return Size::Unknown,
         };
         let src = match &self.src() {
             Some(o) => o.size(),
-            None => Size::Unknown,
+            None => return dst,
         };
 
-        if dst == Size::Unknown && src != Size::Unknown {
-            src
-        } else if dst != Size::Unknown && src == Size::Unknown {
-            dst
-        } else if dst > src {
+        if dst > src {
             src
         } else {
             dst
@@ -202,18 +258,14 @@ impl<'a> Instruction<'a> {
     pub fn size_gt(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
-            None => Size::Unknown,
+            None => return Size::Unknown,
         };
         let src = match &self.src() {
             Some(o) => o.size(),
-            None => Size::Unknown,
+            None => return dst,
         };
 
-        if dst == Size::Unknown && src != Size::Unknown {
-            src
-        } else if dst != Size::Unknown && src == Size::Unknown {
-            dst
-        } else if dst < src {
+        if dst < src {
             src
         } else {
             dst
@@ -224,11 +276,13 @@ impl<'a> Instruction<'a> {
         self.size_gt()
     }
 
+    #[inline(always)]
     pub const fn set_addt(&mut self, am: Mnemonic) {
         self.operand_data &= ADDT_MASK;
         self.operand_data |= 1 << 12;
         self.additional = MaybeUninit::new(am);
     }
+    #[inline(always)]
     pub const fn get_addt(&self) -> Option<Mnemonic> {
         if (self.operand_data & !ADDT_MASK) >> 12 == 1 {
             unsafe { Some(self.additional.assume_init()) }
@@ -237,45 +291,71 @@ impl<'a> Instruction<'a> {
         }
     }
     // metadata
-
+    #[inline(always)]
     pub const fn set_vex(&mut self) {
         self.set_fpfx(FPFX_VEX);
     }
+    #[inline(always)]
     pub const fn set_evex(&mut self) {
         self.set_fpfx(FPFX_EVEX);
     }
 
+    #[inline(always)]
     pub const fn set_fpfx(&mut self, v: u16) {
         self.metadata &= FPFX_MASK;
         self.metadata |= v << 12;
     }
+    #[inline(always)]
     pub const fn get_fpfx(&self) -> u16 {
         (self.metadata & !FPFX_MASK) >> 12
     }
 
+    #[inline(always)]
     pub const fn is_evex(&self) -> bool {
         self.get_fpfx() == FPFX_EVEX
     }
+    #[inline(always)]
     pub const fn is_vex(&self) -> bool {
         self.get_fpfx() == FPFX_VEX
     }
+    #[inline(always)]
     pub const fn is_apx(&self) -> bool {
         self.get_fpfx() == FPFX_APX
     }
+    #[inline(always)]
     pub const fn is_eevex(&self) -> bool {
         self.get_fpfx() == FPFX_APX && self.apx_is_eevex().unwrap()
     }
+    #[inline(always)]
     pub const fn is_rex2(&self) -> bool {
         self.get_fpfx() == FPFX_APX && self.apx_is_rex2().unwrap()
     }
 
     // evex
+    #[inline(always)]
+    pub fn set_evex_er(&mut self, vl: u8) {
+        self.set_fpfx(FPFX_EVEX);
+        self.metadata &= !0b0000_0000_0000_0111;
+        self.metadata |= vl as u16 & 0b111;
+    }
+    #[inline(always)]
+    pub const fn evex_er(&self) -> Option<u8> {
+        if !self.is_evex() {
+            return None;
+        }
+        if self.metadata & 0b111 == 0 {
+            return None;
+        }
+        Some((self.metadata as u8 & 0b111) - 1)
+    }
+    #[inline(always)]
     pub fn set_evex_mask(&mut self, o: u8) {
         self.set_fpfx(FPFX_EVEX);
 
         self.metadata &= !0b0000_0000_0111_0000;
         self.metadata |= (o as u16 & 0b111) << 4;
     }
+    #[inline(always)]
     pub fn evex_mask(&self) -> Option<u8> {
         if self.is_evex() {
             Some(((self.metadata & 0b0000_0000_0111_0000) >> 4) as u8)
@@ -283,12 +363,14 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
     pub fn set_evex_z(&mut self) {
         self.set_fpfx(FPFX_EVEX);
 
         self.metadata &= !0b0000_0100_0000_0000;
         self.metadata |= 0b0000_0100_0000_0000;
     }
+    #[inline(always)]
     pub fn evex_z(&self) -> Option<bool> {
         if self.is_evex() {
             Some(self.metadata & 0b0000_0100_0000_0000 == 0b0000_0100_0000_0000)
@@ -296,25 +378,14 @@ impl<'a> Instruction<'a> {
             None
         }
     }
-    pub fn set_evex_er(&mut self) {
-        self.set_fpfx(FPFX_EVEX);
-
-        self.metadata &= !0b0000_0010_0000_0000;
-        self.metadata |= 0b0000_0010_0000_0000;
-    }
-    pub fn evex_er(&self) -> Option<bool> {
-        if self.is_evex() {
-            Some(self.metadata & 0b0000_0010_0000_0000 == 0b0000_0010_0000_0000)
-        } else {
-            None
-        }
-    }
+    #[inline(always)]
     pub fn set_evex_sae(&mut self) {
         self.set_fpfx(FPFX_EVEX);
 
         self.metadata &= !0b0000_1000_0000_0000;
         self.metadata |= 0b0000_1000_0000_0000;
     }
+    #[inline(always)]
     pub fn evex_sae(&self) -> Option<bool> {
         if self.is_evex() {
             Some(self.metadata & 0b0000_1000_0000_0000 == 0b0000_1000_0000_0000)
@@ -324,13 +395,16 @@ impl<'a> Instruction<'a> {
     }
 
     // apx
+    #[inline(always)]
     pub fn set_apx_eevex(&mut self) {
         self.metadata &= !0b0000_1000_0000_0000;
     }
+    #[inline(always)]
     pub fn set_apx_rex2(&mut self) {
         self.metadata &= !0b0000_1000_0000_0000;
         self.metadata |= 0b0000_1000_0000_0000;
     }
+    #[inline(always)]
     pub const fn apx_is_eevex(&self) -> Option<bool> {
         if let Some(b) = self.apx_is_rex2() {
             Some(!b)
@@ -338,6 +412,7 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
     pub const fn apx_is_rex2(&self) -> Option<bool> {
         if self.is_apx() {
             Some(self.metadata & 0b0000_1000_0000_0000 == 0b0000_1000_0000_0000)
@@ -353,6 +428,7 @@ impl<'a> Instruction<'a> {
     }
 
     // legacy
+    #[inline(always)]
     pub fn needs_evex(&self) -> bool {
         if self.is_evex() {
             return true;
@@ -534,48 +610,6 @@ impl Drop for Instruction<'_> {
     }
 }
 
-pub struct Instruction<'a> {
-    pub operands: [OperandData<'a>; 4],
-    pub mnemonic: Mnemonic,
-    pub additional: MaybeUninit<Mnemonic>,
-
-    // layout:
-    //
-    //  0bLLLM_XXX_YYY_ZZZ_AAA:
-    //   - XXX: operand type for 4th operand
-    //   - YYY: operand type for ssrc.
-    //   - ZZZ: operand type for src.
-    //   - AAA: operand type for dst.
-    //   - LLL: length
-    //   - M  : has additional mnemonic
-    pub operand_data: u16,
-    //  0bXXXX_RRRR_RRRR_RRRR
-    //   - XXXX: forced prefix (fpfx)
-    //      0b0000 - None
-    //      0b0001 - VEX
-    //      0b0010 - EVEX
-    //      0b0011 - APX (variants)
-    //      0b.... - reserved
-    //   - RRRR_RRRR_RRRR - forced prefix specific:
-    //      if EVEX:
-    //          0bSZE0_MMM0_0000:
-    //              - S: {sae}
-    //              - Z: {z}
-    //              - E: {er}
-    //              - M: {k0/1/2/3/4/5/6/7}
-    //      if APX:
-    //          0bMRRR_RRRR_RRRR:
-    //              - M: if 0 then EEVEX, if 1 then REX2
-    //              - RRR_RRRR_RRRR:
-    //                  if EEVEX:
-    //                      [...]
-    //                  if REX2:
-    //                      [...]
-    //      else:
-    //          reserved
-    pub metadata: u16,
-}
-
 impl Debug for Instruction<'_> {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), FmtError> {
         write!(fmt, "Instruction {{")?;
@@ -608,28 +642,6 @@ impl PartialEq for Instruction<'_> {
         }
         true
     }
-}
-
-#[derive(Default, Debug)]
-pub struct AST<'a> {
-    pub sections: Vec<Section<'a>>,
-    pub defines: HashMap<&'a str, Number>,
-    pub includes: Vec<PathBuf>,
-    pub externs: Vec<&'a str>,
-
-    pub format: Option<&'a str>,
-    pub default_bits: Option<u8>,
-    pub default_output: Option<PathBuf>,
-    pub blank_lines: Vec<usize>,
-}
-
-#[derive(Debug, Default, PartialEq, Clone, Copy)]
-pub enum IVariant {
-    #[default]
-    STD,
-    MMX,
-    XMM, // SSE/AVX
-    YMM, // AVX
 }
 
 impl Operand<'_> {
@@ -757,6 +769,20 @@ impl AST<'_> {
         }
         self.defines.extend(rhs.defines);
         Ok(())
+    }
+}
+
+impl Default for Instruction<'_> {
+    fn default() -> Self {
+        unsafe {
+            Self {
+                mnemonic: Mnemonic::__LAST,
+                operand_data: 0,
+                metadata: 0,
+                additional: MaybeUninit::uninit(),
+                operands: MaybeUninit::uninit().assume_init_read(),
+            }
+        }
     }
 }
 

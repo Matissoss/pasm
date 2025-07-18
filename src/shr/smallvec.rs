@@ -14,6 +14,27 @@ pub struct SmallVec<T, const N: usize> {
     pub content: [MaybeUninit<T>; N],
 }
 
+impl<T, const N: usize> std::ops::Deref for SmallVec<T, N> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        use std::mem::transmute;
+        unsafe { std::slice::from_raw_parts(transmute(self.content.as_ptr()), self.len) }
+    }
+}
+impl<T, const N: usize> std::ops::DerefMut for SmallVec<T, N> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        use std::mem::transmute;
+        unsafe { std::slice::from_raw_parts_mut(transmute(self.content.as_mut_ptr()), self.len) }
+    }
+}
+
+impl<T, const N: usize> std::ops::Index<usize> for SmallVec<T, N> {
+    type Output = T;
+    fn index(&self, idx: usize) -> &Self::Output {
+        self.get(idx).expect("smv: index out of bounds")
+    }
+}
+
 impl<T, const N: usize> Clone for SmallVec<T, N>
 where
     T: Clone,
@@ -82,9 +103,10 @@ impl<T, const N: usize> SmallVec<T, N> {
     pub const unsafe fn insert(&mut self, idx: usize, t: T) {
         self.content[idx] = MaybeUninit::new(t);
     }
-    // it is unsafe, because it allows for scenarios like:
-    // | ELEMENT | NONE | ELEMENT |
-    // which is just UB
+    /// ATTENTION: use this function WITH ManuallyDrop<T>
+    /// it is unsafe, because it allows for scenarios like:
+    /// | ELEMENT | NONE | ELEMENT |
+    /// which is just UB
     pub const unsafe fn take_owned(&mut self, idx: usize) -> Option<T> {
         if self.len() > idx {
             let element = self.content[idx].assume_init_read();
@@ -94,6 +116,10 @@ impl<T, const N: usize> SmallVec<T, N> {
             None
         }
     }
+    /// ATTENTION: use this function WITH ManuallyDrop<T>
+    /// it is unsafe, because it allows for scenarios like:
+    /// | ELEMENT | NONE | ELEMENT |
+    /// which is just UB
     pub const unsafe fn take_owned_unchecked(&mut self, idx: usize) -> T {
         let element = self.content[idx].assume_init_read();
         self.content[idx] = MaybeUninit::uninit().assume_init();

@@ -469,9 +469,6 @@ mod tokn_test {
             vec![Token::SubExpr("k1"), Token::SubExpr("z")]
         );
         let line = "\"(Hello {, World!\"";
-        assert_eq!(
-            tokl(line).into_vec(),
-            vec![Token::String("(Hello {, World!")]
-        );
+        assert_eq!(tokl(line).to_vec(), vec![Token::String("(Hello {, World!")]);
     }
 }

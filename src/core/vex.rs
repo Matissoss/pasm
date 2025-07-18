@@ -5,11 +5,12 @@
 
 use crate::core::api;
 use crate::shr::ast::{IVariant, Instruction, Operand};
+use crate::shr::smallvec::SmallVec;
 
 const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
-pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
+pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> SmallVec<u8, 3> {
     let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
     if let (None, None, None) = (&modrm_reg, &modrm_rm, &vex_opr) {
@@ -39,20 +40,20 @@ pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> Option<Vec<u8>> {
     let vex_b = needs_vex3(&modrm_rm);
     let vex_r = needs_vex3(&modrm_reg).0;
 
+    let mut pfx = SmallVec::new();
     if (vex_b.0 || vex_b.1) || (map_select == 0b00011 || map_select == 0b00010) || vex_we {
-        Some(vec![
-            THREE_BYTE_PFX,
-            (((!vex_r) as u8) << 7
+        pfx.push(THREE_BYTE_PFX);
+        pfx.push(
+            ((!vex_r) as u8) << 7
                 | andn(vex_b.1 as u8, 0b0000_0001) << 6
-                | (andn(vex_b.0 as u8, 0b0000_0001) << 5 | map_select)),
-            ((vex_we as u8) << 7 | vvvv << 3 | vlength << 2 | pp),
-        ])
+                | (andn(vex_b.0 as u8, 0b0000_0001) << 5 | map_select),
+        );
+        pfx.push((vex_we as u8) << 7 | vvvv << 3 | vlength << 2 | pp);
     } else {
-        Some(vec![
-            TWO_BYTE_PFX,
-            ((((!vex_r) as u8) << 7) | vvvv << 3 | vlength << 2 | pp),
-        ])
+        pfx.push(TWO_BYTE_PFX);
+        pfx.push((((!vex_r) as u8) << 7) | vvvv << 3 | vlength << 2 | pp);
     }
+    pfx
 }
 fn needs_vex3(op: &Option<Operand>) -> (bool, bool) {
     if let Some(op) = op {
@@ -79,15 +80,9 @@ const fn andn(num: u8, bits: u8) -> u8 {
 }
 
 // VEX.vvvv field
-#[allow(clippy::collapsible_match)]
 fn gen_vex4v(op: &Option<Operand>) -> u8 {
-    if let Some(o) = op {
-        match o {
-            Operand::Register(r) => {
-                andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
-            }
-            _ => 0b1111,
-        }
+    if let Some(Operand::Register(r)) = op {
+        andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
     } else {
         0b1111
     }

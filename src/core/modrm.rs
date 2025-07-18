@@ -8,7 +8,7 @@ use crate::shr::ast::Operand;
 
 //          aka modrm_rm                aka modrm_reg
 pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) -> u8 {
-    let (reg, _) = ctx.get_modrm().deserialize();
+    let reg = ctx.get_modrm().deserialize();
     let mut mod_ = if let Some(Operand::Mem(m)) = dst {
         if let Some((_, sz)) = m.offset_x86() {
             if m.is_riprel() {
@@ -27,7 +27,7 @@ pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) ->
         0b11
     };
 
-    if let Some(true) = ctx.get_flag(api::SET_MODRM) {
+    if ctx.flags.at(api::SET_MODRM) {
         mod_ = ctx.get_addt2() & 0b11;
     }
 

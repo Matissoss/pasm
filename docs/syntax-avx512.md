@@ -16,6 +16,8 @@ vaddph xmm20 {k2}, xmm21, xmm22
 
 To use broadcast on memory use `*MBCST* = *Modifier* where: PREFIX = None, VALUE = <*SIZE*>:bcst`:
 
+`pasm` will automatically choose the "right" broadcast size (by setting `EVEX.w` - no need for `{1to8}` or `{1to16}`)
+
 ```
 word:bcst (rax + rcx)
 ```

@@ -14,8 +14,8 @@ pub enum Size {
     Word,
     Dword,
     Qword,
-    Xword, // xmm0-15
-    Yword, // ymm0-15
+    Xword,
+    Yword,
     Zword,
     #[default]
     Unknown,

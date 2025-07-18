@@ -55,7 +55,7 @@ pub enum MergerToken<'a> {
 }
 
 pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Error> {
-    let start = unsafe { line.take_owned(0).unwrap() };
+    let start = unsafe { line.take_owned_unchecked(0) };
 
     // legend:
     // <something here> - optional
@@ -630,7 +630,11 @@ pub fn make_instruction(
             "k6" => ins.set_evex_mask(0b110),
             "k7" => ins.set_evex_mask(0b111),
             "sae" => ins.set_evex_sae(),
-            "er" => ins.set_evex_er(),
+            "er" => ins.set_evex_er(0b001),
+            "rn-sae" => ins.set_evex_er(0b001),
+            "rd-sae" => ins.set_evex_er(0b010),
+            "ru-sae" => ins.set_evex_er(0b011),
+            "rz-sae" => ins.set_evex_er(0b100),
             "z" => ins.set_evex_z(),
             "m" => {}
             "evex" => ins.set_evex(),
