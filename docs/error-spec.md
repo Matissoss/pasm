@@ -10,30 +10,11 @@ This error is provoked by using unclosed delimeter.
 
 ### e001
 
-#### description
-
-This error is provoked by using signed number that is too large to be signed.
-
-#### example
-
-```
-; for 16-bit value
--0xFFFF ; 0xFFFF is max for unsigned 16-bit value and it is not possible to set sign
-```
+Currently reserved.
 
 ### e002
 
-#### description
-
-This error is provoked by using invalid character in binary, octal or hexadecimal number formats.
-
-#### example
-
-```
-0b200 ; invalid
-0xGG  ; invalid
-0o88  ; invalid
-```
+Currently reserved.
 
 ### e003
 
@@ -337,13 +318,3 @@ $(10 20) ; this will throw an error
 #### description
 
 This error is provoked by using string literal that could not be parsed into number inside `$()` closure and for values prefixed with `$`.
-
-### e106
-
-#### description
-
-This error is provoked by using invalid escape character (`\<CHAR>`).
-
-## internal errors (e500)
-
-These errors should not be in finished product. If you encounter one of them, it is certainly a bug/edge case.

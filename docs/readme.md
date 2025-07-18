@@ -29,5 +29,5 @@ See:
     - [x] `extending-rasm.md` (short explaination of RASM's API and how to use it)
     - [x] `encoding-x86.md` (related to `beta`)
     - [x] `encoding-vex.md` (related to `beta`)
-    - [ ] `encoding-evex.md` (related to `beta-avx`)
-    - [ ] `encoding-apx.md` (related to `beta-avx`)
+    - [x] `encoding-evex.md` (related to `beta-avx`)
+    - [ ] `encoding-apx.md` (related to `beta-intel-apx`)
