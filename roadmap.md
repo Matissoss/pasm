@@ -94,7 +94,7 @@ Goal: implement support for Intel APX
 - [x] cleanup `Instruction` in `src/shr/ast.rs` (it is barely readable) and prepare it for Intel APX
 - [ ] cleanup `CheckAPI` in `src/pre/chkn.rs` for better readability, performance and preparations for Intel APX
 - [ ] implement support for APX in syntax
-- [ ] implement EEVEX (extended EVEX) and REX2 prefixes support (for Intel APX)
+- [ ] implement EEVEX (extended EVEX; all 4 variants) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
     - [ ] intel-apx-0 (legacy instructions without setcc)
     - [ ] intel-apx-1 (ccmpcc)
@@ -103,7 +103,7 @@ Goal: implement support for Intel APX
     - [ ] intel-apx-4 (setcc)
     - [ ] intel-apx-6 (cmpccxadd)
     - [ ] intel-apx-5 (push2/pop2)
-    - [ ] intel-apx-7
+    - [ ] intel-apx-7 (evex extended evex instructions and evex extended vex instructions)
 - [ ] Move to beta-min
 
 ## beta-min
@@ -111,7 +111,6 @@ Goal: implement support for Intel APX
 Goal: support for smaller x86-64 ISA extensions
 
 - [ ] CET_SS (Shadow Stack)
-- [ ] Xeon PHI (with MVEX prefix)
 - [ ] VMX
 - [ ] SMX
 - [ ] SGX
