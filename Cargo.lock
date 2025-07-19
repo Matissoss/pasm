@@ -3,5 +3,9 @@
 version = 4
 
 [[package]]
+name = "ins_adder"
+version = "0.1.0"
+
+[[package]]
 name = "pasm"
 version = "0.1.0"

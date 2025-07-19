@@ -5,8 +5,7 @@
 
 use std::collections::BTreeSet;
 
-const PLACEHOLDER : &'static str = 
-"// pasm - src/shr/ins_switch.rs
+const PLACEHOLDER: &'static str = "// pasm - src/shr/ins_switch.rs
 // ----------------------------
 // made by matissoss
 // licensed under MPL 2.0
@@ -25,22 +24,25 @@ use crate::shr::ins::Mnemonic as Ins;
 #[cfg(not(feature = \"refresh\"))]
 const N : Option<Ins> = None;
 ";
-const SOME : &'static str = "s";
-const BUF  : &'static str = "r";
+const SOME: &'static str = "s";
+const BUF: &'static str = "r";
 
 #[derive(Clone, PartialEq, Eq, Debug, Ord)]
-enum Branch{
+enum Branch {
     Last(char, usize, String),
     Next(char, usize, Box<Branch>),
-    Multiple(char, usize, BTreeSet<Box<Branch>>)
+    Multiple(char, usize, BTreeSet<Box<Branch>>),
 }
 
-use std::cmp::{PartialOrd, Ordering};
-impl PartialOrd for Branch{
-    fn partial_cmp(&self, rhs: &Branch) -> Option<Ordering>{
+use std::cmp::{Ordering, PartialOrd};
+impl PartialOrd for Branch {
+    fn partial_cmp(&self, rhs: &Branch) -> Option<Ordering> {
         use Branch::*;
         match (self, rhs) {
-            (Last(chr,_,_)|Next(chr,_,_)|Multiple(chr,_,_), Last(chr1,_,_)|Next(chr1,_,_)|Multiple(chr1,_,_)) => chr.partial_cmp(chr1),
+            (
+                Last(chr, _, _) | Next(chr, _, _) | Multiple(chr, _, _),
+                Last(chr1, _, _) | Next(chr1, _, _) | Multiple(chr1, _, _),
+            ) => chr.partial_cmp(chr1),
         }
     }
 }
@@ -57,45 +59,59 @@ fn main() {
     }
     let branches = make_branches(sorted);
     let mut final_branch = Vec::new();
-    for branch in branches{
+    for branch in branches {
         final_branch.push((branch.0, merge_branches(branch.1)))
     }
-    let mut file = std::fs::OpenOptions::new().
-        create_new(true).read(true).write(true).open("ins_switch.rs").expect("File reading went wrong");
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .read(true)
+        .write(true)
+        .open("ins_switch.rs")
+        .expect("File reading went wrong");
     print_tree(final_branch, &mut file);
     drop(file);
 }
 
-fn print_tree(tree: Vec<(usize, BTreeSet<Box<Branch>>)>, writer: &mut impl std::io::Write){
+fn print_tree(tree: Vec<(usize, BTreeSet<Box<Branch>>)>, writer: &mut impl std::io::Write) {
     writer.write(PLACEHOLDER.as_bytes()).unwrap();
-    writer.write(b"\n#[cfg(not(feature = \"refresh\"))]").unwrap();
-    writer.write(b"\n#[rustfmt::skip]\npub fn mnem_fromstr(str: &str) -> Option<Ins> {\n").unwrap();
+    writer
+        .write(b"\n#[cfg(not(feature = \"refresh\"))]")
+        .unwrap();
+    writer
+        .write(b"\n#[rustfmt::skip]\npub fn mnem_fromstr(str: &str) -> Option<Ins> {\n")
+        .unwrap();
     writer.write(b"\tuse Ins::*;\n").unwrap();
     writer.write(b"\tlet r = str.as_bytes();\n").unwrap();
     writer.write(b"\tmatch r.len() {\n\t\t").unwrap();
     for (size, branches) in tree {
-        if !branches.is_empty(){
-            writer.write(&format!(
-                    "{size}=>match {BUF}[0]{{{}}}",
-                    print_branch(branches)
-            ).as_bytes()).unwrap();
+        if !branches.is_empty() {
+            writer
+                .write(&format!("{size}=>match {BUF}[0]{{{}}}", print_branch(branches)).as_bytes())
+                .unwrap();
         }
     }
     writer.write(b"_ =>N,\n\t}").unwrap();
     writer.write(b"\n}").unwrap();
 }
 
-fn btreeset_fastinit<T>(val: T) -> BTreeSet<T> where T: std::cmp::Ord{
+fn btreeset_fastinit<T>(val: T) -> BTreeSet<T>
+where
+    T: std::cmp::Ord,
+{
     let mut btree = BTreeSet::new();
     btree.insert(val);
     btree
 }
 
-fn print_branch(branch: BTreeSet<Box<Branch>>) -> String{
+fn print_branch(branch: BTreeSet<Box<Branch>>) -> String {
     let mut finstr = String::new();
     for leaf in branch {
         finstr.push_str(&match *leaf {
-            Branch::Multiple(c, idx, branch) => format!("b'{c}' => match {BUF}[{}]{{{}}}", idx + 1, print_branch(branch)),
+            Branch::Multiple(c, idx, branch) => format!(
+                "b'{c}' => match {BUF}[{}]{{{}}}",
+                idx + 1,
+                print_branch(branch)
+            ),
             Branch::Next(c, idx, branch) => format!(
                 "b'{c}'=>match {BUF}[{}]{{{}}}",
                 idx + 1,
@@ -108,14 +124,14 @@ fn print_branch(branch: BTreeSet<Box<Branch>>) -> String{
     finstr
 }
 
-fn make_branches(arr: Vec<BTreeSet<String>>) -> Vec<(usize, BTreeSet<Box<Branch>>)>{
+fn make_branches(arr: Vec<BTreeSet<String>>) -> Vec<(usize, BTreeSet<Box<Branch>>)> {
     let mut brancharr = Vec::new();
     for strarr in arr {
         for str in strarr {
             let len = str.len();
             if brancharr.len() <= len {
                 for idx in 0..=len {
-                    if brancharr.get(idx).is_none(){
+                    if brancharr.get(idx).is_none() {
                         brancharr.push((idx, BTreeSet::new()));
                     }
                 }
@@ -126,32 +142,43 @@ fn make_branches(arr: Vec<BTreeSet<String>>) -> Vec<(usize, BTreeSet<Box<Branch>
     brancharr
 }
 
-fn merge_branch(lhs: Box<Branch>, rhs: Box<Branch>) -> BTreeSet<Box<Branch>>{
+fn merge_branch(lhs: Box<Branch>, rhs: Box<Branch>) -> BTreeSet<Box<Branch>> {
     match (*lhs.clone(), *rhs.clone()) {
-        (Branch::Next(chr, idx, branch), Branch::Next(chr1, _, branch1)) => if chr == chr1 {
-            let merged = merge_branch(branch, branch1);
-            if merged.len() <= 1{
-                BTreeSet::from_iter(vec![Box::new(Branch::Next(chr, idx, merged.last().unwrap().clone()))])
-            } else {
-                BTreeSet::from_iter(vec![Box::new(Branch::Multiple(chr, idx, merged))])
-            }
-        } else {
-            BTreeSet::from_iter(vec![lhs, rhs])
-        },
-        (Branch::Last(chr, _, _), Branch::Last(chr1, _, _)) => {
-            assert!(chr != chr1);
-            BTreeSet::from_iter(vec![lhs, rhs])
-        },
-        (Branch::Multiple(chr, idx, branches), Branch::Multiple(chr1, _, branches1)) => {
+        (Branch::Next(chr, idx, branch), Branch::Next(chr1, _, branch1)) => {
             if chr == chr1 {
-                let mut ret = branches;
-                ret.extend(branches1);
-                BTreeSet::from_iter(vec![Box::new(Branch::Multiple(chr, idx, merge_branches(ret)))])
+                let merged = merge_branch(branch, branch1);
+                if merged.len() <= 1 {
+                    BTreeSet::from_iter(vec![Box::new(Branch::Next(
+                        chr,
+                        idx,
+                        merged.last().unwrap().clone(),
+                    ))])
+                } else {
+                    BTreeSet::from_iter(vec![Box::new(Branch::Multiple(chr, idx, merged))])
+                }
             } else {
                 BTreeSet::from_iter(vec![lhs, rhs])
             }
         }
-        (Branch::Multiple(chr, idx, branches), Branch::Next(chr1, _, branch1)) | (Branch::Next(chr1, _, branch1), Branch::Multiple(chr, idx, branches)) => {
+        (Branch::Last(chr, _, _), Branch::Last(chr1, _, _)) => {
+            assert!(chr != chr1);
+            BTreeSet::from_iter(vec![lhs, rhs])
+        }
+        (Branch::Multiple(chr, idx, branches), Branch::Multiple(chr1, _, branches1)) => {
+            if chr == chr1 {
+                let mut ret = branches;
+                ret.extend(branches1);
+                BTreeSet::from_iter(vec![Box::new(Branch::Multiple(
+                    chr,
+                    idx,
+                    merge_branches(ret),
+                ))])
+            } else {
+                BTreeSet::from_iter(vec![lhs, rhs])
+            }
+        }
+        (Branch::Multiple(chr, idx, branches), Branch::Next(chr1, _, branch1))
+        | (Branch::Next(chr1, _, branch1), Branch::Multiple(chr, idx, branches)) => {
             if chr == chr1 {
                 let mut tmp = branches;
                 tmp.insert(branch1);
@@ -161,15 +188,19 @@ fn merge_branch(lhs: Box<Branch>, rhs: Box<Branch>) -> BTreeSet<Box<Branch>>{
                 BTreeSet::from_iter(vec![lhs, rhs])
             }
         }
-        _ => panic!("Unexpected {:?} {:?}", lhs, rhs)
+        _ => panic!("Unexpected {:?} {:?}", lhs, rhs),
     }
 }
 
-fn branch_nextpush(charr: &[char], idx: usize, str: &String) -> Branch{
+fn branch_nextpush(charr: &[char], idx: usize, str: &String) -> Branch {
     if idx + 1 == charr.len() {
         Branch::Last(charr[idx], idx, str.clone())
     } else {
-        Branch::Next(charr[idx], idx, Box::new(branch_nextpush(charr, idx + 1, str)))
+        Branch::Next(
+            charr[idx],
+            idx,
+            Box::new(branch_nextpush(charr, idx + 1, str)),
+        )
     }
 }
 
@@ -181,7 +212,7 @@ fn make_branch(str: &String, brancharr: &mut BTreeSet<Box<Branch>>) {
 fn merge(arr: &mut Vec<BTreeSet<String>>, arr2: Vec<BTreeSet<String>>) {
     if arr.len() < arr2.len() {
         for i in 0..=arr2.len() {
-            if arr.get(i).is_none(){
+            if arr.get(i).is_none() {
                 arr.push(BTreeSet::new());
             }
         }
@@ -193,9 +224,9 @@ fn merge(arr: &mut Vec<BTreeSet<String>>, arr2: Vec<BTreeSet<String>>) {
 
 fn sort(strarr: Vec<String>) -> Vec<BTreeSet<String>> {
     let mut arr = Vec::new();
-    for str in strarr{
-        if arr.get(str.len()).is_none(){
-            while arr.get(str.len()).is_none(){
+    for str in strarr {
+        if arr.get(str.len()).is_none() {
+            while arr.get(str.len()).is_none() {
                 arr.push(BTreeSet::new());
             }
         }
@@ -205,22 +236,21 @@ fn sort(strarr: Vec<String>) -> Vec<BTreeSet<String>> {
 }
 
 // we will use the `supported-instructions-raw` method
-fn parse_instr(str: String) -> Vec<String>{
-    if std::path::PathBuf::from(&str).exists(){
+fn parse_instr(str: String) -> Vec<String> {
+    if std::path::PathBuf::from(&str).exists() {
         return parse_instr(std::fs::read_to_string(str).expect("Couldn't read file"));
     }
     let mut strarr = Vec::new();
     let mut tmpbuf = Vec::new();
-    for byte in str.as_bytes(){
-        if byte == &b'\n'{
+    for byte in str.as_bytes() {
+        if byte == &b'\n' {
             strarr.push(String::from_iter(tmpbuf.iter()));
             tmpbuf = Vec::new();
-        }
-        else {
+        } else {
             tmpbuf.push((*byte as char).to_ascii_lowercase());
         }
     }
-    if !tmpbuf.is_empty(){
+    if !tmpbuf.is_empty() {
         strarr.push(String::from_iter(tmpbuf.iter()));
     }
     strarr
@@ -228,7 +258,7 @@ fn parse_instr(str: String) -> Vec<String>{
 
 // ai generated btw
 fn merge_branches(mut branches: BTreeSet<Box<Branch>>) -> BTreeSet<Box<Branch>> {
-    let mut merged : BTreeSet<Box<Branch>> = BTreeSet::new();
+    let mut merged: BTreeSet<Box<Branch>> = BTreeSet::new();
 
     while let Some(branch) = branches.pop_first() {
         let mut to_merge = vec![];
@@ -255,4 +285,3 @@ fn merge_branches(mut branches: BTreeSet<Box<Branch>>) -> BTreeSet<Box<Branch>> 
 
     merged
 }
-

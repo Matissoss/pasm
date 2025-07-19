@@ -124,6 +124,7 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
+- [ ] Create better testing (without need for `NASM` and `sxd`)
 - [ ] Support for 16-bit addressing
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
 - [ ] Allow for `protected public function label_name:`
