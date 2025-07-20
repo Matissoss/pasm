@@ -4,7 +4,7 @@ refresh:
 	@echo "invoking ins_adder..."
 	@cargo run --package "pasm" -q --features "refresh" -- --supported-instructions-raw > .instructions
 	@cargo run --package "ins_adder" -q -- .instructions
-	@rm ins_adder/tmp.txt
+	@rm .instructions
 	@mv ins_switch.rs src/shr/ins_switch.rs
 install:
 	cargo install -q --path .
