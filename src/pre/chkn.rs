@@ -217,6 +217,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         }
     }
     const fn set_forb_flag(&mut self) {
+        self.flags &= !0b0100_0000;
         self.flags |= 0b0100_0000;
     }
     pub const fn has_forb(&self) -> bool {
@@ -290,7 +291,6 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         }
         Ok(())
     }
-    // TODO: fix check_forb
     pub fn check_forb(&self, ops: &SmallVec<Operand, 4>) -> Result<(), Error> {
         if !self.has_forb() {
             return Ok(());
@@ -300,11 +300,11 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             smv.push(o.atype());
         }
 
-        let mut at = 0;
         for f in unsafe { self.forbidden.assume_init_ref() }.iter() {
+            let mut at = 0;
             for (i, lhs) in f.iter().enumerate() {
                 if let Some(rhs) = smv.get(i) {
-                    if rhs == lhs {
+                    if lhs == rhs {
                         at += 1;
                     } else {
                         break;
@@ -357,7 +357,9 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                 return Err(er);
             }
         }
-        //self.check_forb(&smv)?;
+        if self.has_forb() {
+            self.check_forb(&smv)?;
+        }
         match self.get_mode() {
             CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
             CheckMode::X86 => {
@@ -460,5 +462,7 @@ mod chkn_test {
         use crate::shr::ast::Operand;
         let t = Operand::Register(Register::RAX).atype();
         assert_eq!(t, AType::Register(Register::RAX, false));
+        assert!(Register::EAX != Register::K0);
+        assert_eq!(size_of::<AType>(), 4);
     }
 }

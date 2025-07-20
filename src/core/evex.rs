@@ -3,6 +3,8 @@
 // made by matisoss
 // licensed under MPL 2.0
 
+use crate::utils::andn;
+
 use crate::core::api::*;
 
 use crate::shr::{
@@ -71,13 +73,9 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
     ]
 }
 
-const fn andn(num: u8, bits: u8) -> u8 {
-    !num & bits
-}
-
 fn gen_evex4v(op: &Option<Operand>) -> u8 {
     if let Some(Operand::Register(r)) = op {
-        andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
+        andn((r.ebits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
     } else {
         0b1111
     }
@@ -86,21 +84,7 @@ fn gen_evex4v(op: &Option<Operand>) -> u8 {
 // extended bits
 fn ebits(op: &Option<Operand>) -> [[bool; 2]; 2] {
     if let Some(op) = op {
-        match op {
-            Operand::Register(r) => [r.get_ext_bits(), [false; 2]],
-            Operand::Mem(m) => {
-                let mut base = [false; 2];
-                if let Some(i) = m.base() {
-                    base = i.get_ext_bits();
-                }
-                let mut idx = [false; 2];
-                if let Some(i) = m.index() {
-                    idx = i.get_ext_bits();
-                }
-                [base, idx]
-            }
-            _ => [[false; 2]; 2],
-        }
+        op.ebits()
     } else {
         [[false; 2]; 2]
     }

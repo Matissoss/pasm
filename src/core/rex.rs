@@ -22,7 +22,7 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
     };
 
     for i in 0..ins.len() {
-        if REG == ins.gett(i) && unsafe { ins.get_as_reg(i) }.get_ext_bits()[1] {
+        if REG == ins.gett(i) && unsafe { ins.get_as_reg(i) }.ebits()[1] {
             return true;
         }
     }
@@ -120,7 +120,7 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
                     || r0.is_sgmnt()
                     || r1.is_sgmnt()
                 {
-                    return r0.get_ext_bits()[1] || r1.get_ext_bits()[1];
+                    return r0.ebits()[1] || r1.ebits()[1];
                 } else {
                     return true;
                 }
@@ -129,7 +129,7 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
                 return true;
             }
             if let Some(Operand::Imm(i)) = &src {
-                if i.size() == Size::Qword {
+                if i.signed_size() == Size::Qword {
                     return true;
                 }
             }
@@ -161,12 +161,12 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
         Mnemonic::SAR | Mnemonic::SAL | Mnemonic::SHL | Mnemonic::SHR | Mnemonic::LEA => true,
         _ => {
             if let Some(Operand::Register(dst)) = dst {
-                if dst.get_ext_bits()[1] {
+                if dst.ebits()[1] {
                     return true;
                 }
             }
             if let Some(Operand::Register(src)) = src {
-                if src.get_ext_bits()[1] {
+                if src.ebits()[1] {
                     return true;
                 }
             }
@@ -177,7 +177,7 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
 
 fn get_wb(op: &Option<Operand>) -> bool {
     match op {
-        Some(Operand::Register(reg)) => reg.get_ext_bits()[1],
+        Some(Operand::Register(reg)) => reg.ebits()[1],
         _ => false,
     }
 }
@@ -232,7 +232,7 @@ fn calc_rex(
         _ => {}
     }
     if let Some(Operand::Register(reg)) = dst {
-        if reg.get_ext_bits()[1] {
+        if reg.ebits()[1] {
             if modrm_reg_is_dst {
                 r = true;
             } else {

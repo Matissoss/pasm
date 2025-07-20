@@ -3,6 +3,8 @@
 // made by matissoss
 // licensed under MPL 2.0
 
+use crate::utils::andn;
+
 use crate::core::api;
 use crate::shr::ast::{IVariant, Instruction, Operand};
 use crate::shr::smallvec::SmallVec;
@@ -55,11 +57,12 @@ pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> SmallVec<u8, 3> {
     }
     pfx
 }
+
 fn needs_vex3(op: &Option<Operand>) -> (bool, bool) {
     if let Some(op) = op {
         match op {
             Operand::Register(r) => {
-                if r.get_ext_bits()[1] {
+                if r.ebits()[1] {
                     return (true, false);
                 }
             }
@@ -75,14 +78,10 @@ fn needs_vex3(op: &Option<Operand>) -> (bool, bool) {
     (false, false)
 }
 
-const fn andn(num: u8, bits: u8) -> u8 {
-    !num & bits
-}
-
 // VEX.vvvv field
 fn gen_vex4v(op: &Option<Operand>) -> u8 {
     if let Some(Operand::Register(r)) = op {
-        andn((r.get_ext_bits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
+        andn((r.ebits()[1] as u8) << 3 | r.to_byte(), 0b0000_1111)
     } else {
         0b1111
     }

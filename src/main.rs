@@ -6,17 +6,14 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::missing_transmute_annotations)]
-#![allow(clippy::type_complexity)]
 #![allow(clippy::to_string_trait_impl)]
 #![allow(clippy::while_let_on_iterator)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::missing_safety_doc)]
-#![allow(clippy::unnecessary_unwrap)]
 // sometimes manual idx = 0; while idx < range { idx += 1 } is faster
 // than Rust's preferred .iter().enumerate()
 #![allow(clippy::explicit_counter_loop)]
-#![allow(clippy::borrowed_box)]
 
 // global imports go here
 use std::process;
@@ -137,7 +134,7 @@ fn main() {
 fn print_supported_instructions() {
     use crate::shr::ins::Mnemonic;
     let ins_count = Mnemonic::__LAST as u16;
-    println!("This version of RASM supports {} mnemonics!", ins_count - 1);
+    println!("This version of PASM supports {} mnemonics!", ins_count - 1);
     println!("Here's a list of all of them:");
     for idx in (2..ins_count).step_by(3) {
         let ins2 = unsafe { std::mem::transmute::<u16, Mnemonic>(idx - 2).to_string() };
@@ -168,14 +165,12 @@ fn print_supported_instructions_raw() {
         if idx + 1 == Mnemonic::__LAST as u16 {
             print!(
                 "{}",
-                format!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) })
-                    .to_lowercase()
+                unsafe { std::mem::transmute::<u16, Mnemonic>(idx) }.to_string()
             );
         } else {
             println!(
                 "{}",
-                format!("{:?}", unsafe { std::mem::transmute::<u16, Mnemonic>(idx) })
-                    .to_lowercase()
+                unsafe { std::mem::transmute::<u16, Mnemonic>(idx) }.to_string()
             );
         }
     }

@@ -71,7 +71,8 @@ pub struct ParserStatus<'a> {
 }
 
 // we have to use raw pointers, because if we used &mut instead, then rust would rip us apart :D
-// also *mut Error, because it is cheaper than Option<Error>
+// also *mut Error, because it is cheaper than Option<Error>;
+// you have to free *mut Error yourself (it is ManuallyDrop)
 pub fn par<'a>(
     ast: *mut AST<'a>,
     node: MergerToken<'a>,

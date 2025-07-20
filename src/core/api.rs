@@ -71,26 +71,26 @@ pub const PREFIX_VEX: u8 = 0b010;
 pub const PREFIX_EVEX: u8 = 0b011;
 pub const PREFIX_APX: u8 = 0b100;
 
-// size = 16B (could be 37B!)
+// size = 16B
 #[repr(C)]
 pub struct GenAPI {
-    // layout:
     opcode: [u8; 4],
     // layout:
-    //  0bPPP0_0LLL:
+    //  0bPPPR_0LLL:
     //   PPP: forced prefix (fpfx):
     //      0b000 - None
     //      0b001 - REX
     //      0b010 - VEX
     //      0b011 - EVEX
     //      0b... - reserved
+    //   R: reserved
     //   LLL: opcode length
     meta_0: u8,
     _reserved: [u8; 3],
 
     pub flags: BoolTable16,
 
-    // if (E)VEX_PFX flag is set, the byte is 0bX_YYYYY_ZZ where:
+    // if PREFIX_(E)VEX is set, the byte is 0bX_YYYYY_ZZ where:
     // X = (E)VEX.w/e,
     // YYYYY = map_select
     // ZZ = pp
@@ -479,7 +479,7 @@ impl GenAPI {
                 // rvrm
                 Some(Operand::Register(r)) => {
                     let mut v = SmallVec::<u8, 8>::new();
-                    v.push((r.get_ext_bits()[1] as u8) << 7 | r.to_byte() << 4);
+                    v.push((r.ebits()[1] as u8) << 7 | r.to_byte() << 4);
                     extend_imm(&mut v, size as u8);
                     for b in v.into_iter() {
                         base.push(b);
@@ -755,21 +755,9 @@ impl OperandOrder {
 impl ModrmTuple {
     pub fn new(reg: Option<u8>) -> Self {
         Self {
-            data: /*(*/(reg.is_some() as u8) << 7
-                //| (rm.is_some() as u8) << 6
-                | reg.unwrap_or(0) << 3
-                //| rm.unwrap_or(0)),
+            data: (reg.is_some() as u8) << 7 | reg.unwrap_or(0) << 3,
         }
     }
-    /*
-    pub const fn rm(&self) -> Option<u8> {
-        if self.data & 0b01_000000 == 0b01_000000 {
-            Some(self.data & 0b000111)
-        } else {
-            None
-        }
-    }
-    */
     pub const fn reg(&self) -> Option<u8> {
         if self.data & 0b10_000000 == 0b10_000000 {
             Some((self.data & 0b00_111000) >> 3)

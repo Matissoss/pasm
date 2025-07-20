@@ -5,6 +5,8 @@
 
 use std::path::Path;
 
+use crate::utils;
+
 use crate::shr::{
     error::Error,
     reloc::{RelType, Relocation},
@@ -146,7 +148,7 @@ impl<'a> Elf<'a> {
     fn find_symbol(&self, name: &str) -> Option<usize> {
         let buf = &self.strtab;
         for (i, s) in self.symbols.iter().enumerate() {
-            let sname = cstring(buf, s.name);
+            let sname = unsafe { utils::cstring(buf.as_ptr().add(s.name)) };
             if sname == name {
                 return Some(i);
             }
@@ -498,7 +500,9 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let symtab_name = elf.push_shstrtab(".symtab");
 
     for idx in 0..rela_info.len() {
-        let cstr = format!(".rela{}", cstring(&elf.shstrtab, elf.sections[idx].name));
+        let cstr = format!(".rela{}", unsafe {
+            utils::cstring(elf.shstrtab.as_ptr().add(elf.sections[idx].name))
+        });
         rela_info[idx].name = elf.push_shstrtab(&cstr);
     }
 
@@ -602,17 +606,4 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
 struct RelInfo {
     name: usize,
     relcount: usize,
-}
-
-fn cstring(vec: &[u8], idx: usize) -> &str {
-    let start = idx;
-    let mut end = idx;
-    while end < vec.len() {
-        if vec[end] == 0 {
-            break;
-        } else {
-            end += 1;
-        }
-    }
-    unsafe { std::str::from_utf8_unchecked(&vec[start..end]) }
 }

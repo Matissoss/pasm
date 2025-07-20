@@ -25,7 +25,7 @@ pub const HAS_INDEX: u8 = 0x4;
 // is index a vector register
 pub const IS_VSIB_IDX: u8 = 0x5;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct Mem {
     // layout:
@@ -250,7 +250,7 @@ impl Mem {
     // fails, if addrsize != base.size()
     pub fn set_base(&mut self, base: Register) -> bool {
         let bb = base.to_byte();
-        let [ex, rx] = base.get_ext_bits();
+        let [ex, rx] = base.ebits();
 
         // check
         if self.addrsize() != base.size() && !self.is_vsib() {
@@ -269,7 +269,7 @@ impl Mem {
     // fails, if addrsize != base.size()
     pub fn set_index(&mut self, index: Register) -> bool {
         let bb = index.to_byte();
-        let [ex, rx] = index.get_ext_bits();
+        let [ex, rx] = index.ebits();
 
         // check
         if index.purpose().is_avx() {
@@ -569,6 +569,13 @@ impl ToString for Mem {
         }
         str.push(CLOSURE_END);
         str
+    }
+}
+
+impl std::fmt::Debug for Mem {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(fmt, "Mem({})", self.to_string())?;
+        Ok(())
     }
 }
 

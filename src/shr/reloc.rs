@@ -72,7 +72,7 @@ impl Relocation<'_> {
             //
             // very important thing (because i forgor earlier):
             // S = Symbol, A = Addend, P = Offset
-            //             BUT NOT
+            //                NOT
             // S = Offset, A = Addend, P = Symbol
             (addr as i64 + addend - offset) as usize
         } else {

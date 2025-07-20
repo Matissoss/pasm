@@ -64,6 +64,21 @@ impl<'a> LineIter<'a> {
     }
 }
 
+pub fn andn<T>(lhs: T, rhs: T) -> T
+where
+    T: std::ops::Not<Output = T> + std::ops::BitAnd<Output = T>,
+{
+    !lhs & rhs
+}
+
+pub unsafe fn cstring<'a>(s: *const u8) -> &'a str {
+    let mut len = 0;
+    while *s.add(len) != 0 {
+        len += 1;
+    }
+    std::str::from_utf8_unchecked(std::slice::from_raw_parts(s, len))
+}
+
 pub fn split_str_ref(s: &[u8], chr: char) -> Vec<&str> {
     let mut start = 0;
     let mut end = 0;

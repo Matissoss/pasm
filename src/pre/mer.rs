@@ -68,8 +68,8 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
         // attributes
         Token::Closure('#', attr) => {
             let garbage = unsafe { line.take_owned(1) };
-            if garbage.is_some() {
-                if let Token::Closure('#', _) = garbage.unwrap() {
+            if let Some(garbage) = garbage {
+                if let Token::Closure('#', _) = garbage {
                     return Err(Error::new_wline(
                         "only one #() attribute closure is allowed per line",
                         17,
@@ -85,7 +85,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             }
             Ok(MergerToken::Body(BodyNode::Attributes(attr)))
         }
-        // assert that layout of line is something like label: <instruction>
+        // assert that layout of line is something like [label_attributes] <label_name>: [instruction]
         Token::Label(lname) => {
             let mut l = Label {
                 name: lname,
@@ -126,7 +126,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
                 }
             }
         }
-        // assert that layout of line is: .extern "path" and nothing past that
+        // assert that layout of line is: extern <path><!> and nothing past that
         Token::Directive(Directive::Extern) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -154,7 +154,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Extern(name)))
         }
-        // assert that layout of line is: .output "path" and nothing past that
+        // assert that layout of line is: output <path><!> and nothing past that
         Token::Directive(Directive::Output) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -182,7 +182,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Output(name)))
         }
-        // assert that layout of line is: .format "name" and nothing past that
+        // assert that layout of line is: format <name><!> and nothing past that
         Token::Directive(Directive::Format) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -213,7 +213,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
         Token::Directive(Directive::Writeable) => Ok(MergerToken::Body(BodyNode::Write)),
         Token::Directive(Directive::Executable) => Ok(MergerToken::Body(BodyNode::Exec)),
         Token::Directive(Directive::Alloc) => Ok(MergerToken::Body(BodyNode::Alloc)),
-        // assert that layout of line is: .section "name" and nothing past that
+        // assert that layout of line is: section <name> <!>
         Token::Directive(Directive::Section) => {
             let name = unsafe { line.take_owned(1) };
             let name = if let Some(Token::String(s)) = name {
@@ -248,7 +248,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             }
             Ok(MergerToken::Body(BodyNode::Section(section)))
         }
-        // assert that layout of line is .align $align
+        // assert that layout of line is align <align>
         Token::Directive(Directive::Align) => {
             let align = unsafe { line.take_owned(1) };
             // if is some, then error
@@ -278,7 +278,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Body(BodyNode::Align(align)))
         }
-        // assert that layout of line is .define name $value
+        // assert that layout of line is define <name> <value>
         Token::Directive(Directive::Define) => {
             let name = unsafe { line.take_owned(1) };
             let value = unsafe { line.take_owned(2) };
@@ -325,7 +325,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Define(name, value)))
         }
-        // assert that layout of line is .include "file_path"
+        // assert that layout of line is include <file_path>
         Token::Directive(Directive::Include) => {
             let path = unsafe { line.take_owned(1) };
             // if is some, then error
@@ -355,7 +355,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
                 ))
             }
         }
-        // assert that layout of line is .bits $align
+        // assert that layout of line is bits <16/32/64>
         Token::Directive(Directive::Bits) => {
             let bits = unsafe { line.take_owned(1) };
             // if is some, then error
@@ -392,7 +392,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             Ok(MergerToken::Root(RootNode::Bits(bits)))
         }
         // possible layout:
-        // assert that layout of line is something like: .visibility .type "label_name": <instruction>
+        // assert that layout of line is something like: [label_attributes] <label_name>: [instruction]
         Token::Directive(k) => {
             let mut v = Visibility::default();
             let mut t = SymbolType::default();

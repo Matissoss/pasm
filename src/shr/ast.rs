@@ -86,8 +86,8 @@ pub union OperandData<'a> {
 
 #[derive(PartialEq, Debug)]
 pub enum Operand<'a> {
-    String(&'a Box<&'a str>),
-    Symbol(&'a Box<SymbolRef<'a>>),
+    String(&'a &'a str),
+    Symbol(&'a SymbolRef<'a>),
     Register(Register),
     Mem(Mem),
     Imm(Number),
@@ -437,7 +437,7 @@ impl<'a> Instruction<'a> {
             return true;
         }
         for i in 0..self.len() {
-            if REG == self.gett(i) && unsafe { self.get_as_reg(i) }.get_ext_bits()[0] {
+            if REG == self.gett(i) && unsafe { self.get_as_reg(i) }.ebits()[0] {
                 return true;
             }
         }
@@ -551,13 +551,13 @@ impl<'a> Instruction<'a> {
         }
     }
     #[inline]
-    pub fn get_symbs(&self) -> SmallVec<(&Box<SymbolRef>, usize), 2> {
+    pub fn get_symbs(&self) -> SmallVec<(&SymbolRef, usize), 2> {
         let mut syms = SmallVec::new();
 
         let mut idx = 0;
         while idx < self.len() {
             if SYM == self.gett(idx) {
-                let sym = unsafe { &*self.operands[idx].sym };
+                let sym = unsafe { &**self.operands[idx].sym };
                 syms.push((sym, idx));
             }
             idx += 1;
@@ -645,6 +645,24 @@ impl PartialEq for Instruction<'_> {
 }
 
 impl Operand<'_> {
+    pub fn ebits(&self) -> [[bool; 2]; 2] {
+        match self {
+            Self::Register(r) => [r.ebits(), [false; 2]],
+            Self::Mem(m) => [
+                if let Some(r) = m.base() {
+                    r.ebits()
+                } else {
+                    [false; 2]
+                },
+                if let Some(r) = m.index() {
+                    r.ebits()
+                } else {
+                    [false; 2]
+                },
+            ],
+            _ => [[false; 2]; 2],
+        }
+    }
     pub fn get_reg(&self) -> Option<&Register> {
         match self {
             Operand::Register(r) => Some(r),
@@ -668,7 +686,7 @@ impl Operand<'_> {
     }
     pub fn size(&self) -> Size {
         match self {
-            Self::Imm(n) => n.size(),
+            Self::Imm(n) => n.signed_size(),
             Self::Register(r) => r.size(),
             Self::Mem(m) => m.size(),
             Self::Symbol(s) => {

@@ -31,7 +31,18 @@ impl Number {
     pub fn from_str(str: &str) -> Option<Self> {
         num_from_str(str)
     }
-    pub fn size(&self) -> Size {
+    pub fn unsigned_size(&self) -> Size {
+        if self.content & 0xFF == self.content {
+            Size::Byte
+        } else if self.content & 0xFFFF == self.content {
+            Size::Word
+        } else if self.content & 0xFFFF_FFFF == self.content {
+            Size::Dword
+        } else {
+            Size::Qword
+        }
+    }
+    pub fn signed_size(&self) -> Size {
         match self.get_real_size() {
             1 => Size::Byte,
             2 => Size::Word,

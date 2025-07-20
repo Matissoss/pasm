@@ -103,8 +103,7 @@ impl<T, const N: usize> SmallVec<T, N> {
     pub const unsafe fn insert(&mut self, idx: usize, t: T) {
         self.content[idx] = MaybeUninit::new(t);
     }
-    /// ATTENTION: use this function WITH ManuallyDrop<T>
-    /// it is unsafe, because it allows for scenarios like:
+    /// unsafe, because it allows for scenarios like:
     /// | ELEMENT | NONE | ELEMENT |
     /// which is just UB
     pub const unsafe fn take_owned(&mut self, idx: usize) -> Option<T> {
@@ -116,8 +115,7 @@ impl<T, const N: usize> SmallVec<T, N> {
             None
         }
     }
-    /// ATTENTION: use this function WITH ManuallyDrop<T>
-    /// it is unsafe, because it allows for scenarios like:
+    /// unsafe, because it allows for scenarios like:
     /// | ELEMENT | NONE | ELEMENT |
     /// which is just UB
     pub const unsafe fn take_owned_unchecked(&mut self, idx: usize) -> T {

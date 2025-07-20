@@ -164,29 +164,24 @@ impl std::fmt::Display for AType {
                     }
                 } else {
                     match addrsz {
-                        Size::Any => write!(
-                            f,
-                            "m{}{}",
-                            if bcst { "bcst" } else { "" },
-                            (<Size as Into<u8>>::into(*sz) as u16) << 3
-                        )?,
+                        Size::Any => write!(f, "mXX{}", if bcst { "bcst" } else { "" },)?,
                         Size::Word => write!(
                             f,
                             "m{}{}&16",
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3,
                             if bcst { "bcst" } else { "" },
-                            (<Size as Into<u8>>::into(*sz) as u16) << 3
                         )?,
                         Size::Dword => write!(
                             f,
                             "m{}{}&32",
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3,
                             if bcst { "bcst" } else { "" },
-                            (<Size as Into<u8>>::into(*sz) as u16) << 3
                         )?,
                         Size::Qword => write!(
                             f,
                             "m{}{}&64",
+                            (<Size as Into<u8>>::into(*sz) as u16) << 3,
                             if bcst { "bcst" } else { "" },
-                            (<Size as Into<u8>>::into(*sz) as u16) << 3
                         )?,
                         _ => write!(f, "")?,
                     }
@@ -224,7 +219,7 @@ impl ToType for Operand<'_> {
                     AType::Immediate(Size::Dword, false)
                 }
             }
-            Self::Imm(i) => AType::Immediate(i.size(), false),
+            Self::Imm(i) => AType::Immediate(i.signed_size(), false),
             Self::String(s) => match s.len() {
                 1 => AType::Immediate(Size::Byte, false),
                 2 => AType::Immediate(Size::Word, false),

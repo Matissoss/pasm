@@ -12,62 +12,11 @@ use crate::{
         num::Number,
         reg::{Purpose as RPurpose, Register},
         reloc::RelType,
-        reloc::Relocation,
         size::Size,
-        symbol::{Symbol, SymbolType},
-        visibility::Visibility,
     },
 };
 
 use OpOrd::*;
-
-#[inline]
-pub fn extern_trf<'a>(externs: &'a Vec<&'a str>) -> Vec<Symbol<'a>> {
-    let mut symbols = Vec::with_capacity(externs.len());
-    for extern_ in externs {
-        symbols.push(Symbol {
-            name: extern_,
-            offset: 0,
-            size: 0,
-            sindex: 0,
-            stype: SymbolType::NoType,
-            visibility: Visibility::Extern,
-        });
-    }
-    symbols
-}
-
-pub fn compile_label<'a>(
-    lbl: (&'a [Instruction<'a>], u16, u8),
-    offset: usize,
-) -> (Vec<u8>, Vec<Relocation<'a>>) {
-    let mut bytes = Vec::with_capacity(lbl.0.len() << 1);
-    let mut reallocs = Vec::new();
-    let lbl_bits = lbl.2;
-    let lbl_align = lbl.1;
-    // we do not want situation, where label is entry and we place padding before it -
-    // preventing UB
-    if offset != 0 && lbl_align != 0 {
-        let align = lbl_align as usize;
-        let mut padding = align - (offset % align);
-        while padding > 0 {
-            bytes.push(0x0);
-            padding -= 1;
-        }
-    }
-    for ins in lbl.0 {
-        let res = get_genapi(ins, lbl_bits).assemble(ins, lbl_bits);
-        for mut rl in res.1.into_iter() {
-            rl.offset += bytes.len();
-            reallocs.push(rl);
-        }
-        match res.0 {
-            AssembleResult::WLargeImm(i) => bytes.extend(i),
-            AssembleResult::NoLargeImm(i) => bytes.extend(i.into_iter()),
-        }
-    }
-    (bytes, reallocs)
-}
 
 pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
     match ins.mnemonic {
@@ -7564,7 +7513,7 @@ fn ins_push(ins: &Instruction, _: u8) -> GenAPI {
                 GenAPI::new().opcode(&[0x50 + r.to_byte()]).rex()
             }
         }
-        Operand::Imm(nb) => match nb.size() {
+        Operand::Imm(nb) => match nb.signed_size() {
             Size::Byte => GenAPI::new().opcode(&[0x6A]).imm_atindex(0, 1),
             Size::Word => GenAPI::new()
                 .opcode(&[0x68])
@@ -7616,12 +7565,12 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
         } else {
             match src {
                 Operand::Imm(i) => {
-                    if i.size() == Size::Qword {
+                    if i.signed_size() == Size::Qword {
                         GenAPI::new()
                             .opcode(&[0xB8 + r.to_byte()])
                             .rex()
                             .imm_atindex(1, 8)
-                    } else if r.get_ext_bits()[1] && r.size() == Size::Qword {
+                    } else if r.ebits()[1] && r.size() == Size::Qword {
                         GenAPI::new()
                             .opcode(&[0xC7])
                             .rex()
@@ -7695,7 +7644,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
                             .opcode(&[0xB8 + r.to_byte()])
                             .rex()
                             .imm_atindex(1, 8)
-                    } else if r.get_ext_bits()[1] && r.size() == Size::Qword {
+                    } else if r.ebits()[1] && r.size() == Size::Qword {
                         GenAPI::new()
                             .opcode(&[0xC7])
                             .rex()
@@ -8172,7 +8121,7 @@ fn ins_lea(_: &Instruction, _: u8) -> GenAPI {
 fn ins_jmplike<'a>(ins: &'a Instruction, opc: [&'a [u8]; 3], addt: u8, _: u8) -> GenAPI {
     match ins.dst().unwrap() {
         Operand::Imm(i) => {
-            let opc = match i.size() {
+            let opc = match i.signed_size() {
                 Size::Byte => opc[2],
                 _ => opc[0],
             };

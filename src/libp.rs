@@ -12,6 +12,7 @@ use pre::par::ParserStatus;
 use shr::{
     ast::AST,
     error::Error,
+    label::Label,
     reloc,
     reloc::Relocation,
     section::{Section, SlimSection},
@@ -44,19 +45,16 @@ pub fn pasm_parse_src(
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
-    let mut lines = utils::LineIter::new(file);
+    let mut ast = AST::default();
     let mut errors = Vec::new();
     let mut par = ParserStatus {
         inroot: true,
         ..Default::default()
     };
-    let mut ast = AST::default();
+
+    let mut lines = utils::LineIter::new(file);
     while let Some((mut lnum, line)) = lines.next() {
         lnum += 1;
-        if line.is_empty() {
-            ast.blank_lines.push(lnum);
-            continue;
-        }
         let tok = pre::tok::tokl(line);
         if tok.is_empty() {
             ast.blank_lines.push(lnum);
@@ -198,14 +196,14 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
         }
         #[cfg(feature = "target_elf")]
         "elf32" => {
-            sym.extend(comp::extern_trf(&ast.externs));
+            add_externs(&mut sym, &ast.externs);
             let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, false)?;
             wrt = elf.compile(false);
             write(&mut file.unwrap(), &wrt)?;
         }
         #[cfg(feature = "target_elf")]
         "elf64" => {
-            sym.extend(comp::extern_trf(&ast.externs));
+            add_externs(&mut sym, &ast.externs);
             let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, true)?;
             wrt = elf.compile(true);
             write(&mut file.unwrap(), &wrt)?;
@@ -225,18 +223,24 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
 fn process_section<'a>(
     section: &'a Section<'a>,
     idx: u16,
-    plen: usize,
+    offset: usize,
 ) -> (Vec<u8>, Vec<Relocation<'a>>, Vec<Symbol<'a>>) {
     let mut wrt = Vec::new();
     let mut sym = Vec::new();
     let mut rel = Vec::new();
 
+    // apply addr_align
+    if offset != 0 && section.align != 0 {
+        let align = section.align as usize;
+        wrt.extend(vec![0; align - (offset % align)]);
+    }
+
     for lbl in &section.content {
         let st = lbl.attributes.get_symbol_type();
         let vi = lbl.attributes.get_visibility();
         let nm = lbl.name;
-        let (bts, mut rels) =
-            comp::compile_label((&lbl.content, lbl.align, lbl.attributes.get_bits()), plen);
+
+        let (bts, mut rels) = process_label(lbl, offset);
         for rel in &mut rels {
             rel.shidx = idx;
             rel.offset += wrt.len();
@@ -254,6 +258,51 @@ fn process_section<'a>(
         wrt.extend(bts);
     }
     (wrt, rel, sym)
+}
+
+pub fn add_externs<'a>(sym: *mut Vec<Symbol<'a>>, externs: &'a [&'a str]) {
+    let sym = unsafe { &mut *sym };
+    sym.reserve_exact(externs.len());
+    for e in externs {
+        sym.push(Symbol {
+            name: e,
+            offset: 0,
+            size: 0,
+            sindex: 0,
+            stype: SymbolType::NoType,
+            visibility: Visibility::Extern,
+        });
+    }
+}
+
+pub fn process_label<'a>(label: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
+    use crate::core::api::AssembleResult::*;
+
+    let mut wrt = Vec::new();
+    let mut rel = Vec::new();
+
+    // apply align
+    if offset != 0 && label.align != 0 {
+        let align = label.align as usize;
+        wrt.extend(vec![0; align - (offset % align)]);
+    }
+
+    let bits = label.attributes.get_bits();
+    for instruction in &label.content {
+        let api = comp::get_genapi(instruction, bits);
+
+        let (wrt_a, mut rel_a) = api.assemble(instruction, bits);
+        for rel in rel_a.iter_mut() {
+            rel.offset += wrt.len();
+        }
+        match wrt_a {
+            NoLargeImm(i) => wrt.extend(i.into_iter()),
+            WLargeImm(i) => wrt.extend(i),
+        }
+        rel.extend(rel_a.into_iter());
+    }
+
+    (wrt, rel)
 }
 
 pub fn write(writer: &mut impl Write, con: &[u8]) -> Result<(), Error> {

@@ -5104,7 +5104,7 @@ fn type_check(operand: &Operand, accepted: &[AType], idx: usize) -> Option<Error
         None
     } else {
         if let Operand::Imm(imm) = operand {
-            if accepted.contains(&AType::Immediate(imm.size(), false)) {
+            if accepted.contains(&AType::Immediate(imm.signed_size(), false)) {
                 return None;
             }
         }
