@@ -21,7 +21,7 @@ pub const FIXED_SIZE: u8 = 0xC;
 use std::iter::Iterator;
 
 use crate::{
-    core::{disp, evex, modrm, rex, sib, vex},
+    core::{apx, disp, evex, modrm, rex, sib, vex},
     shr::{
         ast::{Instruction, Operand},
         booltable::BoolTable16,
@@ -51,6 +51,13 @@ pub struct MegaBool {
 #[repr(transparent)]
 pub struct OperandOrder {
     ord: u8,
+}
+
+pub enum EEvexVariant {
+    EvexExtension,
+    VexExtension,
+    LegacyExtension,
+    CondTestCmpExtension,
 }
 
 #[allow(non_camel_case_types)]
@@ -199,6 +206,8 @@ impl GenAPI {
         self.flags.set(CAN_H66O, h66);
         self
     }
+
+    // prefix related things go there (setters only).
     #[inline(always)]
     pub const fn rex(mut self) -> Self {
         self.set_fpfx(PREFIX_REX);
@@ -223,6 +232,8 @@ impl GenAPI {
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
+
+    // Immediate-related things go here
     #[inline(always)]
     pub const fn imm_atindex(mut self, idx: u16, size: u16) -> Self {
         self.flags.set(IMM, true);
@@ -234,6 +245,7 @@ impl GenAPI {
         self.flags.set(IMM_LEBE, bool);
         self
     }
+
     #[inline(always)]
     pub const fn ord(mut self, ord: &[OpOrd]) -> Self {
         self.ord = OperandOrder::new(ord).expect("Failed to create operand order");
@@ -282,6 +294,7 @@ impl GenAPI {
             base.push(a);
         }
 
+        // this works (atleast i hope so?) for now
         let rex = if prefix_flag == PREFIX_REX && !self.flags.at(STRICT_PFX) && bits == 64 {
             rex::gen_rex(ins, self.ord.modrm_reg_is_dst()).unwrap_or(0)
         } else {
@@ -298,6 +311,7 @@ impl GenAPI {
             false
         };
 
+        // Legacy Prefixes
         if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX {
             if let Some(segm) = gen_segm_pref(ins) {
                 base.push(segm);
@@ -323,6 +337,7 @@ impl GenAPI {
             }
         }
 
+        // Prefixes
         match prefix_flag {
             PREFIX_REX => {
                 if rex != 0x00 {
@@ -335,7 +350,7 @@ impl GenAPI {
                         base.push(b);
                     }
                 } else {
-                    for b in vex::vex(ins, &self).into_iter() {
+                    for b in vex::vex(&self, ins).into_iter() {
                         base.push(b);
                     }
                 }
@@ -344,6 +359,12 @@ impl GenAPI {
                 for b in evex::evex(&self, ins) {
                     base.push(b);
                 }
+            }
+            PREFIX_APX => {
+                for b in apx::apx(&self, ins).into_iter() {
+                    base.push(b);
+                }
+                todo!("TODO:")
             }
             _ => {}
         }
@@ -566,8 +587,24 @@ impl GenAPI {
             None
         }
     }
+
+    pub fn apx(self, _eevex_variant: EEvexVariant, _eevex_details: VexDetails) -> Self {
+        todo!("TODO:")
+    }
+    pub fn get_apx_eevex_version(&self) -> Option<EEvexVariant> {
+        if self.get_fpfx() == PREFIX_EVEX {
+            Some(EEvexVariant::EvexExtension)
+        } else if self.get_fpfx() == PREFIX_VEX {
+            Some(EEvexVariant::VexExtension)
+        } else if self.get_fpfx() == PREFIX_APX {
+            todo!("TODO:")
+        } else {
+            None
+        }
+    }
 }
 
+// Assembling helper functions
 fn gen_addt_pfx(ins: &Instruction) -> Option<u8> {
     use Mnemonic as Ins;
     if let Some(s) = ins.get_addt() {
@@ -660,6 +697,8 @@ const fn gen_segm_pref_op(mem: &Mem) -> Option<u8> {
         _ => None,
     }
 }
+
+// Implementations
 
 impl Default for VexDetails {
     fn default() -> Self {

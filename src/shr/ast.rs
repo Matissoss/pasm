@@ -116,7 +116,7 @@ pub struct Instruction<'a> {
     //      0b0011 - APX (variants)
     //      0b.... - reserved
     //   - RRRR_RRRR_RRRR - forced prefix specific:
-    //      if EVEX:
+    //      if FPFX_EVEX:
     //          0bSZ00_MMM0_0EEE:
     //              - S: {sae}
     //              - Z: {z}
@@ -127,16 +127,30 @@ pub struct Instruction<'a> {
     //                  0b011 - ru
     //                  0b100 - rz
     //              - MMM: {k0/1/2/3/4/5/6/7}
-    //      if APX:
-    //          0bMRRR_RRRR_RRRR:
-    //              - M: if 0 then EEVEX, if 1 then REX2
-    //              - RRR_RRRR_RRRR:
-    //                  if EEVEX:
-    //                      [...]
-    //                  if REX2:
-    //                      [...]
+    //      if FPFX_APX:
+    //          0bAAZZ_XRRR_RRRR:
+    //              A0 - variant is forced
+    //              A1 - 1 = REX2, 0 = EEVEX
+    //              ZZ - if A1 = EEVEX then EEvexVariant
+    //              X - reserved
+    //              RRR_RRRR:
+    //                  if EEVEX and EEVEX_COND:
+    //                      OSZ_C000:
+    //                          O - OF
+    //                          S - SF
+    //                          Z - ZF
+    //                          C - CF
+    //                  if EEVEX and EEVEX_LEGACY:
+    //                      NF0_0000
+    //                          N - ND
+    //                          F - NF
+    //                  if EEVEX and EEVEX_VEX:
+    //                      F00_0000:
+    //                          F - NF
+    //                  if EEVEX and EEVEX_EVEX:
+    //                      000_0000
     //      else:
-    //          reserved
+    //          0000_0000_0000
     pub metadata: u16,
 }
 
@@ -425,6 +439,33 @@ impl<'a> Instruction<'a> {
     #[inline(always)]
     pub fn iter(&'a self) -> impl Iterator<Item = Operand<'a>> {
         (0..self.len()).map(|o| self.get(o).unwrap())
+    }
+
+    pub fn needs_apx_extension(&self) -> bool {
+        if self.get_fpfx() == FPFX_APX {
+            return true;
+        }
+
+        for i in 0..self.len() {
+            if REG == self.gett(i) {
+                let srg = unsafe { self.get_as_reg(i) };
+                if srg.ebits()[0] && srg.purpose().is_gpr() {
+                    return true;
+                }
+            } else if MEM == self.gett(i) {
+                let mem = unsafe { self.get_as_mem(i) };
+                if let Some(base) = mem.base() {
+                    if base.ebits()[0] {
+                        return true;
+                    }
+                } else if let Some(idx) = mem.index() {
+                    if idx.ebits()[0] {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     // legacy

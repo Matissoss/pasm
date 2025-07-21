@@ -13,3 +13,6 @@ pub mod vex;
 
 // core for AVX-512
 pub mod evex;
+
+// core for Intel APX
+pub mod apx;

@@ -187,15 +187,34 @@ pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     forbidden: MaybeUninit<&'a [[AType; OPERAND_COUNT]]>,
     additional: MaybeUninit<&'a [Mnemonic]>,
 
+    // Also: TODO: make CheckAPI actually respect if EVEX: EE and SSSS.
     // layout:
-    //  0bXY_00AM_ZZ:
-    //  X - has additional mnemonic
-    //  Y - has forbidden op combination
-    //  00 - reserved
-    //  A - is avx-512 instruction
-    //  M - can have masks
-    //  ZZ - check mode
-    flags: u8,
+    // 0bXXXX_MFRR_ZZZZ_ZZZZ:
+    //  XXXX: prefix
+    //      0000 - None
+    //      0001 - EVEX
+    //      0010 - APX Conditional (Test and CMP)
+    //      0011 - APX Legacy
+    //      0100 - APX EVEX
+    //      0101 - APX VEX
+    //  M: additional mnemonic
+    //  F: forbidden operand combination
+    //  RR: check mode
+    //  ZZZZ_ZZZZ: specific
+    //      if prefix == EVEX or prefix == APX_EVEX:
+    //          EEKZ_SSSS:
+    //              EE: AVX-512 modifier
+    //                  00 - None
+    //                  01 - {er}
+    //                  10 - {sae}
+    //                  11 - reseved
+    //              K: can have masks
+    //              Z: can have {z}
+    //              SSSS: 
+    //                  if EE != 0:
+    //                      Size where you can use EE modifier
+    //      if prefix == FPFX_APX:
+    flags: u16,
 }
 
 #[repr(u8)]
@@ -211,44 +230,60 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     pub const fn new() -> Self {
         Self {
             allowed: SmallVec::new(),
-            flags: CheckMode::NONE as u8,
+            flags: 0,
             additional: unsafe { MaybeUninit::uninit().assume_init() },
             forbidden: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
     const fn set_forb_flag(&mut self) {
-        self.flags &= !0b0100_0000;
-        self.flags |= 0b0100_0000;
+        self.flags &= !0b0100_0000_0000;
+        self.flags |= 0b0100_0000_0000;
     }
     pub const fn has_forb(&self) -> bool {
-        self.flags & 0b0100_0000 == 0b0100_0000
+        self.flags & 0b0100_0000_0000 == 0b0100_0000_0000
     }
+
+    pub const fn set_fpfx(&mut self, v: u8) {
+        self.flags &= !0b1111_0000_0000_0000;
+        self.flags |= (v as u16 & 0b1111) << 12;
+    }
+    pub const fn get_fpfx(&self) -> u8 {
+        ((self.flags & 0b1111_0000_0000_0000) >> 12) as u8
+    }
+    
     pub const fn get_avx512(&self) -> bool {
-        self.flags & 0b00_0010_00 == 0b00_0010_00
+        self.get_fpfx() == 0b0001
     }
     pub const fn set_avx512(mut self) -> Self {
-        self.flags |= 0b00_0010_00;
+        self.set_fpfx(0b0001);
         self
     }
     pub const fn get_mask(&self) -> bool {
-        self.flags & 0b00_0001_00 == 0b00_0001_00
+        if !self.get_avx512() {
+            return false
+        }
+        self.flags & 0b0010_0000 == 0b0010_0000
     }
     pub const fn set_mask_perm(mut self) -> Self {
-        self.flags |= 0b00_0001_00;
+        self = self.set_avx512();
+        self.flags |= 0b0010_0000;
         self
     }
     pub const fn get_mode(&self) -> CheckMode {
-        unsafe { std::mem::transmute::<u8, CheckMode>(self.flags & 0b11) }
+        unsafe { 
+            std::mem::transmute::<u8, CheckMode>(
+                ((self.flags & 0b0000_0011_0000_0000) >> 8) as u8)
+        }
     }
     pub const fn set_mode(mut self, mode: CheckMode) -> Self {
-        self.flags |= mode as u8;
+        self.flags |= (mode as u16 & 0b11) << 8;
         self
     }
     pub const fn set_addt_flag(&mut self) {
-        self.flags |= 0b1000_0000;
+        self.flags |= 0b0000_1000_0000_0000;
     }
     pub const fn has_addt(&self) -> bool {
-        self.flags & 0b1000_0000 == 0b1000_0000
+        self.flags & 0b1000_0000_0000 == 0b1000_0000_0000
     }
     pub const fn set_forb(mut self, forb: &'a [[AType; OPERAND_COUNT]]) -> Self {
         self.set_forb_flag();

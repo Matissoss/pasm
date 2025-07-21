@@ -12,7 +12,7 @@ use crate::shr::smallvec::SmallVec;
 const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
-pub fn vex(ins: &Instruction, ctx: &api::GenAPI) -> SmallVec<u8, 3> {
+pub fn vex(ctx: &api::GenAPI, ins: &Instruction) -> SmallVec<u8, 3> {
     let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
     if let (None, None, None) = (&modrm_reg, &modrm_rm, &vex_opr) {

@@ -59,6 +59,8 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             10,
         );
         return Err(er);
+    } else if ins.needs_apx_extension() {
+        todo!("TODO: ");
     }
     match ins.mnemonic {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
