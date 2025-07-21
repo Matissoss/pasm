@@ -11,7 +11,7 @@ assignees: Matissoss
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Provide an example of code (both ASM code and internal Rust code) that provokes the error to occur.
+Provide an example of code (either one or both x86-64 PASM assembly code and internal Rust code) that provokes the error to occur.
 
 **Expected**
 Provide what is the expected output (and why this one is correct?).
