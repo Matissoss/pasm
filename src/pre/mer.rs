@@ -640,6 +640,7 @@ pub fn make_instruction(
     for s in subexpr {
         match s {
             // APX
+            "apx" => ins.apx_set_default(),
             "of" => ins.apx_eevex_cond_set_of(),
             "cf" => ins.apx_eevex_cond_set_cf(),
             "zf" => ins.apx_eevex_cond_set_zf(),

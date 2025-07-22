@@ -34,6 +34,7 @@ use core::comp;
 pub mod cli;
 pub mod color;
 pub mod conf;
+pub mod consts;
 pub mod help;
 pub mod utils;
 

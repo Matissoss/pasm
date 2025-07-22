@@ -53,12 +53,14 @@ pub struct OperandOrder {
     ord: u8,
 }
 
+#[repr(u8)]
 #[derive(PartialEq)]
 pub enum EEvexVariant {
-    EvexExtension,
-    VexExtension,
-    LegacyExtension,
-    CondTestCmpExtension,
+    EvexExtension = 0b000,
+    VexExtension = 0b001,
+    LegacyExtension = 0b010,
+    CondTestCmpExtension = 0b011,
+    Auto = 0b100,
 }
 
 #[allow(non_camel_case_types)]

@@ -38,44 +38,13 @@ const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
 const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
 const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
 
-pub const COND_O: u8 = 0b0000;
-pub const COND_NO: u8 = 0b0001;
-pub const COND_B: u8 = 0b0010;
-pub const COND_C: u8 = 0b0010;
-pub const COND_NAE: u8 = 0b0010;
-pub const COND_NB: u8 = 0b0011;
-pub const COND_NC: u8 = 0b0011;
-pub const COND_AE: u8 = 0b0011;
-pub const COND_E: u8 = 0b0100;
-pub const COND_Z: u8 = 0b0100;
-pub const COND_NE: u8 = 0b0101;
-pub const COND_NZ: u8 = 0b0101;
-pub const COND_BE: u8 = 0b0110;
-pub const COND_NA: u8 = 0b0110;
-pub const COND_NBE: u8 = 0b0111;
-pub const COND_A: u8 = 0b0111;
-pub const COND_S: u8 = 0b1000;
-pub const COND_NS: u8 = 0b1001;
-pub const COND_P: u8 = 0b1010;
-pub const COND_PE: u8 = 0b1010;
-pub const COND_NP: u8 = 0b1011;
-pub const COND_PO: u8 = 0b1011;
-pub const COND_L: u8 = 0b1100;
-pub const COND_NGE: u8 = 0b1100;
-pub const COND_NL: u8 = 0b1101;
-pub const COND_GE: u8 = 0b1101;
-pub const COND_LE: u8 = 0b1110;
-pub const COND_NG: u8 = 0b1110;
-pub const COND_G: u8 = 0b1111;
-pub const COND_NLE: u8 = 0b1111;
-
 #[allow(unused)]
 const FPFX_NONE: u16 = 0b0000;
 const FPFX_VEX: u16 = 0b0001;
 const FPFX_EVEX: u16 = 0b0010;
 const FPFX_APX: u16 = 0b0011;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct AST<'a> {
     pub sections: Vec<Section<'a>>,
     pub defines: HashMap<&'a str, Number>,
@@ -160,9 +129,9 @@ pub struct Instruction<'a> {
     //                  0b100 - rz
     //              - MMM: {k0/1/2/3/4/5/6/7}
     //      if FPFX_APX:
-    //          0b0AZZ_XRRR_RRRR:
+    //          0bAZZZ_0RRR_RRRR:
     //              A - 1 = REX2, 0 = EEVEX
-    //              ZZ - if A = EEVEX then EEvexVariant
+    //              ZZZ - if A = EEVEX then EEvexVariant
     //              X - reserved
     //              RRR_RRRR:
     //                  if EEVEX and EEVEX_COND:
@@ -465,7 +434,7 @@ impl<'a> Instruction<'a> {
             return None;
         }
         // check for REX2
-        if self.metadata & 0b0100_0000_0000 == 0b0100_0000_0000 {
+        if self.metadata & 0b1000_0000_0000 == 0b1000_0000_0000 {
             return None;
         }
 
@@ -534,6 +503,11 @@ impl<'a> Instruction<'a> {
         self.set_apx_vex();
         self.metadata &= !0b100_0000;
         self.metadata |= 0b100_0000;
+    }
+    pub fn apx_set_default(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0111_0000_0000;
+        self.metadata |= (EEvexVariant::Auto as u16) << 8;
     }
 
     // be glad that these methods aren't called:
@@ -980,6 +954,86 @@ impl Default for Instruction<'_> {
                 additional: MaybeUninit::uninit(),
                 operands: MaybeUninit::uninit().assume_init_read(),
             }
+        }
+    }
+}
+impl Default for AST<'_> {
+    fn default() -> Self {
+        Self {
+            format: None,
+            default_bits: None,
+            default_output: None,
+            defines: {
+                use crate::consts::*;
+
+                // builtins defines go here
+                let mut def = HashMap::with_capacity(64);
+
+                // DOUBLE builtins
+                def.insert("__DOUBLE_MIN", Number::double(f64::MIN));
+                def.insert("__DOUBLE_MAX", Number::double(f64::MAX));
+                def.insert("__DOUBLE_INF", Number::double(f64::INFINITY));
+                def.insert("__DOUBLE_NEG_INF", Number::double(f64::NEG_INFINITY));
+                def.insert("__DOUBLE_EXP_MIN", Number::int64(f64::MIN_EXP.into()));
+                def.insert("__DOUBLE_EXP_MAX", Number::int64(f64::MAX_EXP.into()));
+                def.insert("__DOUBLE_PI", Number::double(std::f64::consts::PI));
+                def.insert("__DOUBLE_SQRT2", Number::double(std::f64::consts::SQRT_2));
+                def.insert("__DOUBLE_LN2", Number::double(std::f64::consts::LN_2));
+                def.insert("__DOUBLE_LN10", Number::double(std::f64::consts::LN_10));
+
+                // FLOAT builtins
+                def.insert("__FLOAT_MIN", Number::float(f32::MIN));
+                def.insert("__FLOAT_MAX", Number::float(f32::MAX));
+                def.insert("__FLOAT_INF", Number::float(f32::INFINITY));
+                def.insert("__FLOAT_NEG_INF", Number::float(f32::NEG_INFINITY));
+                def.insert("__FLOAT_EXP_MIN", Number::int64(f32::MIN_EXP.into()));
+                def.insert("__FLOAT_EXP_MAX", Number::int64(f32::MAX_EXP.into()));
+                def.insert("__FLOAT_PI", Number::float(std::f32::consts::PI));
+                def.insert("__FLOAT_SQRT2", Number::float(std::f32::consts::SQRT_2));
+                def.insert("__FLOAT_LN2", Number::float(std::f32::consts::LN_2));
+                def.insert("__FLOAT_LN10", Number::float(std::f32::consts::LN_10));
+
+                // BOOLEAN builtins
+                def.insert("__FALSE", Number::uint64(0));
+                def.insert("__TRUE", Number::uint64(1));
+
+                // CONDITIONS builtins
+                def.insert("__COND_O", Number::uint64(COND_O as u64));
+                def.insert("__COND_NO", Number::uint64(COND_NO as u64));
+                def.insert("__COND_B", Number::uint64(COND_B as u64));
+                def.insert("__COND_C", Number::uint64(COND_C as u64));
+                def.insert("__COND_NAE", Number::uint64(COND_NAE as u64));
+                def.insert("__COND_NB", Number::uint64(COND_NB as u64));
+                def.insert("__COND_NC", Number::uint64(COND_NC as u64));
+                def.insert("__COND_AE", Number::uint64(COND_AE as u64));
+                def.insert("__COND_E", Number::uint64(COND_E as u64));
+                def.insert("__COND_Z", Number::uint64(COND_Z as u64));
+                def.insert("__COND_NE", Number::uint64(COND_NE as u64));
+                def.insert("__COND_NZ", Number::uint64(COND_NZ as u64));
+                def.insert("__COND_BE", Number::uint64(COND_BE as u64));
+                def.insert("__COND_NA", Number::uint64(COND_NA as u64));
+                def.insert("__COND_NBE", Number::uint64(COND_NBE as u64));
+                def.insert("__COND_A", Number::uint64(COND_A as u64));
+                def.insert("__COND_S", Number::uint64(COND_S as u64));
+                def.insert("__COND_NS", Number::uint64(COND_NS as u64));
+                def.insert("__COND_P", Number::uint64(COND_P as u64));
+                def.insert("__COND_PE", Number::uint64(COND_PE as u64));
+                def.insert("__COND_NP", Number::uint64(COND_NP as u64));
+                def.insert("__COND_PO", Number::uint64(COND_PO as u64));
+                def.insert("__COND_L", Number::uint64(COND_L as u64));
+                def.insert("__COND_NGE", Number::uint64(COND_NGE as u64));
+                def.insert("__COND_NL", Number::uint64(COND_NL as u64));
+                def.insert("__COND_GE", Number::uint64(COND_GE as u64));
+                def.insert("__COND_LE", Number::uint64(COND_LE as u64));
+                def.insert("__COND_NG", Number::uint64(COND_NG as u64));
+                def.insert("__COND_G", Number::uint64(COND_G as u64));
+                def.insert("__COND_NLE", Number::uint64(COND_NLE as u64));
+                def
+            },
+            externs: Vec::new(),
+            includes: Vec::new(),
+            sections: Vec::new(),
+            blank_lines: Vec::new(),
         }
     }
 }

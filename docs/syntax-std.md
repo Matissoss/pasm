@@ -268,6 +268,8 @@ define <NAME> <VALUE>
 
 Symbol defined with `define` can be referenced using `@` prefix. `<VALUE>` can only be 64-bit immediate that cannot reference other symbols.
 
+There are also builtins `defines` that we discuss in Appendix A
+
 #### extern
 
 You can make extern symbol (they are ignored in `bin` target) using `extern` directive:
@@ -302,3 +304,65 @@ format elf64/elf32/bin
 
 > [!NOTE]
 > `elf*` targets are only Little-Endian variants
+
+## appendix
+
+### appendix a
+
+Here is table of builtins defines:
+
+|   Name            | Value                         |
+|:-----------------:|:-----------------------------:|
+|`__TRUE`           | 1                             |
+|`__FALSE`          | 0                             |
+|`__DOUBLE_MIN`     | min. value of double          |
+|`__DOUBLE_MAX`     | max. value of double          |
+|`__DOUBLE_INF`     | infinity as double            |
+|`__DOUBLE_NEG_INF` | negative infinity as double   |
+|`__DOUBLE_EXP_MIN` | minimal exponent of double    |
+|`__DOUBLE_EXP_MAX` | maximal expontent of double   |
+|`__DOUBLE_PI`      | PI                            |
+|`__DOUBLE_SQRT2`   | `√2`                          |
+|`__DOUBLE_LN2`     | log(2)                        |
+|`__DOUBLE_LN10`    | log(10)                       |
+|`__FLOAT_MIN`      | min. value of float           |
+|`__FLOAT_MAX`      | max. value of float           |
+|`__FLOAT_INF`      | infinity as float             |
+|`__FLOAT_NEG_INF`  | negative infinity as float    |
+|`__FLOAT_EXP_MIN`  | minimal exponent of float     |
+|`__FLOAT_EXP_MAX`  | maximal expontent of float    |
+|`__FLOAT_PI`       | PI                            |
+|`__FLOAT_SQRT2`    | `√2`                          |
+|`__FLOAT_LN2`      | log(2)                        |
+|`__FLOAT_LN10`     | log(10)                       |
+|`__COND_O`         | Can be used in some instructions; Condition used in `jo`        |
+|`__COND_NO`        | Can be used in some instructions; Condition used in `jno`       |
+|`__COND_O`         | Can be used in some instructions; Condition used in `jo`        |
+|`__COND_B`         | Can be used in some instructions; Condition used in `jb`        |
+|`__COND_C`         | Can be used in some instructions; Condition used in `jc`        |
+|`__COND_NAE`       | Can be used in some instructions; Condition used in `jnae`      |
+|`__COND_NB`        | Can be used in some instructions; Condition used in `jnb`       |
+|`__COND_NC`        | Can be used in some instructions; Condition used in `jnc`       |
+|`__COND_AE`        | Can be used in some instructions; Condition used in `jae`       |
+|`__COND_E`         | Can be used in some instructions; Condition used in `je`        |
+|`__COND_Z`         | Can be used in some instructions; Condition used in `jz`        |
+|`__COND_NE`        | Can be used in some instructions; Condition used in `jne`       |
+|`__COND_NZ`        | Can be used in some instructions; Condition used in `jnz`       |
+|`__COND_BE`        | Can be used in some instructions; Condition used in `jbe`       |
+|`__COND_NA`        | Can be used in some instructions; Condition used in `jna`       |
+|`__COND_NBE`       | Can be used in some instructions; Condition used in `jnbe`      |
+|`__COND_A`         | Can be used in some instructions; Condition used in `ja`        |
+|`__COND_S`         | Can be used in some instructions; Condition used in `js`        |
+|`__COND_NS`        | Can be used in some instructions; Condition used in `jns`       |
+|`__COND_P`         | Can be used in some instructions; Condition used in `jp`        |
+|`__COND_PE`        | Can be used in some instructions; Condition used in `jpe`       |
+|`__COND_NP`        | Can be used in some instructions; Condition used in `jnp`       |
+|`__COND_PO`        | Can be used in some instructions; Condition used in `jpo`       |
+|`__COND_L`         | Can be used in some instructions; Condition used in `jl`        |
+|`__COND_NGE`       | Can be used in some instructions; Condition used in `jnge`      |
+|`__COND_NL`        | Can be used in some instructions; Condition used in `jnl`       |
+|`__COND_GE`        | Can be used in some instructions; Condition used in `jge`       |
+|`__COND_LE`        | Can be used in some instructions; Condition used in `jle`       |
+|`__COND_NG`        | Can be used in some instructions; Condition used in `jng`       |
+|`__COND_G`         | Can be used in some instructions; Condition used in `jg`        |
+|`__COND_NLE`       | Can be used in some instructions; Condition used in `jnle`      |
