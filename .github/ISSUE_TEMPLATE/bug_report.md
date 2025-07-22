@@ -7,18 +7,25 @@ assignees: Matissoss
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+# Bug
 
-**To Reproduce**
-Provide an example of code (either one or both x86-64 PASM assembly code and internal Rust code) that provokes the error to occur.
+Describe the encountered bug.
 
-**Expected**
-Provide what is the expected output (and why this one is correct?).
+# Current Output
 
-**Found**
-Provide what `pasm` generated.
+...
 
-**Context**
-- Version (provided by `-v`/`--version`)
-- OS
+# Correct Output
+
+...
+
+Also be sure to put here context why this output is correct and the current one is invalid.
+
+# Context
+
+> [!NOTE]
+> If you compiled `pasm` from latest git commit (and NOT FROM RELEASE SECTION), then in place of version put: `git <DATE (DD.MM.YYYY)>: "<LAST COMMIT NAME/HASH>"`
+
+- `pasm` version: `<VERSION>`
+
+- OS: `<OS>`
