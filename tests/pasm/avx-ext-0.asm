@@ -1,4 +1,7 @@
 bits 64
+
+
+
 _start:
 	vaddph xmm0 {k1}{z}, xmm1, xmm2
 	vaddph ymm0 {k2}, ymm1, ymm2

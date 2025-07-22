@@ -21,8 +21,3 @@ To use broadcast on memory use `*MBCST* = *Modifier* where: PREFIX = None, VALUE
 ```
 word:bcst (rax + rcx)
 ```
-
-## disclosure
-
-I'm very lazy programmer, so instructions encoded with EVEX derived from AVX(1/2) don't check if they can use EVEX. So if anything is wrong (if CPU throws #UD, etc.), 
-check AVX instructions used in code first and then if something is still wrong (and you get wrong output regardless) then report it as bug.

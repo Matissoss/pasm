@@ -23,6 +23,13 @@ const HAS_IMM: u8 = 0x2;
 const HAS_REG: u8 = 0x3;
 const HAS_MEM: u8 = 0x4;
 
+#[repr(u8)]
+pub enum AVX10Modifier {
+    None = 0b00,
+    ER = 0b01,
+    SAE = 0b10,
+}
+
 // metadata layout:
 //  1-4th: prediction table:
 //      - prediction table entry (NOTE: last bits are first bits):
@@ -181,6 +188,10 @@ impl<'a> OperandSet<'a> {
     }
 }
 
+pub const EVEX: u8 = 0b0001;
+pub const APX_LEGACY: u8 = 0b0011;
+pub const APX_CONDITIONAL: u8 = 0b0010;
+
 pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     allowed: SmallVec<OperandSet<'a>, OPERAND_COUNT>,
 
@@ -195,22 +206,20 @@ pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     //      0001 - EVEX
     //      0010 - APX Conditional (Test and CMP)
     //      0011 - APX Legacy
-    //      0100 - APX EVEX
-    //      0101 - APX VEX
     //  M: additional mnemonic
     //  F: forbidden operand combination
     //  RR: check mode
     //  ZZZZ_ZZZZ: specific
-    //      if prefix == EVEX or prefix == APX_EVEX:
+    //      if prefix == EVEX:
     //          EEKZ_SSSS:
-    //              EE: AVX-512 modifier
+    //              EE: AVX10 modifier
     //                  00 - None
     //                  01 - {er}
     //                  10 - {sae}
     //                  11 - reseved
     //              K: can have masks
     //              Z: can have {z}
-    //              SSSS: 
+    //              SSSS:
     //                  if EE != 0:
     //                      Size where you can use EE modifier
     //      if prefix == FPFX_APX:
@@ -235,73 +244,99 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             forbidden: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
-    const fn set_forb_flag(&mut self) {
+
+    // Forbidden operand combinations go here
+    const fn allow_forbidden(&mut self) {
         self.flags &= !0b0100_0000_0000;
         self.flags |= 0b0100_0000_0000;
     }
-    pub const fn has_forb(&self) -> bool {
+    const fn allows_forbidden(&self) -> bool {
         self.flags & 0b0100_0000_0000 == 0b0100_0000_0000
     }
 
-    pub const fn set_fpfx(&mut self, v: u8) {
+    // Forced Prefix-related methods go here
+    const fn fpfx_set(&mut self, v: u8) {
         self.flags &= !0b1111_0000_0000_0000;
         self.flags |= (v as u16 & 0b1111) << 12;
     }
-    pub const fn get_fpfx(&self) -> u8 {
+    const fn fpfx_get(&self) -> u8 {
         ((self.flags & 0b1111_0000_0000_0000) >> 12) as u8
     }
-    
-    pub const fn get_avx512(&self) -> bool {
-        self.get_fpfx() == 0b0001
+
+    // AVX-512 (including AVX-10 and APX EEVEX EVEX Extension)
+    pub const fn get_evex(&self) -> bool {
+        self.fpfx_get() == EVEX
     }
-    pub const fn set_avx512(mut self) -> Self {
-        self.set_fpfx(0b0001);
+    pub const fn set_evex(mut self) -> Self {
+        self.fpfx_set(EVEX);
         self
     }
     pub const fn get_mask(&self) -> bool {
-        if !self.get_avx512() {
-            return false
+        if !self.get_evex() {
+            return false;
         }
         self.flags & 0b0010_0000 == 0b0010_0000
     }
-    pub const fn set_mask_perm(mut self) -> Self {
-        self = self.set_avx512();
+    pub const fn allow_masks(mut self) -> Self {
+        self = self.set_evex();
         self.flags |= 0b0010_0000;
         self
     }
+
+    pub const fn avx10_modifier(mut self, kind: AVX10Modifier, for_size: Size) -> Self {
+        self = self.set_evex();
+        self.flags &= !0b1100_1111;
+        self.flags |= (kind as u16) << 6;
+        self.flags |= Size::se(&for_size) as u16;
+        self
+    }
+    const fn get_avx10_modifier(&self) -> Option<(AVX10Modifier, Size)> {
+        if !self.get_evex() {
+            return None;
+        }
+        let modf = unsafe {
+            std::mem::transmute::<u8, AVX10Modifier>(((self.flags & 0b1100_0000) >> 6) as u8)
+        };
+        let size = Size::de((self.flags & 0b1111) as u8);
+        Some((modf, size))
+    }
+
+    // Check Mode related
     pub const fn get_mode(&self) -> CheckMode {
-        unsafe { 
-            std::mem::transmute::<u8, CheckMode>(
-                ((self.flags & 0b0000_0011_0000_0000) >> 8) as u8)
+        unsafe {
+            std::mem::transmute::<u8, CheckMode>(((self.flags & 0b0000_0011_0000_0000) >> 8) as u8)
         }
     }
     pub const fn set_mode(mut self, mode: CheckMode) -> Self {
         self.flags |= (mode as u16 & 0b11) << 8;
         self
     }
+
+    // Additional Mnemonic related
     pub const fn set_addt_flag(&mut self) {
         self.flags |= 0b0000_1000_0000_0000;
     }
     pub const fn has_addt(&self) -> bool {
         self.flags & 0b1000_0000_0000 == 0b1000_0000_0000
     }
-    pub const fn set_forb(mut self, forb: &'a [[AType; OPERAND_COUNT]]) -> Self {
-        self.set_forb_flag();
+
+    // Builder methods
+    pub const fn forbidden(mut self, forb: &'a [[AType; OPERAND_COUNT]]) -> Self {
+        self.allow_forbidden();
         self.forbidden = MaybeUninit::new(forb);
         self
     }
-    pub const fn set_addt(mut self, addt: &'a [Mnemonic]) -> Self {
+    pub const fn additional_mnemonics(mut self, addt: &'a [Mnemonic]) -> Self {
         self.set_addt_flag();
         self.additional = MaybeUninit::new(addt);
         self
     }
-    pub const fn pushop<const N: usize>(mut self, types: &'a [AType; N], needed: bool) -> Self {
+
+    pub const fn push<const N: usize>(mut self, types: &'a [AType; N], needed: bool) -> Self {
         self.allowed.push(OperandSet::new(needed, types));
         self
     }
-    pub const fn getops(&self, idx: usize) -> Option<&OperandSet> {
-        self.allowed.get(idx)
-    }
+
     pub fn check_addt(&self, ins: &Instruction) -> Result<(), Error> {
         if let Some(found) = ins.get_addt() {
             if self.has_addt() {
@@ -327,7 +362,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         Ok(())
     }
     pub fn check_forb(&self, ops: &SmallVec<Operand, 4>) -> Result<(), Error> {
-        if !self.has_forb() {
+        if !self.allows_forbidden() {
             return Ok(());
         }
         let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
@@ -364,18 +399,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         }
 
         self.check_addt(ins)?;
-        if ins.evex_mask().is_some() && ins.evex_mask() != Some(0) && !self.get_mask() {
-            return Err(Error::new(
-                "you tried to use mask on instruction that does not support it",
-                16,
-            ));
-        }
-        if (ins.is_evex()) && !self.get_avx512() {
-            return Err(Error::new(
-                "you tried to use AVX-512 modifiers on instruction that is not from AVX-512",
-                16,
-            ));
-        }
+
         for (i, o) in self.allowed.iter().enumerate() {
             if let Some(s) = smv.get(i) {
                 if !o.has(s.atype()) {
@@ -392,9 +416,54 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                 return Err(er);
             }
         }
-        if self.has_forb() {
+        if self.allows_forbidden() {
             self.check_forb(&smv)?;
         }
+
+        // EVEX specific checks
+        if self.get_evex() {
+            match ins.evex_mask() {
+                None | Some(0) => {}
+                Some(_) => {
+                    if !self.get_mask() {
+                        return Err(Error::new(
+                            "you tried to use mask on instruction that does not support it",
+                            16,
+                        ));
+                    }
+                }
+            }
+
+            let (modf, size) = self
+                .get_avx10_modifier()
+                .expect("self.get_avx10_modifier() with self.get_evex() SHOULD ALWAYS BE SOME");
+
+            match modf {
+                AVX10Modifier::None => {}
+                AVX10Modifier::ER => {
+                    if ins.evex_er().is_some() && ins.size_full_gt() != size {
+                        return Err(Error::new("you tried to use {er} subexpression on instruction using wrong variant", 16));
+                    } else if let Some(true) = ins.evex_sae() {
+                        return Err(Error::new("you tried to use {sae} subexpression on instruction that does not allow it", 16));
+                    }
+                }
+                AVX10Modifier::SAE => {
+                    if let Some(true) = ins.evex_sae() {
+                        if ins.size_full_gt() != size {
+                            return Err(Error::new("you tried to use {sae} subexpression on instruction using wrong variant", 16));
+                        }
+                    } else if ins.evex_er().is_some() {
+                        return Err(Error::new("you tried to use {er} subexpression on instruction that does not allow it", 16));
+                    }
+                }
+            }
+        } else if ins.is_evex() {
+            return Err(Error::new(
+                "you tried to use AVX-512 modifiers on instruction that is not from AVX-512",
+                16,
+            ));
+        }
+
         match self.get_mode() {
             CheckMode::NONE | CheckMode::AVX | CheckMode::NOSIZE => {}
             CheckMode::X86 => {

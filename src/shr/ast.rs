@@ -152,6 +152,10 @@ pub struct Instruction<'a> {
     //      else:
     //          0000_0000_0000
     pub metadata: u16,
+
+    // I'm forced to re-add it again
+    // I'll try to remove it later, but it stays for now
+    pub line: usize,
 }
 
 impl<'a> Instruction<'a> {
@@ -269,6 +273,17 @@ impl<'a> Instruction<'a> {
         }
     }
     #[inline(always)]
+    pub fn size_full_gt(&self) -> Size {
+        let mut sz = Size::Byte;
+        for o in self.iter() {
+            let osz = o.size();
+            if sz.se() < osz.se() {
+                sz = osz;
+            }
+        }
+        sz
+    }
+    #[inline(always)]
     pub fn size_gt(&self) -> Size {
         let dst = match &self.dst() {
             Some(o) => o.size(),
@@ -278,7 +293,6 @@ impl<'a> Instruction<'a> {
             Some(o) => o.size(),
             None => return dst,
         };
-
         if dst < src {
             src
         } else {
@@ -743,20 +757,6 @@ impl Operand<'_> {
 }
 
 impl AST<'_> {
-    pub fn effective_line(&self, base_line: usize) -> usize {
-        if self.blank_lines.is_empty() {
-            return base_line;
-        }
-        let mut nline = base_line;
-        for line in &self.blank_lines {
-            if *line < base_line {
-                nline += 1;
-            } else {
-                break;
-            }
-        }
-        nline
-    }
     pub fn validate(&self) -> Result<(), Error> {
         use std::collections::HashSet;
         let iter = self.sections.iter().flat_map(|l| &l.content);
@@ -835,6 +835,7 @@ impl Default for Instruction<'_> {
     fn default() -> Self {
         unsafe {
             Self {
+                line: 0,
                 mnemonic: Mnemonic::__LAST,
                 operand_data: 0,
                 metadata: 0,

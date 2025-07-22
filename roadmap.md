@@ -92,7 +92,7 @@ Goal: implement most of AVX based (E)VEX instructions
 Goal: implement support for Intel APX
 
 - [x] cleanup `Instruction` in `src/shr/ast.rs` (it is barely readable) and prepare it for Intel APX
-- [ ] Patch `{sae}` and `{er}` modifiers in `CheckAPI` (actually check if it's correct).
+- [x] Patch `{sae}` and `{er}` modifiers in `CheckAPI` (actually check if it's correct).
 - [ ] implement support for APX in syntax
 - [ ] implement checking for APX (in `pre::chkn::CheckAPI`)
 - [ ] implement EEVEX (extended EVEX; all 4 variants) and REX2 prefixes support
