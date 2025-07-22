@@ -312,7 +312,7 @@ format elf64/elf32/bin
 Here is table of builtins defines:
 
 |   Name            | Value                         |
-|:-----------------:|:-----------------------------:|
+|:-----------------|:-----------------------------|
 |`__TRUE`           | 1                             |
 |`__FALSE`          | 0                             |
 |`__DOUBLE_MIN`     | min. value of double          |
@@ -320,7 +320,7 @@ Here is table of builtins defines:
 |`__DOUBLE_INF`     | infinity as double            |
 |`__DOUBLE_NEG_INF` | negative infinity as double   |
 |`__DOUBLE_EXP_MIN` | minimal exponent of double    |
-|`__DOUBLE_EXP_MAX` | maximal expontent of double   |
+|`__DOUBLE_EXP_MAX` | maximal exponent of double    |
 |`__DOUBLE_PI`      | PI                            |
 |`__DOUBLE_SQRT2`   | `√2`                          |
 |`__DOUBLE_LN2`     | log(2)                        |
@@ -330,7 +330,7 @@ Here is table of builtins defines:
 |`__FLOAT_INF`      | infinity as float             |
 |`__FLOAT_NEG_INF`  | negative infinity as float    |
 |`__FLOAT_EXP_MIN`  | minimal exponent of float     |
-|`__FLOAT_EXP_MAX`  | maximal expontent of float    |
+|`__FLOAT_EXP_MAX`  | maximal exponent of float     |
 |`__FLOAT_PI`       | PI                            |
 |`__FLOAT_SQRT2`    | `√2`                          |
 |`__FLOAT_LN2`      | log(2)                        |
