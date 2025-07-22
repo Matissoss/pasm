@@ -11,6 +11,7 @@ use std::{
     path::PathBuf,
 };
 
+use crate::core::api::EEvexVariant;
 use crate::shr::{
     error::Error,
     ins::Mnemonic,
@@ -36,6 +37,37 @@ const SRC_MASK: u16 = !0b0000_0000_0011_1000;
 const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
 const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
 const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
+
+pub const COND_O: u8 = 0b0000;
+pub const COND_NO: u8 = 0b0001;
+pub const COND_B: u8 = 0b0010;
+pub const COND_C: u8 = 0b0010;
+pub const COND_NAE: u8 = 0b0010;
+pub const COND_NB: u8 = 0b0011;
+pub const COND_NC: u8 = 0b0011;
+pub const COND_AE: u8 = 0b0011;
+pub const COND_E: u8 = 0b0100;
+pub const COND_Z: u8 = 0b0100;
+pub const COND_NE: u8 = 0b0101;
+pub const COND_NZ: u8 = 0b0101;
+pub const COND_BE: u8 = 0b0110;
+pub const COND_NA: u8 = 0b0110;
+pub const COND_NBE: u8 = 0b0111;
+pub const COND_A: u8 = 0b0111;
+pub const COND_S: u8 = 0b1000;
+pub const COND_NS: u8 = 0b1001;
+pub const COND_P: u8 = 0b1010;
+pub const COND_PE: u8 = 0b1010;
+pub const COND_NP: u8 = 0b1011;
+pub const COND_PO: u8 = 0b1011;
+pub const COND_L: u8 = 0b1100;
+pub const COND_NGE: u8 = 0b1100;
+pub const COND_NL: u8 = 0b1101;
+pub const COND_GE: u8 = 0b1101;
+pub const COND_LE: u8 = 0b1110;
+pub const COND_NG: u8 = 0b1110;
+pub const COND_G: u8 = 0b1111;
+pub const COND_NLE: u8 = 0b1111;
 
 #[allow(unused)]
 const FPFX_NONE: u16 = 0b0000;
@@ -128,18 +160,17 @@ pub struct Instruction<'a> {
     //                  0b100 - rz
     //              - MMM: {k0/1/2/3/4/5/6/7}
     //      if FPFX_APX:
-    //          0bAAZZ_XRRR_RRRR:
-    //              A0 - variant is forced
-    //              A1 - 1 = REX2, 0 = EEVEX
-    //              ZZ - if A1 = EEVEX then EEvexVariant
+    //          0b0AZZ_XRRR_RRRR:
+    //              A - 1 = REX2, 0 = EEVEX
+    //              ZZ - if A = EEVEX then EEvexVariant
     //              X - reserved
     //              RRR_RRRR:
     //                  if EEVEX and EEVEX_COND:
-    //                      OSZ_C000:
+    //                      COS_Z000:
+    //                          C - CF
     //                          O - OF
     //                          S - SF
     //                          Z - ZF
-    //                          C - CF
     //                  if EEVEX and EEVEX_LEGACY:
     //                      NF0_0000
     //                          N - ND
@@ -149,6 +180,8 @@ pub struct Instruction<'a> {
     //                          F - NF
     //                  if EEVEX and EEVEX_EVEX:
     //                      000_0000
+    //                  else:
+    //                      reserved
     //      else:
     //          0000_0000_0000
     pub metadata: u16,
@@ -350,14 +383,6 @@ impl<'a> Instruction<'a> {
     pub const fn is_apx(&self) -> bool {
         self.get_fpfx() == FPFX_APX
     }
-    #[inline(always)]
-    pub const fn is_eevex(&self) -> bool {
-        self.get_fpfx() == FPFX_APX && self.apx_is_eevex().unwrap()
-    }
-    #[inline(always)]
-    pub const fn is_rex2(&self) -> bool {
-        self.get_fpfx() == FPFX_APX && self.apx_is_rex2().unwrap()
-    }
 
     // evex
     #[inline(always)]
@@ -423,30 +448,143 @@ impl<'a> Instruction<'a> {
     }
 
     // apx
-    #[inline(always)]
-    pub fn set_apx_eevex(&mut self) {
-        self.metadata &= !0b0000_1000_0000_0000;
+    pub fn apx_set_eevex(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0100_0000_0000;
     }
-    #[inline(always)]
-    pub fn set_apx_rex2(&mut self) {
-        self.metadata &= !0b0000_1000_0000_0000;
-        self.metadata |= 0b0000_1000_0000_0000;
+    pub fn apx_set_rex2(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0100_0000_0000;
+        self.metadata |= 0b0100_0000_0000;
     }
-    #[inline(always)]
-    pub const fn apx_is_eevex(&self) -> Option<bool> {
-        if let Some(b) = self.apx_is_rex2() {
-            Some(!b)
-        } else {
-            None
+    pub fn set_apx(&mut self) {
+        self.set_fpfx(FPFX_APX);
+    }
+    pub fn apx_get_eevex_mode(&self) -> Option<EEvexVariant> {
+        if !self.is_apx() {
+            return None;
         }
+        // check for REX2
+        if self.metadata & 0b0100_0000_0000 == 0b0100_0000_0000 {
+            return None;
+        }
+
+        if self.metadata & 0b111_1111 == 0 {
+            return None;
+        }
+
+        Some(unsafe { std::mem::transmute((self.metadata & 0b0011_0000_0000 >> 8) as u8) })
     }
-    #[inline(always)]
-    pub const fn apx_is_rex2(&self) -> Option<bool> {
+    pub fn is_apx_eevex_cond(&self) -> bool {
+        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::CondTestCmpExtension)
+    }
+    pub fn is_apx_eevex_vex(&self) -> bool {
+        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::VexExtension)
+    }
+    pub fn is_apx_eevex_evex(&self) -> bool {
+        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::EvexExtension)
+    }
+    pub fn is_apx_eevex_legc(&self) -> bool {
+        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::LegacyExtension)
+    }
+    pub fn set_apx_legc(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0011_0000_0000;
+        self.metadata |= (EEvexVariant::LegacyExtension as u16) << 8;
+    }
+    pub fn set_apx_vex(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0011_0000_0000;
+        self.metadata |= (EEvexVariant::VexExtension as u16) << 8;
+    }
+    pub fn set_apx_evex(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0011_0000_0000;
+        self.metadata |= (EEvexVariant::EvexExtension as u16) << 8;
+    }
+    pub fn set_apx_cond(&mut self) {
+        self.set_apx();
+        self.metadata &= !0b0011_0000_0000;
+        self.metadata |= EEvexVariant::CondTestCmpExtension as u16;
+    }
+
+    pub fn apx_get_leg_nd(&self) -> Option<bool> {
+        if !self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b100_0000 == 0b100_0000)
+    }
+    pub fn apx_get_leg_nf(&self) -> Option<bool> {
+        if !self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b010_0000 == 0b010_0000)
+    }
+    pub fn apx_set_leg_nd(&mut self) {
+        self.set_apx_legc();
+        self.metadata &= !0b100_0000;
+        self.metadata |= 0b100_0000;
+    }
+    pub fn apx_set_leg_nf(&mut self) {
+        self.set_apx_legc();
+        self.metadata &= !0b010_0000;
+        self.metadata |= 0b010_0000;
+    }
+    pub fn apx_set_vex_nf(&mut self) {
+        self.set_apx_vex();
+        self.metadata &= !0b100_0000;
+        self.metadata |= 0b100_0000;
+    }
+
+    // be glad that these methods aren't called:
+    // intel_apx_extended_evex_conditional_cmptest_set_cf
+    // I'm just trying to make my code "readable", but Intel
+    // does not want me to :D
+    pub fn apx_eevex_cond_set_cf(&mut self) {
+        self.set_apx_cond();
+        self.metadata |= 0b100_0000;
+    }
+    pub fn apx_eevex_cond_set_of(&mut self) {
+        self.set_apx_cond();
+        self.metadata |= 0b010_0000;
+    }
+    pub fn apx_eevex_cond_set_sf(&mut self) {
+        self.set_apx_cond();
+        self.metadata |= 0b001_0000;
+    }
+    pub fn apx_eevex_cond_set_zf(&mut self) {
+        self.set_apx_cond();
+        self.metadata |= 0b000_1000;
+    }
+    pub fn apx_eevex_vex_get_nf(&self) -> Option<bool> {
         if self.is_apx() {
-            Some(self.metadata & 0b0000_1000_0000_0000 == 0b0000_1000_0000_0000)
-        } else {
-            None
+            return None;
         }
+        Some(self.metadata & 0b100_0000 == 0b100_0000)
+    }
+    pub fn apx_eevex_cond_get_cf(&self) -> Option<bool> {
+        if self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b100_0000 == 0b100_0000)
+    }
+    pub fn apx_eevex_cond_get_of(&self) -> Option<bool> {
+        if self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b010_0000 == 0b010_0000)
+    }
+    pub fn apx_eevex_cond_get_sf(&self) -> Option<bool> {
+        if self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b001_0000 == 0b001_0000)
+    }
+    pub fn apx_eevex_cond_get_zf(&self) -> Option<bool> {
+        if self.is_apx() {
+            return None;
+        }
+        Some(self.metadata & 0b000_1000 == 0b000_1000)
     }
 
     // operands

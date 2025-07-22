@@ -53,6 +53,7 @@ pub struct OperandOrder {
     ord: u8,
 }
 
+#[derive(PartialEq)]
 pub enum EEvexVariant {
     EvexExtension,
     VexExtension,
@@ -81,6 +82,20 @@ pub const PREFIX_APX: u8 = 0b100;
 // size = 16B
 #[repr(C)]
 pub struct GenAPI {
+    pub flags: BoolTable16,
+    // TODO: patch, so (E)VEX vlength can be where prefix is and not in addt
+    // if PREFIX_(E)VEX is set, the byte is 0bX_YYYYY_ZZ where:
+    // X = (E)VEX.w/e,
+    // YYYYY = map_select
+    // ZZ = pp
+    // otherwise normal prefix like 0xF2/0xF3
+    prefix: u16,
+
+    // depending on flags:
+    // - IMM - immediate + metadata,
+    // - (E)VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
+    // otherwise unused
+    addt: u16,
     opcode: [u8; 4],
     // layout:
     //  0bPPPR_0LLL:
@@ -89,20 +104,12 @@ pub struct GenAPI {
     //      0b001 - REX
     //      0b010 - VEX
     //      0b011 - EVEX
+    //      0b100 - APX (conditional CMP/TEST, otherwise guess yourself)
     //      0b... - reserved
     //   R: reserved
     //   LLL: opcode length
     meta_0: u8,
-    _reserved: [u8; 3],
-
-    pub flags: BoolTable16,
-
-    // if PREFIX_(E)VEX is set, the byte is 0bX_YYYYY_ZZ where:
-    // X = (E)VEX.w/e,
-    // YYYYY = map_select
-    // ZZ = pp
-    // otherwise normal prefix like 0xF2/0xF3
-    prefix: u8,
+    _reserved: [u8; 2],
 
     // less essential - can be used with other context depending on flags
 
@@ -115,12 +122,6 @@ pub struct GenAPI {
     // - FIXED_SIZE - reserved for size
     // - SET_MODRM  - reserved for modrm.mod
     addt2: u8,
-
-    // depending on flags:
-    // - IMM - immediate + metadata,
-    // - (E)VEX_PFX - first byte (last 2 bits) is reserved for vlength (and is cleared during .assemble()
-    // otherwise unused
-    addt: u16,
 }
 
 #[derive(Clone, Copy)]
@@ -140,7 +141,7 @@ impl GenAPI {
         Self {
             opcode: [0; 4],
             meta_0: 0,
-            _reserved: [0; 3],
+            _reserved: [0; 2],
             prefix: 0,
             flags: BoolTable16::new().setc(CAN_H66O, true).setc(CAN_SEGM, true),
             ord: OperandOrder::new(&[
@@ -166,7 +167,7 @@ impl GenAPI {
     }
     #[inline(always)]
     pub const fn opcode_prefix(mut self, pfx: u8) -> Self {
-        self.prefix = pfx;
+        self.prefix = pfx as u16;
         self
     }
     #[inline(always)]
@@ -216,8 +217,9 @@ impl GenAPI {
     #[inline(always)]
     pub const fn evex(mut self, vex_details: VexDetails) -> Self {
         self.set_fpfx(PREFIX_EVEX);
-        self.prefix =
-            (vex_details.vex_we as u8) << 7 | vex_details.map_select << 2 | pp(vex_details.pp);
+        self.prefix = (vex_details.vex_we as u16) << 7
+            | (vex_details.map_select as u16) << 2
+            | pp(vex_details.pp) as u16;
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
     }
@@ -225,9 +227,9 @@ impl GenAPI {
     pub const fn vex(mut self, vex_details: VexDetails) -> Self {
         self.set_fpfx(PREFIX_VEX);
         self.prefix = {
-            (vex_details.vex_we as u8) << 7
-                | map_select(vex_details.map_select) << 2
-                | pp(vex_details.pp)
+            (vex_details.vex_we as u16) << 7
+                | (map_select(vex_details.map_select) as u16) << 2
+                | pp(vex_details.pp) as u16
         };
         self.addt = ((vex_details.vlength.data as u16) << 0x08) | self.addt & 0x00FF;
         self
@@ -333,7 +335,7 @@ impl GenAPI {
             }
 
             if self.prefix != 0 {
-                base.push(self.prefix);
+                base.push(self.prefix.to_be_bytes()[1]);
             }
         }
 
@@ -555,7 +557,7 @@ impl GenAPI {
     #[inline(always)]
     pub const fn get_pp(&self) -> Option<u8> {
         if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
-            Some(self.prefix & 0b11)
+            Some((self.prefix & 0b11) as u8)
         } else {
             None
         }
@@ -564,7 +566,7 @@ impl GenAPI {
     #[inline(always)]
     pub const fn get_map_select(&self) -> Option<u8> {
         if self.get_fpfx() == PREFIX_VEX || self.get_fpfx() == PREFIX_EVEX {
-            Some((self.prefix & 0b0111_1100) >> 2)
+            Some(((self.prefix & 0b0111_1100) >> 2) as u8)
         } else {
             None
         }

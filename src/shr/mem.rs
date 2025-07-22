@@ -90,6 +90,9 @@ impl Mem {
     pub fn is_bcst(&self) -> bool {
         self.get_flag(IS_BCST).unwrap_or(false)
     }
+    pub fn requires_apx_extension(&self) -> bool {
+        self.base_evex() || self.index_evex()
+    }
     pub fn is_riprel(&self) -> bool {
         self.get_flag(RIP_ADDRESSING).unwrap_or(false)
     }

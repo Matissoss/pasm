@@ -93,8 +93,8 @@ Goal: implement support for Intel APX
 
 - [x] cleanup `Instruction` in `src/shr/ast.rs` (it is barely readable) and prepare it for Intel APX
 - [x] Patch `{sae}` and `{er}` modifiers in `CheckAPI` (actually check if it's correct).
-- [ ] implement support for APX in syntax
-- [ ] implement checking for APX (in `pre::chkn::CheckAPI`)
+- [x] implement support for APX in syntax
+- [ ] implement checking for APX (in `pre::chkn::CheckAPI`) - partial migration to `CheckAPI` :D
 - [ ] implement EEVEX (extended EVEX; all 4 variants) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
     - [ ] intel-apx-0 (legacy instructions without setcc)
@@ -117,6 +117,7 @@ Goal: support for smaller x86-64 ISA extensions
 - [ ] SGX
 - [ ] GFNI
 - [ ] BMI*
+- [ ] Intel AMX
 - [ ] x87 ISA
 - [ ] missing x86-64 instructions
 - [ ] move to rc
@@ -125,6 +126,7 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
+- [ ] Move fully to using `CheckAPI`
 - [ ] Create better testing (without need for `NASM` and `sxd`)
 - [ ] Support for 16-bit addressing
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)

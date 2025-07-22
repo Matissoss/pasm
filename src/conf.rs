@@ -44,4 +44,4 @@ pub const PREFIX_REF: char = '@';
 // metadata for help
 
 pub const BIN: &str = "pasm";
-pub const VER: &str = "25.06-avx";
+pub const VER: &str = "25.07-beta-intel-apx";

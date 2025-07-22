@@ -639,6 +639,16 @@ pub fn make_instruction(
     }
     for s in subexpr {
         match s {
+            // APX
+            "of" => ins.apx_eevex_cond_set_of(),
+            "cf" => ins.apx_eevex_cond_set_cf(),
+            "zf" => ins.apx_eevex_cond_set_zf(),
+            "sf" => ins.apx_eevex_cond_set_sf(),
+            "rex2" => ins.apx_set_rex2(),
+            "eevex" => ins.apx_set_eevex(),
+            "nf" => ins.apx_set_leg_nf(),
+            "vex-nf" => ins.apx_set_vex_nf(),
+
             "k0" => ins.set_evex_mask(0b000),
             "k1" => ins.set_evex_mask(0b001),
             "k2" => ins.set_evex_mask(0b010),
