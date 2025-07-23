@@ -5,6 +5,7 @@
 
 use crate::pre::chkn;
 
+use crate::core::apx::*;
 use crate::shr::{
     ast::{Instruction, Operand, AST},
     atype::*,
@@ -460,6 +461,16 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
 fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
+        // APX
+        AAADD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M32, M64], true)
+                .push(&[R32, R64], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
         Mnemonic::CMOVA

@@ -641,6 +641,7 @@ pub fn make_instruction(
         match s {
             // APX
             "apx" => ins.apx_set_default(),
+            "apx-evex" => ins.apx_evex_set_apx_extension(true),
             "of" => ins.apx_eevex_cond_set_of(),
             "cf" => ins.apx_eevex_cond_set_cf(),
             "zf" => ins.apx_eevex_cond_set_zf(),
@@ -665,7 +666,6 @@ pub fn make_instruction(
             "ru-sae" => ins.set_evex_er(0b011),
             "rz-sae" => ins.set_evex_er(0b100),
             "z" => ins.set_evex_z(),
-            "m" => {}
             "evex" => ins.set_evex(),
             "vex" => ins.set_vex(),
             _ => {

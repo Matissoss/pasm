@@ -11,7 +11,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::core::api::EEvexVariant;
+use crate::core::apx::APXVariant;
 use crate::shr::{
     error::Error,
     ins::Mnemonic,
@@ -118,9 +118,10 @@ pub struct Instruction<'a> {
     //      0b.... - reserved
     //   - RRRR_RRRR_RRRR - forced prefix specific:
     //      if FPFX_EVEX:
-    //          0bSZ00_MMM0_0EEE:
+    //          0bSZ00_MMM0_AEEE:
     //              - S: {sae}
     //              - Z: {z}
+    //              - A: requires APX extension
     //              - EEE: er:
     //                  0b000 - none
     //                  0b001 - rn
@@ -129,9 +130,8 @@ pub struct Instruction<'a> {
     //                  0b100 - rz
     //              - MMM: {k0/1/2/3/4/5/6/7}
     //      if FPFX_APX:
-    //          0bAZZZ_0RRR_RRRR:
-    //              A - 1 = REX2, 0 = EEVEX
-    //              ZZZ - if A = EEVEX then EEvexVariant
+    //          0b0ZZZ_0RRR_RRRR:
+    //              ZZZ - APXVariant
     //              X - reserved
     //              RRR_RRRR:
     //                  if EEVEX and EEVEX_COND:
@@ -429,7 +429,7 @@ impl<'a> Instruction<'a> {
     pub fn set_apx(&mut self) {
         self.set_fpfx(FPFX_APX);
     }
-    pub fn apx_get_eevex_mode(&self) -> Option<EEvexVariant> {
+    pub fn apx_get_eevex_mode(&self) -> Option<APXVariant> {
         if !self.is_apx() {
             return None;
         }
@@ -445,36 +445,36 @@ impl<'a> Instruction<'a> {
         Some(unsafe { std::mem::transmute((self.metadata & 0b0011_0000_0000 >> 8) as u8) })
     }
     pub fn is_apx_eevex_cond(&self) -> bool {
-        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::CondTestCmpExtension)
+        self.is_apx() && self.apx_get_eevex_mode() == Some(APXVariant::CondTestCmpExtension)
     }
     pub fn is_apx_eevex_vex(&self) -> bool {
-        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::VexExtension)
+        self.is_apx() && self.apx_get_eevex_mode() == Some(APXVariant::VexExtension)
     }
     pub fn is_apx_eevex_evex(&self) -> bool {
-        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::EvexExtension)
+        self.is_apx() && self.apx_get_eevex_mode() == Some(APXVariant::EvexExtension)
     }
     pub fn is_apx_eevex_legc(&self) -> bool {
-        self.is_apx() && self.apx_get_eevex_mode() == Some(EEvexVariant::LegacyExtension)
+        self.is_apx() && self.apx_get_eevex_mode() == Some(APXVariant::LegacyExtension)
     }
     pub fn set_apx_legc(&mut self) {
         self.set_apx();
         self.metadata &= !0b0011_0000_0000;
-        self.metadata |= (EEvexVariant::LegacyExtension as u16) << 8;
+        self.metadata |= (APXVariant::LegacyExtension as u16) << 8;
     }
     pub fn set_apx_vex(&mut self) {
         self.set_apx();
         self.metadata &= !0b0011_0000_0000;
-        self.metadata |= (EEvexVariant::VexExtension as u16) << 8;
+        self.metadata |= (APXVariant::VexExtension as u16) << 8;
     }
     pub fn set_apx_evex(&mut self) {
         self.set_apx();
         self.metadata &= !0b0011_0000_0000;
-        self.metadata |= (EEvexVariant::EvexExtension as u16) << 8;
+        self.metadata |= (APXVariant::EvexExtension as u16) << 8;
     }
     pub fn set_apx_cond(&mut self) {
         self.set_apx();
         self.metadata &= !0b0011_0000_0000;
-        self.metadata |= EEvexVariant::CondTestCmpExtension as u16;
+        self.metadata |= APXVariant::CondTestCmpExtension as u16;
     }
 
     pub fn apx_get_leg_nd(&self) -> Option<bool> {
@@ -507,13 +507,24 @@ impl<'a> Instruction<'a> {
     pub fn apx_set_default(&mut self) {
         self.set_apx();
         self.metadata &= !0b0111_0000_0000;
-        self.metadata |= (EEvexVariant::Auto as u16) << 8;
+        self.metadata |= (APXVariant::Auto as u16) << 8;
     }
 
     // be glad that these methods aren't called:
     // intel_apx_extended_evex_conditional_cmptest_set_cf
     // I'm just trying to make my code "readable", but Intel
     // does not want me to :D
+    pub fn apx_evex_set_apx_extension(&mut self, b: bool) {
+        self.set_fpfx(FPFX_EVEX);
+        self.metadata &= !(1 << 3);
+        self.metadata |= (b as u16) << 3;
+    }
+    pub fn apx_evex_requires_apx_extension(&self) -> Option<bool> {
+        if !self.is_evex() {
+            return None;
+        }
+        Some(self.metadata & 1 << 3 == 1 << 3)
+    }
     pub fn apx_eevex_cond_set_cf(&mut self) {
         self.set_apx_cond();
         self.metadata |= 0b100_0000;
@@ -568,6 +579,9 @@ impl<'a> Instruction<'a> {
     }
 
     pub fn needs_apx_extension(&self) -> bool {
+        if self.is_evex() {
+            return self.apx_evex_requires_apx_extension().unwrap_or(false);
+        }
         if self.get_fpfx() == FPFX_APX {
             return true;
         }

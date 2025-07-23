@@ -5,6 +5,7 @@
 
 use std::mem::MaybeUninit;
 
+use crate::core::apx::APXVariant;
 use crate::shr::{
     ast::{Instruction, Operand},
     atype::{AType, ToType, BCST_FLAG, K, VSIB_FLAG},
@@ -189,8 +190,7 @@ impl<'a> OperandSet<'a> {
 }
 
 pub const EVEX: u8 = 0b0001;
-pub const APX_LEGACY: u8 = 0b0011;
-pub const APX_CONDITIONAL: u8 = 0b0010;
+pub const APX: u8 = 0b0010;
 
 pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     allowed: SmallVec<OperandSet<'a>, OPERAND_COUNT>,
@@ -204,8 +204,7 @@ pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     //  XXXX: prefix
     //      0000 - None
     //      0001 - EVEX
-    //      0010 - APX Conditional (Test and CMP)
-    //      0011 - APX Legacy
+    //      0010 - APX
     //  M: additional mnemonic
     //  F: forbidden operand combination
     //  RR: check mode
@@ -223,6 +222,10 @@ pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
     //                  if EE != 0:
     //                      Size where you can use EE modifier
     //      if prefix == FPFX_APX:
+    //          AAAF_0000
+    //              AAA - EEvexVariant
+    //              F - can use NF
+    //
     flags: u16,
 }
 
@@ -261,6 +264,22 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     }
     const fn fpfx_get(&self) -> u8 {
         ((self.flags & 0b1111_0000_0000_0000) >> 12) as u8
+    }
+    // Intel APX related methods go here
+    pub const fn is_apx(&self) -> bool {
+        self.fpfx_get() == APX
+    }
+    pub const fn apx(mut self, apx: APXVariant, nf: bool) -> Self {
+        self.fpfx_set(APX);
+        self.flags |= (apx as u16) << 5;
+        self.flags |= (nf as u16) << 4;
+        self
+    }
+    pub const fn apx_get(&self) -> (APXVariant, bool) {
+        (
+            unsafe { std::mem::transmute(((self.flags & 0b1110_0000) >> 5) as u8) },
+            self.flags & 1 << 4 == 1 << 4,
+        )
     }
 
     // AVX-512 (including AVX-10 and APX EEVEX EVEX Extension)
@@ -420,8 +439,46 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
             self.check_forb(&smv)?;
         }
 
+        // APX specific checks
+        if self.is_apx() {
+            let (avr, nf) = self.apx_get();
+            if let Some(true) = ins.apx_get_leg_nf() {
+                if !nf {
+                    return Err(Error::new(
+                        "you tried to use {nf} on instruction that does not support it",
+                        22,
+                    ));
+                }
+            } else if let Some(true) = ins.apx_eevex_vex_get_nf() {
+                if !nf {
+                    return Err(Error::new(
+                        "you tried to use {vex-nf} on instruction that does not support it",
+                        22,
+                    ));
+                }
+            }
+            if let Some(ins_apx) = ins.apx_get_eevex_mode() {
+                if avr != ins_apx && ins_apx != APXVariant::Rex2 {
+                    return Err(Error::new(
+                        format!(
+                            "you tried to use {} on instruction that does not support it",
+                            match avr {
+                                APXVariant::Rex2 => "rex2 extension",
+                                APXVariant::EvexExtension => "EEVEX EVEX Extension",
+                                APXVariant::VexExtension => "EEVEX VEX Extension",
+                                APXVariant::LegacyExtension => "EEVEX Legacy Extension",
+                                APXVariant::CondTestCmpExtension =>
+                                    "EEVEX for conditional tests and compares",
+                                APXVariant::Auto => "EEVEX",
+                            }
+                        ),
+                        22,
+                    ));
+                }
+            }
+        }
         // EVEX specific checks
-        if self.get_evex() {
+        else if self.get_evex() {
             match ins.evex_mask() {
                 None | Some(0) => {}
                 Some(_) => {

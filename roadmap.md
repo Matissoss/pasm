@@ -94,7 +94,7 @@ Goal: implement support for Intel APX
 - [x] cleanup `Instruction` in `src/shr/ast.rs` (it is barely readable) and prepare it for Intel APX
 - [x] Patch `{sae}` and `{er}` modifiers in `CheckAPI` (actually check if it's correct).
 - [x] implement support for APX in syntax
-- [ ] implement checking for APX (in `pre::chkn::CheckAPI`) - partial migration to `CheckAPI` :D
+- [x] implement checking for APX (in `pre::chkn::CheckAPI`) - partial migration to `CheckAPI` :D
 - [ ] implement EEVEX (extended EVEX; all 4 variants) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
     - [ ] intel-apx-0 (legacy instructions without setcc)
@@ -104,7 +104,7 @@ Goal: implement support for Intel APX
     - [ ] intel-apx-4 (setcc)
     - [ ] intel-apx-6 (cmpccxadd)
     - [ ] intel-apx-5 (push2/pop2)
-    - [ ] intel-apx-7 (evex extended evex instructions and evex extended vex instructions)
+    - [ ] intel-apx-6 (evex extended evex instructions and evex extended vex instructions)
 - [ ] Move to beta-min
 
 ## beta-min
@@ -126,9 +126,11 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
+- [ ] Adapt `pasm` to every POLON standard
 - [ ] Move fully to using `CheckAPI`
 - [ ] Create better testing (without need for `NASM` and `sxd`)
 - [ ] Support for 16-bit addressing
+- [ ] Add flag for `--toggle-isa=[<x86-64 Extension>]` and directive `isa <X86-64 EXTENSION>`
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
 - [ ] Allow for `protected public function label_name:`
 - [ ] Support for `offset` (aka `ORG`) directive

@@ -5,6 +5,7 @@
 
 use crate::{
     core::api::*,
+    core::apx::*,
     core::evex::*,
     shr::{
         ast::{IVariant, Instruction, Operand},
@@ -7332,6 +7333,17 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0xA1])
             .modrm(true, None)
             .evex(VexDetails::new().pp(0x66).map_select(MAP38).vex_we(true)),
+
+        Mnemonic::AAADD => GenAPI::new()
+            .opcode(&[0xFC])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        _ => panic!("Some APX Mnemonics are currently unsupported"),
     }
 }
 

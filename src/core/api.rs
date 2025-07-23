@@ -53,16 +53,6 @@ pub struct OperandOrder {
     ord: u8,
 }
 
-#[repr(u8)]
-#[derive(PartialEq)]
-pub enum EEvexVariant {
-    EvexExtension = 0b000,
-    VexExtension = 0b001,
-    LegacyExtension = 0b010,
-    CondTestCmpExtension = 0b011,
-    Auto = 0b100,
-}
-
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq)]
 #[repr(u8)]
@@ -316,7 +306,7 @@ impl GenAPI {
         };
 
         // Legacy Prefixes
-        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX {
+        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX && prefix_flag != PREFIX_APX {
             if let Some(segm) = gen_segm_pref(ins) {
                 base.push(segm);
             }
@@ -349,7 +339,11 @@ impl GenAPI {
                 }
             }
             PREFIX_VEX => {
-                if ins.needs_evex() && !self.flags.at(STRICT_PFX) {
+                if ins.needs_apx_extension() {
+                    for b in apx::apx(&self, ins, bits).into_iter() {
+                        base.push(b);
+                    }
+                } else if ins.needs_evex() && !self.flags.at(STRICT_PFX) {
                     for b in evex::evex(&self, ins) {
                         base.push(b);
                     }
@@ -360,15 +354,20 @@ impl GenAPI {
                 }
             }
             PREFIX_EVEX => {
-                for b in evex::evex(&self, ins) {
-                    base.push(b);
+                if ins.needs_apx_extension() {
+                    for b in apx::apx(&self, ins, bits).into_iter() {
+                        base.push(b);
+                    }
+                } else {
+                    for b in evex::evex(&self, ins) {
+                        base.push(b);
+                    }
                 }
             }
             PREFIX_APX => {
-                for b in apx::apx(&self, ins).into_iter() {
+                for b in apx::apx(&self, ins, bits).into_iter() {
                     base.push(b);
                 }
-                todo!("TODO:")
             }
             _ => {}
         }
@@ -592,16 +591,50 @@ impl GenAPI {
         }
     }
 
-    pub fn apx(self, _eevex_variant: EEvexVariant, _eevex_details: VexDetails) -> Self {
-        todo!("TODO:")
+    // prefix layout for APX:
+    //  0bAAAN_MMMM_MPPW_SSSS
+    //  SSSS - condition code
+    pub fn apx(
+        mut self,
+        eevex_variant: apx::APXVariant,
+        eevex_details: VexDetails,
+        nd: bool,
+    ) -> Self {
+        self.prefix = 0;
+        self.set_fpfx(PREFIX_APX);
+        self.prefix |= (eevex_variant as u16) << 13;
+        self.prefix |= (nd as u16) << 12;
+        self.prefix |= (eevex_details.map_select as u16) << 7;
+        self.prefix |= (pp(eevex_details.pp) as u16) << 5;
+        self.prefix |= (eevex_details.vex_we as u16) << 4;
+        self
     }
-    pub fn get_apx_eevex_version(&self) -> Option<EEvexVariant> {
+    pub fn apx_cccc(mut self, cccc: u8) -> Self {
+        self.prefix |= (cccc as u16) & 0b1111;
+        self
+    }
+    pub fn get_apx_cccc(&self) -> u8 {
+        (self.prefix & 0b1111) as u8
+    }
+    pub fn get_apx_nd(&self) -> bool {
+        self.prefix & 1 << 12 == 1 << 12
+    }
+    pub fn get_apx_eevex_map_select(&self) -> u8 {
+        ((self.prefix & (0b11111 << 7)) >> 7) as u8
+    }
+    pub fn get_apx_eevex_pp(&self) -> u8 {
+        ((self.prefix & (0b11 << 5)) >> 5) as u8
+    }
+    pub fn get_apx_eevex_vex_we(&self) -> bool {
+        self.prefix & 1 << 4 == 1 << 4
+    }
+    pub fn get_apx_eevex_version(&self) -> Option<apx::APXVariant> {
         if self.get_fpfx() == PREFIX_EVEX {
-            Some(EEvexVariant::EvexExtension)
+            Some(apx::APXVariant::EvexExtension)
         } else if self.get_fpfx() == PREFIX_VEX {
-            Some(EEvexVariant::VexExtension)
+            Some(apx::APXVariant::VexExtension)
         } else if self.get_fpfx() == PREFIX_APX {
-            todo!("TODO:")
+            Some(unsafe { std::mem::transmute(((self.prefix & (0b111 << 13)) >> 13) as u8) })
         } else {
             None
         }

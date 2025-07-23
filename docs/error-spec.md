@@ -281,6 +281,18 @@ format elf64 ; declaration here
 format bin   ; redeclaration here
 ```
 
+### e022
+
+#### description
+
+This error is provoked, when you tried to use Intel APX modifiers in way that is forbidden to use.
+
+#### example
+
+```
+aadd rax, rcx {sf} {cf} ; e[022]
+```
+
 ### e101
 
 #### description
