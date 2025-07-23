@@ -10,8 +10,6 @@ members = ["ins_adder"]
 
 [features]
 default = ["target_all", "mthread", "time", "iinfo"]
-# multi threading
-mthread = []
 # measure time for assembling
 time = []
 # verbose timing (aka benchmark)
