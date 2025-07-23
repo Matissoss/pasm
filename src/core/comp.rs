@@ -7343,6 +7343,15 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new().map_select(MAP4),
                 false,
             ),
+        Mnemonic::AAAND => GenAPI::new()
+            .opcode(&[0xFC])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().pp(0x66).map_select(MAP4),
+                false,
+            ),
         _ => panic!("Some APX Mnemonics are currently unsupported"),
     }
 }

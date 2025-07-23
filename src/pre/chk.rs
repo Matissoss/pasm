@@ -462,11 +462,21 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
         // APX
-        AAADD => {
+        AAADD | AAAND => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[M32, M64], true)
                 .push(&[R32, R64], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        AADC | AADD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R32, R64, M32, M64], true)
+                .push(&[R32, R64, I16, I32], true)
+                .push(&[R32, R64, M32, M64, I16, I32], false)
+                .forbidden(&[[MA, RA, MA], [MA, IA, IA], [RA, IA, IA], [MA, IA, MA]])
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }

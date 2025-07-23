@@ -62,6 +62,23 @@ impl Register {
     pub const R13B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b101);
     pub const R14B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b110);
     pub const R15B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b111);
+    
+    pub const R16B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b000);
+    pub const R17B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b001);
+    pub const R18B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b010);
+    pub const R19B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b011);
+    pub const R20B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b100);
+    pub const R21B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b101);
+    pub const R22B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b110);
+    pub const R23B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b111);
+    pub const R24B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b000);
+    pub const R25B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b001);
+    pub const R26B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b010);
+    pub const R27B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b011);
+    pub const R28B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b100);
+    pub const R29B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b101);
+    pub const R30B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b110);
+    pub const R31B: Self = Self::new(Purpose::General, Size::Byte, [true, true], 0b111);
 
     pub const AX: Self = Self::new(Purpose::General, Size::Word, [false, false], 0b000);
     pub const CX: Self = Self::new(Purpose::General, Size::Word, [false, false], 0b001);
@@ -80,6 +97,23 @@ impl Register {
     pub const R13W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b101);
     pub const R14W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b110);
     pub const R15W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b111);
+    
+    pub const R16W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b000);
+    pub const R17W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b001);
+    pub const R18W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b010);
+    pub const R19W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b011);
+    pub const R20W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b100);
+    pub const R21W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b101);
+    pub const R22W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b110);
+    pub const R23W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b111);
+    pub const R24W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b000);
+    pub const R25W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b001);
+    pub const R26W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b010);
+    pub const R27W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b011);
+    pub const R28W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b100);
+    pub const R29W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b101);
+    pub const R30W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b110);
+    pub const R31W: Self = Self::new(Purpose::General, Size::Word, [true, true], 0b111);
 
     pub const EAX: Self = Self::new(Purpose::General, Size::Dword, [false, false], 0b000);
     pub const ECX: Self = Self::new(Purpose::General, Size::Dword, [false, false], 0b001);
@@ -977,18 +1011,26 @@ pub fn reg_fromstr(str: &str) -> Option<Register> {
                     },
                     b'6' => match r[3] {
                         b'd' => s(Register::R16D),
+                        b'b' => s(Register::R16B),
+                        b'w' => s(Register::R16W),
                         _ => N,
                     },
                     b'7' => match r[3] {
                         b'd' => s(Register::R17D),
+                        b'b' => s(Register::R17B),
+                        b'w' => s(Register::R17W),
                         _ => N,
                     },
                     b'8' => match r[3] {
                         b'd' => s(Register::R18D),
+                        b'b' => s(Register::R18B),
+                        b'w' => s(Register::R18W),
                         _ => N,
                     },
                     b'9' => match r[3] {
                         b'd' => s(Register::R19D),
+                        b'b' => s(Register::R19B),
+                        b'w' => s(Register::R19W),
                         _ => N,
                     },
                     _ => N,
@@ -996,42 +1038,62 @@ pub fn reg_fromstr(str: &str) -> Option<Register> {
                 b'2' => match r[2] {
                     b'0' => match r[3] {
                         b'd' => s(Register::R20D),
+                        b'b' => s(Register::R20B),
+                        b'w' => s(Register::R20W),
                         _ => N,
                     },
                     b'1' => match r[3] {
                         b'd' => s(Register::R21D),
+                        b'b' => s(Register::R21B),
+                        b'w' => s(Register::R21W),
                         _ => N,
                     },
                     b'2' => match r[3] {
                         b'd' => s(Register::R22D),
+                        b'b' => s(Register::R22B),
+                        b'w' => s(Register::R22W),
                         _ => N,
                     },
                     b'3' => match r[3] {
                         b'd' => s(Register::R23D),
+                        b'b' => s(Register::R23B),
+                        b'w' => s(Register::R23W),
                         _ => N,
                     },
                     b'4' => match r[3] {
                         b'd' => s(Register::R24D),
+                        b'b' => s(Register::R24B),
+                        b'w' => s(Register::R24W),
                         _ => N,
                     },
                     b'5' => match r[3] {
                         b'd' => s(Register::R25D),
+                        b'b' => s(Register::R25B),
+                        b'w' => s(Register::R25W),
                         _ => N,
                     },
                     b'6' => match r[3] {
                         b'd' => s(Register::R26D),
+                        b'b' => s(Register::R26B),
+                        b'w' => s(Register::R26W),
                         _ => N,
                     },
                     b'7' => match r[3] {
                         b'd' => s(Register::R27D),
+                        b'b' => s(Register::R27B),
+                        b'w' => s(Register::R27W),
                         _ => N,
                     },
                     b'8' => match r[3] {
                         b'd' => s(Register::R28D),
+                        b'b' => s(Register::R28B),
+                        b'w' => s(Register::R28W),
                         _ => N,
                     },
                     b'9' => match r[3] {
                         b'd' => s(Register::R29D),
+                        b'b' => s(Register::R29B),
+                        b'w' => s(Register::R29W),
                         _ => N,
                     },
                     _ => N,
@@ -1039,10 +1101,14 @@ pub fn reg_fromstr(str: &str) -> Option<Register> {
                 b'3' => match r[2] {
                     b'0' => match r[3] {
                         b'd' => s(Register::R30D),
+                        b'b' => s(Register::R30B),
+                        b'w' => s(Register::R30W),
                         _ => N,
                     },
                     b'1' => match r[3] {
                         b'd' => s(Register::R31D),
+                        b'b' => s(Register::R31B),
+                        b'w' => s(Register::R31W),
                         _ => N,
                     },
                     _ => N,

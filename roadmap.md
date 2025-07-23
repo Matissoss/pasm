@@ -95,10 +95,10 @@ Goal: implement support for Intel APX
 - [x] Patch `{sae}` and `{er}` modifiers in `CheckAPI` (actually check if it's correct).
 - [x] implement support for APX in syntax
 - [x] implement checking for APX (in `pre::chkn::CheckAPI`) - partial migration to `CheckAPI` :D
-- [ ] implement EEVEX (extended EVEX; all 4 variants) and REX2 prefixes support
+- [x] implement EEVEX (extended EVEX; all 3 variants without ones for ctestcc and ccmpcc) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
     - [ ] intel-apx-0 (legacy instructions without setcc)
-    - [ ] intel-apx-1 (ccmpcc)
+    - [ ] intel-apx-1 (ccmpcc + EEVEX support for cond. test and cmp)
     - [ ] intel-apx-2 (cfcmovcc)
     - [ ] intel-apx-3 (ctestcc)
     - [ ] intel-apx-4 (setcc)

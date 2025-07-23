@@ -39,7 +39,29 @@ pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
                 eevex_vex(ctx, ins)
             }
         }
-        Some(APXVariant::Auto) => todo!("Either rex2 or eevex"),
+        Some(APXVariant::Auto) => {
+            if ctx.get_apx_eevex_map_select() <= 1 && ctx.get_apx_eevex_pp() == 0 {
+                if bits == 64 {
+                    rex2(ctx, ins)
+                } else {
+                    if ins.needs_evex() {
+                        eevex_evex(ctx, ins)
+                    } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
+                        eevex_vex(ctx, ins)
+                    } else {
+                        eevex_legacy(ctx, ins, bits)
+                    }
+                }
+            } else {
+                if ins.needs_evex() {
+                    eevex_evex(ctx, ins)
+                } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
+                    eevex_vex(ctx, ins)
+                } else {
+                    eevex_legacy(ctx, ins, bits)
+                }
+            }
+        }
         Some(APXVariant::CondTestCmpExtension) => eevex_cond(ctx, ins),
         Some(APXVariant::Rex2) => rex2(ctx, ins),
         Some(APXVariant::LegacyExtension) => eevex_legacy(ctx, ins, bits),
@@ -50,8 +72,34 @@ pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
 }
 
 #[inline(always)]
-fn rex2(_ctx: &GenAPI, _ins: &Instruction) -> SmallVec<u8, 4> {
-    todo!()
+fn rex2(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
+    let mut vec = SmallVec::new();
+
+    vec.push(0xD5);
+
+    let [modrm_rm, modrm_reg, _] = ctx.get_ord_oprs(ins);
+
+    let [[evex_r4, evex_r3], [_, _]] = ebits(&modrm_reg);
+    let [[evex_b4, evex_b3], [evex_x4, evex_x3]] = ebits(&modrm_rm);
+
+    let mut rex2_0 = (ctx.get_apx_eevex_map_select() & 1) << 7
+        | (evex_r4 as u8) << 6
+        | (ctx.get_apx_eevex_vex_we() as u8) << 3
+        | (evex_r3 as u8) << 2;
+
+    if let Some(Operand::Mem(_)) = modrm_rm {
+        rex2_0 |= evex_b3 as u8;
+        rex2_0 |= (evex_x3 as u8) << 1;
+        rex2_0 |= (evex_b4 as u8) << 4;
+        rex2_0 |= (evex_x4 as u8) << 5;
+    } else {
+        rex2_0 |= evex_b3 as u8;
+        rex2_0 |= (evex_b4 as u8) << 1;
+    }
+
+    vec.push(rex2_0);
+
+    vec
 }
 #[inline(always)]
 fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
@@ -63,12 +111,21 @@ fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
     let [[evex_b4, evex_b3], [evex_x4, evex_x3]] = ebits(&modrm_rm);
     let [[evex_v4, _], [_, _]] = ebits(&evex_vvvv);
 
-    let (evex_we, evex_pp) = match (ins.size(), bits) {
-        (Size::Qword, 64) => (ctx.get_apx_eevex_vex_we(), 0),
-        (Size::Qword, _) => (ctx.get_apx_eevex_vex_we(), 0b01),
-        (Size::Dword, 32) => (ctx.get_apx_eevex_vex_we(), 0),
-        (Size::Dword, _) => (ctx.get_apx_eevex_vex_we(), 0b01),
-        _ => (ctx.get_apx_eevex_vex_we(), ctx.get_apx_eevex_pp()),
+    let (evex_we, evex_pp) = if ctx.get_apx_eevex_pp() != 0 {
+        (ins.size() == Size::Qword, ctx.get_apx_eevex_pp())
+    } else {
+        match (ins.size(), bits) {
+            (Size::Qword, 64) => (true, 0),
+            (Size::Dword, 64) => (false, 0),
+            (Size::Word, 64) => (false, 0b01),
+        
+            (Size::Dword, 32) => (false, 0),
+            (Size::Word, 32) => (false, 0b01),
+
+            (Size::Dword, 16) => (false, 0b01),
+            (Size::Word, 16) => (false, 0),
+            _ => (ctx.get_apx_eevex_vex_we(), ctx.get_apx_eevex_pp()),
+        }
     };
 
     vec.push(0x62);
@@ -83,7 +140,7 @@ fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
 
     vec.push((evex_we as u8) << 7 | gen_evex4v(&evex_vvvv) << 3 | (!evex_x4 as u8) << 2 | evex_pp);
     vec.push(
-        (ins.apx_get_leg_nd().unwrap_or(false) as u8) << 4
+        (evex_vvvv.is_some() as u8) << 4
             | (!evex_v4 as u8) << 3
             | (ins.apx_get_leg_nf().unwrap_or(false) as u8) << 2,
     );
@@ -94,14 +151,8 @@ fn eevex_cond(_ctx: &GenAPI, _ins: &Instruction) -> SmallVec<u8, 4> {
     todo!()
 }
 
-// TODO: apparently there might be something wrong with this,
-//       because for {apx-evex} vaddps xmm21, xmm23, xmm24
-//       we get for first byte 0xC1, when 0x81 is the correct
-
-// NOTE: intel's APX documentation says something about EVEX.U field, but
-//       idk what it should be set to, when ModRM.mod == 0b11
 #[inline(always)]
-fn eevex_evex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
+fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
     let mut vec = SmallVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
@@ -133,8 +184,11 @@ fn eevex_evex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
     );
     vec
 }
+
+// NOTE: intel's APX documentation says something about EVEX.U field, but
+//       idk what it should be set to, when ModRM.mod == 0b11
 #[inline(always)]
-fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
+fn eevex_evex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
     let mut vec = SmallVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
@@ -143,11 +197,12 @@ fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
     let [[evex_b4, evex_b3], [evex_x4, evex_x3]] = ebits(&modrm_rm);
     let [[evex_v4, _], [_, _]] = ebits(&evex_vvvv);
 
-    let (bcst, sz) = if let Some(Operand::Mem(m)) = modrm_rm {
-        (m.is_bcst(), m.size())
+    let (bcst, sz, mem) = if let Some(Operand::Mem(m)) = modrm_rm {
+        (m.is_bcst(), m.size(), true)
     } else {
-        (false, Size::Unknown)
+        (false, Size::Unknown, false)
     };
+
     let mut evex3 = {
         (ins.evex_z().unwrap_or(false) as u8) << 7
             | ((ins.evex_sae().unwrap_or(false) || bcst) as u8) << 4
@@ -170,25 +225,32 @@ fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
         false
     };
 
-    vec.push(0x62);
-    vec.push(
-        (!evex_r3 as u8) << 7
-            | (!evex_x3 as u8) << 6
-            | (!evex_b3 as u8) << 5
-            | (!evex_r4 as u8) << 4
-            | (!evex_b4 as u8) << 3
-            | ctx.get_map_select().unwrap_or(0) & 0b111,
-    );
+    let mut evex1 =
+        (!evex_r3 as u8) << 7 | (!evex_r4 as u8) << 4 | ctx.get_map_select().unwrap_or(0) & 0b111;
 
-    vec.push(
-        (evex_we as u8) << 7 |
-        gen_evex4v(&evex_vvvv) << 3 |
+    let mut evex2 =
+        (evex_we as u8) << 7 | gen_evex4v(&evex_vvvv) << 3 | ctx.get_pp().unwrap_or(0b00);
+
+    // set these fields if we use mem (B = Base, X = Index)
+    if mem {
+        evex1 |= (!evex_x3 as u8) << 6;
+        evex1 |= (!evex_b3 as u8) << 5;
+        evex1 |= (!evex_b4 as u8) << 3;
+
         // this is the EEVEX.U field
-        (!evex_x4 as u8) << 2 |
-        ctx.get_pp().unwrap_or(0b00),
-    );
+        evex2 |= (!evex_x4 as u8) << 2;
+    }
+    // otherwise just extension of ModRM.r/m register
+    else {
+        evex1 |= (!evex_b4 as u8) << 6;
+        evex1 |= (!evex_b3 as u8) << 5;
+    }
 
+    vec.push(0x62);
+    vec.push(evex1);
+    vec.push(evex2);
     vec.push(evex3);
+
     vec
 }
 

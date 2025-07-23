@@ -305,27 +305,31 @@ impl GenAPI {
             false
         };
 
-        // Legacy Prefixes
-        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX && prefix_flag != PREFIX_APX {
-            if let Some(segm) = gen_segm_pref(ins) {
-                base.push(segm);
-            }
+        if let Some(segm) = gen_segm_pref(ins) {
+            base.push(segm);
+        }
 
-            if fx_size {
-                if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
-                    base.push(size_ovr);
-                }
-            } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
-                let h66 = size_ovr[0];
-                let h67 = size_ovr[1];
-                if h66.is_some() && self.prefix != 0x66 && self.flags.at(CAN_H66O) {
+        if fx_size {
+            if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
+                base.push(size_ovr);
+            }
+        } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
+            let h66 = size_ovr[0];
+            let h67 = size_ovr[1];
+            if h66.is_some() {
+                if prefix_flag != PREFIX_VEX
+                    && prefix_flag != PREFIX_EVEX
+                    && prefix_flag != PREFIX_APX
+                {
                     base.push(0x66);
                 }
-                if h67.is_some() {
-                    base.push(0x67);
-                }
             }
+            if h67.is_some() {
+                base.push(0x67);
+            }
+        }
 
+        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX && prefix_flag != PREFIX_APX {
             if self.prefix != 0 {
                 base.push(self.prefix.to_be_bytes()[1]);
             }
