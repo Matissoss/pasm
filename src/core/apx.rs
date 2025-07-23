@@ -139,8 +139,8 @@ fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 
-    let [[evex_r3, evex_r4], [_, _]] = ebits(&modrm_reg);
-    let [[evex_b3, evex_b4], [evex_x3, evex_x4]] = ebits(&modrm_rm);
+    let [[evex_r4, evex_r3], [_, _]] = ebits(&modrm_reg);
+    let [[evex_b4, evex_b3], [evex_x4, evex_x3]] = ebits(&modrm_rm);
     let [[evex_v4, _], [_, _]] = ebits(&evex_vvvv);
 
     let (bcst, sz) = if let Some(Operand::Mem(m)) = modrm_rm {
