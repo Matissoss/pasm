@@ -97,14 +97,12 @@ Goal: implement support for Intel APX
 - [x] implement checking for APX (in `pre::chkn::CheckAPI`) - partial migration to `CheckAPI` :D
 - [x] implement EEVEX (extended EVEX; all 3 variants without ones for ctestcc and ccmpcc) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
-    - [ ] intel-apx-0 (legacy instructions without setcc)
-    - [ ] intel-apx-1 (ccmpcc + EEVEX support for cond. test and cmp)
+    - [x] intel-apx-0 (legacy instructions without setcc)
+    - [ ] intel-apx-1 (ctestcc + ccmpcc + EEVEX support for cond. test and cmp)
     - [ ] intel-apx-2 (cfcmovcc)
-    - [ ] intel-apx-3 (ctestcc)
-    - [ ] intel-apx-4 (setcc)
-    - [ ] intel-apx-6 (cmpccxadd)
+    - [ ] intel-apx-3 (setcc)
+    - [ ] intel-apx-4 (cmpccxadd)
     - [ ] intel-apx-5 (push2/pop2)
-    - [ ] intel-apx-6 (evex extended evex instructions and evex extended vex instructions)
 - [ ] Move to beta-min
 
 ## beta-min

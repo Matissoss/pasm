@@ -7843,6 +7843,326 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api.apx(APXVariant::VexExtension, vd, false)
         }
+        Mnemonic::ALDTILECFG => GenAPI::new()
+            .opcode(&[0x49])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::VexExtension,
+                VexDetails::new().map_select(MAP38),
+                false,
+            ),
+        Mnemonic::ALZCNT => GenAPI::new()
+            .opcode(&[0xF5])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP38),
+                false,
+            ),
+        Mnemonic::AMOVBE => {
+            if ins.dst().unwrap().is_mem() {
+                GenAPI::new()
+                    .opcode(&[0x61])
+                    .modrm(true, None)
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .apx(
+                        APXVariant::LegacyExtension,
+                        VexDetails::new().map_select(MAP4),
+                        false,
+                    )
+            } else {
+                GenAPI::new()
+                    .opcode(&[0x60])
+                    .modrm(true, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .apx(
+                        APXVariant::LegacyExtension,
+                        VexDetails::new().map_select(MAP4),
+                        false,
+                    )
+            }
+        }
+        Mnemonic::AMOVDIRI => GenAPI::new()
+            .opcode(&[0xF9])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AMOVRS => GenAPI::new()
+            .opcode(&[0x8B - (ins.size() == Size::Byte) as u8])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AMUL => GenAPI::new()
+            .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+            .modrm(true, Some(4))
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AMULX => GenAPI::new()
+            .opcode(&[0xF6])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ANOT => {
+            let mut api = GenAPI::new()
+                .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+                .modrm(true, Some(2))
+                .apx(
+                    APXVariant::LegacyExtension,
+                    VexDetails::new().map_select(MAP4),
+                    false,
+                );
+            api = if ins.src().is_some() {
+                api.ord(&[VEX_VVVV, MODRM_RM])
+            } else {
+                api.ord(&[MODRM_RM, MODRM_REG])
+            };
+            api
+        }
+        Mnemonic::ANEG => {
+            let mut api = GenAPI::new()
+                .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+                .modrm(true, Some(3))
+                .apx(
+                    APXVariant::LegacyExtension,
+                    VexDetails::new().map_select(MAP4),
+                    false,
+                );
+            api = if ins.src().is_some() {
+                api.ord(&[VEX_VVVV, MODRM_RM])
+            } else {
+                api.ord(&[MODRM_RM, MODRM_REG])
+            };
+            api
+        }
+        Mnemonic::AOR => ins_aadd(
+            ins,
+            &[0x0A],
+            &[0x0B],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x08],
+            &[0x09],
+            1,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::APEXT => GenAPI::new()
+            .opcode(&[0xF5])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF3)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::APDEP => GenAPI::new()
+            .opcode(&[0xF5])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::APOPCNT => GenAPI::new()
+            .opcode(&[0x88])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(APXVariant::Auto, VexDetails::new().map_select(MAP4), false),
+        Mnemonic::ARDMSR => GenAPI::new()
+            .opcode(&[0xF6])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .imm_atindex(1, 4)
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new().map_select(7).pp(0xF2),
+                false,
+            ),
+        Mnemonic::ASARX => GenAPI::new()
+            .opcode(&[0xF7])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .imm_atindex(2, 1)
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF3)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ARORX => GenAPI::new()
+            .opcode(&[0xF0])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .imm_atindex(2, 1)
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP3A)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ARCL => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 2).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ARCR => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 3).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AROL => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 0).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AROR => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 1).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASAR => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 7).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASHL => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 4).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASHR => ins_ashllike(ins, &[0xD0, 0xD2, 0xC0, 0xD1, 0xD3, 0xC1], 5).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASHLD => ins_ashlx(ins, &[0x24], &[0xA5]).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASHLX => GenAPI::new()
+            .opcode(&[0xF7])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+            .apx(
+                APXVariant::VexExtension,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0x66)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ASHRD => ins_ashlx(ins, &[0x2C], &[0xAD]).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ASHRX => GenAPI::new()
+            .opcode(&[0xF7])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+            .apx(
+                APXVariant::VexExtension,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ASTTILECFG => GenAPI::new()
+            .opcode(&[0x49])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::VexExtension,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ASUB => ins_aadd(
+            ins,
+            &[0x28],
+            &[0x29],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x2A],
+            &[0x2B],
+            5,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ATZCNT => GenAPI::new()
+            .opcode(&[0xF4])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AXOR => ins_aadd(
+            ins,
+            &[0x30],
+            &[0x31],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x32],
+            &[0x33],
+            6,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::JMPABS => GenAPI::new().opcode(&[0xA1]).imm_atindex(0, 8).apx(
+            APXVariant::Rex2,
+            VexDetails::new(),
+            false,
+        ),
         _ => panic!("Some APX Mnemonics are currently unsupported"),
     }
 }
@@ -7853,6 +8173,68 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+// opc[0] = r/m8, 1
+// opc[1] = r/m8, cl
+// opc[2] = r/m8, imm8
+// opc[3] = r/m16/32/64, 1
+// opc[4] = r/m16/32/64, cl
+// opc[5] = r/m16/32/64, imm8
+#[inline(always)]
+fn ins_ashllike(ins: &Instruction, opc: &[u8; 6], ovr: u8) -> GenAPI {
+    let mut api = GenAPI::new().modrm(true, Some(ovr));
+    let src = ins.src().unwrap();
+    let dst = ins.dst().unwrap();
+    let opcd = match src {
+        Operand::Register(Register::CL) => match dst.size() {
+            Size::Byte => opc[1],
+            Size::Word | Size::Dword | Size::Qword => opc[4],
+            _ => panic!("CL failure"),
+        },
+        Operand::Register(_) | Operand::Mem(_) => {
+            api = api.ord(&[VEX_VVVV, MODRM_RM]);
+            match ins.ssrc().unwrap() {
+                Operand::Register(Register::CL) => match dst.size() {
+                    Size::Byte => opc[1],
+                    Size::Word | Size::Dword | Size::Qword => opc[4],
+                    _ => panic!("CL failure"),
+                },
+                Operand::Imm(imm) => {
+                    if imm == Number::uint64(1) {
+                        match dst.size() {
+                            Size::Byte => opc[0],
+                            _ => opc[3],
+                        }
+                    } else {
+                        api = api.imm_atindex(2, 1);
+                        match dst.size() {
+                            Size::Byte => opc[2],
+                            _ => opc[5],
+                        }
+                    }
+                }
+                _ => panic!(),
+            }
+        }
+        Operand::Imm(imm) => {
+            if imm == Number::uint64(1) {
+                match dst.size() {
+                    Size::Byte => opc[0],
+                    _ => opc[3],
+                }
+            } else {
+                api = api.imm_atindex(1, 1);
+                match dst.size() {
+                    Size::Byte => opc[2],
+                    _ => opc[5],
+                }
+            }
+        }
+        _ => panic!("Other {:?}", src),
+    };
+    api = api.opcode(&[opcd]);
+    api
+}
 
 fn ins_aimul(ins: &Instruction) -> GenAPI {
     if ins.len() == 3 {
@@ -8095,6 +8477,25 @@ fn ins_xchg(ins: &Instruction) -> GenAPI {
 #[inline(always)]
 fn ins_xbegin(_: &Instruction) -> GenAPI {
     GenAPI::new().opcode(&[0xC7, 0xF8]).imm_atindex(0, 4)
+}
+
+#[inline(always)]
+fn ins_ashlx(ins: &Instruction, opc_imm: &[u8], opc_rm: &[u8]) -> GenAPI {
+    let mut api = GenAPI::new().rex().modrm(true, None);
+    if let Some(Operand::Imm(_) | Operand::Symbol(_)) = ins.ssrc() {
+        api = api.opcode(opc_imm).imm_atindex(2, 1);
+    } else if let Some(Operand::Imm(_) | Operand::Symbol(_)) = ins.tsrc() {
+        api = api
+            .opcode(opc_imm)
+            .imm_atindex(3, 1)
+            .ord(&[VEX_VVVV, MODRM_RM, MODRM_REG]);
+    } else {
+        if ins.len() == 4 {
+            api = api.ord(&[VEX_VVVV, MODRM_RM, MODRM_REG])
+        }
+        api = api.opcode(opc_rm);
+    }
+    api
 }
 
 #[inline(always)]
