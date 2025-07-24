@@ -316,23 +316,24 @@ impl GenAPI {
         } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
             let h66 = size_ovr[0];
             let h67 = size_ovr[1];
-            if h66.is_some() {
-                if prefix_flag != PREFIX_VEX
-                    && prefix_flag != PREFIX_EVEX
-                    && prefix_flag != PREFIX_APX
-                {
-                    base.push(0x66);
-                }
+            if h66.is_some()
+                && prefix_flag != PREFIX_VEX
+                && prefix_flag != PREFIX_EVEX
+                && prefix_flag != PREFIX_APX
+            {
+                base.push(0x66);
             }
             if h67.is_some() {
                 base.push(0x67);
             }
         }
 
-        if prefix_flag != PREFIX_VEX && prefix_flag != PREFIX_EVEX && prefix_flag != PREFIX_APX {
-            if self.prefix != 0 {
-                base.push(self.prefix.to_be_bytes()[1]);
-            }
+        if prefix_flag != PREFIX_VEX
+            && prefix_flag != PREFIX_EVEX
+            && prefix_flag != PREFIX_APX
+            && self.prefix != 0
+        {
+            base.push(self.prefix.to_be_bytes()[1]);
         }
 
         // Prefixes
@@ -548,6 +549,7 @@ impl GenAPI {
             [MODRM_RM , MODRM_REG, _        ] => [ins.dst() , ins.src() , ins.ssrc()],
             [MODRM_REG, VEX_VVVV , MODRM_RM ] => [ins.ssrc(), ins.dst() , ins.src() ],
             [MODRM_RM , VEX_VVVV , MODRM_REG] => [ins.dst() , ins.ssrc(), ins.src() ],
+            [VEX_VVVV , MODRM_REG, MODRM_RM ] => [ins.ssrc(), ins.src() , ins.dst() ],
             [VEX_VVVV , MODRM_REG, _        ] => [None      , ins.src() , ins.dst() ],
             [VEX_VVVV , MODRM_RM , _        ] => [ins.src() , None      , ins.dst() ],
             _                                 => [None      , None      , None      ],

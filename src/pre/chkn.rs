@@ -19,7 +19,7 @@ const REG_TYPE: u16 = 0b01;
 const MEM_TYPE: u16 = 0b10;
 const IMM_TYPE: u16 = 0b11;
 
-const OPR_NEEDED: u8 = 0x1;
+const OPR_NEEDED: u8 = 0x0;
 const HAS_IMM: u8 = 0x2;
 const HAS_REG: u8 = 0x3;
 const HAS_MEM: u8 = 0x4;
@@ -64,7 +64,7 @@ pub struct OperandSet<'a> {
 
 impl<'a> OperandSet<'a> {
     pub fn is_optional(&self) -> bool {
-        self.flags.get(OPR_NEEDED).unwrap_or(false)
+        !self.flags.get(OPR_NEEDED).unwrap_or(false)
     }
     pub fn has(&self, rhs: AType) -> bool {
         let tp = match rhs {
@@ -402,7 +402,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
                     break;
                 }
             }
-            if at == smv.len() {
+            if at == OPERAND_COUNT {
                 let er = Error::new("you tried to use forbidden operand combination", 7);
                 return Err(er);
             }

@@ -462,7 +462,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
         // APX
-        AAADD | AAAND => {
+        AAADD | AAAND | AAOR | AAXOR => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[M32, M64], true)
@@ -470,13 +470,134 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }
-        AADC | AADD => {
+        AADCX | AADOX => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .push(&[R32, R64, M32, M64], true)
-                .push(&[R32, R64, I16, I32], true)
-                .push(&[R32, R64, M32, M64, I16, I32], false)
-                .forbidden(&[[MA, RA, MA], [MA, IA, IA], [RA, IA, IA], [MA, IA, MA]])
+                .push(&[R32, R64, M32, M64], true)
+                .push(&[R32, R64, M32, M64], false)
+                .forbidden(&[[MA, RA, MA], [MA, MA, MA], [MA, MA, RA], [RA, MA, MA]])
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        ABEXTR => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R32, R64], true)
+                .push(&[R32, R64, M32, M64], true)
+                .push(&[R32, R64], true)
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        AIMUL => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .forbidden(&[
+                    [MA, MA, MA],
+                    [MA, RA, MA],
+                    [MA, RA, RA],
+                    [RA, MA, RA],
+                    [MA, MA, RA],
+                    [RA, MA, MA],
+                    [R8, ANY, ANY],
+                    [M8, ANY, ANY],
+                ])
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        AIMULZU => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R8, R16, R32, R64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[I8, I16, I32], true)
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        ABLSI | ABLSMSK | ABLSR => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R32, R64], true)
+                .push(&[R32, R64, M32, M64], true)
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        ADIV | AIDIV => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        AANDN => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R32, R64], true)
+                .push(&[R32, R64], true)
+                .push(&[R32, R64, M32, M64], true)
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        AAND => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], false)
+                .forbidden(&[
+                    [MA, RA, MA],
+                    [MA, IA, IA],
+                    [RA, IA, IA],
+                    [MA, IA, MA],
+                    [MA, MA, MA],
+                    [MA, MA, RA],
+                ])
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        ADEC | AINC => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], false)
+                .forbidden(&[[MA, MA]])
+                .apx(APXVariant::LegacyExtension, true)
+                .check(ins)
+        }
+        ACRC32 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R8, R16, R32, R64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        AADC | AADD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], true)
+                .push(&[R8, R16, R32, R64, M8, M16, M32, M64, I8, I16, I32], false)
+                .forbidden(&[
+                    [MA, RA, MA],
+                    [MA, IA, IA],
+                    [RA, IA, IA],
+                    [MA, IA, MA],
+                    [MA, MA, MA],
+                    [MA, MA, RA],
+                ])
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        AINVEPT | AINVPCID | AINVVPID => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R64], true)
+                .push(&[M128], true)
+                .set_mode(CheckMode::NOSIZE)
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }
@@ -2876,7 +2997,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .push(&[I8], true)
                 .check(ins)
         }
-        KMOVB => {
+        KMOVB | AKMOVB => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[K, R32, M8], true)
@@ -2884,7 +3005,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .forbidden(&[[R32, M8], [M8, M8], [M8, R32], [R32, R32]])
                 .check(ins)
         }
-        KMOVW => {
+        KMOVW | AKMOVW => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[K, R32, M16], true)
@@ -2892,7 +3013,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .forbidden(&[[R32, M16], [M16, M16], [M16, R32], [R32, R32]])
                 .check(ins)
         }
-        KMOVD => {
+        KMOVD | AKMOVD => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[K, R32, M32], true)
@@ -2900,7 +3021,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .forbidden(&[[R32, M32], [M32, M32], [M32, R32], [R32, R32]])
                 .check(ins)
         }
-        KMOVQ => {
+        KMOVQ | AKMOVQ => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[K, R64, M64], true)

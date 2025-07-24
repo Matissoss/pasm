@@ -43,23 +43,19 @@ pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
             if ctx.get_apx_eevex_map_select() <= 1 && ctx.get_apx_eevex_pp() == 0 {
                 if bits == 64 {
                     rex2(ctx, ins)
-                } else {
-                    if ins.needs_evex() {
-                        eevex_evex(ctx, ins)
-                    } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
-                        eevex_vex(ctx, ins)
-                    } else {
-                        eevex_legacy(ctx, ins, bits)
-                    }
-                }
-            } else {
-                if ins.needs_evex() {
+                } else if ins.needs_evex() {
                     eevex_evex(ctx, ins)
                 } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
                     eevex_vex(ctx, ins)
                 } else {
                     eevex_legacy(ctx, ins, bits)
                 }
+            } else if ins.needs_evex() {
+                eevex_evex(ctx, ins)
+            } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
+                eevex_vex(ctx, ins)
+            } else {
+                eevex_legacy(ctx, ins, bits)
             }
         }
         Some(APXVariant::CondTestCmpExtension) => eevex_cond(ctx, ins),
@@ -118,7 +114,7 @@ fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
             (Size::Qword, 64) => (true, 0),
             (Size::Dword, 64) => (false, 0),
             (Size::Word, 64) => (false, 0b01),
-        
+
             (Size::Dword, 32) => (false, 0),
             (Size::Word, 32) => (false, 0b01),
 

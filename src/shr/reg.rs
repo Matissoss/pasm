@@ -62,7 +62,7 @@ impl Register {
     pub const R13B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b101);
     pub const R14B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b110);
     pub const R15B: Self = Self::new(Purpose::General, Size::Byte, [false, true], 0b111);
-    
+
     pub const R16B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b000);
     pub const R17B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b001);
     pub const R18B: Self = Self::new(Purpose::General, Size::Byte, [true, false], 0b010);
@@ -97,7 +97,7 @@ impl Register {
     pub const R13W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b101);
     pub const R14W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b110);
     pub const R15W: Self = Self::new(Purpose::General, Size::Word, [false, true], 0b111);
-    
+
     pub const R16W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b000);
     pub const R17W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b001);
     pub const R18W: Self = Self::new(Purpose::General, Size::Word, [true, false], 0b010);

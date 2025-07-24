@@ -7343,6 +7343,24 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new().map_select(MAP4),
                 false,
             ),
+        Mnemonic::AAXOR => GenAPI::new()
+            .opcode(&[0xFC])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().pp(0xF3).map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AAOR => GenAPI::new()
+            .opcode(&[0xFC])
+            .modrm(true, None)
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().pp(0xF2).map_select(MAP4),
+                false,
+            ),
         Mnemonic::AAAND => GenAPI::new()
             .opcode(&[0xFC])
             .modrm(true, None)
@@ -7352,6 +7370,479 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
                 VexDetails::new().pp(0x66).map_select(MAP4),
                 false,
             ),
+        Mnemonic::AADC => ins_aadd(
+            ins,
+            &[0x10],
+            &[0x11],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x12],
+            &[0x13],
+            2,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AADD => ins_aadd(
+            ins,
+            &[0x00],
+            &[0x01],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x02],
+            &[0x03],
+            0,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AADCX => ins_aadox(ins, &[0x66]).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new()
+                .map_select(MAP4)
+                .vex_we(ins.size() == Size::Qword)
+                .pp(0x66),
+            false,
+        ),
+        Mnemonic::AADOX => ins_aadox(ins, &[0x66]).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new()
+                .map_select(MAP4)
+                .vex_we(ins.size() == Size::Qword)
+                .pp(0xF3),
+            false,
+        ),
+        Mnemonic::AAND => ins_aadd(
+            ins,
+            &[0x20],
+            &[0x21],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x22],
+            &[0x23],
+            4,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AANDN => GenAPI::new()
+            .opcode(&[0xF2])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ABEXTR => GenAPI::new()
+            .opcode(&[0xF7])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ABLSMSK => GenAPI::new()
+            .opcode(&[0xF3])
+            .modrm(true, Some(2))
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ABLSR => GenAPI::new()
+            .opcode(&[0xF3])
+            .modrm(true, Some(1))
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ABLSI => GenAPI::new()
+            .opcode(&[0xF3])
+            .modrm(true, Some(3))
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::Auto,
+                VexDetails::new()
+                    .map_select(MAP38)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+
+        Mnemonic::ACMOVA => ins_cmovcc(ins, &[0x0F, 0x47], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVAE => ins_cmovcc(ins, &[0x0F, 0x43], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVB => ins_cmovcc(ins, &[0x0F, 0x42], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVBE => ins_cmovcc(ins, &[0x0F, 0x46], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVC => ins_cmovcc(ins, &[0x0F, 0x42], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVE => ins_cmovcc(ins, &[0x0F, 0x44], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVG => ins_cmovcc(ins, &[0x0F, 0x4F], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVGE => ins_cmovcc(ins, &[0x0F, 0x4D], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVL => ins_cmovcc(ins, &[0x0F, 0x4C], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVLE => ins_cmovcc(ins, &[0x0F, 0x4E], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNA => ins_cmovcc(ins, &[0x0F, 0x46], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNB => ins_cmovcc(ins, &[0x0F, 0x43], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNBE => ins_cmovcc(ins, &[0x0F, 0x47], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNC => ins_cmovcc(ins, &[0x0F, 0x43], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNE => ins_cmovcc(ins, &[0x0F, 0x45], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNG => ins_cmovcc(ins, &[0x0F, 0x4E], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNGE => ins_cmovcc(ins, &[0x0F, 0x4C], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNL => ins_cmovcc(ins, &[0x0F, 0x4D], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNLE => ins_cmovcc(ins, &[0x0F, 0x4F], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNAE => ins_cmovcc(ins, &[0x0F, 0x42], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNO => ins_cmovcc(ins, &[0x0F, 0x41], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNP => ins_cmovcc(ins, &[0x0F, 0x4B], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNS => ins_cmovcc(ins, &[0x0F, 0x49], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVNZ => ins_cmovcc(ins, &[0x0F, 0x45], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVO => ins_cmovcc(ins, &[0x0F, 0x40], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVP => ins_cmovcc(ins, &[0x0F, 0x4A], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVPO => ins_cmovcc(ins, &[0x0F, 0x4B], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVS => ins_cmovcc(ins, &[0x0F, 0x48], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVZ => ins_cmovcc(ins, &[0x0F, 0x44], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACMOVPE => ins_cmovcc(ins, &[0x0F, 0x4A], bits)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::ACRC32 => GenAPI::new()
+            .opcode(&[0xF1 - (ins.size() == Size::Byte) as u8])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AIDIV => GenAPI::new()
+            .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+            .modrm(true, Some(7))
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AIMUL => ins_aimul(ins).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::AIMULZU => ins_imul(ins, bits).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
+        Mnemonic::ADIV => GenAPI::new()
+            .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+            .modrm(true, Some(6))
+            .ord(&[MODRM_RM, MODRM_REG])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            ),
+        Mnemonic::AINC => {
+            let mut api = GenAPI::new()
+                .opcode(&[0xFF - (ins.size() == Size::Byte) as u8])
+                .modrm(true, Some(0))
+                .apx(
+                    APXVariant::LegacyExtension,
+                    VexDetails::new().map_select(MAP4),
+                    false,
+                );
+            api = if ins.src().is_some() {
+                api.ord(&[VEX_VVVV, MODRM_RM])
+            } else {
+                api.ord(&[MODRM_RM, MODRM_REG])
+            };
+            api
+        }
+        Mnemonic::ADEC => {
+            let mut api = GenAPI::new()
+                .opcode(&[0xFF - (ins.size() == Size::Byte) as u8])
+                .modrm(true, Some(1))
+                .apx(
+                    APXVariant::LegacyExtension,
+                    VexDetails::new().map_select(MAP4),
+                    false,
+                );
+            api = if ins.src().is_some() {
+                api.ord(&[VEX_VVVV, MODRM_RM])
+            } else {
+                api.ord(&[MODRM_RM, MODRM_REG])
+            };
+            api
+        }
+        Mnemonic::AINVEPT => GenAPI::new()
+            .opcode(&[0xF0])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF3),
+                false,
+            ),
+        Mnemonic::AINVVPID => GenAPI::new()
+            .opcode(&[0xF1])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF3),
+                false,
+            ),
+        Mnemonic::AINVPCID => GenAPI::new()
+            .opcode(&[0xF2])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF3),
+                false,
+            ),
+        Mnemonic::AKMOVB => ins_kmov(ins).apx(
+            APXVariant::VexExtension,
+            VexDetails::new()
+                .map_select(0x0F)
+                .pp(0x66)
+                .vex_we(false)
+                .vlength(Some(false)),
+            false,
+        ),
+        Mnemonic::AKMOVW => ins_kmov(ins).apx(
+            APXVariant::VexExtension,
+            VexDetails::new()
+                .map_select(0x0F)
+                .vex_we(false)
+                .vlength(Some(false)),
+            false,
+        ),
+        Mnemonic::AKMOVD => {
+            let api = ins_kmov(ins);
+            let mut vd = VexDetails::new()
+                .map_select(0x0F)
+                .pp(0x66)
+                .vex_we(true)
+                .vlength(Some(false));
+            let opc = api.get_opcode();
+            let opc = opc[0];
+
+            if opc == 0x92 || opc == 0x93 {
+                vd = vd.pp(0xF2).vex_we(false);
+            }
+            api.apx(APXVariant::VexExtension, vd, false)
+        }
+        Mnemonic::AKMOVQ => {
+            let api = ins_kmov(ins);
+            let mut vd = VexDetails::new()
+                .map_select(0x0F)
+                .vex_we(true)
+                .vlength(Some(false));
+            let opc = api.get_opcode();
+            let opc = opc[0];
+
+            if opc == 0x92 || opc == 0x93 {
+                vd = vd.pp(0xF2);
+            }
+            api.apx(APXVariant::VexExtension, vd, false)
+        }
         _ => panic!("Some APX Mnemonics are currently unsupported"),
     }
 }
@@ -7362,6 +7853,155 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_aimul(ins: &Instruction) -> GenAPI {
+    if ins.len() == 3 {
+        GenAPI::new()
+            .opcode(&[0xAF])
+            .modrm(true, None)
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+    } else if ins.len() == 2 {
+        GenAPI::new()
+            .opcode(&[0xAF])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM])
+    } else {
+        GenAPI::new()
+            .opcode(&[0xF7 - (ins.size() == Size::Byte) as u8])
+            .modrm(true, Some(5))
+    }
+}
+
+fn ins_aadox(ins: &Instruction, opc: &[u8]) -> GenAPI {
+    let mut api = GenAPI::new().opcode(opc).modrm(true, None);
+    api = if ins.ssrc().is_none() {
+        api.ord(&[MODRM_REG, MODRM_RM])
+    } else {
+        api.ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+    };
+    api
+}
+
+// yeah, i also do not have idea what this means
+//  but since it works for now, i'll leave it be :D
+#[allow(clippy::too_many_arguments)]
+fn ins_aadd(
+    ins: &Instruction,
+    opc_rm8: &[u8],
+    opc_rm: &[u8],
+    opc_rmi: &[u8],
+    opc_rmi8: &[u8],
+    opc_rm8i8: &[u8],
+    opc_r8m8: &[u8],
+    opc_rm64: &[u8],
+    modrm_ovr: u8,
+) -> GenAPI {
+    let (dst, src, ssrc) = (ins.dst().unwrap(), ins.src().unwrap(), ins.ssrc());
+    match (&dst, src, ssrc) {
+        (Operand::Mem(_) | Operand::Register(_), Operand::Imm(i), None) => {
+            if dst.size() != Size::Byte {
+                let (opc, isz) = match i.signed_size() {
+                    Size::Byte => (opc_rmi8, 1),
+                    Size::Word => (opc_rmi, 2),
+                    _ => (opc_rmi, 4),
+                };
+                GenAPI::new()
+                    .opcode(opc)
+                    .modrm(true, Some(modrm_ovr))
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .imm_atindex(1, isz)
+            } else {
+                GenAPI::new()
+                    .opcode(opc_rm8i8)
+                    .modrm(true, Some(modrm_ovr))
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .imm_atindex(1, 1)
+            }
+        }
+        (Operand::Mem(_) | Operand::Symbol(_), Operand::Register(_), ssrc) => {
+            if dst.size() == Size::Byte {
+                if let Some(ssrc) = ssrc {
+                    if let Operand::Imm(_) = ssrc {
+                        GenAPI::new()
+                            .opcode(opc_rm8i8)
+                            .modrm(true, Some(modrm_ovr))
+                            .ord(&[VEX_VVVV, MODRM_RM])
+                            .imm_atindex(2, 1)
+                    } else {
+                        panic!("Invalid variant")
+                    }
+                } else {
+                    GenAPI::new()
+                        .opcode(opc_rm8)
+                        .modrm(true, None)
+                        .ord(&[MODRM_RM, MODRM_REG])
+                }
+            } else if let Some(ssrc) = ssrc {
+                if let Operand::Imm(s) = ssrc {
+                    let (isz, opc) = match s.signed_size() {
+                        Size::Word => (2, opc_rmi),
+                        Size::Byte => (1, opc_rmi8),
+                        _ => (4, opc_rmi),
+                    };
+                    GenAPI::new()
+                        .opcode(opc)
+                        .modrm(true, Some(modrm_ovr))
+                        .ord(&[VEX_VVVV, MODRM_RM])
+                        .imm_atindex(2, isz)
+                } else {
+                    panic!("Invalid variant")
+                }
+            } else {
+                GenAPI::new()
+                    .opcode(opc_rm)
+                    .modrm(true, None)
+                    .ord(&[MODRM_RM, MODRM_REG])
+            }
+        }
+        (Operand::Register(dstr), Operand::Mem(_) | Operand::Register(_), ssrc) => {
+            if dstr.size() == Size::Byte {
+                if let Some(Operand::Register(_)) = ssrc {
+                    GenAPI::new()
+                        .opcode(opc_r8m8)
+                        .modrm(true, None)
+                        .ord(&[VEX_VVVV, MODRM_RM, MODRM_REG])
+                } else if let Some(Operand::Imm(_)) = ssrc {
+                    GenAPI::new()
+                        .opcode(opc_rm8i8)
+                        .modrm(true, Some(modrm_ovr))
+                        .ord(&[VEX_VVVV, MODRM_RM])
+                        .imm_atindex(2, 1)
+                } else {
+                    GenAPI::new()
+                        .opcode(opc_rm8)
+                        .modrm(true, None)
+                        .ord(&[MODRM_REG, MODRM_RM])
+                }
+            } else if let Some(Operand::Register(_)) = ssrc {
+                GenAPI::new()
+                    .opcode(opc_rm64)
+                    .modrm(true, None)
+                    .ord(&[VEX_VVVV, MODRM_RM, MODRM_REG])
+            } else if let Some(Operand::Imm(s)) = ssrc {
+                let isz = match s.signed_size() {
+                    Size::Byte | Size::Word => 2,
+                    _ => 4,
+                };
+                GenAPI::new()
+                    .opcode(opc_rmi)
+                    .modrm(true, Some(modrm_ovr))
+                    .ord(&[VEX_VVVV, MODRM_RM])
+                    .imm_atindex(2, isz)
+            } else {
+                GenAPI::new()
+                    .opcode(opc_rm)
+                    .modrm(true, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+            }
+        }
+        _ => panic!("todo:"),
+    }
+}
 
 fn ins_kmov(ins: &Instruction) -> GenAPI {
     let mut api = GenAPI::new().modrm(true, None).ord(&[MODRM_REG, MODRM_RM]);
