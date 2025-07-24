@@ -9,7 +9,7 @@ members = ["ins_adder"]
 [dependencies]
 
 [features]
-default = ["target_all", "mthread", "time", "iinfo"]
+default = ["target_all", "time", "iinfo"]
 # measure time for assembling
 time = []
 # verbose timing (aka benchmark)
