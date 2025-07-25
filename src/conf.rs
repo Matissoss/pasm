@@ -25,6 +25,7 @@ pub const SUBEXPR_CLOSE: char = '}';
 //      assembler is programmed to recognize different values, so do not
 //      be shocked if you set every PREFIX* to same value and it does not work.
 //  ---------------------------------------------------------------------------
+//  UPDATE (25.07.2025): All info in this section is outdated and will be updated soon
 
 //  PREFIX_REG defines prefix for registers
 //  ---------------------------------------

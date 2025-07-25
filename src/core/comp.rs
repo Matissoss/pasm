@@ -4,6 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::{
+    consts::*,
     core::api::*,
     core::apx::*,
     core::evex::*,
@@ -158,6 +159,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::CMOVB => ins_cmovcc(ins, &[0x0F, 0x42], bits),
         Mnemonic::CMOVBE => ins_cmovcc(ins, &[0x0F, 0x46], bits),
         Mnemonic::CMOVC => ins_cmovcc(ins, &[0x0F, 0x42], bits),
+        Mnemonic::CMOVNC => ins_cmovcc(ins, &[0x0F, 0x43], bits),
         Mnemonic::CMOVE => ins_cmovcc(ins, &[0x0F, 0x44], bits),
         Mnemonic::CMOVG => ins_cmovcc(ins, &[0x0F, 0x4F], bits),
         Mnemonic::CMOVGE => ins_cmovcc(ins, &[0x0F, 0x4D], bits),
@@ -166,7 +168,6 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::CMOVNA => ins_cmovcc(ins, &[0x0F, 0x46], bits),
         Mnemonic::CMOVNB => ins_cmovcc(ins, &[0x0F, 0x43], bits),
         Mnemonic::CMOVNBE => ins_cmovcc(ins, &[0x0F, 0x47], bits),
-        Mnemonic::CMOVNC => ins_cmovcc(ins, &[0x0F, 0x43], bits),
         Mnemonic::CMOVNE => ins_cmovcc(ins, &[0x0F, 0x45], bits),
         Mnemonic::CMOVNG => ins_cmovcc(ins, &[0x0F, 0x4E], bits),
         Mnemonic::CMOVNGE => ins_cmovcc(ins, &[0x0F, 0x4C], bits),
@@ -7439,10 +7440,21 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None)
             .ord(&[MODRM_REG, VEX_VVVV, MODRM_RM])
             .apx(
-                APXVariant::Auto,
+                APXVariant::VexExtension,
                 VexDetails::new()
                     .map_select(MAP38)
                     .pp(0xF2)
+                    .vex_we(ins.size() == Size::Qword),
+                false,
+            ),
+        Mnemonic::ABZHI => GenAPI::new()
+            .opcode(&[0xF5])
+            .modrm(true, None)
+            .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
+            .apx(
+                APXVariant::VexExtension,
+                VexDetails::new()
+                    .map_select(MAP38)
                     .vex_we(ins.size() == Size::Qword),
                 false,
             ),
@@ -7451,7 +7463,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
             .apx(
-                APXVariant::Auto,
+                APXVariant::VexExtension,
                 VexDetails::new()
                     .map_select(MAP38)
                     .vex_we(ins.size() == Size::Qword),
@@ -7462,7 +7474,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, Some(2))
             .ord(&[VEX_VVVV, MODRM_RM])
             .apx(
-                APXVariant::Auto,
+                APXVariant::VexExtension,
                 VexDetails::new()
                     .map_select(MAP38)
                     .vex_we(ins.size() == Size::Qword),
@@ -7473,7 +7485,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, Some(1))
             .ord(&[VEX_VVVV, MODRM_RM])
             .apx(
-                APXVariant::Auto,
+                APXVariant::VexExtension,
                 VexDetails::new()
                     .map_select(MAP38)
                     .vex_we(ins.size() == Size::Qword),
@@ -7484,7 +7496,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .modrm(true, Some(3))
             .ord(&[VEX_VVVV, MODRM_RM])
             .apx(
-                APXVariant::Auto,
+                APXVariant::VexExtension,
                 VexDetails::new()
                     .map_select(MAP38)
                     .vex_we(ins.size() == Size::Qword),
@@ -8163,7 +8175,309 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             VexDetails::new(),
             false,
         ),
-        _ => panic!("Some APX Mnemonics are currently unsupported"),
+        Mnemonic::CCMPB => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_B),
+        Mnemonic::CCMPBE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_BE),
+        Mnemonic::CCMPNBE => {
+            ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NBE)
+        }
+        Mnemonic::CCMPNB => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NB),
+
+        Mnemonic::CCMPL => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_L),
+        Mnemonic::CCMPLE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_LE),
+        Mnemonic::CCMPNL => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NL),
+        Mnemonic::CCMPNLE => {
+            ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NLE)
+        }
+
+        Mnemonic::CCMPT => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(0b1010),
+        Mnemonic::CCMPF => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(0b1011),
+
+        Mnemonic::CCMPNO => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NO),
+        Mnemonic::CCMPO => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_O),
+
+        Mnemonic::CCMPNZ => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NZ),
+        Mnemonic::CCMPZ => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_Z),
+
+        Mnemonic::CCMPNE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NE),
+        Mnemonic::CCMPE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_E),
+
+        Mnemonic::CCMPS => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_S),
+        Mnemonic::CCMPNS => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NS),
+
+        Mnemonic::CCMPC => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_C),
+        Mnemonic::CCMPNC => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NC),
+
+        Mnemonic::CCMPG => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_G),
+        Mnemonic::CCMPGE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_GE),
+        Mnemonic::CCMPNGE => {
+            ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NGE)
+        }
+        Mnemonic::CCMPNG => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NG),
+
+        Mnemonic::CCMPA => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_A),
+        Mnemonic::CCMPAE => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_AE),
+        Mnemonic::CCMPNAE => {
+            ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NAE)
+        }
+        Mnemonic::CCMPNA => ins_ccmp(ins, &[0x38], &[0x3B], &[0x81], &[0x83], 7).apx_cccc(COND_NA),
+
+        // idk, but Intel allows for both 1 and 0 for modrm_ovr for r/m, iX?
+        Mnemonic::CTESTB => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_B),
+        Mnemonic::CTESTBE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_BE),
+        Mnemonic::CTESTNBE => {
+            ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NBE)
+        }
+        Mnemonic::CTESTNB => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NB),
+
+        Mnemonic::CTESTL => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_L),
+        Mnemonic::CTESTLE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_LE),
+        Mnemonic::CTESTNL => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NL),
+        Mnemonic::CTESTNLE => {
+            ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NLE)
+        }
+
+        Mnemonic::CTESTT => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(0b1010),
+        Mnemonic::CTESTF => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(0b1011),
+
+        Mnemonic::CTESTNO => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NO),
+        Mnemonic::CTESTO => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_O),
+
+        Mnemonic::CTESTNZ => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NZ),
+        Mnemonic::CTESTZ => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_Z),
+
+        Mnemonic::CTESTNE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NE),
+        Mnemonic::CTESTE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_E),
+
+        Mnemonic::CTESTS => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_S),
+        Mnemonic::CTESTNS => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NS),
+
+        Mnemonic::CTESTC => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_C),
+        Mnemonic::CTESTNC => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NC),
+
+        Mnemonic::CTESTG => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_G),
+        Mnemonic::CTESTGE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_GE),
+        Mnemonic::CTESTNGE => {
+            ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NGE)
+        }
+        Mnemonic::CTESTNG => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NG),
+
+        Mnemonic::CTESTA => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_A),
+        Mnemonic::CTESTAE => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_AE),
+        Mnemonic::CTESTNAE => {
+            ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NAE)
+        }
+        Mnemonic::CTESTNA => ins_ccmp(ins, &[0x85], &[0xF7], &[0x85], &[0xF6], 1).apx_cccc(COND_NA),
+
+        Mnemonic::SETOZU => GenAPI::new().opcode(&[0x40]).modrm(true, None).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4).pp(0xF2),
+            false,
+        ),
+        Mnemonic::SETNOZU => GenAPI::new().opcode(&[0x41]).modrm(true, None).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4).pp(0xF2),
+            false,
+        ),
+        Mnemonic::SETBZU | Mnemonic::SETCZU | Mnemonic::SETNAEZU => {
+            GenAPI::new().opcode(&[0x42]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETAEZU | Mnemonic::SETNBZU | Mnemonic::SETNCZU => {
+            GenAPI::new().opcode(&[0x43]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETEZU | Mnemonic::SETZZU => GenAPI::new().opcode(&[0x44]).modrm(true, None).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4).pp(0xF2),
+            false,
+        ),
+        Mnemonic::SETNEZU | Mnemonic::SETNZZU => {
+            GenAPI::new().opcode(&[0x45]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETBEZU | Mnemonic::SETNAZU => {
+            GenAPI::new().opcode(&[0x46]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETAZU | Mnemonic::SETNBEZU => {
+            GenAPI::new().opcode(&[0x47]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETSZU => GenAPI::new().opcode(&[0x48]).modrm(true, None).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4).pp(0xF2),
+            false,
+        ),
+        Mnemonic::SETNSZU => GenAPI::new().opcode(&[0x49]).modrm(true, None).apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4).pp(0xF2),
+            false,
+        ),
+
+        Mnemonic::SETPZU | Mnemonic::SETPEZU => {
+            GenAPI::new().opcode(&[0x4A]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETNPZU | Mnemonic::SETPOZU => {
+            GenAPI::new().opcode(&[0x4B]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETLZU | Mnemonic::SETNGEZU => {
+            GenAPI::new().opcode(&[0x4C]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETGEZU | Mnemonic::SETNLZU => {
+            GenAPI::new().opcode(&[0x4D]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETLEZU | Mnemonic::SETNGZU => {
+            GenAPI::new().opcode(&[0x4E]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+
+        Mnemonic::SETGZU | Mnemonic::SETNLEZU => {
+            GenAPI::new().opcode(&[0x4F]).modrm(true, None).apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).pp(0xF2),
+                false,
+            )
+        }
+        Mnemonic::CFCMOVA => ins_cfcmov(ins, &[0x47]),
+        Mnemonic::CFCMOVAE => ins_cfcmov(ins, &[0x43]),
+        Mnemonic::CFCMOVB => ins_cfcmov(ins, &[0x42]),
+        Mnemonic::CFCMOVBE => ins_cfcmov(ins, &[0x46]),
+        Mnemonic::CFCMOVE => ins_cfcmov(ins, &[0x44]),
+        Mnemonic::CFCMOVG => ins_cfcmov(ins, &[0x4F]),
+        Mnemonic::CFCMOVGE => ins_cfcmov(ins, &[0x4D]),
+        Mnemonic::CFCMOVL => ins_cfcmov(ins, &[0x4C]),
+        Mnemonic::CFCMOVLE => ins_cfcmov(ins, &[0x4E]),
+        Mnemonic::CFCMOVNA => ins_cfcmov(ins, &[0x46]),
+        Mnemonic::CFCMOVNB => ins_cfcmov(ins, &[0x43]),
+        Mnemonic::CFCMOVNBE => ins_cfcmov(ins, &[0x47]),
+        Mnemonic::CFCMOVNE => ins_cfcmov(ins, &[0x45]),
+        Mnemonic::CFCMOVNG => ins_cfcmov(ins, &[0x4E]),
+        Mnemonic::CFCMOVNGE => ins_cfcmov(ins, &[0x4C]),
+        Mnemonic::CFCMOVNL => ins_cfcmov(ins, &[0x4D]),
+        Mnemonic::CFCMOVNLE => ins_cfcmov(ins, &[0x4F]),
+        Mnemonic::CFCMOVNAE => ins_cfcmov(ins, &[0x42]),
+        Mnemonic::CFCMOVNO => ins_cfcmov(ins, &[0x41]),
+        Mnemonic::CFCMOVNP => ins_cfcmov(ins, &[0x4B]),
+        Mnemonic::CFCMOVNS => ins_cfcmov(ins, &[0x49]),
+        Mnemonic::CFCMOVNZ => ins_cfcmov(ins, &[0x45]),
+        Mnemonic::CFCMOVO => ins_cfcmov(ins, &[0x40]),
+        Mnemonic::CFCMOVP => ins_cfcmov(ins, &[0x4A]),
+        Mnemonic::CFCMOVPO => ins_cfcmov(ins, &[0x4B]),
+        Mnemonic::CFCMOVS => ins_cfcmov(ins, &[0x48]),
+        Mnemonic::CFCMOVZ => ins_cfcmov(ins, &[0x44]),
+        Mnemonic::CFCMOVPE => ins_cfcmov(ins, &[0x4A]),
+        Mnemonic::CFCMOVC => ins_cfcmov(ins, &[0x42]),
+        Mnemonic::CFCMOVNC => ins_cfcmov(ins, &[0x43]),
+
+        Mnemonic::POPP => GenAPI::new()
+            .opcode(&[0x58 + (ins.dst().unwrap().get_reg().unwrap().to_byte())])
+            .apx(
+                APXVariant::Rex2,
+                VexDetails::new().map_select(0).vex_we(true),
+                false,
+            ),
+        Mnemonic::PUSHP => GenAPI::new()
+            .opcode(&[0x50 + (ins.dst().unwrap().get_reg().unwrap().to_byte())])
+            .apx(
+                APXVariant::Rex2,
+                VexDetails::new().map_select(0).vex_we(true),
+                false,
+            ),
+        Mnemonic::PUSH2 => GenAPI::new()
+            .opcode(&[0xFF])
+            .modrm(true, Some(0b110))
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).vex_we(false),
+                false,
+            ),
+        Mnemonic::PUSH2P => GenAPI::new()
+            .opcode(&[0xFF])
+            .modrm(true, Some(0b110))
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).vex_we(true),
+                false,
+            ),
+        Mnemonic::POP2 => GenAPI::new()
+            .opcode(&[0x8F])
+            .modrm(true, None)
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).vex_we(false),
+                false,
+            ),
+        Mnemonic::POP2P => GenAPI::new()
+            .opcode(&[0x8F])
+            .modrm(true, None)
+            .ord(&[VEX_VVVV, MODRM_RM])
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4).vex_we(true),
+                false,
+            ),
+        Mnemonic::ASBB => ins_aadd(
+            ins,
+            &[0x18],
+            &[0x19],
+            &[0x81],
+            &[0x83],
+            &[0x80],
+            &[0x1A],
+            &[0x1B],
+            3,
+        )
+        .apx(
+            APXVariant::LegacyExtension,
+            VexDetails::new().map_select(MAP4),
+            false,
+        ),
     }
 }
 
@@ -8173,6 +8487,125 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_cfcmov(ins: &Instruction, opc: &[u8]) -> GenAPI {
+    if ins.len() == 3 {
+        GenAPI::new()
+            .opcode(opc)
+            .modrm(true, None)
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            )
+            .ord(&[VEX_VVVV, MODRM_REG, MODRM_RM])
+    } else if let Some(Operand::Register(_)) = ins.dst() {
+        GenAPI::new()
+            .opcode(opc)
+            .modrm(true, None)
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            )
+            .ord(&[MODRM_REG, MODRM_RM])
+    } else {
+        GenAPI::new()
+            .opcode(opc)
+            .modrm(true, None)
+            .apx(
+                APXVariant::LegacyExtension,
+                VexDetails::new().map_select(MAP4),
+                false,
+            )
+            .ord(&[MODRM_RM, MODRM_REG])
+    }
+}
+
+fn ins_ccmp(
+    ins: &Instruction,
+    opc_mr: &[u8],
+    opc_rm: &[u8],
+    opc_im: &[u8],
+    opc_im8: &[u8],
+    modrm_ovr: u8,
+) -> GenAPI {
+    let dst = ins.dst().unwrap();
+    let src = ins.src().unwrap();
+    match (&dst, src) {
+        (Operand::Mem(_) | Operand::Register(_), Operand::Imm(i)) => match i.signed_size() {
+            Size::Byte => GenAPI::new()
+                .opcode(&[opc_im8[0] - (dst.size() == Size::Byte) as u8])
+                .imm_atindex(1, 1)
+                .modrm(true, Some(modrm_ovr))
+                .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+                .ord(&[MODRM_RM, MODRM_REG]),
+            Size::Word => GenAPI::new()
+                .opcode(opc_im)
+                .imm_atindex(1, 2)
+                .modrm(true, Some(modrm_ovr))
+                .apx(
+                    APXVariant::CondTestCmpExtension,
+                    VexDetails::new().pp(0x66),
+                    false,
+                )
+                .ord(&[MODRM_RM, MODRM_REG]),
+            _ => GenAPI::new()
+                .opcode(opc_im)
+                .imm_atindex(1, 4)
+                .modrm(true, Some(modrm_ovr))
+                .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+                .ord(&[MODRM_RM, MODRM_REG]),
+        },
+        (Operand::Register(d), Operand::Register(_)) => {
+            if d.size() == Size::Byte {
+                GenAPI::new()
+                    .opcode(&[opc_rm[0] - 1])
+                    .modrm(true, None)
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            } else {
+                GenAPI::new()
+                    .opcode(opc_rm)
+                    .modrm(true, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            }
+        }
+        (Operand::Mem(_), Operand::Register(d)) => {
+            if d.size() == Size::Byte {
+                GenAPI::new()
+                    .opcode(&[opc_mr[0] - 1])
+                    .modrm(true, None)
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            } else {
+                GenAPI::new()
+                    .opcode(opc_mr)
+                    .opcode(&[opc_mr[0] - 1])
+                    .modrm(true, None)
+                    .ord(&[MODRM_RM, MODRM_REG])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            }
+        }
+        (Operand::Register(d), Operand::Mem(_)) => {
+            if d.size() == Size::Byte {
+                GenAPI::new()
+                    .opcode(&[opc_rm[0] - 1])
+                    .modrm(true, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            } else {
+                GenAPI::new()
+                    .opcode(opc_rm)
+                    .modrm(true, None)
+                    .ord(&[MODRM_REG, MODRM_RM])
+                    .apx(APXVariant::CondTestCmpExtension, VexDetails::new(), false)
+            }
+        }
+        _ => panic!("todo"),
+    }
+}
 
 // opc[0] = r/m8, 1
 // opc[1] = r/m8, cl

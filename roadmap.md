@@ -98,12 +98,11 @@ Goal: implement support for Intel APX
 - [x] implement EEVEX (extended EVEX; all 3 variants without ones for ctestcc and ccmpcc) and REX2 prefixes support
 - ISA implementantation (divided in 8 parts; legacy instructions included):
     - [x] intel-apx-0 (legacy instructions without setcc)
-    - [ ] intel-apx-1 (ctestcc + ccmpcc + EEVEX support for cond. test and cmp)
-    - [ ] intel-apx-2 (cfcmovcc)
-    - [ ] intel-apx-3 (setcc)
-    - [ ] intel-apx-4 (cmpccxadd)
-    - [ ] intel-apx-5 (push2/pop2)
-- [ ] Move to beta-min
+    - [x] intel-apx-1 (ctestcc + ccmpcc + EEVEX support for cond. test and cmp)
+    - [x] intel-apx-2 (cfcmovcc)
+    - [x] intel-apx-3 (setcc)
+    - [x] intel-apx-4 (push2/pop2)
+- [x] Move to beta-min
 
 ## beta-min
 
@@ -124,9 +123,7 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
-- [ ] Adapt `pasm` to every POLON standard
-- [ ] Move fully to using `CheckAPI`
-- [ ] Create better testing (without need for `NASM` and `sxd`)
+- [ ] Create better testing (without need for `NASM` and `sxd` - with only `cargo test`)
 - [ ] Support for 16-bit addressing
 - [ ] Add flag for `--toggle-isa=[<x86-64 Extension>]` and directive `isa <X86-64 EXTENSION>`
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
@@ -134,14 +131,11 @@ Goal: extensive testing, polish and optimizations of assembler, less updates/com
 - [ ] Support for `offset` (aka `ORG`) directive
 - [ ] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
 - [ ] Rework `src/shr/math.rs` (it is not effective currently) and allow for symbol referencing inside `$()` closure
-- [ ] Allow for usage of memory addressing without size directive
-- [ ] Better support of `include` directive (test it)
-- [ ] Support for anonymous labels (like in FASM `@@:`) and references like `@previous`, `@next` (reserved relocation names)
-- [ ] Allow for symbol referencing with section specifier
 - [ ] Allow for `gotpcrel` relocation type
 - [ ] Support for `repeatX` instruction (custom one; aka `times` in other assemblers)
 - [ ] Support for `align` instruction
-- [ ] Support for `fixedsize` directive (throws an error, if buffer len is gt fixedsize)
+- [ ] Support for `fixedsize` directive (throws an error, if buffer len is gt fixedsize, otherwise fills remaining space with 0s)
+- [ ] Adapt `pasm` to every POLON standard
 - [ ] move to stable
 
 ## stable

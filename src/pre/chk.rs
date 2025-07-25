@@ -462,6 +462,92 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
         // APX
+        Mnemonic::PUSHP => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[R64], true)
+                .apx(APXVariant::Rex2, false)
+                .check(ins)
+        }
+        Mnemonic::PUSH2 | Mnemonic::PUSH2P => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R64], true)
+                .push(&[R64], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        Mnemonic::POPP => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[R64], true)
+                .apx(APXVariant::Rex2, false)
+                .check(ins)
+        }
+        Mnemonic::POP2 | Mnemonic::POP2P => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R64], true)
+                .push(&[R64], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+
+        Mnemonic::CFCMOVA
+        | Mnemonic::CFCMOVB
+        | Mnemonic::CFCMOVE
+        | Mnemonic::CFCMOVG
+        | Mnemonic::CFCMOVL
+        | Mnemonic::CFCMOVO
+        | Mnemonic::CFCMOVP
+        | Mnemonic::CFCMOVS
+        | Mnemonic::CFCMOVZ
+        | Mnemonic::CFCMOVAE
+        | Mnemonic::CFCMOVBE
+        | Mnemonic::CFCMOVLE
+        | Mnemonic::CFCMOVGE
+        | Mnemonic::CFCMOVNA
+        | Mnemonic::CFCMOVNB
+        | Mnemonic::CFCMOVNE
+        | Mnemonic::CFCMOVNC
+        | Mnemonic::CFCMOVC
+        | Mnemonic::CFCMOVNG
+        | Mnemonic::CFCMOVNL
+        | Mnemonic::CFCMOVNO
+        | Mnemonic::CFCMOVNP
+        | Mnemonic::CFCMOVNS
+        | Mnemonic::CFCMOVNZ
+        | Mnemonic::CFCMOVPE
+        | Mnemonic::CFCMOVPO
+        | Mnemonic::CFCMOVNBE
+        | Mnemonic::CFCMOVNLE
+        | Mnemonic::CFCMOVNGE
+        | Mnemonic::CFCMOVNAE => chkn::CheckAPI::<3>::new()
+            .push(&[R16, R32, R64, M16, M32, M64], true)
+            .push(&[R16, R32, R64, M16, M32, M64], true)
+            .push(&[R16, R32, R64, M16, M32, M64], false)
+            .forbidden(&[
+                [MA, MA, MA],
+                [RA, MA, MA],
+                [MA, RA, MA],
+                [MA, MA, RA],
+                [RA, RA, MA],
+                [RA, MA, RA],
+                [MA, RA, RA],
+                [MA, RA, RA],
+                [RA, MA, RA],
+            ])
+            .apx(APXVariant::LegacyExtension, true)
+            .check(ins),
+        SETB | SETBE | SETL | SETLE | SETNB | SETNBE | SETNL | SETNLE | SETNO | SETNS | SETNZ
+        | SETZ | SETO | SETS | SETA | SETNA | SETAE | SETNAE | SETE | SETNE | SETGE | SETG
+        | SETNG | SETNGE | SETC | SETNC => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[RA, MA], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
         JMPABS => {
             use chkn::*;
             CheckAPI::<1>::new()
@@ -495,13 +581,13 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }
-        ABEXTR => {
+        ABEXTR | ABZHI => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .push(&[R32, R64], true)
                 .push(&[R32, R64, M32, M64], true)
                 .push(&[R32, R64], true)
-                .apx(APXVariant::LegacyExtension, true)
+                .apx(APXVariant::VexExtension, true)
                 .check(ins)
         }
         AIMUL => {
@@ -589,7 +675,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             CheckAPI::<2>::new()
                 .push(&[R32, R64], true)
                 .push(&[R32, R64, M32, M64], true)
-                .apx(APXVariant::LegacyExtension, true)
+                .apx(APXVariant::VexExtension, true)
                 .check(ins)
         }
         ADIV | AIDIV | AMUL => {
@@ -642,7 +728,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }
-        AADC | AADD | AOR | AXOR | AAND => {
+        AADC | AADD | AOR | AXOR | AAND | ASBB | ASUB => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .push(&[R8, R16, R32, R64, M8, M16, M32, M64], true)
@@ -672,7 +758,7 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             use chkn::*;
             CheckAPI::<1>::new()
                 .push(&[M512], true)
-                .apx(APXVariant::LegacyExtension, false)
+                .apx(APXVariant::VexExtension, false)
                 .check(ins)
         }
 

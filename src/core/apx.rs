@@ -143,8 +143,35 @@ fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
     vec
 }
 #[inline(always)]
-fn eevex_cond(_ctx: &GenAPI, _ins: &Instruction) -> SmallVec<u8, 4> {
-    todo!()
+fn eevex_cond(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
+    let mut vec = SmallVec::<u8, 4>::new();
+
+    let [modrm_rm, modrm_reg, _] = ctx.get_ord_oprs(ins);
+
+    let [[evex_r4, evex_r3], [_, _]] = ebits(&modrm_reg);
+    let [[evex_b4, evex_b3], [evex_x4, evex_x3]] = ebits(&modrm_rm);
+
+    vec.push(0x62);
+    vec.push(
+        (!evex_r3 as u8) << 7
+            | (!evex_x3 as u8) << 6
+            | (!evex_b3 as u8) << 5
+            | (!evex_r4 as u8) << 4
+            | (!evex_b4 as u8) << 3
+            | 1 << 2,
+    );
+
+    vec.push(
+        (ctx.get_apx_eevex_vex_we() as u8) << 7
+            | (ins.apx_eevex_cond_get_of().unwrap_or(false) as u8) << 6
+            | (ins.apx_eevex_cond_get_sf().unwrap_or(false) as u8) << 6
+            | (ins.apx_eevex_cond_get_zf().unwrap_or(false) as u8) << 6
+            | (ins.apx_eevex_cond_get_cf().unwrap_or(false) as u8) << 6
+            | (!evex_x4 as u8) << 2
+            | ctx.get_apx_eevex_pp(),
+    );
+    vec.push(ctx.get_apx_cccc() & 0b1111);
+    vec
 }
 
 #[inline(always)]
