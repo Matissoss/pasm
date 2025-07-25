@@ -6,6 +6,11 @@
 
 This file describes how to use `Intel APX` in `pasm` assembler.
 
+> [!WARNING]
+> Intel APX support is untested and probably will contain bugs. Use with caution and don't rely on it for serious projects.
+> Maybe someday I'll try to actually test it.
+> - matissoss
+
 ## mnemonics
 
 Legacy mnemonics that were extended with `EVEX` (like `ADD`) are prefixed `A`.
