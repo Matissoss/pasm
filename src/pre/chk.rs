@@ -754,13 +754,6 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
                 .apx(APXVariant::LegacyExtension, false)
                 .check(ins)
         }
-        ALDTILECFG | ASTTILECFG => {
-            use chkn::*;
-            CheckAPI::<1>::new()
-                .push(&[M512], true)
-                .apx(APXVariant::VexExtension, false)
-                .check(ins)
-        }
 
         JRCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 

@@ -7855,15 +7855,6 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             }
             api.apx(APXVariant::VexExtension, vd, false)
         }
-        Mnemonic::ALDTILECFG => GenAPI::new()
-            .opcode(&[0x49])
-            .modrm(true, None)
-            .ord(&[MODRM_RM, MODRM_REG])
-            .apx(
-                APXVariant::VexExtension,
-                VexDetails::new().map_select(MAP38),
-                false,
-            ),
         Mnemonic::ALZCNT => GenAPI::new()
             .opcode(&[0xF5])
             .modrm(true, None)
@@ -8109,18 +8100,6 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             .opcode(&[0xF7])
             .modrm(true, None)
             .ord(&[MODRM_REG, MODRM_RM, VEX_VVVV])
-            .apx(
-                APXVariant::VexExtension,
-                VexDetails::new()
-                    .map_select(MAP38)
-                    .pp(0xF2)
-                    .vex_we(ins.size() == Size::Qword),
-                false,
-            ),
-        Mnemonic::ASTTILECFG => GenAPI::new()
-            .opcode(&[0x49])
-            .modrm(true, None)
-            .ord(&[MODRM_RM, MODRM_REG])
             .apx(
                 APXVariant::VexExtension,
                 VexDetails::new()
@@ -8478,6 +8457,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             VexDetails::new().map_select(MAP4),
             false,
         ),
+        _ => todo!()
     }
 }
 

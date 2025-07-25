@@ -106,16 +106,8 @@ Goal: implement support for Intel APX
 
 ## beta-min
 
-Goal: support for smaller x86-64 ISA extensions
+Goal: support for smaller x86-64 ISA extensions (around 284 new mnemonics)
 
-- [ ] CET_SS (Shadow Stack)
-- [ ] VMX
-- [ ] SMX
-- [ ] SGX
-- [ ] GFNI
-- [ ] BMI*
-- [ ] Intel AMX
-- [ ] x87 ISA
 - [ ] missing x86-64 instructions
 - [ ] move to rc
 
@@ -123,18 +115,13 @@ Goal: support for smaller x86-64 ISA extensions
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
-- [ ] Create better testing (without need for `NASM` and `sxd` - with only `cargo test`)
 - [ ] Support for 16-bit addressing
-- [ ] Add flag for `--toggle-isa=[<x86-64 Extension>]` and directive `isa <X86-64 EXTENSION>`
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
 - [ ] Allow for `protected public function label_name:`
 - [ ] Support for `offset` (aka `ORG`) directive
 - [ ] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
 - [ ] Rework `src/shr/math.rs` (it is not effective currently) and allow for symbol referencing inside `$()` closure
 - [ ] Allow for `gotpcrel` relocation type
-- [ ] Support for `repeatX` instruction (custom one; aka `times` in other assemblers)
-- [ ] Support for `align` instruction
-- [ ] Support for `fixedsize` directive (throws an error, if buffer len is gt fixedsize, otherwise fills remaining space with 0s)
 - [ ] Adapt `pasm` to every POLON standard
 - [ ] move to stable
 
