@@ -20,6 +20,7 @@ pub enum Purpose {
     F256 = 8,   // ymmX
     F512 = 9,   // zmmX
     Sgmnt = 10, // segment registers (cs, ss, ds, es, ...)
+    X87 = 11,   // st0-7
 }
 
 #[repr(transparent)]
@@ -184,6 +185,15 @@ impl Register {
     pub const R29: Self = Self::new(Purpose::General, Size::Qword, [true, true], 0b101);
     pub const R30: Self = Self::new(Purpose::General, Size::Qword, [true, true], 0b110);
     pub const R31: Self = Self::new(Purpose::General, Size::Qword, [true, true], 0b111);
+
+    pub const ST0: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b000);
+    pub const ST1: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b001);
+    pub const ST2: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b010);
+    pub const ST3: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b011);
+    pub const ST4: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b100);
+    pub const ST5: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b101);
+    pub const ST6: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b110);
+    pub const ST7: Self = Self::new(Purpose::X87, Size::B80, [false, false], 0b111);
 
     pub const K0: Self = Self::new(Purpose::Mask, Size::Qword, [false, false], 0b000);
     pub const K1: Self = Self::new(Purpose::Mask, Size::Qword, [false, false], 0b001);
@@ -475,6 +485,14 @@ impl ToString for Register {
             Self::MM5 => String::from("mm5"),
             Self::MM6 => String::from("mm6"),
             Self::MM7 => String::from("mm7"),
+            Self::ST0 => String::from("st0"),
+            Self::ST1 => String::from("st1"),
+            Self::ST2 => String::from("st2"),
+            Self::ST3 => String::from("st3"),
+            Self::ST4 => String::from("st4"),
+            Self::ST5 => String::from("st5"),
+            Self::ST6 => String::from("st6"),
+            Self::ST7 => String::from("st7"),
             Self::K0 => String::from("k0"),
             Self::K1 => String::from("k1"),
             Self::K2 => String::from("k2"),
@@ -614,6 +632,54 @@ impl ToString for Register {
             Self::RIP => String::from("rip"),
             Self::EIP => String::from("eip"),
             Self::IP => String::from("ip"),
+            Self::R16W => String::from("r16w"),
+            Self::R17W => String::from("r17w"),
+            Self::R18W => String::from("r18w"),
+            Self::R19W => String::from("r19w"),
+            Self::R20W => String::from("r20w"),
+            Self::R21W => String::from("r21w"),
+            Self::R22W => String::from("r22w"),
+            Self::R23W => String::from("r23w"),
+            Self::R24W => String::from("r24w"),
+            Self::R25W => String::from("r25w"),
+            Self::R26W => String::from("r26w"),
+            Self::R27W => String::from("r27w"),
+            Self::R28W => String::from("r28w"),
+            Self::R29W => String::from("r29w"),
+            Self::R30W => String::from("r30w"),
+            Self::R31W => String::from("r31w"),
+            Self::R16D => String::from("r16d"),
+            Self::R17D => String::from("r17d"),
+            Self::R18D => String::from("r18d"),
+            Self::R19D => String::from("r19d"),
+            Self::R20D => String::from("r20d"),
+            Self::R21D => String::from("r21d"),
+            Self::R22D => String::from("r22d"),
+            Self::R23D => String::from("r23d"),
+            Self::R24D => String::from("r24d"),
+            Self::R25D => String::from("r25d"),
+            Self::R26D => String::from("r26d"),
+            Self::R27D => String::from("r27d"),
+            Self::R28D => String::from("r28d"),
+            Self::R29D => String::from("r29d"),
+            Self::R30D => String::from("r30d"),
+            Self::R31D => String::from("r31d"),
+            Self::R16 => String::from("r16"),
+            Self::R17 => String::from("r17"),
+            Self::R18 => String::from("r18"),
+            Self::R19 => String::from("r19"),
+            Self::R20 => String::from("r20"),
+            Self::R21 => String::from("r21"),
+            Self::R22 => String::from("r22"),
+            Self::R23 => String::from("r23"),
+            Self::R24 => String::from("r24"),
+            Self::R25 => String::from("r25"),
+            Self::R26 => String::from("r26"),
+            Self::R27 => String::from("r27"),
+            Self::R28 => String::from("r28"),
+            Self::R29 => String::from("r29"),
+            Self::R30 => String::from("r30"),
+            Self::R31 => String::from("r31"),
             _ => String::new(),
         }
     }
@@ -871,6 +937,17 @@ pub fn reg_fromstr(str: &str) -> Option<Register> {
                 _ => N,
             },
             b's' => match r[1] {
+                b't' => match r[2] {
+                    b'0' => s(Register::ST0),
+                    b'1' => s(Register::ST1),
+                    b'2' => s(Register::ST2),
+                    b'3' => s(Register::ST3),
+                    b'4' => s(Register::ST4),
+                    b'5' => s(Register::ST5),
+                    b'6' => s(Register::ST6),
+                    b'7' => s(Register::ST7),
+                    _ => N,
+                },
                 b'i' => match r[2] {
                     b'l' => s(Register::SIL),
                     _ => N,

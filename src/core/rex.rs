@@ -30,8 +30,15 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
         (Size::Qword, Size::Qword) | (Size::Qword, _) | (_, Size::Qword) => {}
         _ => return false,
     }
+
     match &ins.mnemonic {
         Mnemonic::XADD
+        | Mnemonic::MOVSXD
+        | Mnemonic::MOVSX
+        | Mnemonic::INCSSPQ
+        | Mnemonic::WRSSQ
+        | Mnemonic::RDFSBASE
+        | Mnemonic::RDGSBASE
         | Mnemonic::XRSTOR
         | Mnemonic::XRSTOR64
         | Mnemonic::XRSTORS

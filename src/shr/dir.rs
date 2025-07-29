@@ -14,6 +14,9 @@ pub enum Directive {
     Xword,
     Yword,
 
+    // x87
+    B80,
+
     // AVX-512
     Zword,
     Bcst,
@@ -75,6 +78,13 @@ pub fn dir_fromstr(str: &str) -> Option<Directive> {
     let r = str.as_bytes();
     match r.len() {
         3 => match r[0] {
+            b'b' => match r[1] {
+                b'8' => match r[2] {
+                    b'0' => s(B80),
+                    _ => N,
+                },
+                _ => N,
+            },
             b'a' => match r[1] {
                 b'n' => match r[2] {
                     b'y' => s(Any),

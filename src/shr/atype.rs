@@ -21,6 +21,9 @@ pub const SS: AType = AType::Register(Register::SS, true);
 pub const FS: AType = AType::Register(Register::FS, true);
 pub const GS: AType = AType::Register(Register::GS, true);
 
+pub const ST0: AType = AType::Register(Register::ST0, true);
+pub const ST: AType = AType::Register(Register::ST0, false);
+
 pub const SR: AType = AType::Register(Register::CS, false);
 pub const CR: AType = AType::Register(Register::CR0, false);
 pub const DR: AType = AType::Register(Register::DR0, false);
@@ -63,6 +66,7 @@ pub const MBCST64: AType = AType::Memory(
     Size::Any,
     BoolTable8::new().setc(BCST_FLAG, true),
 );
+pub const M80: AType = AType::Memory(Size::B80, Size::Any, BoolTable8::new());
 pub const M128: AType = AType::Memory(Size::Xword, Size::Any, BoolTable8::new());
 pub const M256: AType = AType::Memory(Size::Yword, Size::Any, BoolTable8::new());
 pub const M512: AType = AType::Memory(Size::Zword, Size::Any, BoolTable8::new());

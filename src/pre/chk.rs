@@ -59,7 +59,10 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         );
         return Err(er);
     } else if ins.needs_apx_extension() {
-        todo!("TODO: ");
+        return Err(Error::new(
+            "you tried to use instruction that requires APX extension, but bits != 64",
+            10,
+        ));
     }
     match ins.mnemonic {
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
@@ -447,12 +450,28 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
             &[(M32, M32), (R32, R32), (MMX, MMX), (XMM, MMX), (MMX, XMM)],
             &[],
         ),
-        Mnemonic::MOVQ | MOVSTRQ | SCASQ | STOSQ => {
+        Mnemonic::MOVQ | Mnemonic::PUSHAQ | MOVSTRQ | SCASQ | STOSQ | Mnemonic::POPAQ | INCSSPQ => {
             let er = Error::new(
                 "you tried to use instruction that is invalid when bits != 64",
                 10,
             );
             Err(er)
+        }
+        Mnemonic::PTWRITE => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[R32, M32], true).check(ins)
+        }
+        Mnemonic::WBNOINVD | Mnemonic::PCONFIG => {
+            use chkn::*;
+            CheckAPI::<0>::new().check(ins)
+        }
+        Mnemonic::MOVSX => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32], true)
+                .push(&[R8, R16, M8, M16], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
         }
         _ => shr_chk(ins),
     }
@@ -461,6 +480,93 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
 fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
+        Mnemonic::RDMSRLIST
+        | Mnemonic::PBNDKB
+        | Mnemonic::WRMSRLIST
+        | Mnemonic::WBNOINVD
+        | Mnemonic::PCONFIG
+        | Mnemonic::POPAQ => {
+            use chkn::*;
+            CheckAPI::<0>::new().check(ins)
+        }
+        AWRSSQ | AWRUSSQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M64], true)
+                .push(&[R64], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        AWRSSD | AWRUSSD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M32], true)
+                .push(&[R32], true)
+                .apx(APXVariant::LegacyExtension, false)
+                .check(ins)
+        }
+        Mnemonic::PREFETCHIT0 | Mnemonic::PREFETCHIT1 => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M8], true).check(ins)
+        }
+        Mnemonic::PTWRITE => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[R32, R64, M32, M64], true)
+                .check(ins)
+        }
+        Mnemonic::ENQCMDS | Mnemonic::MOVDIR64B | Mnemonic::ENQCMD | Mnemonic::AENQCMD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32, R64], true)
+                .push(&[M512], true)
+                .check(ins)
+        }
+        Mnemonic::RDFSBASE | Mnemonic::RDGSBASE => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[R32, R64], true).check(ins)
+        }
+        Mnemonic::MOVSX => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32, R64], true)
+                .push(&[R8, R16, M8, M16], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        Mnemonic::MOVSXD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32, R64], true)
+                .push(&[R16, R32, M16, M32], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+
+        ACMPBXADD | ACMPBEXADD | ACMPLXADD | ACMPLEXADD | ACMPNBXADD | ACMPZXADD | ACMPNBEXADD
+        | ACMPNLXADD | ACMPNLEXADD | ACMPNOXADD | ACMPNSXADD | ACMPNZXADD | ACMPOXADD
+        | ACMPSXADD | ACMPNAXADD | ACMPAXADD | ACMPNAEXADD | ACMPAEXADD | ACMPEXADD
+        | ACMPNEXADD | ACMPGEXADD | ACMPGXADD | ACMPNGXADD | ACMPNGEXADD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[M32, M64], true)
+                .push(&[R32, R64], true)
+                .push(&[R32, R64], true)
+                .apx(APXVariant::VexExtension, false)
+                .check(ins)
+        }
+        CMPBXADD | CMPBEXADD | CMPLXADD | CMPLEXADD | CMPNBXADD | CMPZXADD | CMPNBEXADD
+        | CMPNLXADD | CMPNLEXADD | CMPNOXADD | CMPNSXADD | CMPNZXADD | CMPOXADD | CMPSXADD
+        | CMPNAXADD | CMPAXADD | CMPNAEXADD | CMPAEXADD | CMPEXADD | CMPNEXADD | CMPGEXADD
+        | CMPGXADD | CMPNGXADD | CMPNGEXADD | CMPCXADD | CMPNCXADD => {
+            use chkn::*;
+            CheckAPI::<3>::new()
+                .push(&[M32, M64], true)
+                .push(&[R32, R64], true)
+                .push(&[R32, R64], true)
+                .check(ins)
+        }
+
         // APX
         Mnemonic::PUSHP => {
             use chkn::*;
@@ -1130,6 +1236,17 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[LOCK],
         ),
+        WRSSQ | WRUSSQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M64], true)
+                .push(&[R64], true)
+                .check(ins)
+        }
+        INCSSPQ => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[R64], true).check(ins)
+        }
         _ => shr_chk(ins),
     }
 }
@@ -1137,7 +1254,155 @@ fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
 pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
-        LGDT | LIDT => ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[]),
+        INVLPGA | VMRUN | VMLOAD | VMSAVE | STGI | CLGI | VMMCALL | SKINIT | VMGEXIT | PSMASH
+        | RMPUPDATE | PVALIDATE | RMPADJUST | RMPQUERY | RMPREAD | VMXOFF | VMLAUNCH | VMRESUME
+        | VMCALL | VMFUNC | SEAMOPS | SEAMRET | SEAMCALL | TDCALL | FNINIT | FINIT | FNCLEX
+        | FCLEX | FNDISI | FDISI | FENI | FNENI | FLDZ | FLD1 | FLDPI | FLDL2T | FLDL2E
+        | FLDLG2 | FLDLN2 | FCOMPP | FCHS | FABS | FTST | FXAM | FXTRACT | FRNDINT | FPREM
+        | FSQRT | FSCALE | F2XM1 | FYL2X | FPTAN | FYL2XP1 | FDECSTP | FINCSTP | FNSETPM
+        | FSETPM | FNSTSWAX | FSTSWAX | FUCOMPP | FPREM1 | FSINCOS | FSIN | FCOS | ENCLV
+        | ENCLS | ENCLU | SAVEPREVSSP | FPATAN => {
+            use chkn::*;
+            CheckAPI::<0>::new().check(ins)
+        }
+        FCMOVB | FCMOVE | FCMOVBE | FCMOVU | FCMOVNB | FCMOVNE | FCMOVNBE | FCMOVNU | FADDP
+        | FMULP | FSUBRP | FFREE | FSUBP | FDIVP | FDIVRP | FCOMP | FCOMI | FCOMIP | FUCOMI
+        | FUCOMIP => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[ST], true).check(ins)
+        }
+        FIADD | FIMUL | FISUBR | FISUB | FIDIV | FIDIVR | FICOMP | FICOM => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M32, M64], true).check(ins)
+        }
+        FADD | FMUL | FSUBR | FSUB | FDIV | FDIVR => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M32, M64, ST], true)
+                .push(&[ST], false)
+                .forbidden(&[[MA, ST]])
+                .check(ins)
+        }
+        CLRSSBSY => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M64], true).check(ins)
+        }
+        WRSSD | WRUSSD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[M32], true)
+                .push(&[R32], true)
+                .check(ins)
+        }
+        FILD | FISTP => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M16, M32, M64], true).check(ins)
+        }
+        FIST => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M16, M32], true).check(ins)
+        }
+        FBLD | FBSTP => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M80], true).check(ins)
+        }
+        FXCH | FUCOM | FUCOMP => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[ST], true).check(ins)
+        }
+        FST | FCOM => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M32, M64, ST], true).check(ins)
+        }
+        FLD | FSTP => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[M32, M64, M80, ST], true)
+                .check(ins)
+        }
+        FNSTCW | FSTCW | FNSTSW | FSTSW | FLDCW | FLDENV | FNSTENV | FNSAVE | FSAVE | FSTENV
+        | FRSTOR | FXSAVE | FXRSTOR | FXSAVE64 | FXRSTOR64 => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[MA], true).check(ins)
+        }
+        INVEPT | INVVPID => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32, R64], true)
+                .push(&[M128], true)
+                .check(ins)
+        }
+        AESENC256KL | AESDEC256KL => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[M512], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        AESENCWIDE128KL | AESDECWIDE128KL => {
+            use chkn::*;
+            CheckAPI::<1>::new()
+                .push(&[MA], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        AESENC128KL | AESDEC128KL => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[MA], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        ENCODEKEY128 | ENCODEKEY256 => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R32], true)
+                .push(&[R32], true)
+                .check(ins)
+        }
+        LOADIWKEY => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[XMM], true)
+                .check(ins)
+        }
+        INCSSPD => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[R32], true).check(ins)
+        }
+        VMWRITE => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R64], true)
+                .push(&[R64, M64], true)
+                .check(ins)
+        }
+        VMREAD => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R64, M64], true)
+                .push(&[R64], true)
+                .check(ins)
+        }
+        VMXON | VMPTRLD | VMPTRST | VMCLEAR => {
+            use chkn::*;
+            CheckAPI::<1>::new().push(&[M64], true).check(ins)
+        }
+
+        LGDT | LIDT | Mnemonic::SGDT | Mnemonic::SIDT => {
+            ot_chk(ins, &[(&[M16], Optional::Needed)], &[], &[])
+        }
+
+        LFS | LGS => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[R16, R32], true)
+                .push(&[M16, M32], true)
+                .check(ins)
+        }
 
         OUT => ot_chk(
             ins,
@@ -1172,7 +1437,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         ),
 
         LTR => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
-        PREFETCHW | PREFETCH0 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
+        PREFETCHW | PREFETCH0 | PREFETCHIT0 | PREFETCHIT1 | PREFETCH1 | PREFETCH2 | PREFETCHA => {
             ot_chk(ins, &[(&[M8], Optional::Needed)], &[], &[])
         }
         LSL => ot_chk(
@@ -1187,7 +1452,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         OUTSB | OUTSW | OUTSD | STOSB | STOSW | STOSD | STOSQ => ot_chk(ins, &[], &[], &[REP]),
 
         SFENCE | STAC | STC | STD | STI | STUI | SYSENTER | SYSEXIT | SYSRET | TESTUI | UD2
-        | UIRET | WAIT | FWAIT | WBINVD | WRMSR | WRPKRU => ot_chk(ins, &[], &[], &[]),
+        | POPAW | POPAD | POPAQ | PUSHAW | PUSHAD | PUSHAQ | UIRET | WAIT | FWAIT | WBINVD
+        | WRMSR | WRPKRU => ot_chk(ins, &[], &[], &[]),
         TPAUSE | UMWAIT => ot_chk(
             ins,
             &[
@@ -1274,7 +1540,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
-        LLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
+        LLDT | SLDT | LMSW => ot_chk(ins, &[(&[R16, M16], Optional::Needed)], &[], &[]),
 
         RDMSR | RDPKRU | RDPMC | RDTSC | RDTSCP | RSM | SAHF | SERIALIZE | SETSSBY => {
             ot_chk(ins, &[], &[], &[])
@@ -1293,7 +1559,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         // norm-part6
         XABORT => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
         XACQUIRE | XRELEASE | XEND | XGETBV | XLAT | XLATB | XLATB64 | XRESLDTRK | XSETBV
-        | XSUSLDTRK | XTEST => ot_chk(ins, &[], &[], &[]),
+        | NOPL | SWAPGS | XSUSLDTRK | XTEST => ot_chk(ins, &[], &[], &[]),
 
         XBEGIN => ot_chk(ins, &[(&[I32, I16], Optional::Needed)], &[], &[]),
         XRSTOR | XRSTORS | XRSTORS64 | XSAVE | XSAVE64 | XSAVEC | XSAVEC64 | XSAVEOPT

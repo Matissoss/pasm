@@ -17,6 +17,7 @@ pub enum Size {
     Xword,
     Yword,
     Zword,
+    B80, // for x87 purposes
     #[default]
     Unknown,
     Any,
@@ -36,6 +37,7 @@ impl Size {
             Self::Xword => 0b0101,
             Self::Yword => 0b0110,
             Self::Zword => 0b0111,
+            Self::B80 => 0b1000,
         }
     }
     pub const fn de(key: u8) -> Self {
@@ -48,6 +50,7 @@ impl Size {
             0b0101 => Size::Xword,
             0b0110 => Size::Yword,
             0b0111 => Size::Zword,
+            0b1000 => Size::B80,
             _ => Size::Unknown,
         }
     }
@@ -61,6 +64,7 @@ impl From<Size> for u8 {
             Size::Word => 2,
             Size::Dword => 4,
             Size::Qword => 8,
+            Size::B80 => 10,
             Size::Xword => 16,
             Size::Yword => 32,
             Size::Zword => 64,
@@ -87,6 +91,7 @@ impl Display for Size {
     fn fmt(&self, form: &mut Formatter<'_>) -> Result<(), FmtError> {
         match self {
             Self::Byte => write!(form, "byte"),
+            Self::B80 => write!(form, "b80"),
             Self::Word => write!(form, "word"),
             Self::Dword => write!(form, "dword"),
             Self::Qword => write!(form, "qword"),
@@ -134,6 +139,8 @@ impl TryFrom<Directive> for Size {
             Directive::Qword => Ok(Self::Qword),
             Directive::Xword => Ok(Self::Xword),
             Directive::Yword => Ok(Self::Yword),
+            Directive::Zword => Ok(Self::Zword),
+            Directive::B80 => Ok(Self::B80),
             Directive::Any => Ok(Self::Any),
             _ => Err(()),
         }
