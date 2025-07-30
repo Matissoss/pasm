@@ -31,6 +31,7 @@ pub mod shr;
 use core::comp;
 
 // pasm helper utilities
+pub mod tests;
 pub mod cli;
 pub mod color;
 pub mod conf;

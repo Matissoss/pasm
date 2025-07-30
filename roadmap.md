@@ -115,9 +115,7 @@ Goal: support for smaller x86-64 ISA extensions (around 284 new mnemonics)
 
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
-- [ ] Support for 16-bit addressing
-- [ ] Full migration to `CheckAPI`
-- [ ] Add tests without need for `nasm` and `sxd` (only `cargo test`)
+- [x] Support for 16-bit addressing
 - [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
 - [ ] Allow for `protected public function label_name:`
 - [ ] Support for `offset` (aka `ORG`) directive
