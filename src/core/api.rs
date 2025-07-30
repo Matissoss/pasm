@@ -309,6 +309,7 @@ impl GenAPI {
             base.push(segm);
         }
 
+        let not_std_prefix = prefix_flag == PREFIX_VEX || prefix_flag == PREFIX_EVEX || prefix_flag == PREFIX_APX;
         if fx_size {
             if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
                 base.push(size_ovr);
@@ -317,9 +318,9 @@ impl GenAPI {
             let h66 = size_ovr[0];
             let h67 = size_ovr[1];
             if h66.is_some()
-                && prefix_flag != PREFIX_VEX
-                && prefix_flag != PREFIX_EVEX
-                && prefix_flag != PREFIX_APX
+                && !not_std_prefix
+                && self.flags.at(CAN_H66O)
+                && self.prefix != 0x66
             {
                 base.push(0x66);
             }
@@ -328,11 +329,7 @@ impl GenAPI {
             }
         }
 
-        if prefix_flag != PREFIX_VEX
-            && prefix_flag != PREFIX_EVEX
-            && prefix_flag != PREFIX_APX
-            && self.prefix != 0
-        {
+        if !not_std_prefix && self.prefix != 0 {
             base.push(self.prefix.to_be_bytes()[1]);
         }
 

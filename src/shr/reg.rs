@@ -680,7 +680,7 @@ impl ToString for Register {
             Self::R29 => String::from("r29"),
             Self::R30 => String::from("r30"),
             Self::R31 => String::from("r31"),
-            _ => String::new(),
+            _ => format!("Register {{ purpose: {:?}, size: {:?}, ebits: {:?}, bits: {:03b} }}", self.purpose(), self.size(), self.ebits(), self.to_byte()),
         }
     }
 }

@@ -20,11 +20,12 @@ pub fn gen_sib(mem: &Mem) -> Option<u8> {
             0b101
         };
         let index = mem.index().unwrap();
-        Some(sib(mem.scale() as u8, index.to_byte(), base))
+        let scale = if mem.scale().is_any() { 0 } else { mem.scale() as u8 };
+        Some(sib(scale, index.to_byte(), base))
     } else if mem.is_riprel() {
         None
-    } else if let (Some(_), Some(Register::RSP)) = (mem.offset(), mem.base()) {
-        Some(sib(0, Register::RSP.to_byte(), Register::RSP.to_byte()))
+    } else if let Some(Register::RSP | Register::ESP | Register::SP) = mem.base() {
+        Some(sib(0, Register::SP.to_byte(), Register::SP.to_byte()))
     } else {
         None
     }

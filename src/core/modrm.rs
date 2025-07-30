@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::core::api;
-use crate::shr::ast::Operand;
+use crate::shr::{ast::Operand, reg::Register, size::Size};
 
 //          aka modrm_rm                aka modrm_reg
 pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) -> u8 {
@@ -38,17 +38,38 @@ pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) ->
     };
 
     let rm = {
-        let (us, ur) = if let Some(Operand::Mem(m)) = dst {
-            (m.is_sib(), m.is_riprel())
+        if let Some(Operand::Mem(m)) = dst {
+            if m.addrsize() == Size::Word {
+                match (m.base(), m.index()) {
+                    (Some(Register::BX), Some(Register::SI)) => 0b000,
+                    (Some(Register::BX), Some(Register::DI)) => 0b001,
+                    (Some(Register::BP), Some(Register::SI)) => 0b010,
+                    (Some(Register::BP), Some(Register::DI)) => 0b011,
+                    (Some(Register::SI), None) => 0b100,
+                    (Some(Register::DI), None) => 0b101,
+                    (Some(Register::BX), None) => 0b111,
+                    (None, None) => {
+                        if m.offset_x86().is_some() {
+                            0b101
+                        } else {
+                            0b000
+                        }
+                    }
+                    _ => 0b000,
+                }
+            } else if m.is_sib() {
+                0b100
+            } else if m.is_riprel() {
+                0b101
+            } else {
+                gen_rmreg(dst)
+            }
         } else if let Some(Operand::Symbol(s)) = dst {
-            (false, s.is_deref())
-        } else {
-            (false, false)
-        };
-        if us {
-            0b100
-        } else if ur {
-            0b101
+            if s.is_deref() {
+                0b101
+            } else {
+                gen_rmreg(dst)
+            }
         } else {
             gen_rmreg(dst)
         }
