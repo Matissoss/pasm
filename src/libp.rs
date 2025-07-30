@@ -37,11 +37,7 @@ pub fn get_file(inpath: PathBuf) -> Result<Vec<u8>, Error> {
     Ok(file.unwrap())
 }
 
-pub fn pasm_parse_src(
-    inpath: PathBuf,
-    file: &[u8],
-    nocheck: bool,
-) -> Result<(AST, Vec<*mut Vec<u8>>), Vec<Error>> {
+pub fn pasm_parse_src(inpath: PathBuf, file: &[u8], nocheck: bool) -> Result<AST, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
@@ -57,7 +53,6 @@ pub fn pasm_parse_src(
         lnum += 1;
         let tok = pre::tok::tokl(line);
         if tok.is_empty() {
-            ast.blank_lines.push(lnum);
             continue;
         }
         match pre::mer::mer(tok, lnum) {
@@ -116,19 +111,7 @@ pub fn pasm_parse_src(
             std::process::exit(1);
         }
     }
-    let mut ptrs = Vec::new();
-    if !ast.includes.is_empty() {
-        for include in ast.includes.clone() {
-            ptrs.push(std::ptr::from_mut(Box::leak(Box::new(
-                get_file(include.clone()).map_err(|e| vec![e])?,
-            ))));
-            let (ast1, ptrs1) =
-                pasm_parse_src(include, unsafe { &**ptrs.last().unwrap() }, nocheck)?;
-            ast.extend(ast1).map_err(|e| vec![e])?;
-            ptrs.extend(ptrs1)
-        }
-    }
-    Ok((ast, ptrs))
+    Ok(ast)
 }
 
 pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
@@ -150,12 +133,17 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
 
         let mut idx = 0;
         for s in &ast.sections {
-            let soff = wrt.len();
+            let soff = if s.attributes.get_nobits() {
+                0
+            } else {
+                wrt.len()
+            };
             let (wrt_a, rel_a, sym_a) = process_section(s, idx, wrt.len());
-            let ssz = wrt.len() - soff;
+            let wrt_a_len = wrt_a.len();
             wrt.extend(wrt_a);
             rel.extend(rel_a);
             sym.extend(sym_a);
+            let ssz = wrt.len() - soff;
             slims.push(SlimSection {
                 name: s.name,
                 align: s.align,
@@ -172,6 +160,9 @@ pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
                 stype: SymbolType::Section,
                 visibility: Visibility::Local,
             });
+            if s.attributes.get_nobits() {
+                wrt.truncate(wrt.len() - wrt_a_len);
+            }
             idx += 1;
         }
         (wrt, rel, sym, slims)
@@ -246,7 +237,6 @@ fn process_section<'a>(
             rel.offset += wrt.len();
         }
         rel.extend(rels);
-
         sym.push(Symbol {
             stype: st,
             name: nm,
@@ -256,6 +246,9 @@ fn process_section<'a>(
             sindex: idx,
         });
         wrt.extend(bts);
+    }
+    if section.attributes.get_nobits() {
+        rel.clear();
     }
     (wrt, rel, sym)
 }
@@ -278,6 +271,12 @@ pub fn add_externs<'a>(sym: *mut Vec<Symbol<'a>>, externs: &'a [&'a str]) {
 pub fn process_label<'a>(label: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
     use crate::core::api::AssembleResult::*;
 
+    let default_reltype = if label.attributes.bits == 16 {
+        shr::reloc::RelType::REL16
+    } else {
+        shr::reloc::RelType::REL32
+    };
+
     let mut wrt = Vec::new();
     let mut rel = Vec::new();
 
@@ -291,7 +290,7 @@ pub fn process_label<'a>(label: &'a Label, offset: usize) -> (Vec<u8>, Vec<Reloc
     for instruction in &label.content {
         let api = comp::get_genapi(instruction, bits);
 
-        let (wrt_a, mut rel_a) = api.assemble(instruction, bits);
+        let (wrt_a, mut rel_a) = api.assemble(instruction, bits, default_reltype);
         for rel in rel_a.iter_mut() {
             rel.offset += wrt.len();
         }

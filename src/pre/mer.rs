@@ -26,7 +26,6 @@ use crate::{
 #[derive(Debug)]
 pub enum RootNode<'a> {
     Format(&'a str),
-    Include(&'a str),
     Extern(&'a str),
     Define(&'a str, Number),
     Bits(u8),
@@ -47,6 +46,7 @@ pub enum BodyNode<'a> {
     Alloc,
     Exec,
     Write,
+    NoBits,
 }
 
 pub enum MergerToken<'a> {
@@ -57,8 +57,6 @@ pub enum MergerToken<'a> {
 pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Error> {
     let start = unsafe { line.take_owned_unchecked(0) };
 
-    // legend:
-    // <something here> - optional
     match start {
         Token::Error(mut e) => {
             e.set_line(lnum);
@@ -85,7 +83,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             }
             Ok(MergerToken::Body(BodyNode::Attributes(attr)))
         }
-        // assert that layout of line is something like [label_attributes] <label_name>: [instruction]
+        // assert that layout of line is something like <label_name>: [instruction]
         Token::Label(lname) => {
             let mut l = Label {
                 name: lname,
@@ -130,7 +128,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
                 }
             }
         }
-        // assert that layout of line is: extern <path><!> and nothing past that
+        // assert that layout of line is: extern <path><!>
         Token::Directive(Directive::Extern) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -158,7 +156,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Extern(name)))
         }
-        // assert that layout of line is: output <path><!> and nothing past that
+        // assert that layout of line is: output <path><!>
         Token::Directive(Directive::Output) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -186,7 +184,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Output(name)))
         }
-        // assert that layout of line is: format <name><!> and nothing past that
+        // assert that layout of line is: format <name><!>
         Token::Directive(Directive::Format) => {
             let name = unsafe { line.take_owned(1) };
             let garbage = unsafe { line.take_owned(2) };
@@ -217,7 +215,8 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
         Token::Directive(Directive::Writeable) => Ok(MergerToken::Body(BodyNode::Write)),
         Token::Directive(Directive::Executable) => Ok(MergerToken::Body(BodyNode::Exec)),
         Token::Directive(Directive::Alloc) => Ok(MergerToken::Body(BodyNode::Alloc)),
-        // assert that layout of line is: section <name> <!>
+        Token::Directive(Directive::NoBits) => Ok(MergerToken::Body(BodyNode::NoBits)),
+        // assert that layout of line is: section <name> [attributes]<!>
         Token::Directive(Directive::Section) => {
             let name = unsafe { line.take_owned(1) };
             let name = if let Some(Token::String(s)) = name {
@@ -245,7 +244,8 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
                         Token::Directive(Directive::Executable) => section.attributes.set_exec(true),
                         Token::Directive(Directive::Writeable) => section.attributes.set_write(true),
                         Token::Directive(Directive::Alloc) => section.attributes.set_alloc(true),
-                        _ => return Err(Error::new_wline("expected writeable, alloc and executable directives after section directive, found other garbage", 17, lnum))
+                        Token::Directive(Directive::NoBits) => section.attributes.set_nobits(true),
+                        _ => return Err(Error::new_wline("expected writeable, nobits, alloc and executable directives after section directive, found other garbage", 17, lnum))
                     }
 
                 slice_idx += 1;
@@ -329,36 +329,6 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
             };
             Ok(MergerToken::Root(RootNode::Define(name, value)))
         }
-        // assert that layout of line is include <file_path>
-        Token::Directive(Directive::Include) => {
-            let path = unsafe { line.take_owned(1) };
-            // if is some, then error
-            let invalid = unsafe { line.take_owned(2) };
-
-            if invalid.is_some() {
-                return Err(Error::new_wline(
-                    "you tried to make include, but you provided a token at index 2",
-                    17,
-                    lnum,
-                ));
-            }
-
-            if let Some(Token::String(s)) = path {
-                Ok(MergerToken::Root(RootNode::Include(s)))
-            } else if path.is_none() {
-                Err(Error::new_wline(
-                    "include directive requires path at index 1, found nothing",
-                    17,
-                    lnum,
-                ))
-            } else {
-                Err(Error::new_wline(
-                    "you provided invalid token at index 1, expected string",
-                    17,
-                    lnum,
-                ))
-            }
-        }
         // assert that layout of line is bits <16/32/64>
         Token::Directive(Directive::Bits) => {
             let bits = unsafe { line.take_owned(1) };
@@ -419,7 +389,7 @@ pub fn mer(mut line: SmallVec<Token, 16>, lnum: usize) -> Result<MergerToken, Er
                     Token::Error(e) => return Err(*e.clone()),
                     _ => {
                         return Err(Error::new_wline(
-                            "tried to use invalid inline label attribute",
+                            "expected label declaration, found unknown directive",
                             20,
                             lnum,
                         ));

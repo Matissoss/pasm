@@ -21,10 +21,7 @@ const SHT_PROGBITS: u32 = 1;
 const SHT_SYMTAB: u32 = 2;
 const SHT_STRTAB: u32 = 3;
 const SHT_RELA: u32 = 4;
-
-// .bss
-#[allow(unused)]
-const SHT_NOBITS: usize = 8;
+const SHT_NOBITS: u32 = 8;
 
 const RELA_SIZE_64: usize = 24;
 const RELA_SIZE_32: usize = 12;
@@ -60,7 +57,6 @@ pub struct ElfSymbol {
     // always address
     value: usize,
     size: usize,
-    // currently can be set to 1
     section_index: u32,
 
     visibility: u8,
@@ -269,9 +265,16 @@ fn make_elf<'a>(
         elf.push_section(ElfSection {
             name: idx,
             size: section.size,
-            offset: section.offset,
-            // might want to change
-            stype: SHT_PROGBITS,
+            offset: if section.attributes.get_nobits() {
+                0
+            } else {
+                section.offset
+            },
+            stype: if section.attributes.get_nobits() {
+                SHT_NOBITS
+            } else {
+                SHT_PROGBITS
+            },
 
             flags: {
                 let w = if section.attributes.write() {
@@ -563,7 +566,9 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     ));
     // other sections
     for mut section in elf.sections {
-        section.offset += code_offset;
+        if section.stype != SHT_NOBITS {
+            section.offset += code_offset;
+        }
         bytes.extend(shdr_collect(section, is_64bit));
     }
     if !elf.relocations.is_empty() {

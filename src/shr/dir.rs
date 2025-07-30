@@ -22,7 +22,6 @@ pub enum Directive {
     Bcst,
 
     Extern,
-    Include,
 
     // sections
     Section,
@@ -53,6 +52,9 @@ pub enum Directive {
 
     Format,
     Output,
+
+    // section type
+    NoBits,
 }
 
 impl std::str::FromStr for Directive {
@@ -281,6 +283,22 @@ pub fn dir_fromstr(str: &str) -> Option<Directive> {
             _ => N,
         },
         6 => match r[0] {
+            b'n' => match r[1] {
+                b'o' => match r[2] {
+                    b'b' => match r[3] {
+                        b'i' => match r[4] {
+                            b't' => match r[5] {
+                                b's' => s(NoBits),
+                                _ => N,
+                            },
+                            _ => N,
+                        },
+                        _ => N,
+                    },
+                    _ => N,
+                },
+                _ => N,
+            },
             b'd' => match r[1] {
                 b'e' => match r[2] {
                     b'f' => match r[3] {
@@ -377,25 +395,6 @@ pub fn dir_fromstr(str: &str) -> Option<Directive> {
             _ => N,
         },
         7 => match r[0] {
-            b'i' => match r[1] {
-                b'n' => match r[2] {
-                    b'c' => match r[3] {
-                        b'l' => match r[4] {
-                            b'u' => match r[5] {
-                                b'd' => match r[6] {
-                                    b'e' => s(Include),
-                                    _ => N,
-                                },
-                                _ => N,
-                            },
-                            _ => N,
-                        },
-                        _ => N,
-                    },
-                    _ => N,
-                },
-                _ => N,
-            },
             b's' => match r[1] {
                 b'e' => match r[2] {
                     b'c' => match r[3] {

@@ -35,6 +35,8 @@ pub fn needs_rex(ins: &Instruction, dst: &Option<Operand>, src: &Option<Operand>
         Mnemonic::XADD
         | Mnemonic::MOVSXD
         | Mnemonic::MOVSX
+        | Mnemonic::LJMP
+        | Mnemonic::LCALL
         | Mnemonic::INCSSPQ
         | Mnemonic::WRSSQ
         | Mnemonic::RDFSBASE

@@ -20,7 +20,11 @@ pub fn gen_sib(mem: &Mem) -> Option<u8> {
             0b101
         };
         let index = mem.index().unwrap();
-        let scale = if mem.scale().is_any() { 0 } else { mem.scale() as u8 };
+        let scale = if mem.scale().is_any() {
+            0
+        } else {
+            mem.scale() as u8
+        };
         Some(sib(scale, index.to_byte(), base))
     } else if mem.is_riprel() {
         None

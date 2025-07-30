@@ -85,6 +85,7 @@ pub fn par<'a>(
         status.inroot = false;
         let body_node = b;
         match body_node {
+            BodyNode::NoBits => status.section.attributes.set_exec(true),
             BodyNode::Exec => status.section.attributes.set_exec(true),
             BodyNode::Alloc => status.section.attributes.set_alloc(true),
             BodyNode::Write => status.section.attributes.set_write(true),
@@ -199,9 +200,6 @@ pub fn par<'a>(
             }
             RootNode::Extern(e) => {
                 ast.externs.push(e);
-            }
-            RootNode::Include(i) => {
-                ast.includes.push(PathBuf::from(i.to_string()));
             }
         }
     }

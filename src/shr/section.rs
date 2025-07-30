@@ -9,6 +9,7 @@ const GLOBAL: u8 = 0x1;
 const ALLOC_FLAG: u8 = 0x2;
 const WRITE_FLAG: u8 = 0x3;
 const EXEC_FLAG: u8 = 0x4;
+const NOBITS_FLAG: u8 = 0x5;
 
 #[derive(PartialEq, Clone, Debug, Default)]
 pub struct SlimSection<'a> {
@@ -42,6 +43,12 @@ impl SectionAttributes {
         Self {
             flags: booltable::BoolTable8::new(),
         }
+    }
+    pub const fn get_nobits(&self) -> bool {
+        self.flags.at(NOBITS_FLAG)
+    }
+    pub const fn set_nobits(&mut self, b: bool) {
+        self.flags.set(NOBITS_FLAG, b);
     }
     pub const fn set_global(&mut self, b: bool) {
         self.flags.set(GLOBAL, b);

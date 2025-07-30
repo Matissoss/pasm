@@ -751,6 +751,9 @@ pub enum Mnemonic {
     // SGX
     ENCLS, ENCLU, ENCLV,
 
+    // long jump
+    LJMP, LCALL,
+
     // this has no real purpose, but why not?
     __LAST
 }

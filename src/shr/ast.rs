@@ -48,13 +48,11 @@ const FPFX_APX: u16 = 0b0011;
 pub struct AST<'a> {
     pub sections: Vec<Section<'a>>,
     pub defines: HashMap<&'a str, Number>,
-    pub includes: Vec<PathBuf>,
     pub externs: Vec<&'a str>,
 
     pub format: Option<&'a str>,
     pub default_bits: Option<u8>,
     pub default_output: Option<PathBuf>,
-    pub blank_lines: Vec<usize>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -946,12 +944,6 @@ impl AST<'_> {
                 }
             }
         }
-        for l in rhs.includes {
-            if self.includes.contains(&l) {
-                continue;
-            }
-            self.includes.push(l);
-        }
         self.defines.extend(rhs.defines);
         Ok(())
     }
@@ -1045,9 +1037,7 @@ impl Default for AST<'_> {
                 def
             },
             externs: Vec::new(),
-            includes: Vec::new(),
             sections: Vec::new(),
-            blank_lines: Vec::new(),
         }
     }
 }

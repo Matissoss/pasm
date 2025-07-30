@@ -180,9 +180,7 @@ impl Mem {
                     0b100 => Size::Dword,
                     0b101 => Size::Qword,
                     0b110 => Size::Dword,
-                    _ => {
-                        Size::Dword
-                    },
+                    _ => Size::Dword,
                 };
                 Some(Register::new(
                     RPurpose::General,
@@ -291,7 +289,7 @@ impl Mem {
 
         if index.purpose().is_avx() {
             let addt = (self.addrsize() == Size::Dword) as u8;
-            self.set_addrsize_raw(match index.size()  {
+            self.set_addrsize_raw(match index.size() {
                 Size::Xword => 0b001 + addt,
                 Size::Yword => 0b011 + addt,
                 Size::Zword => 0b101 + addt,
@@ -357,7 +355,7 @@ fn mem_chk(mem: &mut Mem) {
             Size::Word => mem.set_base(Register::BP),
             Size::Dword => mem.set_base(Register::EBP),
             Size::Qword => mem.set_base(Register::RBP),
-            _ => {},
+            _ => {}
         };
     }
 

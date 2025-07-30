@@ -65,6 +65,15 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
         ));
     }
     match ins.mnemonic {
+        LCALL | LJMP => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[I16, M16, M32], true)
+                .push(&[I16, I32], false)
+                .forbidden(&[[MA, IA]])
+                .check(ins)
+        }
+
         JCXZ | JECXZ => ot_chk(ins, &[(&[I8], Optional::Needed)], &[], &[]),
 
         Mnemonic::CMOVA
@@ -480,6 +489,14 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
 fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
+        LCALL | LJMP => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[I16, M16, M32, M64], true)
+                .push(&[I16, I32], false)
+                .forbidden(&[[MA, IA]])
+                .check(ins)
+        }
         Mnemonic::RDMSRLIST
         | Mnemonic::PBNDKB
         | Mnemonic::WRMSRLIST
@@ -3391,9 +3408,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .check(ins)
         }
         KADDB | KADDW | KADDD | KADDQ | KANDB | KANDW | KANDD | KANDQ | KANDNB | KANDNW
-        | KANDND | KANDNQ | KNOTB | KNOTW | KNOTD | KNOTQ | KORB | KORW | KORD | KORQ | KXORB
-        | KXORW | KXORD | KXORQ | KXNORB | KXNORW | KXNORD | KXNORQ | KUNPCKBW | KUNPCKWD
-        | KUNPCKDQ => {
+        | KANDND | KANDNQ | KORB | KORW | KORD | KORQ | KXORB | KXORW | KXORD | KXORQ | KXNORB
+        | KXNORW | KXNORD | KXNORQ | KUNPCKBW | KUNPCKWD | KUNPCKDQ => {
             use chkn::*;
             CheckAPI::<3>::new()
                 .push(&[K], true)
@@ -3401,7 +3417,8 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
                 .push(&[K], true)
                 .check(ins)
         }
-        KTESTB | KTESTW | KTESTD | KTESTQ | KORTESTB | KORTESTW | KORTESTD | KORTESTQ => {
+        KTESTB | KTESTW | KNOTB | KNOTW | KNOTD | KNOTQ | KTESTD | KTESTQ | KORTESTB | KORTESTW
+        | KORTESTD | KORTESTQ => {
             use chkn::*;
             CheckAPI::<2>::new()
                 .push(&[K], true)

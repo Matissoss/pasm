@@ -116,13 +116,10 @@ Goal: support for smaller x86-64 ISA extensions (around 284 new mnemonics)
 Goal: extensive testing, polish and optimizations of assembler, less updates/commits
 
 - [x] Support for 16-bit addressing
-- [ ] Add `type` directive for `section`s (allows to have `.bss` sections)
-- [ ] Allow for `protected public function label_name:`
-- [ ] Support for `offset` (aka `ORG`) directive
-- [ ] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
-- [ ] Rework `src/shr/math.rs` (it is not effective currently) and allow for symbol referencing inside `$()` closure
-- [ ] Allow for `gotpcrel` relocation type
-- [ ] Adapt `pasm` to every POLON standard
+- [x] Add `nobits` directive for `section`'s
+- [x] Allow for `protected public function label_name:`
+- [x] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
+- [ ] Once POLON standards are established, adapt `pasm` to them.
 - [ ] move to stable
 
 ## stable

@@ -8,7 +8,7 @@
 
 Format used to explain syntax is [psyn v1](https://github.com/Matissoss/psyn)
 
-## terminology
+## syntax
 
 ### size
 
@@ -240,6 +240,7 @@ List of `[ATTR]`:
 - `executable` - sets executable flag (`X` in ELF)
 - `alloc` - sets alloc flag (`A` in ELF)
 - `writeable` - sets write flag (`W` in ELF)
+- `nobits` - treats section like `.bss` in ELF
 
 ```
 section ".text" alloc executable
@@ -278,14 +279,6 @@ You can make extern symbol (they are ignored in `bin` target) using `extern` dir
 extern <NAME>
 ```
 
-#### include
-
-You can include other `pasm` source files using `include` directive:
-
-```
-include <PATH>
-```
-
 #### output
 
 You can specify default output path using `output` directive:
@@ -304,6 +297,29 @@ format elf64/elf32/bin
 
 > [!NOTE]
 > `elf*` targets are only Little-Endian variants
+
+## data instructions
+
+- `bytele <IMM>`/`bytebe <IMM>`: 8-bit value
+- `wordle <IMM>`: 16-bit LE value
+- `wordbe <IMM>`: 16-bit BE value
+- `dwordle <IMM>`: 32-bit LE value
+- `dwordbe <IMM>`: 32-bit BE value
+- `qwordle <IMM>`: 64-bit LE value
+- `qwordbe <IMM>`: 64-bit BE value
+- `empty <IMM>`: fills buffer with 0 `<IMM>` times
+- `string <STRING>`: string value
+
+## instructions with changed name
+
+- `MOVSD` (for strings): `MOVSTRD`
+- `MOVSB`: `MOVSTRB`
+- `MOVSW`: `MOVSTRW`
+- `MOVSQ`: `MOVSTRQ`
+- `CMPSB`: `CMPSTRB`
+- `CMPSW`: `CMPSTRW`
+- `CMPSD`: `CMPSTRD`
+- `CMPSQ`: `CMPSTRQ`
 
 ## appendix
 

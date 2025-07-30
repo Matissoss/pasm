@@ -8949,6 +8949,8 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
             VexDetails::new().map_select(MAP4).vex_we(true).pp(0x66),
             false,
         ),
+        Mnemonic::LJMP => ins_ljmp(ins),
+        Mnemonic::LCALL => ins_lcall(ins),
     }
 }
 
@@ -8958,6 +8960,51 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
 // #  #  ##      #    #    #   #  #   #  #        #    #  #   #  #  ##      #
 // #  #   #  ####     #    #   #   ###    ####    #    #   ###   #   #  ####
 // (Instructions)
+
+fn ins_ljmp(ins: &Instruction) -> GenAPI {
+    let mut api = GenAPI::new();
+    if let Some(Operand::Imm(i)) = ins.dst() {
+        let (size, isize) = if let Some(Operand::Imm(i)) = ins.src() {
+            if i.signed_size() == Size::Dword {
+                (Size::Dword, 4)
+            } else {
+                (Size::Word, 2)
+            }
+        } else {
+            (Size::Word, 2)
+        };
+        let itob = i.get_raw_le();
+        api = api
+            .opcode(&[0xEA, itob[1], itob[0]])
+            .imm_atindex(1, isize)
+            .fixed_size(size)
+    } else if let Some(Operand::Mem(_)) = ins.src() {
+        api = api.modrm(true, Some(5)).opcode(&[0xFF]).rex()
+    }
+    api
+}
+fn ins_lcall(ins: &Instruction) -> GenAPI {
+    let mut api = GenAPI::new();
+    if let Some(Operand::Imm(i)) = ins.dst() {
+        let (size, isize) = if let Some(Operand::Imm(i)) = ins.src() {
+            if i.signed_size() == Size::Dword {
+                (Size::Dword, 4)
+            } else {
+                (Size::Word, 2)
+            }
+        } else {
+            (Size::Word, 2)
+        };
+        let itob = i.get_raw_le();
+        api = api
+            .opcode(&[0x9A, itob[1], itob[0]])
+            .imm_atindex(1, isize)
+            .fixed_size(size)
+    } else if let Some(Operand::Mem(_)) = ins.src() {
+        api = api.modrm(true, Some(3)).opcode(&[0xFF]).rex()
+    }
+    api
+}
 
 fn ins_acmpccxadd(ins: &Instruction, opc: &[u8]) -> GenAPI {
     GenAPI::new()

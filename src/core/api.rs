@@ -28,7 +28,8 @@ use crate::{
         ins::Mnemonic,
         mem::Mem,
         reg::Register,
-        reloc::{RelType, Relocation},
+        reloc::RelType as RelocationType,
+        reloc::Relocation,
         size::Size,
         smallvec::SmallVec,
     },
@@ -268,6 +269,7 @@ impl GenAPI {
         self,
         ins: &'a Instruction,
         bits: u8,
+        default_rel: RelocationType,
     ) -> (AssembleResult, SmallVec<Relocation<'a>, 2>) {
         let [modrm_rm, modrm_reg, _vex_vvvv] = self.get_ord_oprs(ins);
 
@@ -309,7 +311,8 @@ impl GenAPI {
             base.push(segm);
         }
 
-        let not_std_prefix = prefix_flag == PREFIX_VEX || prefix_flag == PREFIX_EVEX || prefix_flag == PREFIX_APX;
+        let not_std_prefix =
+            prefix_flag == PREFIX_VEX || prefix_flag == PREFIX_EVEX || prefix_flag == PREFIX_APX;
         if fx_size {
             if let Some(size_ovr) = gen_sizeovr_fixed_size(ins_size, bits) {
                 base.push(size_ovr);
@@ -317,11 +320,7 @@ impl GenAPI {
         } else if let Some(size_ovr) = gen_size_ovr(ins, &modrm_rm, ins_size, bits, rexw) {
             let h66 = size_ovr[0];
             let h67 = size_ovr[1];
-            if h66.is_some()
-                && !not_std_prefix
-                && self.flags.at(CAN_H66O)
-                && self.prefix != 0x66
-            {
+            if h66.is_some() && !not_std_prefix && self.flags.at(CAN_H66O) && self.prefix != 0x66 {
                 base.push(0x66);
             }
             if h67.is_some() {
@@ -397,7 +396,7 @@ impl GenAPI {
                         continue;
                     }
 
-                    let reltype = s.reltype().unwrap_or_default();
+                    let reltype = s.reltype().unwrap_or(default_rel);
                     let addend = s.addend().unwrap_or_default();
                     rels.push(Relocation {
                         symbol: s.symbol,
@@ -455,36 +454,32 @@ impl GenAPI {
                     }
                 }
                 Some(Operand::String(s)) => {
-                    if size == 0 {
-                        imm.extend(s.as_bytes());
-                    } else {
-                        let mut escape_char = false;
-                        for b in s.as_bytes() {
-                            if b != &b'\\' {
-                                escape_char = true;
-                                continue;
-                            }
-                            if escape_char {
-                                match *b {
-                                    b'n' => imm.push(b'\n'),
-                                    b't' => imm.push(b'\t'),
-                                    b'0' => imm.push(b'\0'),
-                                    b'r' => imm.push(b'\r'),
-                                    b'\"' => imm.push(b'\"'),
-                                    b'\'' => imm.push(b'\''),
-                                    _ => {
-                                        imm.push(b'\\');
-                                        imm.push(*b);
-                                    }
+                    let (sl_st, sl_en) = if size == 0 { (0, s.len()) } else { (0, size) };
+                    let mut escape_char = false;
+                    for b in &s.as_bytes()[sl_st..sl_en] {
+                        if escape_char {
+                            match *b {
+                                b'n' => imm.push(b'\n'),
+                                b't' => imm.push(b'\t'),
+                                b'0' => imm.push(b'\0'),
+                                b'r' => imm.push(b'\r'),
+                                b'\"' => imm.push(b'\"'),
+                                b'\'' => imm.push(b'\''),
+                                _ => {
+                                    imm.push(b'\\');
+                                    imm.push(*b);
                                 }
-                            } else {
-                                imm.push(*b);
                             }
+                            escape_char = false;
+                        } else if *b == b'\\' {
+                            escape_char = true;
+                        } else {
+                            imm.push(*b);
                         }
                     }
                 }
                 Some(Operand::Symbol(s)) => {
-                    let reltype = s.reltype().unwrap_or_default();
+                    let reltype = s.reltype().unwrap_or(default_rel);
                     rels.push(Relocation {
                         symbol: s.symbol,
                         offset: base.len(),
@@ -493,7 +488,7 @@ impl GenAPI {
                         reltype,
                     });
                     if size == 0 {
-                        for _ in 0..s.reltype().unwrap_or(RelType::REL32).size() {
+                        for _ in 0..s.reltype().unwrap_or(default_rel).size() {
                             base.push(0);
                         }
                     } else {

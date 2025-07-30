@@ -31,7 +31,6 @@ pub mod shr;
 use core::comp;
 
 // pasm helper utilities
-pub mod tests;
 pub mod cli;
 pub mod color;
 pub mod conf;
@@ -98,7 +97,7 @@ fn main() {
         }
         std::process::exit(1);
     }
-    let (ast, ptrs) = ast.unwrap();
+    let ast = ast.unwrap();
 
     if cli.check() {
         #[cfg(feature = "time")]
@@ -122,9 +121,6 @@ fn main() {
         eprintln!("{e}");
         std::process::exit(1);
     };
-    for p in ptrs {
-        unsafe { std::ptr::drop_in_place(p) };
-    }
     #[cfg(all(feature = "time", feature = "vtime"))]
     utils::vtimed_print("overall", start);
     #[cfg(all(feature = "time", not(feature = "vtime")))]
