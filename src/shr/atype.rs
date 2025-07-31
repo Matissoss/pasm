@@ -238,6 +238,7 @@ impl ToType for Operand<'_> {
 impl PartialEq for AType {
     fn eq(&self, rhs: &Self) -> bool {
         match (*self, *rhs) {
+            // don't ask me what it means
             (AType::Register(lr, lf), AType::Register(rr, rf)) => {
                 ((lf || rf) && lr.0 == rr.0)
                     || (lr.preptochk() == rr.preptochk())

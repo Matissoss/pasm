@@ -48,7 +48,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, 16> {
     // closure prefix
     let mut cprefix: Option<char> = None;
 
-    let mut modf_toks: SmallVec<Token, 6> = SmallVec::new();
+    let mut modf_toks: Vec<Token> = Vec::new();
 
     // closure delimeter count
     let mut cdelcount = 0usize;
@@ -184,8 +184,8 @@ pub fn tokl(line: &str) -> SmallVec<Token, 16> {
                     if tend != tstart {
                         modf_toks.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                     }
-                    tokens.push(Token::make_modifier(modf_toks.into_vec()));
-                    modf_toks = SmallVec::new();
+                    tokens.push(Token::make_modifier(modf_toks));
+                    modf_toks = Vec::new();
                 } else if tend != tstart {
                     tokens.push(Token::make_from(cprefix.take(), str(bline, tstart, tend)));
                 }
@@ -212,7 +212,7 @@ pub fn tokl(line: &str) -> SmallVec<Token, 16> {
             modf_toks.push(Token::make_from(cprefix, str(bline, tstart, tend)));
             tend = tstart;
         }
-        tokens.push(Token::make_modifier(modf_toks.into_vec()));
+        tokens.push(Token::make_modifier(modf_toks));
     }
 
     if tend != tstart {

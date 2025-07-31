@@ -6,14 +6,42 @@
 use crate::shr::size::Size;
 use std::str::FromStr;
 
+#[derive(Clone, Copy)]
+pub union Number {
+    _u64: u64,
+    _u32: u32,
+    _u16: u16,
+    _u8: u8,
+    _i64: i64,
+    _i32: i32,
+    _i16: i16,
+    _i8: i8,
+    _f32: f32,
+    _f64: f64,
+    _usize: usize,
+}
+
+impl PartialEq for Number {
+    fn eq(&self, rhs: &Self) -> bool {
+        unsafe { self._u64 == rhs._u64 }
+    }
+}
+impl std::fmt::Debug for Number {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", unsafe { self._u64 })
+    }
+}
+
+/*
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub struct Number {
     content: u64,
 }
+*/
 
 impl Number {
     pub const fn new(content: u64) -> Self {
-        Self { content }
+        Self { _u64: content }
     }
     pub fn get_as_usize(&self) -> usize {
         self.get_raw() as usize
@@ -32,11 +60,12 @@ impl Number {
         num_from_str(str)
     }
     pub fn unsigned_size(&self) -> Size {
-        if self.content & 0xFF == self.content {
+        let content = unsafe { self._u64 };
+        if content & 0xFF == content {
             Size::Byte
-        } else if self.content & 0xFFFF == self.content {
+        } else if content & 0xFFFF == content {
             Size::Word
-        } else if self.content & 0xFFFF_FFFF == self.content {
+        } else if content & 0xFFFF_FFFF == content {
             Size::Dword
         } else {
             Size::Qword
@@ -52,15 +81,8 @@ impl Number {
         }
     }
     pub fn get_real_size(&self) -> usize {
-        if u8::try_from(self.content).is_ok() {
-            size_of::<u8>()
-        } else if u16::try_from(self.content).is_ok() {
-            size_of::<u16>()
-        } else if u32::try_from(self.content).is_ok() {
-            size_of::<u32>()
-        } else {
-            size_of::<u64>()
-        }
+        let sz: u8 = self.unsigned_size().into();
+        sz as usize
     }
     pub fn split_into_bytes(self) -> Vec<u8> {
         self.get_raw_le()[..self.get_real_size()].to_vec()
@@ -72,24 +94,15 @@ impl Number {
         self.get_raw().to_be_bytes()
     }
     pub const fn get_raw(&self) -> u64 {
-        if self.is_signed() {
-            let body = self.content;
-            // guess where to set sign
-            if body & 0xFF == body && body & 0x80 != 0x80 {
-                body | 0x80
-            } else if body & 0xFFFF == body && body & 0x8000 != 0x8000 {
-                body | 0x8000
-            } else if body & 0xFFFF_FFFF == body && body & 0x8000_0000 == 0x8000_0000 {
-                body | 0x8000_0000
-            } else {
-                body | 0x8000_0000_0000_0000
-            }
-        } else {
-            self.content
-        }
+        unsafe { self._u64 }
     }
     pub const fn is_signed(&self) -> bool {
-        self.content & (1 << 63) == 1 << 63
+        unsafe {
+            self._i64.is_negative()
+                || self._i32.is_negative()
+                || self._i16.is_negative()
+                || self._i8.is_negative()
+        }
     }
     pub const fn float(f: f32) -> Self {
         Self::new(f as u64)
@@ -262,7 +275,7 @@ fn u8_from_oct(c: u8) -> Option<u8> {
 
 impl ToString for Number {
     fn to_string(&self) -> String {
-        self.content.to_string()
+        unsafe { self._u64 }.to_string()
     }
 }
 

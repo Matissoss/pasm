@@ -174,12 +174,8 @@ impl Mem {
         if self.flags.get(HAS_BASE).unwrap() {
             if self.flags.get(IS_VSIB_IDX).unwrap() {
                 let sz = match self.addrsize_raw() {
-                    0b001 => Size::Qword,
-                    0b010 => Size::Dword,
-                    0b011 => Size::Qword,
-                    0b100 => Size::Dword,
-                    0b101 => Size::Qword,
-                    0b110 => Size::Dword,
+                    0b001 | 0b011 | 0b101 => Size::Qword,
+                    0b010 | 0b100 | 0b110 => Size::Dword,
                     _ => Size::Dword,
                 };
                 Some(Register::new(

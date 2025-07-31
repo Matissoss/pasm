@@ -382,11 +382,14 @@ impl GenAPI {
         if self.flags.at(USE_MODRM) {
             base.push(modrm::modrm(&modrm_rm, &modrm_reg, &self));
             // SIB, max. 1B
-            if let Some(sib) = sib::gen_sib_ins(&modrm_rm) {
-                base.push(sib);
+            // we cannot generate sib for bits == 16
+            if bits != 16 {
+                if let Some(sib) = sib::gen_sib_ins(&modrm_rm) {
+                    base.push(sib);
+                }
             }
             // DISP, max. 4B
-            if let Some(disp) = disp::gen_disp_ins(&modrm_rm) {
+            if let Some(disp) = disp::gen_disp_ins(&modrm_rm, bits) {
                 for b in disp {
                     base.push(b);
                 }
@@ -405,8 +408,10 @@ impl GenAPI {
                         shidx: 0,
                         reltype,
                     });
-                    base.push(0);
-                    base.push(0);
+                    if bits != 16 {
+                        base.push(0);
+                        base.push(0);
+                    }
                     base.push(0);
                     base.push(0);
                     break;
@@ -431,12 +436,18 @@ impl GenAPI {
                             (&i.get_raw_le()[..i.get_real_size()], false)
                         };
                         let mut idx = 0;
+
+                        let le = !be;
+
+                        // if big endian add content before number like this (for fixed size):
+                        // 0x0000_00FF
                         if be {
                             while idx < size.abs_diff(imm.len()) {
                                 base.push(0x00);
                                 idx += 1;
                             }
                         }
+                        // add the actual number content
                         for b in imm {
                             if idx < size {
                                 base.push(*b);
@@ -445,7 +456,9 @@ impl GenAPI {
                                 break;
                             }
                         }
-                        if !be {
+                        // if little endian add content after number like this (for fixed size):
+                        // 0xFF00_0000
+                        if le {
                             while idx < size {
                                 base.push(0x00);
                                 idx += 1;
@@ -454,6 +467,9 @@ impl GenAPI {
                     }
                 }
                 Some(Operand::String(s)) => {
+                    // we partition string, so we do not have situation like:
+                    //  - add eax, "abc"
+                    // and abc will add 3 byte INSTEAD OF 4 bytes.
                     let (sl_st, sl_en) = if size == 0 { (0, s.len()) } else { (0, size) };
                     let mut escape_char = false;
                     for b in &s.as_bytes()[sl_st..sl_en] {
@@ -591,20 +607,20 @@ impl GenAPI {
 
     // prefix layout for APX:
     //  0bAAAN_MMMM_MPPW_SSSS
-    //  SSSS - condition code
-    pub fn apx(
-        mut self,
-        eevex_variant: apx::APXVariant,
-        eevex_details: VexDetails,
-        nd: bool,
-    ) -> Self {
+    //  - AAA - APX Variant
+    //  - N - ND
+    //  - MMMMM - (E)VEX.map_select
+    //  - PP - (E)VEX.pp
+    //  - W - (E)VEX.w/e
+    //  - SSSS - condition code
+    pub fn apx(mut self, apx_variant: apx::APXVariant, apx_details: VexDetails, nd: bool) -> Self {
         self.prefix = 0;
         self.set_fpfx(PREFIX_APX);
-        self.prefix |= (eevex_variant as u16) << 13;
+        self.prefix |= (apx_variant as u16) << 13;
         self.prefix |= (nd as u16) << 12;
-        self.prefix |= (eevex_details.map_select as u16) << 7;
-        self.prefix |= (pp(eevex_details.pp) as u16) << 5;
-        self.prefix |= (eevex_details.vex_we as u16) << 4;
+        self.prefix |= (apx_details.map_select as u16) << 7;
+        self.prefix |= (pp(apx_details.pp) as u16) << 5;
+        self.prefix |= (apx_details.vex_we as u16) << 4;
         self
     }
     pub fn apx_cccc(mut self, cccc: u8) -> Self {

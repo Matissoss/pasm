@@ -173,6 +173,10 @@ impl<T, const N: usize> SmallVec<T, N> {
         self.len() == 0
     }
     #[inline]
+    pub const fn set_len(&mut self, nl: usize) {
+        self.len = nl;
+    }
+    #[inline]
     pub const fn len(&self) -> usize {
         self.len
     }
@@ -210,5 +214,13 @@ mod tests {
         let v = myvec.pop().unwrap();
         assert_eq!(v, 20);
         assert_eq!(myvec.len(), 1);
+
+        // epic bruh moment
+        // we use MaybeUninit<T> and Rust allows us to drop it
+        // without proper Drop implementation?
+        // probably not;
+        // if we actually implement proper Drop,
+        // then Rust says something double free :D
+        drop(myvec);
     }
 }
