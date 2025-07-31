@@ -31,6 +31,8 @@ pub fn help() -> String {
         .push_str("\t-C / --skip-check                 ; skips checking part to gain performance (up to 25%)\n");
     help_string
         .push_str("\t-n / --nocolor                    ; prints all colored text without color\n");
+    help_string
+        .push_str("\t-t / --time                       ; prints all colored text without color\n");
 
     help_string.push_str("made by matissoss\nlicensed under MPL 2.0");
     help_string.push_str("\nsource code: https://github.com/Matissoss/pasm");

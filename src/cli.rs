@@ -18,6 +18,7 @@ const SUPPORTEDINSR: u8 = 0x4;
 const VER: u8 = 0x5;
 const NO_ASSEMBLE: u8 = 0x6;
 const NO_CHECK: u8 = 0x7;
+const QUIET: u8 = 0x8;
 
 #[derive(Default)]
 pub struct Cli {
@@ -49,6 +50,9 @@ impl Cli {
     pub fn debug(&self) -> bool {
         self.flags.get(DBG).unwrap()
     }
+    pub fn quiet(&self) -> bool {
+        self.flags.get(QUIET).unwrap()
+    }
     pub fn check(&self) -> bool {
         self.flags.get(NO_ASSEMBLE).unwrap()
     }
@@ -60,6 +64,8 @@ impl Cli {
     }
     pub fn new(args: Vec<String>) -> Self {
         let mut cli = Self::default();
+        cli.flags.set(QUIET, true);
+
         for a in &args[1..] {
             let (key, val) = match a.split_once('=') {
                 Some((key, val)) => (key, Some(val)),
@@ -82,6 +88,7 @@ impl Cli {
                 "-s" | "--supported-instructions" => cli.flags.set(SUPPORTED_INS, true),
                 "-S" | "--supported-instructions-raw" => cli.flags.set(SUPPORTEDINSR, true),
                 "-n" | "--nocolor" => cli.flags.set(NOCOL, true),
+                "-t" | "--time" => cli.flags.set(QUIET, false),
                 _ => continue,
             }
         }

@@ -9941,7 +9941,7 @@ fn ins_mov(ins: &Instruction, _: u8) -> GenAPI {
 // opc[7]  = r8, r/m8
 // opc[8]  = r16/32/64, r/m16/32/64
 #[inline(always)]
-fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
+fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, bits: u8) -> GenAPI {
     let src = ins.src().unwrap();
     let dst = ins.dst().unwrap();
 
@@ -9966,16 +9966,16 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
                 if let Register::AL = dstr {
                     return GenAPI::new().opcode(&[opc[0]]).imm_atindex(1, 1).rex();
                 } else if let Register::AX = dstr {
-                    return GenAPI::new().opcode(&[opc[1]]).imm_atindex(1, 1).rex();
+                    return GenAPI::new().opcode(&[opc[1]]).imm_atindex(1, 2).rex();
                 }
 
-                let opc = match dstr.size() {
-                    Size::Byte => opc[2],
+                let (opc, isz) = match srci {
+                    Size::Byte => (opc[2], 1),
                     Size::Dword | Size::Qword | Size::Word => {
                         if srci == Size::Byte {
-                            opc[4]
+                            (opc[4], 1)
                         } else {
-                            opc[3]
+                            (opc[3], 4)
                         }
                     }
                     _ => invalid(20),
@@ -9984,7 +9984,7 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
                     .opcode(&[opc])
                     .modrm(true, Some(ovrreg))
                     .rex()
-                    .imm_atindex(1, 1)
+                    .imm_atindex(1, isz)
             }
         }
         (Operand::Register(dstr), Operand::Imm(_)) => {
@@ -9999,25 +9999,26 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
             if let Register::AL = dstr {
                 return GenAPI::new().opcode(&[opc[0]]).imm_atindex(1, 1).rex();
             } else if let Register::AX = dstr {
-                return GenAPI::new().opcode(&[opc[1]]).imm_atindex(1, 1).rex();
+                return GenAPI::new().opcode(&[opc[1]]).imm_atindex(1, 2).rex();
             }
 
-            let opc = match dstr.size() {
-                Size::Byte => opc[2],
-                Size::Dword | Size::Qword | Size::Word => {
-                    if srci == Size::Byte {
-                        opc[4]
+            let (opc, isz) = match srci {
+                Size::Byte => (opc[4], 1),
+                Size::Word => (
+                    opc[3],
+                    if bits == 16 && dstr.size() == Size::Word {
+                        2
                     } else {
-                        opc[3]
-                    }
-                }
-                _ => invalid(20),
+                        4
+                    },
+                ),
+                _ => (opc[3], 4),
             };
             GenAPI::new()
                 .opcode(&[opc])
                 .modrm(true, Some(ovrreg))
                 .rex()
-                .imm_atindex(1, 1)
+                .imm_atindex(1, isz)
         }
         (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dstm = ins.dst().unwrap().size();
@@ -10035,10 +10036,8 @@ fn add_like_ins(ins: &Instruction, opc: &[u8; 9], ovrreg: u8, _: u8) -> GenAPI {
                 }
                 _ => invalid(18),
             };
-            let size = if let (Size::Word | Size::Byte, Size::Word) = (srci, dstm) {
+            let size = if (Size::Word, 16) == (srci, bits) {
                 2
-            } else if let (Size::Byte, Size::Dword) = (srci, dstm) {
-                4
             } else if srci != Size::Byte {
                 4
             } else {
@@ -10081,11 +10080,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
             let srci = ins.src().unwrap().size();
             if let Size::Dword | Size::Word = srci {
                 if let Register::RAX | Register::EAX = dstr {
-                    return GenAPI::new()
-                        .opcode(&[0x3D])
-                        .imm_atindex(1, 4)
-                        .rex()
-                        .ord(&[]);
+                    return GenAPI::new().opcode(&[0x3D]).imm_atindex(1, 4).rex();
                 } else if let Register::AX = dstr {
                     return GenAPI::new().opcode(&[0x3D]).imm_atindex(1, 2).rex();
                 }
@@ -10096,13 +10091,13 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
                 return GenAPI::new().opcode(&[0x3D]).imm_atindex(1, 2).rex();
             }
 
-            let opc = match dstr.size() {
-                Size::Byte => 0x80,
+            let (opc, isz) = match dstr.size() {
+                Size::Byte => (0x80, 1),
                 Size::Dword | Size::Qword | Size::Word => {
                     if srci == Size::Byte {
-                        0x83
+                        (0x83, 1)
                     } else {
-                        0x80
+                        (0x81, 4)
                     }
                 }
                 _ => invalid(13),
@@ -10111,7 +10106,7 @@ fn ins_cmp(ins: &Instruction, _: u8) -> GenAPI {
                 .opcode(&[opc])
                 .modrm(true, Some(7))
                 .rex()
-                .imm_atindex(1, 1)
+                .imm_atindex(1, isz)
         }
         (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dstm = ins.dst().unwrap().size();

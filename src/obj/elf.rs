@@ -470,7 +470,7 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     elf.header.machine = if is_64bit { EM_X86_64 } else { EM_I386 };
     elf.header.section_offset = ehdr_size;
 
-    let mut rela_info: Vec<RelInfo> = Vec::with_capacity(elf.relocations.len());
+    let mut rela_info: Vec<RelInfo> = Vec::new();
     let mut rela_shidx = 0;
     let mut rela_count = 0;
     if !elf.relocations.is_empty() {
@@ -494,7 +494,11 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
         });
     }
 
-    elf.header.section_count += rela_info.len();
+    for r in &rela_info {
+        if r.relcount != 0 {
+            elf.header.section_count += 1;
+        }
+    }
 
     bytes.extend(ehdr_collect(elf.header, is_64bit));
     // reserved:
@@ -503,10 +507,12 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     let symtab_name = elf.push_shstrtab(".symtab");
 
     for idx in 0..rela_info.len() {
-        let cstr = format!(".rela{}", unsafe {
-            utils::cstring(elf.shstrtab.as_ptr().add(elf.sections[idx].name))
-        });
-        rela_info[idx].name = elf.push_shstrtab(&cstr);
+        if rela_info[idx].relcount != 0 {
+            let cstr = format!(".rela{}", unsafe {
+                utils::cstring(elf.shstrtab.as_ptr().add(elf.sections[idx].name))
+            });
+            rela_info[idx].name = elf.push_shstrtab(&cstr);
+        }
     }
 
     let content_offset = ehdr_size + (elf.header.section_count * shdr_size);
@@ -574,22 +580,24 @@ fn compile(mut elf: Elf, is_64bit: bool) -> Vec<u8> {
     if !elf.relocations.is_empty() {
         let mut offs = 0;
         for (idx, relc) in rela_info.iter().enumerate() {
-            bytes.extend(shdr_collect(
-                ElfSection {
-                    name: relc.name,
-                    stype: SHT_RELA,
-                    info: 4 + idx as u32,
-                    link: 3,
-                    size: relc.relcount * rela_size,
-                    entry_size: rela_size as u32,
-                    addralign: 0,
-                    offset: rela_offset + offs,
-                    entry_count: relc.relcount as u32,
-                    flags: 0,
-                },
-                is_64bit,
-            ));
-            offs += relc.relcount * rela_size;
+            if relc.relcount != 0 {
+                bytes.extend(shdr_collect(
+                    ElfSection {
+                        name: relc.name,
+                        stype: SHT_RELA,
+                        info: 4 + idx as u32,
+                        link: 3,
+                        size: relc.relcount * rela_size,
+                        entry_size: rela_size as u32,
+                        addralign: 0,
+                        offset: rela_offset + offs,
+                        entry_count: relc.relcount as u32,
+                        flags: 0,
+                    },
+                    is_64bit,
+                ));
+                offs += relc.relcount * rela_size;
+            }
         }
     }
 
