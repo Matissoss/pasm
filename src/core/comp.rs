@@ -127,7 +127,7 @@ pub fn get_genapi(ins: &'_ Instruction, bits: u8) -> GenAPI {
         Mnemonic::JNS => ins_jmplike(ins, [&[0x0F, 0x89], &[], &[0x79]], 0, bits),
         Mnemonic::JPE => ins_jmplike(ins, [&[0x0F, 0x8A], &[], &[0x7A]], 0, bits),
         Mnemonic::JPO => ins_jmplike(ins, [&[0x0F, 0x8B], &[], &[0x7B]], 0, bits),
-        Mnemonic::JNE | Mnemonic::JNZ => ins_jmplike(ins, [&[0xFF, 0x85], &[], &[0x75]], 0, bits),
+        Mnemonic::JNE | Mnemonic::JNZ => ins_jmplike(ins, [&[0x0F, 0x85], &[], &[0x75]], 0, bits),
         Mnemonic::JLE => ins_jmplike(ins, [&[0x0F, 0x8E], &[], &[0x7E]], 0, bits),
         Mnemonic::JGE => ins_jmplike(ins, [&[0x0F, 0x8D], &[], &[0x7D]], 0, bits),
         Mnemonic::JNAE => ins_jmplike(ins, [&[0x0F, 0x82], &[], &[0x72]], 0, bits),
@@ -10310,22 +10310,25 @@ fn ins_test(ins: &Instruction, _: u8) -> GenAPI {
                 return GenAPI::new().opcode(&[0xA9]).imm_atindex(1, 2).rex();
             }
 
-            let opc = match dstr.size() {
-                Size::Byte => 0xF6,
-                Size::Dword | Size::Qword | Size::Word => 0xF7,
-                _ => invalid(6),
+            let (opc, isz, fx) = match (dst.size(), sz) {
+                (Size::Byte, _) => (0xF6, 1, None),
+                (Size::Word, _) => (0xF7, 2, Some(Size::Word)),
+                _ => (0xF7, 4, None),
             };
-            let size = match ins.size() {
-                Size::Byte => 1,
-                Size::Word => 2,
-                Size::Dword | Size::Qword => 4,
-                _ => 1,
-            };
-            GenAPI::new()
-                .opcode(&[opc])
-                .modrm(true, Some(0))
-                .imm_atindex(1, size)
-                .rex()
+            if let Some(fx) = fx {
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, Some(0))
+                    .fixed_size(fx)
+                    .imm_atindex(1, isz)
+                    .rex()
+            } else {
+                GenAPI::new()
+                    .opcode(&[opc])
+                    .modrm(true, Some(0))
+                    .imm_atindex(1, isz)
+                    .rex()
+            }
         }
         (Operand::Mem(_) | Operand::Symbol(_), Operand::Imm(_) | Operand::Symbol(_)) => {
             let dsts = ins.dst().unwrap().size();

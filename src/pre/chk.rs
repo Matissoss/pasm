@@ -1496,6 +1496,7 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         | Mnemonic::JNLE
         | Mnemonic::JNC
         | Mnemonic::JNB
+        | Mnemonic::JNG
         | Mnemonic::JE
         | Mnemonic::JNE
         | Mnemonic::JZ
