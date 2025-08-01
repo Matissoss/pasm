@@ -2151,6 +2151,35 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
             &[],
             &[],
         ),
+        Mnemonic::PMOVZXBW
+        | Mnemonic::PMOVZXWD
+        | Mnemonic::PMOVZXDQ
+        | Mnemonic::PMOVSXBW
+        | Mnemonic::PMOVSXWD
+        | Mnemonic::PMOVSXDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[XMM, M64], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        Mnemonic::PMOVZXBD | Mnemonic::PMOVZXWQ | Mnemonic::PMOVSXBD | Mnemonic::PMOVSXWQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[XMM, M32], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
+        Mnemonic::PMOVZXBQ | Mnemonic::PMOVSXBQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM], true)
+                .push(&[XMM, M16], true)
+                .set_mode(CheckMode::NOSIZE)
+                .check(ins)
+        }
         //  ###   #   #  #   #
         // #   #  #   #   # #
         // #   #   # #     #
@@ -2159,6 +2188,63 @@ pub fn shr_chk(ins: &Instruction) -> Result<(), Error> {
         // AVX chk
 
         // idk derived
+        Mnemonic::VPMOVSXBW | Mnemonic::VPMOVSXWD | Mnemonic::VPMOVSXDQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM, YMM, ZMM], true)
+                .push(&[XMM, YMM, M64, M128, M256], true)
+                .set_mode(CheckMode::AVX)
+                .forbidden(&[
+                    [XMM, YMM],
+                    [XMM, M128],
+                    [XMM, M256],
+                    [YMM, M64],
+                    [YMM, M256],
+                    [ZMM, XMM],
+                    [ZMM, M64],
+                    [ZMM, M128],
+                ])
+                .set_evex()
+                .check(ins)
+        }
+        Mnemonic::VPMOVSXBD | Mnemonic::VPMOVSXWQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM, YMM, ZMM], true)
+                .push(&[XMM, YMM, M32, M64, M128], true)
+                .set_mode(CheckMode::AVX)
+                .forbidden(&[
+                    [XMM, YMM],
+                    [XMM, M64],
+                    [XMM, M128],
+                    [YMM, M32],
+                    [YMM, M128],
+                    [ZMM, XMM],
+                    [ZMM, M32],
+                    [ZMM, M64],
+                ])
+                .set_evex()
+                .check(ins)
+        }
+        Mnemonic::VPMOVSXBQ => {
+            use chkn::*;
+            CheckAPI::<2>::new()
+                .push(&[XMM, YMM, ZMM], true)
+                .push(&[XMM, YMM, M16, M32, M64], true)
+                .set_mode(CheckMode::AVX)
+                .forbidden(&[
+                    [XMM, YMM],
+                    [XMM, M32],
+                    [XMM, M64],
+                    [YMM, M16],
+                    [YMM, M64],
+                    [ZMM, XMM],
+                    [ZMM, M16],
+                    [ZMM, M32],
+                ])
+                .set_evex()
+                .check(ins)
+        }
         Mnemonic::VPINSRB => ot_chk(
             ins,
             &[
