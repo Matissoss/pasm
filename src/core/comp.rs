@@ -9849,6 +9849,18 @@ fn ins_push(ins: &Instruction, _: u8) -> GenAPI {
                 GenAPI::new().opcode(&[0x50 + r.to_byte()]).rex()
             }
         }
+        Operand::String(_) => match ins.dst().unwrap().size() {
+            Size::Byte => GenAPI::new().opcode(&[0x6A]).imm_atindex(0, 1),
+            Size::Word => GenAPI::new()
+                .opcode(&[0x68])
+                .imm_atindex(0, 2)
+                .fixed_size(Size::Word),
+            Size::Dword => GenAPI::new()
+                .opcode(&[0x68])
+                .imm_atindex(0, 4)
+                .fixed_size(Size::Dword),
+            _ => invalid(31),
+        },
         Operand::Imm(nb) => match nb.signed_size() {
             Size::Byte => GenAPI::new().opcode(&[0x6A]).imm_atindex(0, 1),
             Size::Word => GenAPI::new()
@@ -9869,7 +9881,6 @@ fn ins_push(ins: &Instruction, _: u8) -> GenAPI {
             }
         }
         Operand::Mem(_) => GenAPI::new().opcode(&[0xFF]).modrm(true, Some(6)).rex(),
-        _ => invalid(30),
     }
 }
 
