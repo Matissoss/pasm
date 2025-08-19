@@ -10,7 +10,6 @@ use crate::shr::{ast::Instruction, symbol::SymbolType, visibility::Visibility};
 pub struct Label<'a> {
     pub content: Vec<Instruction<'a>>,
     pub name: &'a str,
-    pub align: u16,
     pub attributes: LabelAttributes,
     pub base_line: usize,
 }

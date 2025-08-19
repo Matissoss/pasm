@@ -25,15 +25,6 @@ pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
             "global"|"public" => label.attributes.set_visibility(Visibility::Public),
             "protected" => label.attributes.set_visibility(Visibility::Protected),
             "weak" => label.attributes.set_visibility(Visibility::Weak),
-            "align" => if let Some(num) = val {
-                if let Some(num) = Number::from_str(num) {
-                    label.align = num.get_as_u64() as u16;
-                } else {
-                    return Err(Error::new("align parameter needs a number, not a string", 20));
-                }
-            } else {
-                return Err(Error::new(format!("usage of unknown key-only attribute: \"{key}\""), 20));
-            },
             "type" => return Err(Error::new(format!("external type declarations are forbidden, use inline label attribute{} instead",
                 if let Some(val) = val {
                     format!(" like: {} {}", val, label.name)

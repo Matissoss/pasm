@@ -730,7 +730,7 @@ impl<'a> Instruction<'a> {
         }
     }
     #[inline]
-    pub fn get_symbs(&self) -> SmallVec<(&SymbolRef, usize), 2> {
+    pub fn get_symbs(&self) -> SmallVec<(&SymbolRef<'_>, usize), 2> {
         let mut syms = SmallVec::new();
 
         let mut idx = 0;

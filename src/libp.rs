@@ -37,7 +37,7 @@ pub fn get_file(inpath: PathBuf) -> Result<Vec<u8>, Error> {
     Ok(file.unwrap())
 }
 
-pub fn pasm_parse_src(inpath: PathBuf, file: &[u8], nocheck: bool) -> Result<AST, Vec<Error>> {
+pub fn pasm_parse_src(inpath: PathBuf, file: &[u8], nocheck: bool) -> Result<AST<'_>, Vec<Error>> {
     #[cfg(feature = "vtime")]
     let start = std::time::SystemTime::now();
 
@@ -231,7 +231,7 @@ fn process_section<'a>(
         let vi = lbl.attributes.get_visibility();
         let nm = lbl.name;
 
-        let (bts, mut rels) = process_label(lbl, offset);
+        let (bts, mut rels) = process_label(lbl);
         for rel in &mut rels {
             rel.shidx = idx;
             rel.offset += wrt.len();
@@ -268,7 +268,7 @@ pub fn add_externs<'a>(sym: *mut Vec<Symbol<'a>>, externs: &'a [&'a str]) {
     }
 }
 
-pub fn process_label<'a>(label: &'a Label, offset: usize) -> (Vec<u8>, Vec<Relocation<'a>>) {
+pub fn process_label<'a>(label: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>) {
     use crate::core::api::AssembleResult::*;
 
     let default_reltype = if label.attributes.bits == 16 {
@@ -279,12 +279,6 @@ pub fn process_label<'a>(label: &'a Label, offset: usize) -> (Vec<u8>, Vec<Reloc
 
     let mut wrt = Vec::new();
     let mut rel = Vec::new();
-
-    // apply align
-    if offset != 0 && label.align != 0 {
-        let align = label.align as usize;
-        wrt.extend(vec![0; align - (offset % align)]);
-    }
 
     let bits = label.attributes.get_bits();
     for instruction in &label.content {

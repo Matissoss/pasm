@@ -429,7 +429,7 @@ fn mer2(mode: &Mode, lhs: MathElement, rhs: MathElement) -> MathElement {
     }
 }
 
-fn tok(str: &str) -> Vec<Token> {
+fn tok(str: &str) -> Vec<Token<'_>> {
     let mut sstart = 0;
     let mut send = 0;
 
@@ -473,7 +473,7 @@ fn tok(str: &str) -> Vec<Token> {
     tokens
 }
 
-fn make_tok(vec: &[u8]) -> Token {
+fn make_tok(vec: &[u8]) -> Token<'_> {
     let str = unsafe { std::str::from_utf8_unchecked(vec) };
     if let Some(num) = Number::from_str(str) {
         Token::Number(num)

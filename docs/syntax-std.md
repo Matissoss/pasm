@@ -214,7 +214,6 @@ External attributes are basically Closure `#()`. Syntax formula:
 | Attribute | Accepted values |
 |:---------:|:---------------:|
 | bits      | 16, 32 or 64    |
-| align     | uint16          |
 | public    |        -        |
 | protected | -               |
 | local     | -               |
@@ -238,7 +237,6 @@ Sections can be defined using `section "<SECTION_NAME>" [ATTR] [...]`
 List of `[ATTR]`:
 
 - `executable` - sets executable flag (`X` in ELF)
-- `alloc` - sets alloc flag (`A` in ELF)
 - `writeable` - sets write flag (`W` in ELF)
 - `nobits` - treats section like `.bss` in ELF
 

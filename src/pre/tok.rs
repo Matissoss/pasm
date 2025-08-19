@@ -36,7 +36,7 @@ pub enum Token<'a> {
     SubExpr(&'a str),
 }
 
-pub fn tokl(line: &str) -> SmallVec<Token, 16> {
+pub fn tokl(line: &str) -> SmallVec<Token<'_>, 16> {
     let mut tstart: usize = 0;
     let mut tend: usize = 0;
     let bline = line.as_bytes();
