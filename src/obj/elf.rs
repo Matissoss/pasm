@@ -345,8 +345,8 @@ fn shdr_collect(e: ElfSection, is_64bit: bool) -> Vec<u8> {
         b.extend(e.stype.to_le_bytes());
         b.extend(e.flags.to_le_bytes());
         b.extend(&[0; 4]);
-        b.extend(e.offset.to_le_bytes());
-        b.extend(e.size.to_le_bytes());
+        b.extend((e.offset as u32).to_le_bytes());
+        b.extend((e.size as u32).to_le_bytes());
         b.extend(e.link.to_le_bytes());
         b.extend(e.info.to_le_bytes());
         b.extend(e.addralign.to_le_bytes());
@@ -365,7 +365,6 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
         b.extend(&[0; 8]);
         b.extend((e.section_offset as u64).to_le_bytes());
         b.extend(&[0; 4]);
-        // ehdr_size
         b.extend((EHDR_SIZE_64 as u16).to_le_bytes());
         b.extend(&[0; 2]);
         b.extend(&[0; 2]);
@@ -378,7 +377,7 @@ fn ehdr_collect(e: ElfHeader, is_64bit: bool) -> Vec<u8> {
         b.extend(1u32.to_le_bytes());
         b.extend(&[0; 4]);
         b.extend(&[0; 4]);
-        b.extend(e.section_offset.to_le_bytes());
+        b.extend((e.section_offset as u32).to_le_bytes());
         b.extend(&[0; 4]);
         b.extend((EHDR_SIZE_32 as u16).to_le_bytes());
         b.extend(&[0; 2]);
@@ -417,8 +416,8 @@ fn sym_collect(symb: ElfSymbol, is_64bit: bool) -> Vec<u8> {
         b.extend((symb.size as u64).to_le_bytes());
     } else {
         b.extend((symb.name as u32).to_le_bytes());
-        b.extend(symb.value.to_le_bytes());
-        b.extend(symb.size.to_le_bytes());
+        b.extend((symb.value as u32).to_le_bytes());
+        b.extend((symb.size as u32).to_le_bytes());
         b.extend(symb.info.to_le_bytes());
         b.extend(symb.visibility.to_le_bytes());
         b.extend((symb.section_index as u16).to_le_bytes());
