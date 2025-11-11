@@ -4,13 +4,21 @@
 
 ## about
 
+> [!WARNING]
+> This is development branch of PASM assembler.
+
 `pasm` is modern and independent assembler for x86-64 architecture as one of key parts in [polon](https://github.com/Matissoss/polon) toolchain.
 
-> [!NOTE]
-> `pasm` will not receive new content updates from now on as development on it is finished.
->
-> Only bugfixes and minor changes will be submitted.
-> - matissoss, 30.07.2025
+Current focuses/goals are:
+- Rewriting entire front-end to be streaming model only for better memory optimizations, may reduce it up to only `Source Code Size + Output Size` with minor offset (unless you're planning to put 1GB long string, then maybe more than that ;D)
+- Rewrite most of modules in `shr`
+- Remove most of "high-level" features (defines, const time evaluations) in favor of future polon preprocessor
+- Adapt existing back-end to new front-end
+- Fully migrate to new `CheckAPI` (or some derivative)
+- Write tests and document every module
+- Make `pasm`'s syntax compatible with most of Intel Syntax (so I don't have to write two different tests).
+- Write tests for rest of x86-64 instructions
+- Adapt new version naming system
 
 ## features
 

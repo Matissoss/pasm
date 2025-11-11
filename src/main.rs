@@ -25,10 +25,7 @@ pub mod core;
 pub mod libp;
 pub mod obj;
 pub mod pre;
-pub mod pre_core;
 pub mod shr;
-
-use core::comp;
 
 // pasm helper utilities
 pub mod cli;
@@ -41,10 +38,6 @@ pub mod utils;
 pub use shr::rpanic::switch_panichandler;
 
 use cli::*;
-
-// feature dependent
-#[cfg(feature = "time")]
-use std::time;
 
 // start
 fn main() {
@@ -70,65 +63,7 @@ fn main() {
         return;
     }
 
-    let infile = if let Some(s) = cli.infile() {
-        s
-    } else {
-        eprintln!("error: you forgot to provide -i=[PATH] flag");
-        std::process::exit(1);
-    };
-
-    #[cfg(feature = "time")]
-    let start = time::SystemTime::now();
-
-    let file = match libp::get_file(infile.to_path_buf()) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
-        }
-    };
-
-    let ast = libp::pasm_parse_src(infile.to_path_buf(), &file, cli.nocheck());
-
-    if let Err(errs) = ast {
-        for mut e in errs {
-            e.set_file(infile.to_path_buf());
-            eprintln!("{e}");
-        }
-        std::process::exit(1);
-    }
-    let ast = ast.unwrap();
-
-    if cli.check() {
-        #[cfg(feature = "time")]
-        {
-            let end = time::SystemTime::now();
-            println!(
-                "Checking {} took {:08.16}s and ended without errors!",
-                infile.to_string_lossy(),
-                match end.duration_since(start) {
-                    Ok(t) => t.as_secs_f32(),
-                    Err(e) => e.duration().as_secs_f32(),
-                }
-            )
-        }
-        return;
-    }
-
-    let outfile = cli.outfile().clone();
-
-    if let Err(e) = libp::assemble(ast, outfile) {
-        eprintln!("{e}");
-        std::process::exit(1);
-    };
-
-    #[cfg(all(feature = "time", feature = "vtime"))]
-    utils::vtimed_print("overall", start);
-    if !cli.quiet() {
-        #[cfg(all(feature = "time", not(feature = "vtime")))]
-        utils::vtimed_print(&format!("Assembling {}", infile.to_string_lossy()), start);
-    }
-    process::exit(0);
+    todo!("install binary from main branch rather than dev branch");
 }
 
 #[cfg(feature = "iinfo")]

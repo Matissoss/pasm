@@ -119,9 +119,21 @@ Goal: extensive testing, polish and optimizations of assembler, less updates/com
 - [x] Add `nobits` directive for `section`'s
 - [x] Allow for `protected public function label_name:`
 - [x] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
-- [ ] Once POLON standards are established, adapt `pasm` to them.
+- [ ] Move revitalization
+
+## revitalization
+
+- [ ] Rewrite the frontend:
+    - [ ] Adapt (and rewrite if required) `shr` modules to new project code standards
+    - [ ] Adapt new PASM syntax (now more closely resembling Intel Syntax)
+    - [ ] Rewrite tokenizer
+    - [ ] Rewrite merger
+    - [ ] Rewrite parser (or lack of it?)
+- [ ] Remove high-level features (defines, computations)
+- [ ] Adapt backend and `obj` with new `PASM` architecture
+- [ ] Migrate every instruction to `CheckAPI` (or derivative of that)
 - [ ] move to stable
 
 ## stable
 
-- [ ] release of `stable` version
+- [ ]  release of `stable` version

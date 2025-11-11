@@ -581,7 +581,6 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         Ok(())
     }
 }
-
 #[cfg(test)]
 mod chkn_test {
     use super::*;
