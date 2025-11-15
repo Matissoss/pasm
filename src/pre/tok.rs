@@ -14,7 +14,6 @@ pub enum Token {
     Semicolon,      // ;
     Colon,          // :
     Comma,          // ,
-    Dot,            // .
     StringDelimeter,// "
     CharDelimeter,  // '
     String(u16, u16),
@@ -63,14 +62,6 @@ pub fn tokl<'a>(line: &'a str) -> Vec<Token> {
                 slice_start = slice_end;
                 tokens.push(Token::ClosureClose);
             },
-            b'.' => {
-                if slice_start != slice_end {
-                    tokens.push(Token::String(slice_start, slice_end));
-                }
-                slice_end += 1;
-                slice_start = slice_end;
-                tokens.push(Token::Dot);
-            },
             b',' => {
                 if slice_start != slice_end {
                     tokens.push(Token::String(slice_start, slice_end));
@@ -107,6 +98,9 @@ pub fn tokl<'a>(line: &'a str) -> Vec<Token> {
             },
         }
     }
+    if slice_start != slice_end {
+        tokens.push(Token::String(slice_start, slice_end));
+    }
     return tokens;
 }
 
@@ -132,7 +126,7 @@ mod tok_test {
                 Semicolon,
                 String(26, 30),
                 String(31, 37),
-                Dot,
+                String(38, 39)
             ]
         );
     }
