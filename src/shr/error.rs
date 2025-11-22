@@ -29,7 +29,11 @@ impl Display for Error {
             if let Some(pth) = CLI.infile() {
                 // pls don't cancel me for this horrible code, i'll try to optimize this better
                 // later if Rust allows me to use global scope variables, i promise
-                let file_content: Vec<String> = std::fs::read_to_string(pth).unwrap().lines().map(|s| s.to_string()).collect();
+                let file_content: Vec<String> = std::fs::read_to_string(pth)
+                    .unwrap()
+                    .lines()
+                    .map(|s| s.to_string())
+                    .collect();
                 for i in (self.line - 1)..(self.line + 1) {
                     if let Some(l) = file_content.get((i as usize) - 1) {
                         if i == self.line {

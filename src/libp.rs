@@ -5,6 +5,6 @@
 
 use std::path::Path;
 
-pub fn assemble<'a>(_file: &'a Path){
+pub fn assemble(_file: &Path) {
     todo!();
 }

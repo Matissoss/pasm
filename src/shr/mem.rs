@@ -3,8 +3,6 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::conf::{CLOSURE_END, CLOSURE_START};
-
 use crate::shr::{
     booltable::BoolTable8,
     error::Error,
@@ -484,8 +482,8 @@ fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
     Ok(mem)
 }
 
-const MS: u8 = CLOSURE_START as u8;
-const ME: u8 = CLOSURE_END as u8;
+const MS: u8 = b'[';
+const ME: u8 = b']';
 fn mem_tok(str: &str) -> SmallVec<Token, 8> {
     let mut tokens = SmallVec::new();
     let bytes: &[u8] = str.as_bytes();
@@ -556,7 +554,7 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
 impl ToString for Mem {
     fn to_string(&self) -> String {
         let mut str = String::new();
-        str.push(CLOSURE_START);
+        str.push(MS as char);
         if let Some(reg) = self.base() {
             str.push_str(&reg.to_string());
             if self.index().is_some() {
@@ -578,7 +576,7 @@ impl ToString for Mem {
                 str.push_str(&offset.to_string());
             }
         }
-        str.push(CLOSURE_END);
+        str.push(ME as char);
         str
     }
 }

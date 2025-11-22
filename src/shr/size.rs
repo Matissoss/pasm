@@ -3,10 +3,9 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::dir::Directive;
-
 use std::cmp::Ordering;
 use std::fmt::{Display, Error as FmtError, Formatter};
+use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, Default, Eq)]
 pub enum Size {
@@ -21,6 +20,126 @@ pub enum Size {
     #[default]
     Unknown,
     Any,
+}
+
+impl FromStr for Size {
+    type Err = ();
+    fn from_str(line: &str) -> Result<Self, <Self as FromStr>::Err> {
+        if let Some(sz) = size_fromstr(line) {
+            Ok(sz)
+        } else {
+            Err(())
+        }
+    }
+}
+
+pub fn size_fromstr(str: &str) -> Option<Size> {
+    use Size::*;
+    let r = str.as_bytes();
+    match r.len() {
+        3 => match r[0] {
+            b'b' => match r[1] {
+                b'8' => match r[2] {
+                    b'0' => Some(B80),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
+        4 => match r[0] {
+            b'b' => match r[1] {
+                b'y' => match r[2] {
+                    b't' => match r[3] {
+                        b'e' => Some(Byte),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'w' => match r[1] {
+                b'o' => match r[2] {
+                    b'r' => match r[3] {
+                        b'd' => Some(Word),
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
+        5 => match r[0] {
+            b'q' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => Some(Qword),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'x' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => Some(Xword),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'y' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => Some(Yword),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'z' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => Some(Zword),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            b'd' => match r[1] {
+                b'w' => match r[2] {
+                    b'o' => match r[3] {
+                        b'r' => match r[4] {
+                            b'd' => Some(Dword),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 impl Size {
@@ -126,23 +245,5 @@ impl PartialEq for Size {
         let o = *oth as u8;
 
         s == o
-    }
-}
-
-impl TryFrom<Directive> for Size {
-    type Error = ();
-    fn try_from(kwd: Directive) -> Result<Self, <Self as TryFrom<Directive>>::Error> {
-        match kwd {
-            Directive::Byte => Ok(Self::Byte),
-            Directive::Word => Ok(Self::Word),
-            Directive::Dword => Ok(Self::Dword),
-            Directive::Qword => Ok(Self::Qword),
-            Directive::Xword => Ok(Self::Xword),
-            Directive::Yword => Ok(Self::Yword),
-            Directive::Zword => Ok(Self::Zword),
-            Directive::B80 => Ok(Self::B80),
-            Directive::Any => Ok(Self::Any),
-            _ => Err(()),
-        }
     }
 }
