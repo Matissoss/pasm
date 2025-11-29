@@ -16,6 +16,7 @@ use crate::shr::{
 };
 use std::{collections::HashMap, str, str::FromStr};
 
+#[derive(Debug, PartialEq, Default)]
 pub struct ParserStatus<'a> {
     pub attributes: HashMap<&'a str, &'a str>,
 }
@@ -85,7 +86,7 @@ pub fn par<'a>(parser_status: *mut ParserStatus<'a>, mut line: &'a str) -> LineR
                         std::mem::ManuallyDrop::new(Box::new(s)),
                     )),
                     ParserOperand::SymbolRef(s) => ins.push(OperandOwned::Symbol(
-                        std::mem::ManuallyDrop::new(Box::new(s))
+                        std::mem::ManuallyDrop::new(Box::new(s)),
                     )),
                     ParserOperand::Mem(m) => ins.push(OperandOwned::Mem(m)),
                     ParserOperand::Register(r) => ins.push(OperandOwned::Register(r)),
@@ -126,7 +127,7 @@ pub fn par<'a>(parser_status: *mut ParserStatus<'a>, mut line: &'a str) -> LineR
                                     format!(
                                     "you tried to use unknown/unsupported subexpression: \"{s}\""
                                 ),
-                                    18,
+                                    4,
                                 ))
                             }
                         }
@@ -146,10 +147,7 @@ pub fn par<'a>(parser_status: *mut ParserStatus<'a>, mut line: &'a str) -> LineR
         instruction.mnemonic = mnem;
         LineResult::Instruction(instruction)
     } else {
-        LineResult::Error(Error::new(
-            "couldn't parse this line for some reason",
-            todo!(),
-        ))
+        LineResult::Error(Error::new("couldn't parse this line for some reason", 3))
     }
 }
 
@@ -186,20 +184,33 @@ fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
     } else if slice.starts_with('"') && slice.ends_with('"') {
         Ok(ParserOperand::String(&slice[1..slice.len() - 1]))
     } else if let Some((sz, slice)) = slice.split_once(' ') {
-            let sz = if let Ok(s) = Size::from_str(sz.trim()) {
-                s
-            } else {
-                todo!()
-            };
-
-            if let Ok(m) = Mem::new(slice, sz) {
-                Ok(ParserOperand::Mem(m))
-            } else {
-                todo!()
-            }
+        let sz = if let Ok(s) = Size::from_str(sz.trim()) {
+            s
         } else {
-            Ok(ParserOperand::SymbolRef(SymbolRef::from_str(slice).unwrap()))
+            return Err(Error::new(
+                "expected to find size directive here, found something else",
+                5,
+            ));
+        };
+
+        if let Ok(m) = Mem::new(slice, sz) {
+            Ok(ParserOperand::Mem(m))
+        } else {
+            Err(Error::new(
+                "expected a memory address, found something else",
+                5,
+            ))
         }
+    } else if Mem::new(slice, Size::Any).is_ok() {
+        Err(Error::new(
+                "you tried to use memory addressing without size directive, which is forbidden in PASM at the moment",
+                5
+        ))
+    } else {
+        Ok(ParserOperand::SymbolRef(
+            SymbolRef::from_str(slice).unwrap(),
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -224,7 +235,7 @@ mod partest {
             par_operand(slice),
             Ok(ParserOperand::Register(Register::RAX))
         );
-        let slice = "qword (rax + 10)";
+        let slice = "qword [rax + 10]";
         if let Ok(ParserOperand::Mem(_)) = par_operand(slice) {
         } else {
             panic!("didn't parse into mem");
