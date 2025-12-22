@@ -119,19 +119,15 @@ Goal: extensive testing, polish and optimizations of assembler, less updates/com
 - [x] Add `nobits` directive for `section`'s
 - [x] Allow for `protected public function label_name:`
 - [x] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
-- [ ] Move revitalization
+- [x] Move revitalization
 
 ## revitalization
 
-- [ ] Rewrite the frontend:
-    - [ ] Adapt (and rewrite if required) `shr` modules to new project code standards
-    - [ ] Adapt new PASM syntax (now more closely resembling Intel Syntax)
-    - [ ] Rewrite tokenizer
-    - [ ] Rewrite merger
-    - [ ] Rewrite parser (or lack of it?)
-- [ ] Remove high-level features (defines, computations)
-- [ ] Adapt backend and `obj` with new `PASM` architecture
-- [ ] Migrate every instruction to `CheckAPI` (or derivative of that)
+- [x] New syntax documentation
+- [ ] New frontend (fully streaming model)
+- [ ] Remove (if it does not change anything) unnecessary(?) bit packing in `Instruction` struct.
+- [ ] Remove unneeded components and adapt existing ones to proper code standards (with tests and comments).
+- [ ] Migrate every instruction to new CheckAPI
 - [ ] move to stable
 
 ## stable
