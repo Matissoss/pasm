@@ -102,6 +102,20 @@ Here is full list of them:
 |function | value: string           | Sets symbol's type to function                                 |
 |object   | value: string           | Sets symbol's type to object                                   |
 
+> [!NOTE]
+> To use something like this:
+> ```
+> public _start
+> _start:
+> ```
+> 
+> You need to reverse the order you write this, because `public` will apply to already existing symbols (which _start ***is NOT***);
+>
+> ```
+> _start:
+> public _start
+> ```
+
 ## Section-related syntax
 
 ### Section declaration
@@ -163,8 +177,8 @@ Example:
 section ".text"
     alloc
     executable
-    public _start
     _start:
+    public _start
         mov rax, 60
         mov rdi, 0
         syscall

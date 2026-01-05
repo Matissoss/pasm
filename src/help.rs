@@ -14,8 +14,6 @@ pub fn help() -> String {
 
     help_string.push_str("Flags:\n");
     help_string.push_str("\t--help / -h                       ; prints this message\n");
-    help_string
-        .push_str("\t-d / --debug                      ; prints hex dump of each instruction\n");
     help_string.push_str("\t-i=[PATH] / --input=[PATH]        ; specifies input file\n");
     help_string.push_str(
         "\t-o=[PATH] / --output=[PATH]       ; specifies output file, by default a.out\n",
@@ -32,7 +30,7 @@ pub fn help() -> String {
     help_string
         .push_str("\t-n / --nocolor                    ; prints all colored text without color\n");
     help_string
-        .push_str("\t-t / --time                       ; prints all colored text without color\n");
+        .push_str("\t-t / --time                       ; measures time requried to assemble source code\n");
 
     help_string.push_str("made by matissoss\nlicensed under MPL 2.0");
     help_string.push_str("\nsource code: https://github.com/Matissoss/pasm");
