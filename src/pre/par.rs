@@ -14,12 +14,7 @@ use crate::shr::{
     smallvec::SmallVec,
     symbol::SymbolRef,
 };
-use std::{collections::HashMap, str, str::FromStr};
-
-#[derive(Debug, PartialEq, Default)]
-pub struct ParserStatus<'a> {
-    pub attributes: HashMap<&'a str, &'a str>,
-}
+use std::{str, str::FromStr};
 
 #[derive(Debug, PartialEq)]
 pub enum LineResult<'a> {
@@ -27,7 +22,7 @@ pub enum LineResult<'a> {
     Instruction(Instruction<'a>),
     Label(&'a str),
     Section(&'a str),
-    Directive,
+    Directive(&'a str, &'a str),
     None,
 }
 
@@ -35,8 +30,7 @@ pub enum LineResult<'a> {
 /// ---
 /// EXPECTED INPUT:
 ///     - line is already stripped off comments and whitespace at start/end
-pub fn par<'a>(parser_status: *mut ParserStatus<'a>, mut line: &'a str) -> LineResult<'a> {
-    let parser_status = unsafe { &mut *parser_status };
+pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
     let line_bytes = line.as_bytes();
     if line_bytes.last() == Some(&b':') {
         return unsafe {
@@ -139,15 +133,14 @@ pub fn par<'a>(parser_status: *mut ParserStatus<'a>, mut line: &'a str) -> LineR
         } else if mnem == "section" {
             LineResult::Section(content)
         } else {
-            parser_status.attributes.insert(mnem, content);
-            LineResult::Directive
+            LineResult::Directive(mnem, content)
         }
     } else if let Ok(mnem) = Mnemonic::from_str(line) {
         let mut instruction = Instruction::with_operands(SmallVec::new());
         instruction.mnemonic = mnem;
         LineResult::Instruction(instruction)
     } else {
-        LineResult::Error(Error::new("couldn't parse this line for some reason", 3))
+        LineResult::Directive(line, "")
     }
 }
 
@@ -254,13 +247,7 @@ mod partest {
         let mut expected = Instruction::with_operands(SmallVec::new());
         expected.push(OperandOwned::Register(Register::RAX));
         expected.push(OperandOwned::Register(Register::RCX));
-        let mut parser_status = ParserStatus {
-            attributes: HashMap::new(),
-        };
         expected.mnemonic = Mnemonic::MOV;
-        assert_eq!(
-            par(&mut parser_status, islice),
-            LineResult::Instruction(expected)
-        );
+        assert_eq!(par(islice), LineResult::Instruction(expected));
     }
 }

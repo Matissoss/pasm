@@ -7,7 +7,7 @@ use std::{env, sync::LazyLock};
 
 pub static CLI: LazyLock<Cli> = LazyLock::new(|| Cli::new(env::args().collect::<Vec<String>>()));
 
-use crate::shr::{atype::DS, booltable::BoolTable16 as Flags};
+use crate::shr::booltable::BoolTable16 as Flags;
 use std::path::PathBuf;
 
 const HELP: u8 = 0x0;
@@ -26,6 +26,7 @@ pub struct Cli {
     infile: Option<PathBuf>,  // -i flag
     outfile: Option<PathBuf>, // -o flag
     flags: Flags,             // -/--flag
+}
 
 impl Cli {
     pub fn infile(&self) -> &Option<PathBuf> {
