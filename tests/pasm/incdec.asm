@@ -1,22 +1,22 @@
 bits 64
 _start:
 	inc al
-	inc (rax) byte
+	inc byte [rax]
 	inc ax
-	inc (rax) word
+	inc word [rax]
 	inc eax
-	inc (rax) dword
+	inc dword [rax]
 	inc rax
-	inc (rax) qword
+	inc qword [rax]
 	inc r8
 	inc r9
 	dec al
-	dec (rax) byte
+	dec byte [rax]
 	dec ax
-	dec (rax) word
+	dec word [rax]
 	dec eax
-	dec (rax) dword
+	dec dword [rax]
 	dec rax
-	dec (rax) qword
+	dec qword [rax]
 	dec r8
 	dec r9

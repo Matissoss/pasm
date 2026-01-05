@@ -60,3 +60,7 @@ cword [rax] ; a0005
 ## a0006 - file I/O error
 
 Provokes, when assembler wasn't able to open, read or write to/from a file.
+
+## a0007 - invalid target name
+
+Provokes, when assembler does not recognize provided's target's name.

@@ -35,7 +35,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
     if line_bytes.last() == Some(&b':') {
         return unsafe {
             LineResult::Label(str::from_utf8_unchecked(
-                &line_bytes[0..line_bytes.len() - 2],
+                &line_bytes[0..line_bytes.len() - 1],
             ))
         };
     }
@@ -52,9 +52,11 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
             }
             // then we go after operands and subexpressions
             let mut ins = Instruction::with_operands(SmallVec::new());
-            ins.mnemonic = m;
             if let Some(a_mnem) = a_mnem {
-                ins.set_addt(a_mnem);
+                ins.set_addt(m);
+                ins.mnemonic = a_mnem;
+            } else {
+                ins.mnemonic = m;
             }
             loop {
                 let operand = if let Some((operand, rest)) = split_once_intelligent(line) {

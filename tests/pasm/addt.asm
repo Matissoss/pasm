@@ -7,8 +7,8 @@ _start:
 	lock bts rax, rbx
 	lock btr rax, rbx
 	lock cmpxchg rax, rbx
-	lock cmpxchg16b xword (rax)
-	lock cmpxchg8b qword (rax)
+	lock cmpxchg16b xword [rax]
+	lock cmpxchg8b qword [rax]
 	lock dec rax
 	lock inc rax
 	lock neg rax

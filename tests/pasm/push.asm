@@ -5,8 +5,8 @@ _start:
 	push 10
 	;push 256
 	push 65537
-	push (rax) qword
-	push (rax+8) qword
-	push (rax+rcx*4+20) qword
-	push (rax+rcx*4) qword
-	push (rcx*4) qword
+	push qword [rax]
+	push qword [rax+8]
+	push qword [rax+rcx*4+20]
+	push qword [rax+rcx*4]
+	push qword [rcx*4]

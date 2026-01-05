@@ -10,7 +10,7 @@ _start:
 	clac
 	clts
 	clui
-	clwb byte (rax)
+	clwb byte [rax]
 
 	blsr eax, ebx
 	blsr rax, rbx

@@ -15,6 +15,7 @@ use crate::{
         chk,
         par::{par, LineResult},
     },
+    obj::Elf,
     shr::{
         error::Error as PasmError,
         reloc::{relocate_addresses, RelType, Relocation},
@@ -59,7 +60,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
         bits: 16,
     };
     let mut current_label: usize = 0;
-    let mut sindex = 1u16;
+    let mut sindex = 0u16;
 
     let mut target: Option<&str> = None;
     let mut bits = 16;
@@ -68,7 +69,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
         let line = line.trim();
         match par(line) {
             LineResult::Error(mut e) => {
-                e.set_line(lnum);
+                e.set_line(lnum + 1);
                 return Err(e);
             }
             LineResult::Instruction(mut i) => {
@@ -78,7 +79,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
                     chk::check_ins32bit(&i)
                 };
                 if let Err(mut e) = e {
-                    e.set_line(lnum);
+                    e.set_line(lnum + 1);
                     return Err(e);
                 }
                 // i hate Rust's borrow checker sometimes tbh
@@ -103,14 +104,17 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
             }
             LineResult::Section(s) => {
                 current_section.size = obuf.len() - current_section.offset;
-                symbols.push(Symbol {
-                    name: current_section.name,
-                    offset: current_section.offset,
-                    size: current_section.size,
-                    sindex: 0,
-                    visibility: Visibility::Public,
-                    stype: SymbolType::Section,
-                });
+                if sindex != 0 {
+                    symbols.push(Symbol {
+                        name: current_section.name,
+                        offset: current_section.offset,
+                        size: current_section.size,
+                        sindex: 0,
+                        visibility: Visibility::Public,
+                        stype: SymbolType::Section,
+                    });
+                    sindex += 1;
+                }
                 current_section = SlimSection {
                     name: s,
                     size: 0,
@@ -119,7 +123,6 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
                     attributes: SectionAttributes::new(),
                     bits,
                 };
-                sindex += 1;
             }
 
             LineResult::Label(l) => {
@@ -209,6 +212,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
             _ => {}
         }
     }
+    current_section.size = obuf.len() - current_section.offset;
     symbols.push(Symbol {
         name: current_section.name,
         offset: current_section.offset,
@@ -219,15 +223,21 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
     });
     sections.push(current_section);
 
-    match target.unwrap_or("elf64") {
+    match target.unwrap_or("bin") {
         #[cfg(feature = "target_elf")]
-        "elf64" | "ELF64" => {}
+        "elf64" | "ELF64" => {
+            let elf = Elf::new(&sections, opath, &obuf, rels, &symbols, true)?;
+            obuf = elf.compile(true);
+        }
         #[cfg(feature = "target_elf")]
-        "elf32" | "ELF32" => {}
+        "elf32" | "ELF32" => {
+            let elf = Elf::new(&sections, opath, &obuf, rels, &symbols, false)?;
+            obuf = elf.compile(false);
+        }
         "bin" => {
             relocate_addresses(&mut obuf, rels, &symbols)?;
         }
-        t => return Err(PasmError::new(format!("unknown target {t}"), todo!())),
+        t => return Err(PasmError::new(format!("unknown target {t}"), 7)),
     }
 
     // now write content to a file

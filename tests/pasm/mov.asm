@@ -25,12 +25,12 @@ _start:
 	mov rsp, r10
 	mov rbp, rsp
 	mov r8, r8
-	mov (rax) qword, 1000
-	mov (rax + rcx) qword, 10
-	mov (rax + rcx*4) qword, 10
-	mov (rcx*4) qword, rax
-	mov (rax+rcx*4+20) qword, 10
-	mov (rax+rcx*4) qword, 10
-	mov (rax+r8*4+20) qword, 10
-	mov (r9+r8*4+20) qword, 10
-	mov rax, (r9+r8*4+20) qword
+	mov qword [rax], 1000
+	mov qword [rax + rcx], 10
+	mov qword [rax + rcx*4], 10
+	mov qword [rcx*4], rax
+	mov qword [rax+rcx*4+20], 10
+	mov qword [rax+rcx*4], 10
+	mov qword [rax+r8*4+20], 10
+	mov qword [r9+r8*4+20], 10
+	mov rax, qword [r9+r8*4+20]

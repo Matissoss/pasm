@@ -6,19 +6,19 @@ _start:
 	neg rbx
 	neg r8
 	neg r8
-	neg (rax) qword
-	neg (rax + rcx) qword 
-	neg (rax + rcx*4) qword
-	neg (rcx*4) qword
-	neg (rax+rcx*4+20) qword
-	neg (rax+rcx*4) qword
-	neg (rax+r8*4+20) qword
-	neg (r9+r8*4+20) qword
-	neg (rax) qword
-	neg (rax + rcx) qword
-	neg (rax + rcx*4) qword
-	neg (rcx*4) qword
-	neg (rax+rcx*4+20) qword
-	neg (rax+rcx*4) qword
-	neg (rax+r8*4+20) qword
-	neg (r9+r8*4+20) qword
+	neg qword [rax]
+	neg qword [rax + rcx] 
+	neg qword [rax + rcx*4]
+	neg qword [rcx*4]
+	neg qword [rax+rcx*4+20]
+	neg qword [rax+rcx*4]
+	neg qword [rax+r8*4+20]
+	neg qword [r9+r8*4+20]
+	neg qword [rax]
+	neg qword [rax + rcx]
+	neg qword [rax + rcx*4]
+	neg qword [rcx*4]
+	neg qword [rax+rcx*4+20]
+	neg qword [rax+rcx*4]
+	neg qword [rax+r8*4+20]
+	neg qword [r9+r8*4+20]

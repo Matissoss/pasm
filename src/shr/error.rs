@@ -34,7 +34,7 @@ impl Display for Error {
                     .lines()
                     .map(|s| s.to_string())
                     .collect();
-                for i in (self.line - 1)..(self.line + 1) {
+                for i in (self.line - 1)..=(self.line + 1) {
                     if let Some(l) = file_content.get((i as usize) - 1) {
                         if i == self.line {
                             writeln!(f, "\t->| {l}")?;

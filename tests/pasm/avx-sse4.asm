@@ -5,10 +5,10 @@ _start:
 	
 	vdppd xmm0, xmm1, xmm2, 10
 
-	vptest xmm0, xword (rax)
-	vptest ymm0, yword (rax)
+	vptest xmm0, xword [rax]
+	vptest ymm0, yword [rax]
 
-	vpinsrb xmm1, xmm2, byte (rax), 10
+	vpinsrb xmm1, xmm2, byte [rax], 10
 	vpinsrb xmm1, xmm2, eax, 10
 	
 	vpinsrd xmm1, xmm2, eax, 10

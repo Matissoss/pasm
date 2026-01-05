@@ -28,4 +28,4 @@ _start:
 	scasd
 	serialize
 	setssby
-	rstorssp qword (rax)
+	rstorssp qword [rax]

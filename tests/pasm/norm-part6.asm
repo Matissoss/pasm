@@ -17,22 +17,22 @@ _start:
 	xsusldtrk
 	xtest
 
-	xrstor dword (rax)
-	xrstor64 qword (rax)
+	xrstor dword [rax]
+	xrstor64 qword [rax]
 	
-	xsave dword (rax)
-	xsave64 qword (rax)
+	xsave dword [rax]
+	xsave64 qword [rax]
 	
-	xsavec dword (rax)
-	xsavec64 qword (rax)
+	xsavec dword [rax]
+	xsavec64 qword [rax]
 	
-	xsaveopt dword (rax)
-	xsaveopt64 qword (rax)
+	xsaveopt dword [rax]
+	xsaveopt64 qword [rax]
 	
-	xsaves dword (rax)
-	xsaves64 qword (rax)
+	xsaves dword [rax]
+	xsaves64 qword [rax]
 	
-	lea eax, dword (rax + rcx * 4 + 10)
+	lea eax, dword [rax + rcx * 4 + 10]
 	
-	lidt word (rbx)
-	lgdt word (rbx)
+	lidt word [rbx]
+	lgdt word [rbx]
