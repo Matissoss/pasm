@@ -11,6 +11,6 @@ Example:
 xmm0,{k1},{z},xmm2,xmm3
 ```
 
-## mbcst
+## bcst
 
-To use memory broadcasting we use `{mbcst}` subexpression.
+To use memory broadcasting we use `{bcst}` subexpression.

@@ -70,7 +70,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
                         Err(e) => {
                             // if we don't check that, parser thinks we're parsing memory operand
                             if line.split_whitespace().count() >= 2 {
-                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 10))
+                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 5))
                             } else {
                                 return LineResult::Error(e)
                             }

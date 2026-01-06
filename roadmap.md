@@ -124,7 +124,7 @@ Goal: extensive testing, polish and optimizations of assembler, less updates/com
 ## revitalization
 
 - [x] New syntax documentation
-- [ ] New frontend (fully streaming model)
+- [x] New frontend (fully streaming model)
 - [ ] Remove (if it does not change anything) unnecessary(?) bit packing in `Instruction` struct.
 - [ ] Remove unneeded components and adapt existing ones to proper code standards (with tests and comments).
 - [ ] Migrate every instruction to new CheckAPI

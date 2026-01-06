@@ -15,7 +15,7 @@
 - Wide coverage of x86-64 ISA (1795 unique mnemonics)
 - Support for `SSE*`, `AVX`, `AVX2`, `AVX-512`/`AVX-10`, `Intel APX`, `x87`, `MMX` and more x86-64 extensions
 - Support for bin and 32/64-bit ELF as export target
-- Very performant and optimized (~3,4x faster than GAS in [some cases](perf.md))
+- Very performant and optimized (~3-4x faster than GAS in [our cherry picked benchmarks](perf.md) 😊)
 
 ## getting started
 
