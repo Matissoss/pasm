@@ -33,10 +33,11 @@ pub fn evex(ctx: &GenAPI, ins: &Instruction) -> [u8; 4] {
         evex_x1 = true;
     }
 
-    let (bcst, sz) = if let Some(Operand::Mem(m)) = modrm_rm {
-        (m.is_bcst(), m.size())
+    let bcst = ins.evex_bcst() == Some(true);
+    let sz = if let Some(Operand::Mem(m)) = modrm_rm {
+        m.size()
     } else {
-        (false, Size::Unknown)
+        Size::Unknown
     };
 
     let mut evex3 = {

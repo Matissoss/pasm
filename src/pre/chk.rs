@@ -7,7 +7,7 @@ use crate::pre::chkn;
 
 use crate::core::apx::*;
 use crate::shr::{
-    ast::{Instruction, Operand, AST},
+    ast::{Instruction, Operand},
     atype::*,
     error::Error,
     ins::Mnemonic,
@@ -15,36 +15,7 @@ use crate::shr::{
     size::Size,
 };
 
-pub fn check_ast(ast: &AST) -> Option<Vec<(String, Vec<Error>)>> {
-    let mut errors: Vec<(String, Vec<Error>)> = Vec::new();
-
-    for section in &ast.sections {
-        for label in &section.content {
-            let chk_ins: fn(&Instruction) -> Result<(), Error> = match label.attributes.get_bits() {
-                64 => check_ins64bit,
-                _ => check_ins32bit,
-            };
-            let mut errs = Vec::new();
-            for inst in &label.content {
-                if let Err(mut err) = chk_ins(inst) {
-                    err.set_line(inst.line);
-                    errs.push(err);
-                }
-            }
-            if !errs.is_empty() {
-                errors.push((label.name.to_string(), errs));
-            }
-        }
-    }
-
-    if errors.is_empty() {
-        None
-    } else {
-        Some(errors)
-    }
-}
-
-fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
+pub fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     if ins.needs_rex() {
         let er = Error::new(
@@ -472,7 +443,7 @@ fn check_ins32bit(ins: &Instruction) -> Result<(), Error> {
     }
 }
 
-fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
+pub fn check_ins64bit(ins: &Instruction) -> Result<(), Error> {
     use Mnemonic::*;
     match ins.mnemonic {
         LCALL | LJMP => {

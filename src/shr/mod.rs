@@ -1,14 +1,11 @@
 pub mod ast;
 pub mod atype;
 pub mod booltable;
-pub mod dir;
 pub mod error;
 pub mod ins;
 #[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
 pub mod label;
-pub mod location;
-pub mod math;
 pub mod mem;
 pub mod num;
 pub mod reg;

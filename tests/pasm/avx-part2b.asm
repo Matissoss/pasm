@@ -1,9 +1,9 @@
 bits 64
 _start:
-	stmxcsr dword (rax)
-	vstmxcsr dword (rax)
-	ldmxcsr dword (rax)
-	vldmxcsr dword (rax)
+	stmxcsr dword [rax]
+	vstmxcsr dword [rax]
+	ldmxcsr dword [rax]
+	vldmxcsr dword [rax]
 
 	vmovmskps eax, xmm0
 	vmovmskps rax, xmm0

@@ -3,15 +3,15 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Instruction, symbol::SymbolType, visibility::Visibility};
+use crate::shr::{symbol::SymbolType, visibility::Visibility};
 
 #[derive(Default, Debug, PartialEq)]
 #[repr(C)]
 pub struct Label<'a> {
-    pub content: Vec<Instruction<'a>>,
     pub name: &'a str,
     pub attributes: LabelAttributes,
-    pub base_line: usize,
+    pub offset: usize,
+    pub size: usize,
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]

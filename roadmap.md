@@ -119,9 +119,17 @@ Goal: extensive testing, polish and optimizations of assembler, less updates/com
 - [x] Add `nobits` directive for `section`'s
 - [x] Allow for `protected public function label_name:`
 - [x] Allow for long jumps (`jmp ptrXX:YY` and `jmp m16:XX`)
-- [ ] Once POLON standards are established, adapt `pasm` to them.
+- [x] Move revitalization
+
+## revitalization
+
+- [x] New syntax documentation
+- [x] New frontend (fully streaming model)
+- [ ] Remove (if it does not change anything) unnecessary(?) bit packing in `Instruction` struct.
+- [ ] Remove unneeded components and adapt existing ones to proper code standards (with tests and comments).
+- [ ] Migrate every instruction to new CheckAPI
 - [ ] move to stable
 
 ## stable
 
-- [ ] release of `stable` version
+- [ ]  release of `stable` version

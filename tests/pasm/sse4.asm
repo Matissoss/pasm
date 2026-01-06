@@ -2,13 +2,13 @@ bits 64
 _start:
 	pinsrq xmm0, rax, 1
 	pinsrd xmm1, r8d, 1
-	pinsrb xmm1, byte (rax), 1
+	pinsrb xmm1, byte [rax], 1
 	pinsrb xmm1, eax, 1
 
-	pextrw word (rax), xmm0, 1
+	pextrw word [rax], xmm0, 1
 
 	ptest xmm0, xmm1
-	ptest xmm0, xword (rax)
+	ptest xmm0, xword [rax]
 
 	pmaxsb xmm0, xmm1
 	pmaxsb xmm0, xmm1
@@ -41,12 +41,12 @@ _start:
 	popcnt eax, ebx
 	popcnt rax, rbx
 
-	movntdqa xmm0, xword (rax)
+	movntdqa xmm0, xword [rax]
 	
 	extractps eax, xmm0, 1
 	extractps rax, xmm0, 1
 
-	extractps dword (rax), xmm0, 1
+	extractps dword [rax], xmm0, 1
 
 	roundss xmm0, xmm1, 1
 	roundsd xmm0, xmm1, 1

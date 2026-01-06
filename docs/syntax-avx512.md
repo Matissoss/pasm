@@ -2,22 +2,15 @@
     <h1>syntax-avx512.md</h1>
 </div>
 
-## getting started
+## subexpressions
 
-You can use AVX-512 in `pasm` like in other assemblers.
+Subexpressions are written just like in other assemblers, but they must be separated with `,` from operands and each other.
 
-Example of `vaddph`:
-
+Example:
 ```
-vaddph xmm20 {k2}, xmm21, xmm22
+xmm0,{k1},{z},xmm2,xmm3
 ```
 
-## mbcst
+## bcst
 
-To use broadcast on memory use `*MBCST* = *Modifier* where: PREFIX = None, VALUE = <*SIZE*>:bcst`:
-
-`pasm` will automatically choose the "right" broadcast size (by setting `EVEX.w` - no need for `{1to8}` or `{1to16}`)
-
-```
-word:bcst (rax + rcx)
-```
+To use memory broadcasting we use `{bcst}` subexpression.

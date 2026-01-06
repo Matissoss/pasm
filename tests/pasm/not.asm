@@ -6,19 +6,19 @@ _start:
 	not rbx
 	not r8
 	not r8
-	not (rax) qword
-	not (rax + rcx) qword 
-	not (rax + rcx*4) qword
-	not (rcx*4) qword
-	not (rax+rcx*4+20) qword
-	not (rax+rcx*4) qword
-	not (rax+r8*4+20) qword
-	not (r9+r8*4+20) qword
-	not (rax) qword
-	not (rax + rcx) qword
-	not (rax + rcx*4) qword
-	not (rcx*4) qword
-	not (rax+rcx*4+20) qword
-	not (rax+rcx*4) qword
-	not (rax+r8*4+20) qword
-	not (r9+r8*4+20) qword
+	not qword [rax]
+	not qword [rax + rcx] 
+	not qword [rax + rcx*4]
+	not qword [rcx*4]
+	not qword [rax+rcx*4+20]
+	not qword [rax+rcx*4]
+	not qword [rax+r8*4+20]
+	not qword [r9+r8*4+20]
+	not qword [rax]
+	not qword [rax + rcx]
+	not qword [rax + rcx*4]
+	not qword [rcx*4]
+	not qword [rax+rcx*4+20]
+	not qword [rax+rcx*4]
+	not qword [rax+r8*4+20]
+	not qword [r9+r8*4+20]

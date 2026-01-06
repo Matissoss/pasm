@@ -11,9 +11,9 @@ _start:
 	vcvttps2dq xmm0, xmm1
 
 	vcvtdq2pd xmm0, xmm1
-	vcvtdq2pd xmm0, qword (rax)
+	vcvtdq2pd xmm0, qword [rax]
 	vcvtdq2pd ymm0, xmm1
-	vcvtdq2pd ymm0, xword (rax)
+	vcvtdq2pd ymm0, xword [rax]
 
 	vcvtsd2ss xmm0, xmm1, xmm2
 	vcvttsd2si eax, xmm1

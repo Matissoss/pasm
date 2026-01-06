@@ -11,7 +11,7 @@ _start:
 	cmpxchg eax, ebx
 	cmpxchg rax, rbx
 
-	cldemote byte (rax)
-	clrssbsy qword (rax)
-	cmpxchg8b qword (rax)
-	cmpxchg16b xword (rax)
+	cldemote byte [rax]
+	clrssbsy qword [rax]
+	cmpxchg8b qword [rax]
+	cmpxchg16b xword [rax]

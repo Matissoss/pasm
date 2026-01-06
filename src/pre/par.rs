@@ -3,196 +3,267 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::{
-    pre::mer::{BodyNode, MergerToken, RootNode},
-    shr::{
-        ast::AST, error::Error, label::Label, num::Number, section::Section, visibility::Visibility,
-    },
+use crate::shr::{
+    ast::{Instruction, OperandOwned},
+    error::Error,
+    ins::Mnemonic,
+    mem::Mem,
+    num::Number,
+    reg::Register,
+    size::Size,
+    smallvec::SmallVec,
+    symbol::SymbolRef,
 };
+use std::{str, str::FromStr};
 
-use std::{mem::ManuallyDrop, path::PathBuf};
-
-pub fn par_attrs(label: &mut Label, attrs: &[&str]) -> Result<(), Error> {
-    for a in attrs {
-        for a in crate::utils::split_str_ref(a.as_bytes(), ',') {
-            let key = a;
-            let (key, val) = if let Some((key, val)) = key.split_once('=') {
-                (key, Some(val))
-            } else {
-                (key, None)
-            };
-            match key {
-            "global"|"public" => label.attributes.set_visibility(Visibility::Public),
-            "protected" => label.attributes.set_visibility(Visibility::Protected),
-            "weak" => label.attributes.set_visibility(Visibility::Weak),
-            "type" => return Err(Error::new(format!("external type declarations are forbidden, use inline label attribute{} instead",
-                if let Some(val) = val {
-                    format!(" like: {} {}", val, label.name)
-                } else {
-                    "".to_string()
-                }
-            ), 20)),
-            "bits" => if let Some(num) = val {
-                if let Some(num) = Number::from_str(num) {
-                    match num.get_as_u64() {
-                        16 | 32 | 64 => label.attributes.set_bits(num.get_as_u64() as u8),
-                        _ => return Err(Error::new("usage of unknown bits parameter: expected 16, 32 or 64", 20)),
-                    }
-                } else {
-                    return Err(Error::new("bits parameter needs a number, not a string", 20));
-                }
-            } else {
-                return Err(Error::new(format!("usage of unknown key-only attribute: \"{key}\""), 20));
-            },
-            _ => return Err(Error::new(format!("usage of unknown key-only attribute: \"{key}\""), 20)),
-        }
-        }
-    }
-    Ok(())
+#[derive(Debug, PartialEq)]
+pub enum LineResult<'a> {
+    Error(Error),
+    Instruction(Instruction<'a>),
+    Label(&'a str),
+    Section(&'a str),
+    Directive(&'a str, &'a str),
+    None,
 }
 
-#[derive(PartialEq, Default)]
-pub struct ParserStatus<'a> {
-    pub inroot: bool,
-    pub started: bool,
+/// Parser
+/// ---
+/// EXPECTED INPUT:
+///     - line is already stripped off comments and whitespace at start/end
+pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
+    let line_bytes = line.as_bytes();
+    if line_bytes.last() == Some(&b':') {
+        return unsafe {
+            LineResult::Label(str::from_utf8_unchecked(
+                &line_bytes[0..line_bytes.len() - 1],
+            ))
+        };
+    }
+    if let Some((mnem, content)) = line.split_once(' ') {
+        if let Ok(m) = Mnemonic::from_str(mnem) {
+            let mut a_mnem: Option<Mnemonic> = None;
+            // first we need to detect if we have additional mnemonic
+            line = content;
+            if let Some((a_mnem_str, rest)) = line.split_once(' ') {
+                if let Ok(mnem) = Mnemonic::from_str(a_mnem_str) {
+                    a_mnem = Some(mnem);
+                    line = rest;
+                }
+            } else if let Ok(amnem) = Mnemonic::from_str(line) {
+                a_mnem = Some(amnem);
+                line = "";
+            }
+            // then we go after operands and subexpressions
+            let mut ins = Instruction::with_operands(SmallVec::new());
+            if let Some(a_mnem) = a_mnem {
+                ins.set_addt(m);
+                ins.mnemonic = a_mnem;
+            } else {
+                ins.mnemonic = m;
+            }
 
-    pub label: Label<'a>,
-    pub attrs: Vec<&'a str>,
-    pub section: Section<'a>,
+            loop {
+                let operand = if let Some((operand, rest)) = split_once_intelligent(line) {
+                    line = rest.trim();
+                    match par_operand(operand.trim()) {
+                        Ok(o) => o,
+                        Err(e) => {
+                            // if we don't check that, parser thinks we're parsing memory operand
+                            if line.split_whitespace().count() >= 2 {
+                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 5))
+                            } else {
+                                return LineResult::Error(e)
+                            }
+                        },
+                    }
+                } else {
+                    if line.is_empty() {
+                        break;
+                    }
+                    match par_operand(line.trim()) {
+                        Ok(o) => {
+                            line = "";
+                            o
+                        }
+                        Err(e) => return LineResult::Error(e),
+                    }
+                };
+                match operand {
+                    ParserOperand::String(s) => ins.push(OperandOwned::String(
+                        std::mem::ManuallyDrop::new(Box::new(s)),
+                    )),
+                    ParserOperand::SymbolRef(s) => ins.push(OperandOwned::Symbol(
+                        std::mem::ManuallyDrop::new(Box::new(s)),
+                    )),
+                    ParserOperand::Mem(m) => ins.push(OperandOwned::Mem(m)),
+                    ParserOperand::Register(r) => ins.push(OperandOwned::Register(r)),
+                    ParserOperand::Imm(i) => ins.push(OperandOwned::Imm(i)),
+                    ParserOperand::SubExpression(s) => {
+                        match s {
+                            // APX
+                            "apx" => ins.apx_set_default(),
+                            "apx-evex" => ins.apx_evex_set_apx_extension(true),
+                            "of" => ins.apx_eevex_cond_set_of(),
+                            "cf" => ins.apx_eevex_cond_set_cf(),
+                            "zf" => ins.apx_eevex_cond_set_zf(),
+                            "sf" => ins.apx_eevex_cond_set_sf(),
+                            "rex2" => ins.apx_set_rex2(),
+                            "eevex" => ins.apx_set_eevex(),
+                            "nf" => ins.apx_set_leg_nf(),
+                            "vex-nf" => ins.apx_set_vex_nf(),
+                            // AVX-512
+                            "bcst" => ins.set_evex_bcst(),
+                            "k0" => ins.set_evex_mask(0b000),
+                            "k1" => ins.set_evex_mask(0b001),
+                            "k2" => ins.set_evex_mask(0b010),
+                            "k3" => ins.set_evex_mask(0b011),
+                            "k4" => ins.set_evex_mask(0b100),
+                            "k5" => ins.set_evex_mask(0b101),
+                            "k6" => ins.set_evex_mask(0b110),
+                            "k7" => ins.set_evex_mask(0b111),
+                            "sae" => ins.set_evex_sae(),
+                            "er" => ins.set_evex_er(0b001),
+                            "rn-sae" => ins.set_evex_er(0b001),
+                            "rd-sae" => ins.set_evex_er(0b010),
+                            "ru-sae" => ins.set_evex_er(0b011),
+                            "rz-sae" => ins.set_evex_er(0b100),
+                            "z" => ins.set_evex_z(),
+                            "evex" => ins.set_evex(),
+                            "vex" => ins.set_vex(),
+                            _ => {
+                                return LineResult::Error(Error::new(
+                                    format!(
+                                    "you tried to use unknown/unsupported subexpression: \"{s}\""
+                                ),
+                                    4,
+                                ))
+                            }
+                        }
+                    }
+                }
+            }
+
+            LineResult::Instruction(ins)
+        } else if mnem == "section" {
+            LineResult::Section(content)
+        } else {
+            LineResult::Directive(mnem, content)
+        }
+    } else if let Ok(mnem) = Mnemonic::from_str(line) {
+        let mut instruction = Instruction::with_operands(SmallVec::new());
+        instruction.mnemonic = mnem;
+        LineResult::Instruction(instruction)
+    } else {
+        LineResult::Directive(line, "")
+    }
 }
 
-// we have to use raw pointers, because if we used &mut instead, then rust would rip us apart :D
-// also *mut Error, because it is cheaper than Option<Error>;
-// you have to free *mut Error yourself (it is ManuallyDrop)
-pub fn par<'a>(
-    ast: *mut AST<'a>,
-    node: MergerToken<'a>,
-    status: *mut ParserStatus<'a>,
-    lnum: usize,
-) -> *mut Error {
-    let ast = unsafe { &mut *ast };
-    let status = unsafe { &mut *status };
-    if let MergerToken::Body(b) = node {
-        status.inroot = false;
-        let body_node = b;
-        match body_node {
-            BodyNode::NoBits => status.section.attributes.set_exec(true),
-            BodyNode::Exec => status.section.attributes.set_exec(true),
-            BodyNode::Alloc => status.section.attributes.set_alloc(true),
-            BodyNode::Write => status.section.attributes.set_write(true),
-            BodyNode::Bits(b) => {
-                status.section.bits = b;
-            }
-            BodyNode::Align(a) => {
-                status.section.align = a;
-            }
-            BodyNode::Attributes(a) => {
-                status.attrs.push(a);
-            }
-            BodyNode::Instruction(i) => {
-                status.label.content.push(i);
-            }
-            BodyNode::Label(l) => {
-                if !status.label.name.is_empty() {
-                    status
-                        .section
-                        .content
-                        .push(std::mem::take(&mut status.label));
-                    status.label = l;
-                    status
-                        .label
-                        .attributes
-                        .set_bits(ast.default_bits.unwrap_or(16));
-                    if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    }
-                } else {
-                    status.label = l;
-                    status
-                        .label
-                        .attributes
-                        .set_bits(ast.default_bits.unwrap_or(16));
-                    if let Err(er) = par_attrs(&mut status.label, &status.attrs) {
-                        let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                        return ptr;
-                    }
-                }
-            }
-            BodyNode::Section(s) => {
-                if !status.label.name.is_empty() {
-                    status
-                        .section
-                        .content
-                        .push(std::mem::take(&mut status.label));
-                    status.label = Label::default();
-                }
-                if status.started && status.section != Section::default() {
-                    ast.sections.push(std::mem::take(&mut status.section));
-                    status.section = s;
-                } else {
-                    status.section = s;
-                    status.started = true;
-                }
-            }
-        }
-    } else if let MergerToken::Root(r) = node {
-        if !status.inroot {
-            let er = Error::new_wline("you tried to use root node outside of root", 21, lnum);
-            let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-            return ptr;
-        }
-        match r {
-            RootNode::Format(f) => {
-                if ast.format.is_some() {
-                    let er =
-                        Error::new_wline("you tried to redeclare format multiple times", 21, lnum);
-                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                    return ptr;
-                } else {
-                    ast.format = Some(f);
-                }
-            }
-            RootNode::Bits(b) => {
-                if ast.default_bits.is_some() && ast.default_bits == Some(b) {
-                    let er = Error::new_wline(
-                        "you tried to redeclare default bits multiple times",
-                        21,
-                        lnum,
-                    );
-                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                    return ptr;
-                } else {
-                    ast.default_bits = Some(b);
-                }
-            }
-            RootNode::Output(o) => {
-                if ast.default_output.is_some()
-                    && ast.default_output == Some(PathBuf::from(o.to_string()))
-                {
-                    let er = Error::new_wline(
-                        "you tried to redeclare default output path multiple times",
-                        21,
-                        lnum,
-                    );
-                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                    return ptr;
-                } else {
-                    ast.default_output = Some(PathBuf::from(o.to_string()));
-                }
-            }
-            RootNode::Define(name, value) => {
-                if ast.defines.insert(name, value).is_some() {
-                    let er =
-                        Error::new_wline("tried to redeclare same define multiple times", 21, lnum);
-                    let ptr = std::ptr::from_mut(&mut *ManuallyDrop::new(er));
-                    return ptr;
-                }
-            }
-            RootNode::Extern(e) => {
-                ast.externs.push(e);
-            }
+/// splits line more intelligently (so mov rax, ',' will work)          
+fn split_once_intelligent(line: &str) -> Option<(&str, &str)> {
+    let mut str_closure = false;
+    for (i, b) in line.as_bytes().iter().enumerate() {
+        if b == &b'"' || b == &b'\'' {
+            str_closure = !str_closure;
+        } else if b == &b',' && !str_closure {
+            return Some((&line[0..i], &line[i + 1..]));
+        } else if b == &b';' && !str_closure {
+            return Some((&line[0..i], ""))
         }
     }
-    std::ptr::null_mut()
+    None
+}
+
+#[derive(Debug, PartialEq)]
+enum ParserOperand<'a> {
+    SubExpression(&'a str),
+    String(&'a str),
+    Imm(Number),
+    Register(Register),
+    Mem(Mem),
+    SymbolRef(SymbolRef<'a>),
+}
+
+fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
+    if let Some(n) = Number::from_str(slice) {
+        Ok(ParserOperand::Imm(n))
+    } else if let Ok(r) = Register::from_str(slice) {
+        Ok(ParserOperand::Register(r))
+    } else if slice.starts_with('{') && slice.ends_with('}') {
+        Ok(ParserOperand::SubExpression(&slice[1..slice.len() - 1]))
+    } else if slice.starts_with('"') && slice.ends_with('"') {
+        Ok(ParserOperand::String(&slice[1..slice.len() - 1]))
+    } else if let Some((sz, slice)) = slice.split_once(' ') {
+        let sz = if let Ok(s) = Size::from_str(sz.trim()) {
+            s
+        } else {
+            return Err(Error::new(
+                "expected to find size directive here, found something else",
+                5,
+            ));
+        };
+
+        if let Ok(m) = Mem::new(slice, sz) {
+            Ok(ParserOperand::Mem(m))
+        } else {
+            Err(Error::new(
+                "expected a memory address, found something else",
+                5,
+            ))
+        }
+    } else if Mem::new(slice, Size::Any).is_ok() {
+        Err(Error::new(
+                "you tried to use memory addressing without size directive, which is forbidden in PASM at the moment",
+                5
+        ))
+    } else {
+        Ok(ParserOperand::SymbolRef(
+            SymbolRef::from_str(slice).unwrap(),
+        ))
+    }
+}
+
+#[cfg(test)]
+mod partest {
+    use super::*;
+    #[test]
+    fn si_test() {
+        let line = "',', .";
+        assert_eq!(split_once_intelligent(line), Some(("','", " .")));
+        let line = "string \"Hello, World!\"";
+        assert_eq!(split_once_intelligent(line), None);
+        // yeah, i know it's not real example, but it tests it?
+        let line = "mov \",\", rax";
+        assert_eq!(split_once_intelligent(line), Some(("mov \",\"", " rax")));
+        let line = "rax, rcx";
+        assert_eq!(split_once_intelligent(line), Some(("rax", " rcx")));
+    }
+    #[test]
+    fn po_test() {
+        let slice = "rax";
+        assert_eq!(
+            par_operand(slice),
+            Ok(ParserOperand::Register(Register::RAX))
+        );
+        let slice = "qword [rax + 10]";
+        if let Ok(ParserOperand::Mem(_)) = par_operand(slice) {
+        } else {
+            panic!("didn't parse into mem");
+        }
+        let slice = "\"string\"";
+        assert_eq!(par_operand(slice), Ok(ParserOperand::String("string")));
+        let slice = "{subexpr}";
+        assert_eq!(
+            par_operand(slice),
+            Ok(ParserOperand::SubExpression("subexpr"))
+        );
+    }
+    #[test]
+    fn partest() {
+        let islice = "mov rax, rcx";
+        let mut expected = Instruction::with_operands(SmallVec::new());
+        expected.push(OperandOwned::Register(Register::RAX));
+        expected.push(OperandOwned::Register(Register::RCX));
+        expected.mnemonic = Mnemonic::MOV;
+        assert_eq!(par(islice), LineResult::Instruction(expected));
+    }
 }

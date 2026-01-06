@@ -4,20 +4,18 @@
 
 ## about
 
-`pasm` is modern and independent assembler for x86-64 architecture as one of key parts in [polon](https://github.com/Matissoss/polon) toolchain.
+> [!WARNING]
+> This is development branch of PASM assembler.
+> Some of the info here may be outdated.
 
-> [!NOTE]
-> `pasm` will not receive new content updates from now on as development on it is finished.
->
-> Only bugfixes and minor changes will be submitted.
-> - matissoss, 30.07.2025
+`pasm` is modern and independent assembler for x86-64 architecture as one of key parts in [polon](https://github.com/Matissoss/polon) toolchain.
 
 ## features
 
 - Wide coverage of x86-64 ISA (1795 unique mnemonics)
 - Support for `SSE*`, `AVX`, `AVX2`, `AVX-512`/`AVX-10`, `Intel APX`, `x87`, `MMX` and more x86-64 extensions
 - Support for bin and 32/64-bit ELF as export target
-- Very performant and optimized (~3,4x faster than GAS in [some cases](perf.md))
+- Very performant and optimized (~3-4x faster than GAS in [our cherry picked benchmarks](perf.md) 😊)
 
 ## getting started
 

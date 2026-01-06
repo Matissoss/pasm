@@ -4,21 +4,17 @@
 // licensed under MPL 2.0
 
 use std::{
-    collections::HashMap,
     fmt::{Debug, Error as FmtError, Formatter},
     iter::Iterator,
     mem::{ManuallyDrop, MaybeUninit},
-    path::PathBuf,
 };
 
 use crate::core::apx::APXVariant;
 use crate::shr::{
-    error::Error,
     ins::Mnemonic,
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
-    section::Section,
     size::Size,
     smallvec::SmallVec,
     symbol::SymbolRef,
@@ -38,22 +34,10 @@ const SSRC_MASK: u16 = !0b0000_0001_1100_0000;
 const TSRC_MASK: u16 = !0b0000_1110_0000_0000;
 const FPFX_MASK: u16 = !0b1111_0000_0000_0000;
 
-#[allow(unused)]
-const FPFX_NONE: u16 = 0b0000;
+//const FPFX_NONE: u16 = 0b0000;
 const FPFX_VEX: u16 = 0b0001;
 const FPFX_EVEX: u16 = 0b0010;
 const FPFX_APX: u16 = 0b0011;
-
-#[derive(Debug)]
-pub struct AST<'a> {
-    pub sections: Vec<Section<'a>>,
-    pub defines: HashMap<&'a str, Number>,
-    pub externs: Vec<&'a str>,
-
-    pub format: Option<&'a str>,
-    pub default_bits: Option<u8>,
-    pub default_output: Option<PathBuf>,
-}
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum IVariant {
@@ -116,9 +100,10 @@ pub struct Instruction<'a> {
     //      0b.... - reserved
     //   - RRRR_RRRR_RRRR - forced prefix specific:
     //      if FPFX_EVEX:
-    //          0bSZ00_MMM0_AEEE:
+    //          0bSZB0_MMM0_AEEE:
     //              - S: {sae}
     //              - Z: {z}
+    //              - B: {bcst}
     //              - A: requires APX extension
     //              - EEE: er:
     //                  0b000 - none
@@ -413,6 +398,21 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
+    pub fn set_evex_bcst(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_0010_0000_0000;
+        self.metadata |= 0b0000_0010_0000_0000;
+    }
+    #[inline(always)]
+    pub fn evex_bcst(&self) -> Option<bool> {
+        if self.is_evex() {
+            Some(self.metadata & 0b0000_0010_0000_0000 == 0b0000_0010_0000_0000)
+        } else {
+            None
+        }
+    }
 
     // apx
     pub fn apx_set_eevex(&mut self) {
@@ -625,14 +625,6 @@ impl<'a> Instruction<'a> {
     #[inline(always)]
     pub fn needs_rex(&self) -> bool {
         crate::core::rex::needs_rex(self, &self.dst(), &self.src())
-    }
-    pub fn get_bcst(&self) -> bool {
-        for i in 0..self.len() {
-            if MEM == self.gett(i) {
-                return unsafe { self.get_as_mem(i).is_bcst() };
-            }
-        }
-        false
     }
     pub const unsafe fn get_as_reg(&self, idx: usize) -> &Register {
         &self.operands[idx].reg
@@ -880,75 +872,6 @@ impl Operand<'_> {
     }
 }
 
-impl AST<'_> {
-    pub fn validate(&self) -> Result<(), Error> {
-        use std::collections::HashSet;
-        let iter = self.sections.iter().flat_map(|l| &l.content);
-        let mut set: HashSet<&str> = HashSet::with_capacity(iter.count());
-        for l in self.sections.iter().flat_map(|l| &l.content) {
-            if !l.name.is_empty() && !set.insert(l.name) {
-                return Err(Error::new(
-                    format!(
-                        "file(s) contains multiple declarations of label of name \"{}\"",
-                        l.name
-                    ),
-                    21,
-                ));
-            }
-        }
-        set.clear();
-        for s in self.sections.iter() {
-            if !set.insert(s.name) {
-                return Err(Error::new(
-                    format!(
-                        "file(s) contains multiple declarations of sections of name \"{}\"",
-                        s.name
-                    ),
-                    21,
-                ));
-            }
-        }
-        Ok(())
-    }
-    pub fn extend(&mut self, rhs: Self) -> Result<(), Error> {
-        for l in rhs.sections {
-            let attr = l.attributes;
-            let align = l.align;
-            let bits = l.bits;
-            let name = l.name;
-            self.sections.push(l);
-            for s in 0..self.sections.len() - 1 {
-                if self.sections[s].name == name {
-                    if !(self.sections[s].bits == bits
-                        && self.sections[s].align == align
-                        && self.sections[s].attributes == attr)
-                    {
-                        return Err(
-                            Error::new(
-                                format!("if you changed one of \"{}\" to match the other one, then we could merge content of these sections", 
-                                    self.sections[s].name), 12)
-                        );
-                    }
-                    // section we pushed
-                    let l = self.sections.pop().unwrap();
-                    // concat two sections
-                    for label in l.content {
-                        for self_l in &self.sections[s].content {
-                            if self_l.name == label.name {
-                                return Err(Error::new(format!("failed to concat two sections as they contain same label of name \"{}\"", label.name), 12));
-                            }
-                        }
-                        self.sections[s].content.push(label);
-                    }
-                    break;
-                }
-            }
-        }
-        self.defines.extend(rhs.defines);
-        Ok(())
-    }
-}
-
 impl Default for Instruction<'_> {
     fn default() -> Self {
         unsafe {
@@ -960,84 +883,6 @@ impl Default for Instruction<'_> {
                 additional: MaybeUninit::uninit(),
                 operands: MaybeUninit::uninit().assume_init_read(),
             }
-        }
-    }
-}
-impl Default for AST<'_> {
-    fn default() -> Self {
-        Self {
-            format: None,
-            default_bits: None,
-            default_output: None,
-            defines: {
-                use crate::consts::*;
-
-                // builtins defines go here
-                let mut def = HashMap::with_capacity(64);
-
-                // DOUBLE builtins
-                def.insert("__DOUBLE_MIN", Number::double(f64::MIN));
-                def.insert("__DOUBLE_MAX", Number::double(f64::MAX));
-                def.insert("__DOUBLE_INF", Number::double(f64::INFINITY));
-                def.insert("__DOUBLE_NEG_INF", Number::double(f64::NEG_INFINITY));
-                def.insert("__DOUBLE_EXP_MIN", Number::int64(f64::MIN_EXP.into()));
-                def.insert("__DOUBLE_EXP_MAX", Number::int64(f64::MAX_EXP.into()));
-                def.insert("__DOUBLE_PI", Number::double(std::f64::consts::PI));
-                def.insert("__DOUBLE_SQRT2", Number::double(std::f64::consts::SQRT_2));
-                def.insert("__DOUBLE_LN2", Number::double(std::f64::consts::LN_2));
-                def.insert("__DOUBLE_LN10", Number::double(std::f64::consts::LN_10));
-
-                // FLOAT builtins
-                def.insert("__FLOAT_MIN", Number::float(f32::MIN));
-                def.insert("__FLOAT_MAX", Number::float(f32::MAX));
-                def.insert("__FLOAT_INF", Number::float(f32::INFINITY));
-                def.insert("__FLOAT_NEG_INF", Number::float(f32::NEG_INFINITY));
-                def.insert("__FLOAT_EXP_MIN", Number::int64(f32::MIN_EXP.into()));
-                def.insert("__FLOAT_EXP_MAX", Number::int64(f32::MAX_EXP.into()));
-                def.insert("__FLOAT_PI", Number::float(std::f32::consts::PI));
-                def.insert("__FLOAT_SQRT2", Number::float(std::f32::consts::SQRT_2));
-                def.insert("__FLOAT_LN2", Number::float(std::f32::consts::LN_2));
-                def.insert("__FLOAT_LN10", Number::float(std::f32::consts::LN_10));
-
-                // BOOLEAN builtins
-                def.insert("__FALSE", Number::uint64(0));
-                def.insert("__TRUE", Number::uint64(1));
-
-                // CONDITIONS builtins
-                def.insert("__COND_O", Number::uint64(COND_O as u64));
-                def.insert("__COND_NO", Number::uint64(COND_NO as u64));
-                def.insert("__COND_B", Number::uint64(COND_B as u64));
-                def.insert("__COND_C", Number::uint64(COND_C as u64));
-                def.insert("__COND_NAE", Number::uint64(COND_NAE as u64));
-                def.insert("__COND_NB", Number::uint64(COND_NB as u64));
-                def.insert("__COND_NC", Number::uint64(COND_NC as u64));
-                def.insert("__COND_AE", Number::uint64(COND_AE as u64));
-                def.insert("__COND_E", Number::uint64(COND_E as u64));
-                def.insert("__COND_Z", Number::uint64(COND_Z as u64));
-                def.insert("__COND_NE", Number::uint64(COND_NE as u64));
-                def.insert("__COND_NZ", Number::uint64(COND_NZ as u64));
-                def.insert("__COND_BE", Number::uint64(COND_BE as u64));
-                def.insert("__COND_NA", Number::uint64(COND_NA as u64));
-                def.insert("__COND_NBE", Number::uint64(COND_NBE as u64));
-                def.insert("__COND_A", Number::uint64(COND_A as u64));
-                def.insert("__COND_S", Number::uint64(COND_S as u64));
-                def.insert("__COND_NS", Number::uint64(COND_NS as u64));
-                def.insert("__COND_P", Number::uint64(COND_P as u64));
-                def.insert("__COND_PE", Number::uint64(COND_PE as u64));
-                def.insert("__COND_NP", Number::uint64(COND_NP as u64));
-                def.insert("__COND_PO", Number::uint64(COND_PO as u64));
-                def.insert("__COND_L", Number::uint64(COND_L as u64));
-                def.insert("__COND_NGE", Number::uint64(COND_NGE as u64));
-                def.insert("__COND_NL", Number::uint64(COND_NL as u64));
-                def.insert("__COND_GE", Number::uint64(COND_GE as u64));
-                def.insert("__COND_LE", Number::uint64(COND_LE as u64));
-                def.insert("__COND_NG", Number::uint64(COND_NG as u64));
-                def.insert("__COND_G", Number::uint64(COND_G as u64));
-                def.insert("__COND_NLE", Number::uint64(COND_NLE as u64));
-                def
-            },
-            externs: Vec::new(),
-            sections: Vec::new(),
         }
     }
 }

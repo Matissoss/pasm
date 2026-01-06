@@ -11,7 +11,7 @@ _start:
 	movshdup xmm0, xmm1
 	movddup xmm0, xmm1
 
-	lddqu xmm0, xword (rax)
+	lddqu xmm0, xword [rax]
 	
 	monitor
 	mwait

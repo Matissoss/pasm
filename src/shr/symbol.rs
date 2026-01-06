@@ -47,6 +47,17 @@ pub struct SymbolRef<'a> {
 }
 
 impl<'a> SymbolRef<'a> {
+    // because rust's trait implementation does not allow for this kind of stuff
+    // (lifetime in `s: &'a str`)
+    #[allow(clippy::result_unit_err)]
+    pub fn from_str(s: &'a str) -> Result<SymbolRef<'a>, ()> {
+        if s.starts_with('[') && s.ends_with(']') {
+            // i'll skip addend for now
+            Ok(Self::new(&s[1..s.len() - 1], None, true, None, None))
+        } else {
+            Ok(Self::new(s, None, false, None, None))
+        }
+    }
     pub fn deref(&mut self, bool: bool) {
         self.guardians.set(IS_DEREF, bool)
     }

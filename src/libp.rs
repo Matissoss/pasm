@@ -1,306 +1,259 @@
-// pasm - src/libr.rs
+// pasm - src/libp.rs
 // ------------------
 // made by matissoss
 // licensed under MPL 2.0
 
-use std::{fs, io::Write, path::PathBuf};
-
-use crate::*;
-
-use pre::par::ParserStatus;
-
-use shr::{
-    ast::AST,
-    error::Error,
-    label::Label,
-    reloc,
-    reloc::Relocation,
-    section::{Section, SlimSection},
-    symbol::{Symbol, SymbolType},
-    visibility::Visibility,
+use std::{
+    fs::OpenOptions,
+    io::{Read, Write},
+    path::Path,
 };
 
-pub fn get_file(inpath: PathBuf) -> Result<Vec<u8>, Error> {
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
+use crate::{
+    core::{api::AssembleResult, comp},
+    pre::{
+        chk,
+        par::{par, LineResult},
+    },
+    obj::Elf,
+    shr::{
+        error::Error as PasmError,
+        reloc::{relocate_addresses, RelType, Relocation},
+        section::{SectionAttributes, SlimSection},
+        symbol::{Symbol, SymbolType},
+        visibility::Visibility,
+    },
+    utils::LineIter,
+};
 
-    let file = fs::read(&inpath);
-    let pathstr = inpath.to_string_lossy();
-    if file.is_err() {
-        return Err(Error::new(
-            format!("could not read a file named \"{pathstr}\""),
-            13,
-        ));
-    }
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("read   ", start);
-    Ok(file.unwrap())
-}
-
-pub fn pasm_parse_src(inpath: PathBuf, file: &[u8], nocheck: bool) -> Result<AST<'_>, Vec<Error>> {
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    let mut ast = AST::default();
-    let mut errors = Vec::new();
-    let mut par = ParserStatus {
-        inroot: true,
-        ..Default::default()
-    };
-
-    let mut lines = utils::LineIter::new(file);
-    while let Some((mut lnum, line)) = lines.next() {
-        lnum += 1;
-        let tok = pre::tok::tokl(line);
-        if tok.is_empty() {
-            continue;
+pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
+    // fetch input file
+    let ifile = OpenOptions::new()
+        .read(true)
+        .write(false)
+        .create(false)
+        .open(ipath);
+    let mut ifile = match ifile {
+        Ok(f) => f,
+        Err(e) => {
+            return Err(PasmError::new(e.to_string(), 6));
         }
-        match pre::mer::mer(tok, lnum) {
-            Ok(m) => {
-                let err = pre::par::par(&mut ast, m, &mut par, lnum);
-                if !err.is_null() {
-                    errors.push(unsafe { std::ptr::read(err) });
+    };
+    let mut ibuf = Vec::new();
+    if let Err(e) = ifile.read_to_end(&mut ibuf) {
+        return Err(PasmError::new(e.to_string(), 6));
+    }
+
+    // get output from assembler
+    let mut obuf: Vec<u8> = Vec::new();
+    let mut rels: Vec<Relocation> = Vec::new();
+    let mut symbols: Vec<Symbol> = Vec::new();
+    let mut line_iter = LineIter::new(&ibuf);
+
+    let mut sections: Vec<SlimSection> = Vec::new();
+    let mut current_section: SlimSection = SlimSection {
+        name: ".pasm.default",
+        size: 0,
+        offset: 0,
+        align: 0,
+        attributes: SectionAttributes::new(),
+        bits: 16,
+    };
+    let mut current_label: usize = 0;
+    let mut sindex = 0u16;
+
+    let mut target: Option<&str> = None;
+    let mut bits = 16;
+
+    while let Some((lnum, line)) = line_iter.next() {
+        let line = line.trim();
+        match par(line) {
+            LineResult::Error(mut e) => {
+                e.set_line(lnum + 1);
+                return Err(e);
+            }
+            LineResult::Instruction(mut i) => {
+                let e = if bits == 64 {
+                    chk::check_ins64bit(&i)
+                } else {
+                    chk::check_ins32bit(&i)
+                };
+                if let Err(mut e) = e {
+                    e.set_line(lnum + 1);
+                    return Err(e);
+                }
+                // i hate Rust's borrow checker sometimes tbh
+                let ins_ptr = std::ptr::from_mut(&mut i);
+                std::mem::forget(i);
+                let (res, mut rel_a) = comp::get_genapi(unsafe { &*ins_ptr }, bits).assemble(
+                    unsafe { &*ins_ptr },
+                    bits,
+                    RelType::REL32,
+                );
+                for r in rel_a.iter_mut() {
+                    r.offset += obuf.len();
+                }
+                match res {
+                    AssembleResult::WLargeImm(d) => obuf.extend(d.into_iter()),
+                    AssembleResult::NoLargeImm(d) => obuf.extend(d.iter()),
+                }
+                rels.extend(rel_a.into_iter());
+                unsafe {
+                    std::ptr::drop_in_place(ins_ptr);
                 }
             }
-            Err(e) => {
-                errors.push(e);
+            LineResult::Section(s) => {
+                current_section.size = obuf.len() - current_section.offset;
+                if sindex != 0 {
+                    symbols.push(Symbol {
+                        name: current_section.name,
+                        offset: current_section.offset,
+                        size: current_section.size,
+                        sindex: 0,
+                        visibility: Visibility::Public,
+                        stype: SymbolType::Section,
+                    });
+                    sindex += 1;
+                }
+                current_section = SlimSection {
+                    name: s,
+                    size: 0,
+                    offset: obuf.len(),
+                    align: 0,
+                    attributes: SectionAttributes::new(),
+                    bits,
+                };
             }
-        }
-    }
 
-    if !par.label.name.is_empty() {
-        par.section.content.push(par.label);
-    }
-    if par.section != Section::default() {
-        ast.sections.push(par.section);
-    }
-
-    if !errors.is_empty() {
-        return Err(errors);
-    }
-
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("pre    ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    ast.validate().map_err(|e| vec![e])?;
-
-    pre_core::post_process(&mut ast).map_err(|e| vec![e])?;
-
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("post   ", start);
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-
-    if !nocheck {
-        let res = pre::chk::check_ast(&ast);
-
-        #[cfg(feature = "vtime")]
-        utils::vtimed_print("chk    ", start);
-
-        if let Some(errs) = res {
-            let pathstr = inpath.to_string_lossy();
-            for (lname, errs) in errs {
-                println!("-- {pathstr}:{lname} --");
-                for mut e in errs {
-                    e.set_file(inpath.to_path_buf());
-                    eprintln!("{e}");
+            LineResult::Label(l) => {
+                symbols.push(Symbol {
+                    name: l,
+                    offset: obuf.len(),
+                    size: 0,
+                    sindex,
+                    visibility: Visibility::Local,
+                    stype: SymbolType::NoType,
+                });
+                symbols[current_label].size = obuf.len() - symbols[current_label].offset;
+                current_label = symbols.len() - 1;
+            }
+            LineResult::Directive("target", t) => target = Some(t),
+            LineResult::Directive("public", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.visibility = Visibility::Public;
+                        break;
+                    }
                 }
             }
-            std::process::exit(1);
+            LineResult::Directive("private", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.visibility = Visibility::Local;
+                        break;
+                    }
+                }
+            }
+            LineResult::Directive("weak", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.visibility = Visibility::Weak;
+                        break;
+                    }
+                }
+            }
+            LineResult::Directive("protected", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.visibility = Visibility::Protected;
+                        break;
+                    }
+                }
+            }
+            LineResult::Directive("function", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.stype = SymbolType::Func;
+                        break;
+                    }
+                }
+            }
+            LineResult::Directive("extern", t) => symbols.push(Symbol {
+                name: t,
+                offset: 0,
+                size: 0,
+                sindex: 0,
+                visibility: Visibility::Extern,
+                stype: SymbolType::NoType,
+            }),
+            LineResult::Directive("object", t) => {
+                for s in &mut symbols {
+                    if s.name == t {
+                        s.stype = SymbolType::Object;
+                        break;
+                    }
+                }
+            }
+            LineResult::Directive("bits", b) => {
+                if let Ok(b) = b.parse::<u8>() {
+                    if b == 16 || b == 32 || b == 64 {
+                        bits = b;
+                    }
+                }
+            }
+            LineResult::Directive("nobits", _) => current_section.attributes.set_nobits(true),
+            LineResult::Directive("writeable", _) => current_section.attributes.set_write(true),
+            LineResult::Directive("align", c) => {
+                if let Ok(c) = c.parse::<u16>() {
+                    current_section.align = c;
+                }
+            }
+            LineResult::Directive("alloc", _) => current_section.attributes.set_alloc(true),
+            _ => {}
         }
     }
-    Ok(ast)
-}
+    current_section.size = obuf.len() - current_section.offset;
+    symbols.push(Symbol {
+        name: current_section.name,
+        offset: current_section.offset,
+        size: current_section.size,
+        sindex: 0,
+        visibility: Visibility::Public,
+        stype: SymbolType::Section,
+    });
+    sections.push(current_section);
 
-pub fn assemble(ast: AST, opath: Option<PathBuf>) -> Result<(), Error> {
-    #[cfg(feature = "vtime")]
-    let start = std::time::SystemTime::now();
-    let opath = if let Some(p) = opath {
-        p.to_path_buf()
-    } else {
-        ast.default_output
-            .clone()
-            .unwrap_or(std::path::PathBuf::from("a.out"))
-    };
-
-    let (mut wrt, rel, mut sym, slims) = {
-        let mut wrt = Vec::new();
-        let mut rel = Vec::new();
-        let mut sym = Vec::new();
-        let mut slims = Vec::with_capacity(ast.sections.len());
-
-        let mut idx = 0;
-        for s in &ast.sections {
-            let soff = if s.attributes.get_nobits() {
-                0
-            } else {
-                wrt.len()
-            };
-            let (wrt_a, rel_a, sym_a) = process_section(s, idx, wrt.len());
-            let wrt_a_len = wrt_a.len();
-            wrt.extend(wrt_a);
-            rel.extend(rel_a);
-            sym.extend(sym_a);
-            let ssz = wrt.len() - soff;
-            slims.push(SlimSection {
-                name: s.name,
-                align: s.align,
-                attributes: s.attributes,
-                offset: soff,
-                size: ssz,
-                bits: s.bits,
-            });
-            sym.push(Symbol {
-                name: s.name,
-                offset: soff,
-                size: ssz,
-                sindex: idx,
-                stype: SymbolType::Section,
-                visibility: Visibility::Local,
-            });
-            if s.attributes.get_nobits() {
-                wrt.truncate(wrt.len() - wrt_a_len);
-            }
-            idx += 1;
+    match target.unwrap_or("bin") {
+        #[cfg(feature = "target_elf")]
+        "elf64" | "ELF64" => {
+            let elf = Elf::new(&sections, opath, &obuf, rels, &symbols, true)?;
+            obuf = elf.compile(true);
         }
-        (wrt, rel, sym, slims)
-    };
+        #[cfg(feature = "target_elf")]
+        "elf32" | "ELF32" => {
+            let elf = Elf::new(&sections, opath, &obuf, rels, &symbols, false)?;
+            obuf = elf.compile(false);
+        }
+        "bin" => {
+            relocate_addresses(&mut obuf, rels, &symbols)?;
+        }
+        t => return Err(PasmError::new(format!("unknown target {t}"), 7)),
+    }
 
-    let file = std::fs::OpenOptions::new()
+    // now write content to a file
+    let ofile = OpenOptions::new()
+        .write(true)
         .create(true)
         .truncate(true)
-        .write(true)
-        .open(&opath);
-    if file.is_err() {
-        return Err(Error::new(
-            "failed to open output file with write permissions",
-            13,
-        ));
-    }
-
-    match ast.format.unwrap_or("bin").to_string().as_str() {
-        "bin" => {
-            reloc::relocate_addresses(&mut wrt, rel, &sym)?;
-            write(&mut file.unwrap(), &wrt)?;
+        .open(opath);
+    let mut ofile = match ofile {
+        Ok(f) => f,
+        Err(e) => {
+            return Err(PasmError::new(e.to_string(), 6));
         }
-        #[cfg(feature = "target_elf")]
-        "elf32" => {
-            add_externs(&mut sym, &ast.externs);
-            let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, false)?;
-            wrt = elf.compile(false);
-            write(&mut file.unwrap(), &wrt)?;
-        }
-        #[cfg(feature = "target_elf")]
-        "elf64" => {
-            add_externs(&mut sym, &ast.externs);
-            let elf = crate::obj::Elf::new(&slims, &opath, &wrt, rel, &sym, true)?;
-            wrt = elf.compile(true);
-            write(&mut file.unwrap(), &wrt)?;
-        }
-        _ => {
-            return Err(Error::new(
-                "you tried to use unknown/unsupported format",
-                13,
-            ))
-        }
-    }
-    #[cfg(feature = "vtime")]
-    utils::vtimed_print("core   ", start);
-    Ok(())
-}
-
-fn process_section<'a>(
-    section: &'a Section<'a>,
-    idx: u16,
-    offset: usize,
-) -> (Vec<u8>, Vec<Relocation<'a>>, Vec<Symbol<'a>>) {
-    let mut wrt = Vec::new();
-    let mut sym = Vec::new();
-    let mut rel = Vec::new();
-
-    // apply addr_align
-    if offset != 0 && section.align != 0 {
-        let align = section.align as usize;
-        wrt.extend(vec![0; align - (offset % align)]);
-    }
-
-    for lbl in &section.content {
-        let st = lbl.attributes.get_symbol_type();
-        let vi = lbl.attributes.get_visibility();
-        let nm = lbl.name;
-
-        let (bts, mut rels) = process_label(lbl);
-        for rel in &mut rels {
-            rel.shidx = idx;
-            rel.offset += wrt.len();
-        }
-        rel.extend(rels);
-        sym.push(Symbol {
-            stype: st,
-            name: nm,
-            visibility: vi,
-            offset: wrt.len() - section.offset,
-            size: bts.len(),
-            sindex: idx,
-        });
-        wrt.extend(bts);
-    }
-    if section.attributes.get_nobits() {
-        rel.clear();
-    }
-    (wrt, rel, sym)
-}
-
-pub fn add_externs<'a>(sym: *mut Vec<Symbol<'a>>, externs: &'a [&'a str]) {
-    let sym = unsafe { &mut *sym };
-    sym.reserve_exact(externs.len());
-    for e in externs {
-        sym.push(Symbol {
-            name: e,
-            offset: 0,
-            size: 0,
-            sindex: 0,
-            stype: SymbolType::NoType,
-            visibility: Visibility::Extern,
-        });
-    }
-}
-
-pub fn process_label<'a>(label: &'a Label) -> (Vec<u8>, Vec<Relocation<'a>>) {
-    use crate::core::api::AssembleResult::*;
-
-    let default_reltype = if label.attributes.bits == 16 {
-        shr::reloc::RelType::REL16
-    } else {
-        shr::reloc::RelType::REL32
     };
-
-    let mut wrt = Vec::new();
-    let mut rel = Vec::new();
-
-    let bits = label.attributes.get_bits();
-    for instruction in &label.content {
-        let api = comp::get_genapi(instruction, bits);
-
-        let (wrt_a, mut rel_a) = api.assemble(instruction, bits, default_reltype);
-        for rel in rel_a.iter_mut() {
-            rel.offset += wrt.len();
-        }
-        match wrt_a {
-            NoLargeImm(i) => wrt.extend(i.into_iter()),
-            WLargeImm(i) => wrt.extend(i),
-        }
-        rel.extend(rel_a.into_iter());
-    }
-
-    (wrt, rel)
-}
-
-pub fn write(writer: &mut impl Write, con: &[u8]) -> Result<(), Error> {
-    if writer.write_all(con).is_err() {
-        return Err(Error::new("failed to write content to buffer", 13));
+    if let Err(err) = ofile.write_all(&obuf) {
+        return Err(PasmError::new(err.to_string(), 6));
     }
     Ok(())
 }

@@ -6,19 +6,19 @@ _start:
 	sub rbx, rax
 	sub r8, r9
 	sub r8, 0
-	sub (rax) qword, 1000
-	sub (rax + rcx) qword, 10
-	sub (rax + rcx*4) qword, 10
-	sub (rcx*4) qword, rax
-	sub (rax+rcx*4+20) qword, 10
-	sub (rax+rcx*4) qword, 10
-	sub (rax+r8*4+20) qword, 10
-	sub (r9+r8*4+20) qword, 10
-	sub (rax) qword, rax
-	sub (rax + rcx) qword, rax
-	sub (rax + rcx*4) qword, rax
-	sub (rcx*4) qword, rax
-	sub (rax+rcx*4+20) qword, r8
-	sub (rax+rcx*4) qword, r9
-	sub (rax+r8*4+20) qword, r10
-	sub (r9+r8*4+20) qword, r11
+	sub qword [rax], 1000
+	sub qword [rax + rcx], 10
+	sub qword [rax + rcx*4], 10
+	sub qword [rcx*4], rax
+	sub qword [rax+rcx*4+20], 10
+	sub qword [rax+rcx*4], 10
+	sub qword [rax+r8*4+20], 10
+	sub qword [r9+r8*4+20], 10
+	sub qword [rax], rax
+	sub qword [rax + rcx], rax
+	sub qword [rax + rcx*4], rax
+	sub qword [rcx*4], rax
+	sub qword [rax+rcx*4+20], r8
+	sub qword [rax+rcx*4], r9
+	sub qword [rax+r8*4+20], r10
+	sub qword [r9+r8*4+20], r11

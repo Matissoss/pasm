@@ -101,7 +101,7 @@ pub struct Elf<'a> {
     relocations: Vec<ElfRelocation>,
 }
 
-pub fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
+fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
     [
         0x7F,
         b'E',
@@ -127,13 +127,13 @@ type Sections<'a> = &'a [SlimSection<'a>];
 impl<'a> Elf<'a> {
     pub fn new(
         sections: Sections<'a>,
-        path: &'a Path,
+        opath: &'a Path,
         code: &'a [u8],
         relocs: Vec<Relocation>,
         symbols: &'a [Symbol],
         is_64bit: bool,
     ) -> Result<Self, Error> {
-        make_elf(sections, path, code, relocs, symbols, is_64bit)
+        make_elf(sections, opath, code, relocs, symbols, is_64bit)
     }
     pub fn compile(self, is_64bit: bool) -> Vec<u8> {
         compile(self, is_64bit)

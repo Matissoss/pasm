@@ -40,26 +40,26 @@ _start:
 	kunpckdq k0, k1, k2
 	kunpckwd k0, k1, k2
 	
-	kmovb byte (rcx), k2
-	kmovb k2, byte (rcx)
+	kmovb byte [rcx], k2
+	kmovb k2, byte [rcx]
 	kmovb k1, k2
 	kmovb ebx, k2
 	kmovb k2, ebx
 
-	kmovw word (rcx), k2
-	kmovw k2, word (rcx)
+	kmovw word [rcx], k2
+	kmovw k2, word [rcx]
 	kmovw k1, k2
 	kmovw ebx, k2
 	kmovw k2, ebx
 	
-	kmovd dword (rcx), k2
-	kmovd k2, dword (rcx)
+	kmovd dword [rcx], k2
+	kmovd k2, dword [rcx]
 	kmovd k1, k2
 	kmovd ebx, k2
 	kmovd k2, ebx
 	
-	kmovq qword (rcx), k2
-	kmovq k2, qword (rcx)
+	kmovq qword [rcx], k2
+	kmovq k2, qword [rcx]
 	kmovq k1, k2
 	kmovq rbx, k2
 	kmovq k2, rbx

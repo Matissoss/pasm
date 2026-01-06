@@ -1,6 +1,6 @@
 bits 64
 _start:
-	cmova ax, word (rsp + 2)
+	cmova ax, word [rsp + 2]
 	cmova eax, ebx
 	cmova rax, rbx
 

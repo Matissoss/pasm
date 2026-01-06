@@ -9,4 +9,4 @@ _start:
 	pmulhuw mm0, mm1
 	pmaxud xmm0, xmm1
 	pinsrw xmm0, eax, 10
-	pinsrw xmm0, word (rax), 10
+	pinsrw xmm0, word [rax], 10

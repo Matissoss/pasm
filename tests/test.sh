@@ -48,6 +48,8 @@ for file in ./nasm/*.asm; do
 	NASM_FILE=$file
 	PASM_FILE=${file/nasm/pasm}
 
+        echo "Testing file $file..."
+
 	$BIN -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
 	$NASM_BIN $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS
 	
