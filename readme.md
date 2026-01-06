@@ -4,10 +4,6 @@
 
 ## about
 
-> [!WARNING]
-> This is development branch of PASM assembler.
-> Some of the info here may be outdated.
-
 `pasm` is modern and independent assembler for x86-64 architecture as one of key parts in [polon](https://github.com/Matissoss/polon) toolchain.
 
 ## features
