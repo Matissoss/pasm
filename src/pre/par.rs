@@ -49,6 +49,9 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
                     a_mnem = Some(mnem);
                     line = rest;
                 }
+            } else if let Ok(amnem) = Mnemonic::from_str(line) {
+                a_mnem = Some(amnem);
+                line = "";
             }
             // then we go after operands and subexpressions
             let mut ins = Instruction::with_operands(SmallVec::new());
@@ -58,12 +61,20 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
             } else {
                 ins.mnemonic = m;
             }
+
             loop {
                 let operand = if let Some((operand, rest)) = split_once_intelligent(line) {
                     line = rest.trim();
                     match par_operand(operand.trim()) {
                         Ok(o) => o,
-                        Err(e) => return LineResult::Error(e),
+                        Err(e) => {
+                            // if we don't check that, parser thinks we're parsing memory operand
+                            if line.split_whitespace().count() >= 2 {
+                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 10))
+                            } else {
+                                return LineResult::Error(e)
+                            }
+                        },
                     }
                 } else {
                     if line.is_empty() {
@@ -101,6 +112,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
                             "nf" => ins.apx_set_leg_nf(),
                             "vex-nf" => ins.apx_set_vex_nf(),
                             // AVX-512
+                            "bcst" => ins.set_evex_bcst(),
                             "k0" => ins.set_evex_mask(0b000),
                             "k1" => ins.set_evex_mask(0b001),
                             "k2" => ins.set_evex_mask(0b010),
@@ -154,6 +166,8 @@ fn split_once_intelligent(line: &str) -> Option<(&str, &str)> {
             str_closure = !str_closure;
         } else if b == &b',' && !str_closure {
             return Some((&line[0..i], &line[i + 1..]));
+        } else if b == &b';' && !str_closure {
+            return Some((&line[0..i], ""))
         }
     }
     None

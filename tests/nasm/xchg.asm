@@ -3,7 +3,7 @@ section .text
 	global _start
 _start:
 	xchg rbx, rax
-	xchg r8, r9
+	xchg rcx, qword [rdx]
 	xchg qword [rcx*4], rax
 	xchg qword [rax], rax
 	xchg qword [rax + rcx], rax

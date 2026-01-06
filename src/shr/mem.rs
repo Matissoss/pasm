@@ -373,6 +373,10 @@ fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
     for tok in toks.into_iter() {
         match tok {
             Token::Register(r) => {
+                if r.is_sgmnt() {
+                    mem.set_segment(r);
+                    continue;
+                }
                 if unspec_reg.is_none() {
                     unspec_reg = Some(r);
                 } else if base.is_none() {
@@ -518,7 +522,7 @@ fn mem_tok(str: &str) -> SmallVec<Token, 8> {
                 }
                 tokens.push(Token::Add);
             }
-            MS | ME | b' ' | b'\t' => {
+            MS | ME | b' ' | b'\t'|b':' => {
                 let b = &bytes[sstart..send];
                 send += 1;
                 sstart = send;

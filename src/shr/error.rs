@@ -23,7 +23,7 @@ impl Display for Error {
     //   | {LINE} + 1
     // help: go to `{SOURCE_CODE_REPO}/docs/error-spec.md#e[{ERROR_CODE}]` for more info
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        writeln!(f, "error[a{:04}]: {}", self.line, self.msg)?;
+        writeln!(f, "error[a{:04}]: {}", self.error_code, self.msg)?;
         if self.line != 0 {
             writeln!(f, "---> at line {}", self.line)?;
             if let Some(pth) = CLI.infile() {

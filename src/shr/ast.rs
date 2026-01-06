@@ -100,9 +100,10 @@ pub struct Instruction<'a> {
     //      0b.... - reserved
     //   - RRRR_RRRR_RRRR - forced prefix specific:
     //      if FPFX_EVEX:
-    //          0bSZ00_MMM0_AEEE:
+    //          0bSZB0_MMM0_AEEE:
     //              - S: {sae}
     //              - Z: {z}
+    //              - B: {bcst}
     //              - A: requires APX extension
     //              - EEE: er:
     //                  0b000 - none
@@ -397,6 +398,21 @@ impl<'a> Instruction<'a> {
             None
         }
     }
+    #[inline(always)]
+    pub fn set_evex_bcst(&mut self) {
+        self.set_fpfx(FPFX_EVEX);
+
+        self.metadata &= !0b0000_0010_0000_0000;
+        self.metadata |= 0b0000_0010_0000_0000;
+    }
+    #[inline(always)]
+    pub fn evex_bcst(&self) -> Option<bool> {
+        if self.is_evex() {
+            Some(self.metadata & 0b0000_0010_0000_0000 == 0b0000_0010_0000_0000)
+        } else {
+            None
+        }
+    }
 
     // apx
     pub fn apx_set_eevex(&mut self) {
@@ -609,14 +625,6 @@ impl<'a> Instruction<'a> {
     #[inline(always)]
     pub fn needs_rex(&self) -> bool {
         crate::core::rex::needs_rex(self, &self.dst(), &self.src())
-    }
-    pub fn get_bcst(&self) -> bool {
-        for i in 0..self.len() {
-            if MEM == self.gett(i) {
-                return unsafe { self.get_as_mem(i).is_bcst() };
-            }
-        }
-        false
     }
     pub const unsafe fn get_as_reg(&self, idx: usize) -> &Register {
         &self.operands[idx].reg

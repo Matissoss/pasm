@@ -32,9 +32,9 @@ _start:
 	lzcnt eax, ebx
 	lzcnt rax, rbx
 
-	ltr [rax] word
+	ltr word [rax]
 
-	prefetchw [rax]
+	prefetchw byte [rax]
 	;prefetch0 (rax) !byte
 	;prefetch1 (rax) !byte
 	;prefetch2 (rax) !byte
