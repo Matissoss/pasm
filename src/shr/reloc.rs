@@ -147,8 +147,8 @@ mod tests {
         use crate::shr::visibility::Visibility;
         // we assert here that Symbol is defined as second (idx 1)
         // byte.
-        //                0     1     2     3     4     5     6     7
-        let mut bytes = [0x00, 0x71, 0x00, 0x00, 0x00, 0x00, 0x81, 0x91];
+        //                          0     1     2     3     4     5     6     7
+        let mut bytes: [u8; 8] = [0x00, 0x71, 0x00, 0x00, 0x00, 0x00, 0x81, 0x91];
         let symbol = Symbol {
             name: "Symbol",
             offset: 0x01,
@@ -166,6 +166,9 @@ mod tests {
         };
         assert_eq!(relocation.lea(0x01), (-1i64) as usize);
         assert_eq!(relocate(&mut bytes, relocation, &[symbol.clone()]), Ok(()));
+        //                                       -1
+        //                              +-----+--++--+----+
+        //                              |     |      |    |
         assert_eq!(bytes, [0x00, 0x71, 0xFF, 0xFF, 0xFF, 0xFF, 0x81, 0x91]);
         let relocation = Relocation {
             symbol: "Symbol",

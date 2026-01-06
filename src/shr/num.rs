@@ -283,14 +283,14 @@ mod tests_1 {
     #[test]
     fn number_t_n() {
         let str = "1.050"; // should parse into float
-        assert_eq!(Number::from_str(str), Some(Number::float(1.050)));
+        assert_eq!(Number::from_str(str), Ok(Number::float(1.050)));
         let str = "0b100101";
-        assert_eq!(Number::from_str(str), Some(Number::uint64(0b100101)));
+        assert_eq!(Number::from_str(str), Ok(Number::uint64(0b100101)));
         let str = "-0b101";
-        assert_eq!(Number::from_str(str), Some(Number::int64(-0b101)));
+        assert_eq!(Number::from_str(str), Ok(Number::int64(-0b101)));
         let str = "0x0FF";
-        assert_eq!(Number::from_str(str), Some(Number::uint64(0xFF)));
+        assert_eq!(Number::from_str(str), Ok(Number::uint64(0xFF)));
         let str = "-0x0FF";
-        assert_eq!(Number::from_str(str), Some(Number::int64(-0xFF)));
+        assert_eq!(Number::from_str(str), Ok(Number::int64(-0xFF)));
     }
 }

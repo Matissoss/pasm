@@ -73,8 +73,10 @@ impl<'a> SymbolRef<'a> {
         if let Some(s) = s.strip_prefix("@[") {
             if let Some(s) = s.strip_suffix("]") {
                 let mut symbolref = SymbolRef::default();
-                let mut symbol_str = s;
-                while let Some((str, rest)) = split_once_intelligent(symbol_str, ',') {
+                let mut symbol_str = s.trim();
+                while let Some((mut str, mut rest)) = split_once_intelligent(symbol_str, ',') {
+                    str = str.trim_end();
+                    rest = rest.trim_start();
                     if let Ok(reltype) = RelType::from_str(str) {
                         symbolref.set_reltype(reltype);
                     } else if let Ok(n) = Number::from_str(str) {
@@ -183,5 +185,21 @@ impl ToString for SymbolRef<'_> {
             string.push_str(&self.addend.to_string());
         }
         string
+    }
+}
+
+#[cfg(test)]
+mod symbol_tests {
+    use super::*;
+    #[test]
+    fn symbol_test_0() {
+        let line = "@[symbol]";
+        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", None, false, None, None)));
+        let line = "@[symbol , 10]";
+        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", Some(10i32), false, None, None)));
+        let line = "@[symbol , abs32]";
+        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", None, false, None, Some(RelType::ABS32))));
+        let line = "@[symbol , 10 , abs32]";
+        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", Some(10i32), false, None, Some(RelType::ABS32))));
     }
 }
