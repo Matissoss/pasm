@@ -63,18 +63,18 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
             }
 
             loop {
-                let operand = if let Some((operand, rest)) = split_once_intelligent(line) {
+                let operand = if let Some((operand, rest)) = split_once_parser(line) {
                     line = rest.trim();
                     match par_operand(operand.trim()) {
                         Ok(o) => o,
                         Err(e) => {
                             // if we don't check that, parser thinks we're parsing memory operand
                             if line.split_whitespace().count() >= 2 {
-                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 5))
+                                return LineResult::Error(Error::new("operands (including subexpressions) need to be separated by ','", 5));
                             } else {
-                                return LineResult::Error(e)
+                                return LineResult::Error(e);
                             }
-                        },
+                        }
                     }
                 } else {
                     if line.is_empty() {
@@ -159,7 +159,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
 }
 
 /// splits line more intelligently (so mov rax, ',' will work)          
-fn split_once_intelligent(line: &str) -> Option<(&str, &str)> {
+fn split_once_parser(line: &str) -> Option<(&str, &str)> {
     let mut str_closure = false;
     for (i, b) in line.as_bytes().iter().enumerate() {
         if b == &b'"' || b == &b'\'' {
@@ -167,7 +167,7 @@ fn split_once_intelligent(line: &str) -> Option<(&str, &str)> {
         } else if b == &b',' && !str_closure {
             return Some((&line[0..i], &line[i + 1..]));
         } else if b == &b';' && !str_closure {
-            return Some((&line[0..i], ""))
+            return Some((&line[0..i], ""));
         }
     }
     None
@@ -184,7 +184,7 @@ enum ParserOperand<'a> {
 }
 
 fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
-    if let Some(n) = Number::from_str(slice) {
+    if let Ok(n) = Number::from_str(slice) {
         Ok(ParserOperand::Imm(n))
     } else if let Ok(r) = Register::from_str(slice) {
         Ok(ParserOperand::Register(r))
@@ -192,32 +192,44 @@ fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
         Ok(ParserOperand::SubExpression(&slice[1..slice.len() - 1]))
     } else if slice.starts_with('"') && slice.ends_with('"') {
         Ok(ParserOperand::String(&slice[1..slice.len() - 1]))
+    } else if let Ok(mut symbolref) = SymbolRef::from_str(slice) {
+        symbolref.deref(false);
+        Ok(ParserOperand::SymbolRef(symbolref))
     } else if let Some((sz, slice)) = slice.split_once(' ') {
-        let sz = if let Ok(s) = Size::from_str(sz.trim()) {
-            s
-        } else {
-            return Err(Error::new(
-                "expected to find size directive here, found something else",
-                5,
-            ));
-        };
+        if sz.starts_with("q") || sz.starts_with("d") || sz.starts_with("w") || sz.starts_with("b")
+        {
+            let sz = if let Ok(s) = Size::from_str(sz.trim()) {
+                s
+            } else {
+                return Err(Error::new(
+                    "failed to parse an operand: expected to find memory addressing here",
+                    5,
+                ));
+            };
 
-        if let Ok(m) = Mem::new(slice, sz) {
-            Ok(ParserOperand::Mem(m))
+            if let Ok(mut m) = Mem::from_str(slice) {
+                m.set_size(sz);
+                Ok(ParserOperand::Mem(m))
+            } else if let Ok(mut s) = SymbolRef::from_str(slice) {
+                s.set_size(sz);
+                s.deref(true);
+                Ok(ParserOperand::SymbolRef(s))
+            } else {
+                Err(Error::new(
+                    "failed to parse an operand: expected to find memory addressing",
+                    5,
+                ))
+            }
         } else {
             Err(Error::new(
-                "expected a memory address, found something else",
+                format!("failed to parse operand \"{slice}\""),
                 5,
             ))
         }
-    } else if Mem::new(slice, Size::Any).is_ok() {
-        Err(Error::new(
-                "you tried to use memory addressing without size directive, which is forbidden in PASM at the moment",
-                5
-        ))
     } else {
-        Ok(ParserOperand::SymbolRef(
-            SymbolRef::from_str(slice).unwrap(),
+        Err(Error::new(
+            format!("failed to parse operand \"{slice}\""),
+            5,
         ))
     }
 }
@@ -228,14 +240,16 @@ mod partest {
     #[test]
     fn si_test() {
         let line = "',', .";
-        assert_eq!(split_once_intelligent(line), Some(("','", " .")));
+        assert_eq!(split_once_parser(line), Some(("','", " .")));
         let line = "string \"Hello, World!\"";
-        assert_eq!(split_once_intelligent(line), None);
+        assert_eq!(split_once_parser(line), None);
         // yeah, i know it's not real example, but it tests it?
         let line = "mov \",\", rax";
-        assert_eq!(split_once_intelligent(line), Some(("mov \",\"", " rax")));
+        assert_eq!(split_once_parser(line), Some(("mov \",\"", " rax")));
         let line = "rax, rcx";
-        assert_eq!(split_once_intelligent(line), Some(("rax", " rcx")));
+        assert_eq!(split_once_parser(line), Some(("rax", " rcx")));
+        let line = "this should be parsed; this SHOULD NOT BE!";
+        assert_eq!(split_once_parser(line), Some(("this should be parsed", "")))
     }
     #[test]
     fn po_test() {

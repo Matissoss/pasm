@@ -79,6 +79,19 @@ pub unsafe fn cstring<'a>(s: *const u8) -> &'a str {
     std::str::from_utf8_unchecked(std::slice::from_raw_parts(s, len))
 }
 
+/// splits line more intelligently (so mov rax, ',' will work)          
+pub fn split_once_intelligent(line: &str, c: char) -> Option<(&str, &str)> {
+    let mut str_closure = false;
+    for (i, b) in line.as_bytes().iter().enumerate() {
+        if b == &b'"' || b == &b'\'' {
+            str_closure = !str_closure;
+        } else if b == &(c as u8) && !str_closure {
+            return Some((&line[0..i], &line[i + 1..]));
+        }
+    }
+    None
+}
+
 pub fn split_str_ref(s: &[u8], chr: char) -> Vec<&str> {
     let mut start = 0;
     let mut end = 0;

@@ -68,6 +68,20 @@ pub struct Mem {
     flags: BoolTable8,
 }
 
+impl FromStr for Mem {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match mem_par(mem_tok(s)) {
+            Ok(mut o) => {
+                mem_chk(&mut o);
+                o.set_size(Size::Any);
+                Ok(o)
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
 impl Mem {
     fn blank() -> Self {
         Self {
@@ -76,16 +90,6 @@ impl Mem {
             metadata_1: 0,
             metadata_2: 0,
             flags: BoolTable8::new(),
-        }
-    }
-    pub fn new(str: &str, sz: Size) -> Result<Self, Error> {
-        match mem_par(mem_tok(str)) {
-            Ok(mut o) => {
-                mem_chk(&mut o);
-                o.set_size(sz);
-                Ok(o)
-            }
-            Err(e) => Err(e),
         }
     }
     // type
@@ -522,7 +526,7 @@ fn mem_tok(str: &str) -> SmallVec<Token, 8> {
                 }
                 tokens.push(Token::Add);
             }
-            MS | ME | b' ' | b'\t'|b':' => {
+            MS | ME | b' ' | b'\t' | b':' => {
                 let b = &bytes[sstart..send];
                 send += 1;
                 sstart = send;
@@ -549,8 +553,10 @@ fn mem_tok_from_buf(buf: &[u8]) -> Option<Token> {
     let utf8_buf = unsafe { std::str::from_utf8_unchecked(buf) };
     if let Ok(reg) = Register::from_str(utf8_buf) {
         Some(Token::Register(reg))
+    } else if let Ok(n) = Number::from_str(utf8_buf) {
+        Some(Token::Number(n.get_as_i32()))
     } else {
-        Number::from_str(utf8_buf).map(|n| Token::Number(n.get_as_i32()))
+        None
     }
 }
 
@@ -639,27 +645,27 @@ mod new_test {
     #[test]
     fn mem_par_check() {
         let str = "rax";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.index(), None);
         assert!(!mem.is_sib());
         assert_eq!(mem.base(), Some(Register::RAX));
         let str = "rax + rcx";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Size::Byte);
         let str = "rax + 20";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
         assert_eq!(mem.offset(), Some(20));
         let str = "rax + rcx * 4 + 20";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));
@@ -667,14 +673,14 @@ mod new_test {
         assert_eq!(mem.scale(), Size::Dword);
         assert_eq!(mem.offset(), Some(20));
         let str = "rcx*4";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
         assert_eq!(mem.index(), Some(Register::RCX));
         assert_eq!(mem.scale(), Size::Dword);
         let str = "rcx * 4 + 20";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RBP));
@@ -682,16 +688,16 @@ mod new_test {
         assert_eq!(mem.scale(), Size::Dword);
         assert_eq!(mem.offset(), Some(20));
         let str = "-0xFF";
-        let mem = Mem::new(str, Size::Qword);
+        let mem = Mem::from_str(str);
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RIP));
         assert_eq!(mem.offset(), Some(-0xFF));
-        let mem = Mem::new("eax + ebx", Size::Qword).unwrap();
+        let mem = Mem::from_str("eax + ebx").unwrap();
         assert_eq!(mem.base(), Some(Register::EAX));
         assert_eq!(mem.index(), Some(Register::EBX));
         assert_eq!(mem.scale(), Size::Byte);
-        let mem = Mem::new("rax + zmm23", Size::Qword);
+        let mem = Mem::from_str("rax + zmm23");
         assert!(mem.is_ok());
         let mem = mem.unwrap();
         assert_eq!(mem.base(), Some(Register::RAX));

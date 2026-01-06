@@ -10,7 +10,7 @@ use crate::utils;
 use crate::shr::{
     error::Error,
     reloc::{RelType, Relocation},
-    section::SlimSection,
+    section::Section,
     symbol::{Symbol, SymbolType},
     visibility::Visibility,
 };
@@ -122,7 +122,7 @@ fn mk_ident(is_64bit: bool, is_le: bool) -> [u8; 16] {
     ]
 }
 
-type Sections<'a> = &'a [SlimSection<'a>];
+type Sections<'a> = &'a [Section<'a>];
 
 impl<'a> Elf<'a> {
     pub fn new(

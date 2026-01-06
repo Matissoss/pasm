@@ -31,14 +31,16 @@ impl std::fmt::Debug for Number {
         write!(f, "{}", unsafe { self._u64 })
     }
 }
-
-/*
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub struct Number {
-    content: u64,
+impl FromStr for Number {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(n) = num_from_str(s) {
+            Ok(n)
+        } else {
+            Err(())
+        }
+    }
 }
-*/
-
 impl Number {
     pub const fn new(content: u64) -> Self {
         Self { _u64: content }
@@ -54,10 +56,6 @@ impl Number {
     }
     pub fn get_as_i32(&self) -> i32 {
         self.get_raw() as i32
-    }
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(str: &str) -> Option<Self> {
-        num_from_str(str)
     }
     pub fn unsigned_size(&self) -> Size {
         let content = unsafe { self._u64 };

@@ -33,6 +33,19 @@ pub enum RelType {
     REL8,
 }
 
+impl std::str::FromStr for RelType {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "abs32" => Ok(Self::ABS32),
+            "rel32" => Ok(Self::REL32),
+            "rel16" => Ok(Self::REL16),
+            "rel8" => Ok(Self::REL8),
+            _ => Err(()),
+        }
+    }
+}
+
 impl RelType {
     pub const fn size(&self) -> usize {
         match self {
@@ -97,7 +110,10 @@ pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(
         symbol
     } else {
         return Err(Error::new(
-            "you tried to use relocation on undeclared symbol",
+            format!(
+                "you tried to use relocation on undeclared symbol \"{}\"",
+                rel.symbol
+            ),
             4,
         ));
     };

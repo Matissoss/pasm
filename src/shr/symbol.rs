@@ -3,7 +3,12 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{booltable::BoolTable8, reloc::RelType, size::Size, visibility::Visibility};
+use std::str::FromStr;
+
+use crate::{
+    shr::{booltable::BoolTable8, num::Number, reloc::RelType, size::Size, visibility::Visibility},
+    utils::split_once_intelligent,
+};
 
 #[repr(u8)]
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -46,16 +51,62 @@ pub struct SymbolRef<'a> {
     guardians: BoolTable8,
 }
 
+impl Default for SymbolRef<'_> {
+    fn default() -> Self {
+        Self {
+            symbol: "",
+            addend: 0,
+            size: Size::Unknown,
+            reltype: RelType::REL32,
+            guardians: BoolTable8::new(),
+        }
+    }
+}
+
 impl<'a> SymbolRef<'a> {
     // because rust's trait implementation does not allow for this kind of stuff
     // (lifetime in `s: &'a str`)
+    //
+    /// expected input: in format @[<SYMBOL REF>] already without any semicolons or other trash.
     #[allow(clippy::result_unit_err)]
     pub fn from_str(s: &'a str) -> Result<SymbolRef<'a>, ()> {
-        if s.starts_with('[') && s.ends_with(']') {
-            // i'll skip addend for now
-            Ok(Self::new(&s[1..s.len() - 1], None, true, None, None))
+        if let Some(s) = s.strip_prefix("@[") {
+            if let Some(s) = s.strip_suffix("]") {
+                let mut symbolref = SymbolRef::default();
+                let mut symbol_str = s;
+                while let Some((str, rest)) = split_once_intelligent(symbol_str, ',') {
+                    if let Ok(reltype) = RelType::from_str(str) {
+                        symbolref.set_reltype(reltype);
+                    } else if let Ok(n) = Number::from_str(str) {
+                        symbolref.set_addend(n.get_as_i32());
+                    } else if symbolref.symbol.is_empty() {
+                        symbolref.symbol = str;
+                    } else {
+                        // because we already have the referenced symbol
+                        // TODO: add support for specyfying section
+                        return Err(());
+                    }
+
+                    symbol_str = rest;
+                }
+                if let Ok(reltype) = RelType::from_str(symbol_str) {
+                    symbolref.set_reltype(reltype);
+                } else if let Ok(n) = Number::from_str(symbol_str) {
+                    symbolref.set_addend(n.get_as_i32());
+                } else if symbolref.symbol.is_empty() {
+                    symbolref.symbol = symbol_str;
+                } else {
+                    // because we already have the referenced symbol
+                    // TODO: add support for specyfying section
+                    return Err(());
+                }
+
+                Ok(symbolref)
+            } else {
+                Err(())
+            }
         } else {
-            Ok(Self::new(s, None, false, None, None))
+            Err(())
         }
     }
     pub fn deref(&mut self, bool: bool) {

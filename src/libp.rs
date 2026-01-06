@@ -11,15 +11,15 @@ use std::{
 
 use crate::{
     core::{api::AssembleResult, comp},
+    obj::Elf,
     pre::{
         chk,
         par::{par, LineResult},
     },
-    obj::Elf,
     shr::{
         error::Error as PasmError,
         reloc::{relocate_addresses, RelType, Relocation},
-        section::{SectionAttributes, SlimSection},
+        section::{Section, SectionAttributes},
         symbol::{Symbol, SymbolType},
         visibility::Visibility,
     },
@@ -50,8 +50,8 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
     let mut symbols: Vec<Symbol> = Vec::new();
     let mut line_iter = LineIter::new(&ibuf);
 
-    let mut sections: Vec<SlimSection> = Vec::new();
-    let mut current_section: SlimSection = SlimSection {
+    let mut sections: Vec<Section> = Vec::new();
+    let mut current_section = Section {
         name: ".pasm.default",
         size: 0,
         offset: 0,
@@ -59,11 +59,11 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
         attributes: SectionAttributes::new(),
         bits: 16,
     };
-    let mut current_label: usize = 0;
-    let mut sindex = 0u16;
+    let mut current_label = 0usize;
+    let mut sindex: u16 = 0u16;
 
     let mut target: Option<&str> = None;
-    let mut bits = 16;
+    let mut bits: u8 = 16u8;
 
     while let Some((lnum, line)) = line_iter.next() {
         let line = line.trim();
@@ -115,7 +115,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
                     });
                     sindex += 1;
                 }
-                current_section = SlimSection {
+                current_section = Section {
                     name: s,
                     size: 0,
                     offset: obuf.len(),

@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{booltable, label, visibility::Visibility};
+use crate::shr::{booltable, visibility::Visibility};
 
 const GLOBAL: u8 = 0x1;
 const ALLOC_FLAG: u8 = 0x2;
@@ -12,19 +12,8 @@ const EXEC_FLAG: u8 = 0x4;
 const NOBITS_FLAG: u8 = 0x5;
 
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct SlimSection<'a> {
-    pub name: &'a str,
-    pub size: usize,
-    pub offset: usize,
-    pub align: u16,
-    pub attributes: SectionAttributes,
-    pub bits: u8,
-}
-
-#[derive(PartialEq, Debug, Default)]
 pub struct Section<'a> {
     pub name: &'a str,
-    pub content: Vec<label::Label<'a>>,
     pub size: usize,
     pub offset: usize,
     pub align: u16,
