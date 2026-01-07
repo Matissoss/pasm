@@ -97,24 +97,10 @@ Here is full list of them:
 |extern   | value: string           | Adds an external symbol to symbol list                         |
 |public   | value: string           | Sets symbol's visibility to global/public                      |
 |protected| value: string           | Sets symbol's visibility to protected                          |
-|private  | value: string           | Sets symbol's visibility to private                            |
+|private  | value: string           | Sets symbol's visibility to local/private                      |
 |weak     | value: string           | Sets symbol's visibility to weak                               |
 |function | value: string           | Sets symbol's type to function                                 |
 |object   | value: string           | Sets symbol's type to object                                   |
-
-> [!NOTE]
-> To use something like this:
-> ```
-> public _start
-> _start:
-> ```
-> 
-> You need to reverse the order you write this, because `public` will apply to already existing symbols (which _start ***is NOT***);
->
-> ```
-> _start:
-> public _start
-> ```
 
 ## Section-related syntax
 
@@ -122,16 +108,13 @@ Here is full list of them:
 
 To declare a section we'll use following syntax:
 ```
-section "<section_name>"
+section <section_name>
 ```
 
 Example:
 ```
-section "cool_section"
+section cool_section
 ```
-
-> [!WARN]
-> Using section declaration without `""` may lead to undesired behaviour or atleast an error.
 
 ### Section Attributes
 
@@ -146,14 +129,14 @@ We can use these directives after section declaration, one per line.
 
 Example for `".text"` section:
 ```
-section ".text"
+section .text
     executable
     alloc
 ```
 
 Example for `".data"` section:
 ```
-section ".data"
+section .data
     alloc
     writeable
     align 16
@@ -161,7 +144,7 @@ section ".data"
 
 Example for `".bss"` section:
 ```
-section ".bss"
+section .bss
     nobits
 ```
 
@@ -170,15 +153,15 @@ section ".bss"
 Labels like in other assemblers contain instructions. They belong to sections and are written under them.
 They are considered symbols in PASM and as such they can be manipulated using directives.
 
-To declare a label we use `<LABEL_NAME>:` just like in NASM/FASM.
+To declare a label we use `<LABEL_NAME>:` just like in other x86-64 assembler syntaxes you may know.
 
 Example:
 ```
-section ".text"
+section .text
     alloc
     executable
-    _start:
     public _start
+    _start:
         mov rax, 60
         mov rdi, 0
         syscall
@@ -232,4 +215,4 @@ _start:
     syscall
 ```
 
-Section will be `.pasm-x86.default`.
+Section will be `.text`.

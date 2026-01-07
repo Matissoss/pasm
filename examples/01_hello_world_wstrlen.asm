@@ -1,17 +1,17 @@
-format "elf64"
+target elf64
 bits 64
 
-section ".data"
+section .data
         alloc
         writeable
+	public hello_world
         hello_world:
                 string "Hello, World!\n\0"
-	public hello_world
-section ".text"
+section .text
         alloc
         executable
-        _start:
 	public _start
+        _start:
 		mov rdi, @[hello_world, abs32]
 		call @[strlen]
 		
@@ -24,8 +24,8 @@ section ".text"
 		mov rax, 60
 		mov rdi, 0
 		syscall
-	strlen:
 	public strlen
+	strlen:
                 xor rcx, rcx
 	_strlen_loop:
 		mov al, byte [rdi]

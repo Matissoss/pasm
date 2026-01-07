@@ -1,20 +1,20 @@
-target "elf64"
+target elf64
 
 bits 64
 
 // for Linux x86-64 SysV ABI
-section ".data"
+section .data
         writeable
         alloc
-	hello_world: 
 	public hello_world
+	hello_world: 
                 string "Hello, World!\n"
-section ".text"
+section .text
         executable
         alloc
 	align 16
-	_start:
         public _start
+	_start:
 		mov rax, 1
 		mov rdi, 1
 		; we can also use dereference: lea rsi, qword @[hello_world]
