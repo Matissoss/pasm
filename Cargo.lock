@@ -8,4 +8,4 @@ version = "0.1.0"
 
 [[package]]
 name = "pasm"
-version = "0.1.0"
+version = "1.0.0"

@@ -73,9 +73,16 @@ impl FromStr for Mem {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match mem_par(mem_tok(s)) {
             Ok(mut o) => {
-                mem_chk(&mut o);
-                o.set_size(Size::Any);
-                Ok(o)
+                if o == Mem::blank() {
+                    Err(Error::new(
+                        "assembler was unable to parse memory addressing in this instruction",
+                        5,
+                    ))
+                } else {
+                    mem_chk(&mut o);
+                    o.set_size(Size::Any);
+                    Ok(o)
+                }
             }
             Err(e) => Err(e),
         }

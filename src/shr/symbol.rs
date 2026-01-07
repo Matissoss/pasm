@@ -29,6 +29,7 @@ pub struct Symbol<'a> {
     pub sindex: u16,
     pub visibility: Visibility,
     pub stype: SymbolType,
+    pub valid: bool,
 }
 
 impl Symbol<'_> {
@@ -194,12 +195,36 @@ mod symbol_tests {
     #[test]
     fn symbol_test_0() {
         let line = "@[symbol]";
-        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", None, false, None, None)));
+        assert_eq!(
+            SymbolRef::from_str(line),
+            Ok(SymbolRef::new("symbol", None, false, None, None))
+        );
         let line = "@[symbol , 10]";
-        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", Some(10i32), false, None, None)));
+        assert_eq!(
+            SymbolRef::from_str(line),
+            Ok(SymbolRef::new("symbol", Some(10i32), false, None, None))
+        );
         let line = "@[symbol , abs32]";
-        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", None, false, None, Some(RelType::ABS32))));
+        assert_eq!(
+            SymbolRef::from_str(line),
+            Ok(SymbolRef::new(
+                "symbol",
+                None,
+                false,
+                None,
+                Some(RelType::ABS32)
+            ))
+        );
         let line = "@[symbol , 10 , abs32]";
-        assert_eq!(SymbolRef::from_str(line), Ok(SymbolRef::new("symbol", Some(10i32), false, None, Some(RelType::ABS32))));
+        assert_eq!(
+            SymbolRef::from_str(line),
+            Ok(SymbolRef::new(
+                "symbol",
+                Some(10i32),
+                false,
+                None,
+                Some(RelType::ABS32)
+            ))
+        );
     }
 }

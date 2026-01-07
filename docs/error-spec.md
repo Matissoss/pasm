@@ -64,3 +64,7 @@ Provokes, when assembler wasn't able to open, read or write to/from a file.
 ## a0007 - invalid target name
 
 Provokes, when assembler does not recognize provided's target's name.
+
+## a0008 - symbol conflict
+
+Provokes, when assembler encounters symbols with the same name.

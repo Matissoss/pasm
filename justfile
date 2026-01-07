@@ -1,5 +1,6 @@
 default: 
 	@just --list
+init: refresh
 fmt:
 	@cargo fmt
 clippy:
@@ -10,12 +11,14 @@ refresh:
 	@cargo run --package "ins_adder" -q -- .instructions
 	@rm .instructions
 	@mv ins_switch.rs src/shr/ins_switch.rs
-tested_install:
+install_wtests:
 	@just refresh
 	@just test_wins
 	@just install
 install:
 	cargo install -q --path .
+# this might take some time. Requires NASM binary in $PATH
+test_full: clean refresh test test_winstructions
 test:
 	@echo "running clippy..."
 	@cargo clippy -q
@@ -24,7 +27,7 @@ test:
 clean:
 	@cargo clean
 
-# test with instructions
+# Requires NASM binary in $PATH
 [working-directory: 'tests']
-test_wins:
+test_winstructions:
 	@./test.sh

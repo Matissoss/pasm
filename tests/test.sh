@@ -25,13 +25,6 @@ fi
 
 set -e
 
-echo "running checks..."
-cargo check -q
-echo "running tests..."
-cargo test -q
-echo "running clippy..."
-cargo clippy -q
-
 rm -rf .tmp
 mkdir .tmp
 
@@ -48,7 +41,7 @@ for file in ./nasm/*.asm; do
 	NASM_FILE=$file
 	PASM_FILE=${file/nasm/pasm}
 
-        echo "Testing file $file..."
+        echo "Testing file $PASM_FILE..."
 
 	$BIN -i=$PASM_FILE -o=$PASM_FILE_RES -f=bin -t
 	$NASM_BIN $NASM_FILE -o $NASM_FILE_RES -f bin $NASM_FLAGS

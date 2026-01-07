@@ -156,6 +156,7 @@ mod tests {
             size: 0,
             sindex: 0,
             visibility: Visibility::Local,
+            valid: true,
         };
         let relocation = Relocation {
             symbol: "Symbol",

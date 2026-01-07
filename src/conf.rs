@@ -10,4 +10,4 @@ pub const LINE_WIDTH: usize = 25;
 
 // metadata for help
 pub const BIN: &str = "pasm";
-pub const VER: &str = "25.07-rc";
+pub const VER: &str = "v1.0.0-dev";

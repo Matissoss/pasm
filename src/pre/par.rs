@@ -30,6 +30,7 @@ pub enum LineResult<'a> {
 /// ---
 /// EXPECTED INPUT:
 ///     - line is already stripped off comments and whitespace at start/end
+#[cfg(not(feature = "refresh"))]
 pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
     let line_bytes = line.as_bytes();
     if line_bytes.last() == Some(&b':') {
@@ -196,7 +197,13 @@ fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
         symbolref.deref(false);
         Ok(ParserOperand::SymbolRef(symbolref))
     } else if let Some((sz, slice)) = slice.split_once(' ') {
-        if sz.starts_with("q") || sz.starts_with("d") || sz.starts_with("w") || sz.starts_with("b")
+        if sz.starts_with("q")
+            || sz.starts_with("d")
+            || sz.starts_with("w")
+            || sz.starts_with("b")
+            || sz.starts_with("x")
+            || sz.starts_with("y")
+            || sz.starts_with("z")
         {
             let sz = if let Ok(s) = Size::from_str(sz.trim()) {
                 s

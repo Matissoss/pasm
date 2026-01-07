@@ -52,7 +52,7 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
 
     let mut sections: Vec<Section> = Vec::new();
     let mut current_section = Section {
-        name: ".pasm.default",
+        name: ".text",
         size: 0,
         offset: 0,
         align: 0,
@@ -103,15 +103,31 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
                 }
             }
             LineResult::Section(s) => {
+                for sym in &symbols {
+                    if sym.name == s {
+                        if sym.stype == SymbolType::Section {
+                            return Err(PasmError::new(
+                                format!("there is already a section with name {s}"),
+                                8,
+                            ));
+                        } else {
+                            return Err(PasmError::new(
+                                format!("there is already a symbol with name {s}"),
+                                8,
+                            ));
+                        }
+                    }
+                }
                 current_section.size = obuf.len() - current_section.offset;
                 if sindex != 0 {
                     symbols.push(Symbol {
                         name: current_section.name,
                         offset: current_section.offset,
                         size: current_section.size,
-                        sindex: 0,
-                        visibility: Visibility::Public,
+                        sindex,
+                        visibility: Visibility::Local,
                         stype: SymbolType::Section,
+                        valid: true,
                     });
                     sindex += 1;
                 }
@@ -126,56 +142,142 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
             }
 
             LineResult::Label(l) => {
-                symbols.push(Symbol {
-                    name: l,
-                    offset: obuf.len(),
-                    size: 0,
-                    sindex,
-                    visibility: Visibility::Local,
-                    stype: SymbolType::NoType,
-                });
-                symbols[current_label].size = obuf.len() - symbols[current_label].offset;
-                current_label = symbols.len() - 1;
+                let mut found = None;
+                for (i, s) in symbols.iter().enumerate() {
+                    if s.name == l {
+                        if !s.valid {
+                            found = Some(i);
+                        } else {
+                            return Err(PasmError::new(
+                                format!("symbol \"{l}\" is redeclared twice or more in this file"),
+                                8,
+                            ));
+                        }
+                        break;
+                    }
+                }
+                if let Some(i) = found {
+                    symbols[i].valid = true;
+                    symbols[current_label].size = obuf.len() - symbols[current_label].offset;
+                    current_label = i;
+                } else {
+                    symbols.push(Symbol {
+                        name: l,
+                        offset: obuf.len(),
+                        size: 0,
+                        sindex,
+                        visibility: Visibility::Local,
+                        stype: SymbolType::NoType,
+                        valid: true,
+                    });
+                    symbols[current_label].size = obuf.len() - symbols[current_label].offset;
+                    current_label = symbols.len() - 1;
+                }
             }
             LineResult::Directive("target", t) => target = Some(t),
             LineResult::Directive("public", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.visibility = Visibility::Public;
+                        found = true;
                         break;
                     }
+                }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::NoType,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Public,
+                        valid: false,
+                    })
                 }
             }
             LineResult::Directive("private", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.visibility = Visibility::Local;
+                        found = true;
                         break;
                     }
+                }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::NoType,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Local,
+                        valid: false,
+                    })
                 }
             }
             LineResult::Directive("weak", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.visibility = Visibility::Weak;
+                        found = true;
                         break;
                     }
+                }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::NoType,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Weak,
+                        valid: false,
+                    })
                 }
             }
             LineResult::Directive("protected", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.visibility = Visibility::Protected;
+                        found = true;
                         break;
                     }
                 }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::NoType,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Protected,
+                        valid: false,
+                    })
+                }
             }
             LineResult::Directive("function", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.stype = SymbolType::Func;
+                        found = true;
                         break;
                     }
+                }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::Func,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Local,
+                        valid: false,
+                    })
                 }
             }
             LineResult::Directive("extern", t) => symbols.push(Symbol {
@@ -185,13 +287,27 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
                 sindex: 0,
                 visibility: Visibility::Extern,
                 stype: SymbolType::NoType,
+                valid: true,
             }),
             LineResult::Directive("object", t) => {
+                let mut found = false;
                 for s in &mut symbols {
                     if s.name == t {
                         s.stype = SymbolType::Object;
+                        found = true;
                         break;
                     }
+                }
+                if !found {
+                    symbols.push(Symbol {
+                        name: t,
+                        stype: SymbolType::Object,
+                        size: 0,
+                        offset: 0,
+                        sindex: 0,
+                        visibility: Visibility::Local,
+                        valid: false,
+                    })
                 }
             }
             LineResult::Directive("bits", b) => {
@@ -217,9 +333,10 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
         name: current_section.name,
         offset: current_section.offset,
         size: current_section.size,
-        sindex: 0,
-        visibility: Visibility::Public,
+        sindex,
+        visibility: Visibility::Local,
         stype: SymbolType::Section,
+        valid: true,
     });
     sections.push(current_section);
 

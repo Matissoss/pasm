@@ -22,6 +22,7 @@ use std::process;
 
 // pasm modules
 pub mod core;
+#[cfg(not(feature = "refresh"))]
 pub mod libp;
 pub mod obj;
 pub mod pre;
@@ -63,21 +64,24 @@ fn main() {
         return;
     }
 
-    let ipath = if let Some(ipath) = cli.infile() {
-        ipath
-    } else {
-        eprintln!("You did not provide input file for pasm");
-        process::exit(1);
-    };
-    let opath = if let Some(opath) = cli.outfile() {
-        opath
-    } else {
-        eprintln!("You did not provide output file for pasm");
-        process::exit(1);
-    };
-    if let Err(e) = libp::assemble(ipath, opath) {
-        eprintln!("{e}");
-        process::exit(1);
+    #[cfg(not(feature = "refresh"))]
+    {
+        let ipath = if let Some(ipath) = cli.infile() {
+            ipath
+        } else {
+            eprintln!("You did not provide input file for pasm");
+            process::exit(1);
+        };
+        let opath = if let Some(opath) = cli.outfile() {
+            opath
+        } else {
+            eprintln!("You did not provide output file for pasm");
+            process::exit(1);
+        };
+        if let Err(e) = libp::assemble(ipath, opath) {
+            eprintln!("{e}");
+            process::exit(1);
+        }
     }
 }
 
