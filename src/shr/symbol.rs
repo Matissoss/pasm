@@ -85,8 +85,6 @@ impl<'a> SymbolRef<'a> {
                     } else if symbolref.symbol.is_empty() {
                         symbolref.symbol = str;
                     } else {
-                        // because we already have the referenced symbol
-                        // TODO: add support for specyfying section
                         return Err(());
                     }
 
@@ -99,8 +97,6 @@ impl<'a> SymbolRef<'a> {
                 } else if symbolref.symbol.is_empty() {
                     symbolref.symbol = symbol_str;
                 } else {
-                    // because we already have the referenced symbol
-                    // TODO: add support for specyfying section
                     return Err(());
                 }
 
@@ -190,16 +186,21 @@ impl ToString for SymbolRef<'_> {
 }
 
 #[cfg(test)]
-mod symbol_tests {
+mod tests {
     use super::*;
     #[test]
-    fn symbol_test_0() {
+    fn tsymbol_0() {
         let line = "@[symbol]";
         assert_eq!(
             SymbolRef::from_str(line),
             Ok(SymbolRef::new("symbol", None, false, None, None))
         );
         let line = "@[symbol , 10]";
+        assert_eq!(
+            SymbolRef::from_str(line),
+            Ok(SymbolRef::new("symbol", Some(10i32), false, None, None))
+        );
+        let line = "@[symbol, 10]";
         assert_eq!(
             SymbolRef::from_str(line),
             Ok(SymbolRef::new("symbol", Some(10i32), false, None, None))

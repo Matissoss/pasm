@@ -9,7 +9,7 @@ use crate::shr::{
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
-    smallvec::SmallVec,
+    stackvec::StackVec,
 };
 
 use std::str::FromStr;
@@ -369,7 +369,7 @@ fn mem_chk(mem: &mut Mem) {
     }
 }
 
-fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
+fn mem_par(toks: StackVec<Token, 8>) -> Result<Mem, Error> {
     let mut mem = Mem::blank();
 
     let mut unspec_reg: Option<Register> = None;
@@ -499,8 +499,8 @@ fn mem_par(toks: SmallVec<Token, 8>) -> Result<Mem, Error> {
 
 const MS: u8 = b'[';
 const ME: u8 = b']';
-fn mem_tok(str: &str) -> SmallVec<Token, 8> {
-    let mut tokens = SmallVec::new();
+fn mem_tok(str: &str) -> StackVec<Token, 8> {
+    let mut tokens = StackVec::new();
     let bytes: &[u8] = str.as_bytes();
     let mut sstart = 0;
     let mut send = 0;
@@ -606,10 +606,10 @@ impl std::fmt::Debug for Mem {
 }
 
 #[cfg(test)]
-mod new_test {
+mod tests {
     use super::*;
     #[test]
-    fn mem_api_check() {
+    fn tmem_api_check_0() {
         assert!(size_of::<Mem>() == 8);
         let mut mem = Mem::blank();
         mem.set_addrsize(Size::Qword);
@@ -633,7 +633,7 @@ mod new_test {
         assert_eq!(mem.index(), Some(Register::RCX));
     }
     #[test]
-    fn mem_tok_t() {
+    fn tmem_tok_1() {
         let str = "rax";
         assert_eq!(
             mem_tok(str).into_vec(),
@@ -650,7 +650,7 @@ mod new_test {
         );
     }
     #[test]
-    fn mem_par_check() {
+    fn tmem_par_check_2() {
         let str = "rax";
         let mem = Mem::from_str(str);
         assert!(mem.is_ok());

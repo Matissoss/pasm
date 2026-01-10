@@ -23,15 +23,15 @@ use std::iter::Iterator;
 use crate::{
     core::{apx, disp, evex, modrm, rex, sib, vex},
     shr::{
-        ast::{Instruction, Operand},
+        instruction::{Instruction, Operand},
         booltable::BoolTable16,
-        ins::Mnemonic,
+        mnemonic::Mnemonic,
         mem::Mem,
         reg::Register,
         reloc::RelType as RelocationType,
         reloc::Relocation,
         size::Size,
-        smallvec::SmallVec,
+        stackvec::StackVec,
     },
 };
 
@@ -124,7 +124,7 @@ pub struct ModrmTuple {
 }
 
 pub enum AssembleResult {
-    NoLargeImm(SmallVec<u8, 16>),
+    NoLargeImm(StackVec<u8, 16>),
     WLargeImm(Vec<u8>),
 }
 
@@ -270,12 +270,12 @@ impl GenAPI {
         ins: &'a Instruction,
         bits: u8,
         default_rel: RelocationType,
-    ) -> (AssembleResult, SmallVec<Relocation<'a>, 2>) {
+    ) -> (AssembleResult, StackVec<Relocation<'a>, 2>) {
         let [modrm_rm, modrm_reg, _vex_vvvv] = self.get_ord_oprs(ins);
 
         let prefix_flag = self.get_fpfx();
 
-        let mut rels = SmallVec::<Relocation, 2>::new();
+        let mut rels = StackVec::<Relocation, 2>::new();
 
         let (ins_size, fx_size) = if let Some(sz) = self.get_size() {
             (sz, true)
@@ -284,7 +284,7 @@ impl GenAPI {
         };
 
         let mut imm: Vec<u8> = Vec::new();
-        let mut base: SmallVec<u8, 16> = SmallVec::new();
+        let mut base: StackVec<u8, 16> = StackVec::new();
 
         if let Some(a) = gen_addt_pfx(ins) {
             base.push(a);
@@ -515,7 +515,7 @@ impl GenAPI {
                 }
                 // rvrm
                 Some(Operand::Register(r)) => {
-                    let mut v = SmallVec::<u8, 8>::new();
+                    let mut v = StackVec::<u8, 8>::new();
                     v.push((r.ebits()[1] as u8) << 7 | r.to_byte() << 4);
                     extend_imm(&mut v, size as u8);
                     for b in v.into_iter() {
@@ -730,7 +730,7 @@ fn gen_segm_pref(ins: &Instruction) -> Option<u8> {
     None
 }
 
-fn extend_imm(imm: &mut SmallVec<u8, 8>, size: u8) {
+fn extend_imm(imm: &mut StackVec<u8, 8>, size: u8) {
     let size = size as usize;
     while imm.len() < size {
         imm.push(0)
@@ -890,11 +890,11 @@ const fn map_select(v: u8) -> u8 {
 mod tests {
     use super::*;
     #[test]
-    fn general_api_check() {
+    fn tgeneral_api_check_0() {
         assert!(size_of::<GenAPI>() == 16);
     }
     #[test]
-    fn mbool() {
+    fn tmbool_1() {
         use OpOrd::*;
         let mb = MegaBool::from_byte(3);
         assert_eq!(mb.get(), Some(true));
@@ -926,7 +926,7 @@ mod tests {
         assert!(api.get_vex_vlength().unwrap().get().unwrap_or(false));
     }
     #[test]
-    fn ord_check() {
+    fn tord_check_2() {
         use OpOrd::*;
         assert!(MODRM_RM as u8 == 0);
         assert!(MODRM_REG as u8 == 1);

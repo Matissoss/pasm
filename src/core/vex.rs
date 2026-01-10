@@ -6,13 +6,13 @@
 use crate::utils::andn;
 
 use crate::core::api;
-use crate::shr::ast::{IVariant, Instruction, Operand};
-use crate::shr::smallvec::SmallVec;
+use crate::shr::instruction::{IVariant, Instruction, Operand};
+use crate::shr::stackvec::StackVec;
 
 const TWO_BYTE_PFX: u8 = 0xC5;
 const THREE_BYTE_PFX: u8 = 0xC4;
 
-pub fn vex(ctx: &api::GenAPI, ins: &Instruction) -> SmallVec<u8, 3> {
+pub fn vex(ctx: &api::GenAPI, ins: &Instruction) -> StackVec<u8, 3> {
     let [mut modrm_rm, mut modrm_reg, mut vex_opr] = ctx.get_ord_oprs(ins);
 
     if let (None, None, None) = (&modrm_reg, &modrm_rm, &vex_opr) {
@@ -42,7 +42,7 @@ pub fn vex(ctx: &api::GenAPI, ins: &Instruction) -> SmallVec<u8, 3> {
     let vex_b = needs_vex3(&modrm_rm);
     let vex_r = needs_vex3(&modrm_reg).0;
 
-    let mut pfx = SmallVec::new();
+    let mut pfx = StackVec::new();
     if (vex_b.0 || vex_b.1) || (map_select == 0b00011 || map_select == 0b00010) || vex_we {
         pfx.push(THREE_BYTE_PFX);
         pfx.push(

@@ -8,7 +8,7 @@ use crate::utils::andn;
 use crate::core::api::*;
 
 use crate::shr::{
-    ast::{Instruction, Operand},
+    instruction::{Instruction, Operand},
     size::Size,
 };
 

@@ -7,10 +7,10 @@ use crate::pre::chkn;
 
 use crate::core::apx::*;
 use crate::shr::{
-    ast::{Instruction, Operand},
+    instruction::{Instruction, Operand},
     atype::*,
     error::Error,
-    ins::Mnemonic,
+    mnemonic::Mnemonic,
     reg::Purpose as RPurpose,
     size::Size,
 };

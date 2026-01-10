@@ -1,8 +1,8 @@
-pub mod ast;
+pub mod instruction;
 pub mod atype;
 pub mod booltable;
 pub mod error;
-pub mod ins;
+pub mod mnemonic;
 #[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
 pub mod label;
@@ -13,6 +13,6 @@ pub mod reloc;
 pub mod rpanic;
 pub mod section;
 pub mod size;
-pub mod smallvec;
+pub mod stackvec;
 pub mod symbol;
 pub mod visibility;

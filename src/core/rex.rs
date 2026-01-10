@@ -4,8 +4,8 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    ast::{Instruction, Operand, REG},
-    ins::Mnemonic,
+    instruction::{Instruction, Operand, REG},
+    mnemonic::Mnemonic,
     size::Size,
 };
 

@@ -1,5 +1,5 @@
-// pasm - src/shr/ins.rs
-// ---------------------
+// pasm - src/shr/mnemonic.rs
+// --------------------------
 // made by matissoss
 // licensed under MPL 2.0
 

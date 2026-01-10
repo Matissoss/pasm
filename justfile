@@ -1,6 +1,5 @@
 default: 
 	@just --list
-init: refresh
 fmt:
 	@cargo fmt
 clippy:
@@ -18,8 +17,8 @@ install_wtests:
 install:
 	cargo install -q --path .
 # this might take some time. Requires NASM binary in $PATH
-test_full: clean refresh test test_winstructions
-test:
+test: clean refresh clippy_fmt test_winstructions
+clippy_fmt:
 	@echo "running clippy..."
 	@cargo clippy -q
 	@echo "running fmt..."

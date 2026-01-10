@@ -142,7 +142,7 @@ pub fn relocate(buf: &mut [u8], rel: Relocation, symbols: &[Symbol]) -> Result<(
 mod tests {
     use super::*;
     #[test]
-    fn rel_test() {
+    fn trel_0() {
         use crate::shr::symbol::SymbolType;
         use crate::shr::visibility::Visibility;
         // we assert here that Symbol is defined as second (idx 1)

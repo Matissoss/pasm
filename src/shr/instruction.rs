@@ -1,5 +1,5 @@
-// pasm - src/shr/ast.rs
-// ---------------------
+// pasm - src/shr/instruction.rs
+// -----------------------------
 // made by matissoss
 // licensed under MPL 2.0
 
@@ -11,12 +11,12 @@ use std::{
 
 use crate::core::apx::APXVariant;
 use crate::shr::{
-    ins::Mnemonic,
+    mnemonic::Mnemonic,
     mem::Mem,
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,
-    smallvec::SmallVec,
+    stackvec::StackVec,
     symbol::SymbolRef,
 };
 
@@ -115,7 +115,6 @@ pub struct Instruction<'a> {
     //      if FPFX_APX:
     //          0b0ZZZ_0RRR_RRRR:
     //              ZZZ - APXVariant
-    //              X - reserved
     //              RRR_RRRR:
     //                  if EEVEX and EEVEX_COND:
     //                      COS_Z000:
@@ -160,7 +159,7 @@ impl<'a> Instruction<'a> {
         self.set_len(self.len() + 1);
     }
     #[inline(always)]
-    pub fn with_operands(operands: SmallVec<OperandOwned, 4>) -> Self {
+    pub fn with_operands(operands: StackVec<OperandOwned, 4>) -> Self {
         let mut ins = Self::default();
         ins.set_len(operands.len());
         let mut idx = 0;
@@ -722,8 +721,8 @@ impl<'a> Instruction<'a> {
         }
     }
     #[inline]
-    pub fn get_symbs(&self) -> SmallVec<(&SymbolRef<'_>, usize), 2> {
-        let mut syms = SmallVec::new();
+    pub fn get_symbs(&self) -> StackVec<(&SymbolRef<'_>, usize), 2> {
+        let mut syms = StackVec::new();
 
         let mut idx = 0;
         while idx < self.len() {
@@ -888,10 +887,10 @@ impl Default for Instruction<'_> {
 }
 
 #[cfg(test)]
-mod t {
+mod tests {
     use super::*;
     #[test]
-    fn test() {
+    fn tinstruction_0() {
         assert_eq!(0b111 << (4 << (0 * 3)) >> (0 * 3) >> 4, 0b111);
         let mut ins = Instruction::default();
         ins.set(0, OperandOwned::Imm(Number::uint64(10)));

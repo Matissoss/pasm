@@ -1,4 +1,4 @@
-// pasm - src/shr/smallvec.rs
+// pasm - src/shr/stackvec.rs
 // --------------------------
 // made by matissoss
 // licensed under MPL 2.0
@@ -9,33 +9,33 @@ use std::{
     mem::MaybeUninit,
 };
 
-pub struct SmallVec<T, const N: usize> {
+pub struct StackVec<T, const N: usize> {
     pub len: usize,
     pub content: [MaybeUninit<T>; N],
 }
 
-impl<T, const N: usize> std::ops::Deref for SmallVec<T, N> {
+impl<T, const N: usize> std::ops::Deref for StackVec<T, N> {
     type Target = [T];
     fn deref(&self) -> &[T] {
         use std::mem::transmute;
         unsafe { std::slice::from_raw_parts(transmute(self.content.as_ptr()), self.len) }
     }
 }
-impl<T, const N: usize> std::ops::DerefMut for SmallVec<T, N> {
+impl<T, const N: usize> std::ops::DerefMut for StackVec<T, N> {
     fn deref_mut(&mut self) -> &mut [T] {
         use std::mem::transmute;
         unsafe { std::slice::from_raw_parts_mut(transmute(self.content.as_mut_ptr()), self.len) }
     }
 }
 
-impl<T, const N: usize> std::ops::Index<usize> for SmallVec<T, N> {
+impl<T, const N: usize> std::ops::Index<usize> for StackVec<T, N> {
     type Output = T;
     fn index(&self, idx: usize) -> &Self::Output {
         self.get(idx).expect("smv: index out of bounds")
     }
 }
 
-impl<T, const N: usize> Clone for SmallVec<T, N>
+impl<T, const N: usize> Clone for StackVec<T, N>
 where
     T: Clone,
 {
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<T, const N: usize> Debug for SmallVec<T, N>
+impl<T, const N: usize> Debug for StackVec<T, N>
 where
     T: Debug,
 {
@@ -74,7 +74,7 @@ where
     }
 }
 
-impl<T, const N: usize> PartialEq for SmallVec<T, N>
+impl<T, const N: usize> PartialEq for StackVec<T, N>
 where
     T: PartialEq,
 {
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<T, const N: usize> SmallVec<T, N> {
+impl<T, const N: usize> StackVec<T, N> {
     pub fn clear(&mut self) {
         if std::mem::needs_drop::<T>() {
             for i in 0..self.len() {
@@ -204,8 +204,8 @@ impl<T, const N: usize> SmallVec<T, N> {
 mod tests {
     use super::*;
     #[test]
-    fn test() {
-        let mut myvec: SmallVec<u8, 12> = SmallVec::new();
+    fn tsmallvec_0() {
+        let mut myvec: StackVec<u8, 12> = StackVec::new();
         myvec.push(10);
         assert_eq!(myvec.first(), Some(&10));
         myvec.push(20);

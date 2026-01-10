@@ -9,8 +9,8 @@ use crate::{
     core::apx::*,
     core::evex::*,
     shr::{
-        ast::{IVariant, Instruction, Operand},
-        ins::Mnemonic,
+        instruction::{IVariant, Instruction, Operand},
+        mnemonic::Mnemonic,
         num::Number,
         reg::{Purpose as RPurpose, Register},
         reloc::RelType,

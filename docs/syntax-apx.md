@@ -25,7 +25,7 @@ Instead you have to use: `{of}`, `{cf}`, `{sf}` and `{zf}` subexpressions.
 
 NF indicator is defined by `{nf}` subexpression. These are checked.
 
-Hovewer to use `{nf}` on extended VEX instruction you have to use subexpression `{vex-nf}` (this will be later fixed, don't worry; WILL BE FIXED IN DEV BRANCH).
+Hovewer to use `{nf}` on extended VEX instruction you have to use subexpression `{vex-nf}`.
 
 ## {eevex} and {rex2}
 

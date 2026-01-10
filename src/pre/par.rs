@@ -4,14 +4,14 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    ast::{Instruction, OperandOwned},
+    instruction::{Instruction, OperandOwned},
     error::Error,
-    ins::Mnemonic,
+    mnemonic::Mnemonic,
     mem::Mem,
     num::Number,
     reg::Register,
     size::Size,
-    smallvec::SmallVec,
+    stackvec::StackVec,
     symbol::SymbolRef,
 };
 use std::{str, str::FromStr};
@@ -55,7 +55,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
                 line = "";
             }
             // then we go after operands and subexpressions
-            let mut ins = Instruction::with_operands(SmallVec::new());
+            let mut ins = Instruction::with_operands(StackVec::new());
             if let Some(a_mnem) = a_mnem {
                 ins.set_addt(m);
                 ins.mnemonic = a_mnem;
@@ -151,7 +151,7 @@ pub fn par<'a>(mut line: &'a str) -> LineResult<'a> {
             LineResult::Directive(mnem, content)
         }
     } else if let Ok(mnem) = Mnemonic::from_str(line) {
-        let mut instruction = Instruction::with_operands(SmallVec::new());
+        let mut instruction = Instruction::with_operands(StackVec::new());
         instruction.mnemonic = mnem;
         LineResult::Instruction(instruction)
     } else {
@@ -242,10 +242,10 @@ fn par_operand<'a>(slice: &'a str) -> Result<ParserOperand<'a>, Error> {
 }
 
 #[cfg(test)]
-mod partest {
+mod tests {
     use super::*;
     #[test]
-    fn si_test() {
+    fn tsplit_once_parser_0() {
         let line = "',', .";
         assert_eq!(split_once_parser(line), Some(("','", " .")));
         let line = "string \"Hello, World!\"";
@@ -259,7 +259,7 @@ mod partest {
         assert_eq!(split_once_parser(line), Some(("this should be parsed", "")))
     }
     #[test]
-    fn po_test() {
+    fn tparse_operands_1() {
         let slice = "rax";
         assert_eq!(
             par_operand(slice),
@@ -279,9 +279,9 @@ mod partest {
         );
     }
     #[test]
-    fn partest() {
+    fn tparser_2() {
         let islice = "mov rax, rcx";
-        let mut expected = Instruction::with_operands(SmallVec::new());
+        let mut expected = Instruction::with_operands(StackVec::new());
         expected.push(OperandOwned::Register(Register::RAX));
         expected.push(OperandOwned::Register(Register::RCX));
         expected.mnemonic = Mnemonic::MOV;

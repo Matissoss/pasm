@@ -12,9 +12,9 @@
 use crate::{
     core::api::GenAPI,
     shr::{
-        ast::{Instruction, Operand},
+        instruction::{Instruction, Operand},
         size::Size,
-        smallvec::SmallVec,
+        stackvec::StackVec,
     },
 };
 
@@ -29,7 +29,7 @@ pub enum APXVariant {
     Rex2 = 0b101,
 }
 
-pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
+pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> StackVec<u8, 4> {
     match ctx.get_apx_eevex_version() {
         Some(APXVariant::EvexExtension) => eevex_evex(ctx, ins),
         Some(APXVariant::VexExtension) => {
@@ -45,14 +45,14 @@ pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
                     rex2(ctx, ins)
                 } else if ins.needs_evex() {
                     eevex_evex(ctx, ins)
-                } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
+                } else if ins.which_variant() != crate::shr::instruction::IVariant::STD {
                     eevex_vex(ctx, ins)
                 } else {
                     eevex_legacy(ctx, ins, bits)
                 }
             } else if ins.needs_evex() {
                 eevex_evex(ctx, ins)
-            } else if ins.which_variant() != crate::shr::ast::IVariant::STD {
+            } else if ins.which_variant() != crate::shr::instruction::IVariant::STD {
                 eevex_vex(ctx, ins)
             } else {
                 eevex_legacy(ctx, ins, bits)
@@ -68,8 +68,8 @@ pub fn apx(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
 }
 
 #[inline(always)]
-fn rex2(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
-    let mut vec = SmallVec::new();
+fn rex2(ctx: &GenAPI, ins: &Instruction) -> StackVec<u8, 4> {
+    let mut vec = StackVec::new();
 
     vec.push(0xD5);
 
@@ -98,8 +98,8 @@ fn rex2(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
     vec
 }
 #[inline(always)]
-fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
-    let mut vec = SmallVec::<u8, 4>::new();
+fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> StackVec<u8, 4> {
+    let mut vec = StackVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 
@@ -143,8 +143,8 @@ fn eevex_legacy(ctx: &GenAPI, ins: &Instruction, bits: u8) -> SmallVec<u8, 4> {
     vec
 }
 #[inline(always)]
-fn eevex_cond(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
-    let mut vec = SmallVec::<u8, 4>::new();
+fn eevex_cond(ctx: &GenAPI, ins: &Instruction) -> StackVec<u8, 4> {
+    let mut vec = StackVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, _] = ctx.get_ord_oprs(ins);
 
@@ -175,8 +175,8 @@ fn eevex_cond(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
 }
 
 #[inline(always)]
-fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
-    let mut vec = SmallVec::<u8, 4>::new();
+fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> StackVec<u8, 4> {
+    let mut vec = StackVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 
@@ -211,8 +211,8 @@ fn eevex_vex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
 // NOTE: intel's APX documentation says something about EVEX.U field, but
 //       idk what it should be set to, when ModRM.mod == 0b11
 #[inline(always)]
-fn eevex_evex(ctx: &GenAPI, ins: &Instruction) -> SmallVec<u8, 4> {
-    let mut vec = SmallVec::<u8, 4>::new();
+fn eevex_evex(ctx: &GenAPI, ins: &Instruction) -> StackVec<u8, 4> {
+    let mut vec = StackVec::<u8, 4>::new();
 
     let [modrm_rm, modrm_reg, evex_vvvv] = ctx.get_ord_oprs(ins);
 

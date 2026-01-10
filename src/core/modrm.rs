@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::core::api;
-use crate::shr::{ast::Operand, reg::Register, size::Size};
+use crate::shr::{instruction::Operand, reg::Register, size::Size};
 
 //          aka modrm_rm                aka modrm_reg
 pub fn modrm(dst: &Option<Operand>, src: &Option<Operand>, ctx: &api::GenAPI) -> u8 {

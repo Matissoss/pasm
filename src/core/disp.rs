@@ -3,7 +3,7 @@
 // made by matissoss
 // licensed under MPL 2.0
 
-use crate::shr::{ast::Operand, mem::Mem, reg::Register};
+use crate::shr::{instruction::Operand, mem::Mem, reg::Register};
 
 pub fn gen_disp_ins(dst: &Option<Operand>, bits: u8) -> Option<Vec<u8>> {
     if let Some(Operand::Mem(mem)) = dst {

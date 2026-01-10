@@ -87,7 +87,7 @@ fn main() {
 
 #[cfg(feature = "iinfo")]
 fn print_supported_instructions() {
-    use crate::shr::ins::Mnemonic;
+    use crate::shr::mnemonic::Mnemonic;
     let ins_count = Mnemonic::__LAST as u16;
     println!("This version of PASM supports {} mnemonics!", ins_count - 1);
     println!("Here's a list of all of them:");
@@ -115,7 +115,7 @@ fn print_supported_instructions() {
 }
 #[cfg(feature = "iinfo")]
 fn print_supported_instructions_raw() {
-    use crate::shr::ins::Mnemonic;
+    use crate::shr::mnemonic::Mnemonic;
     for idx in 0..Mnemonic::__LAST as u16 {
         if idx + 1 == Mnemonic::__LAST as u16 {
             print!(

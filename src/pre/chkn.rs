@@ -7,13 +7,13 @@ use std::mem::MaybeUninit;
 
 use crate::core::apx::APXVariant;
 use crate::shr::{
-    ast::{Instruction, Operand},
+    instruction::{Instruction, Operand},
     atype::{AType, ToType, BCST_FLAG, K, VSIB_FLAG},
     booltable::BoolTable8 as Flags8,
     error::Error,
-    ins::Mnemonic,
+    mnemonic::Mnemonic,
     size::Size,
-    smallvec::SmallVec,
+    stackvec::StackVec,
 };
 const REG_TYPE: u16 = 0b01;
 const MEM_TYPE: u16 = 0b10;
@@ -193,7 +193,7 @@ pub const EVEX: u8 = 0b0001;
 pub const APX: u8 = 0b0010;
 
 pub struct CheckAPI<'a, const OPERAND_COUNT: usize> {
-    allowed: SmallVec<OperandSet<'a>, OPERAND_COUNT>,
+    allowed: StackVec<OperandSet<'a>, OPERAND_COUNT>,
 
     forbidden: MaybeUninit<&'a [[AType; OPERAND_COUNT]]>,
     additional: MaybeUninit<&'a [Mnemonic]>,
@@ -241,7 +241,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            allowed: SmallVec::new(),
+            allowed: StackVec::new(),
             flags: 0,
             additional: unsafe { MaybeUninit::uninit().assume_init() },
             forbidden: unsafe { MaybeUninit::uninit().assume_init() },
@@ -380,11 +380,11 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         }
         Ok(())
     }
-    pub fn check_forb(&self, ops: &SmallVec<Operand, 4>) -> Result<(), Error> {
+    pub fn check_forb(&self, ops: &StackVec<Operand, 4>) -> Result<(), Error> {
         if !self.allows_forbidden() {
             return Ok(());
         }
-        let mut smv: SmallVec<AType, OPERAND_COUNT> = SmallVec::new();
+        let mut smv: StackVec<AType, OPERAND_COUNT> = StackVec::new();
         for o in ops.iter() {
             smv.push(o.atype());
         }
@@ -411,7 +411,7 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
         Ok(())
     }
     pub fn check(&self, ins: &Instruction) -> Result<(), Error> {
-        let mut smv: SmallVec<Operand, 4> = SmallVec::new();
+        let mut smv: StackVec<Operand, 4> = StackVec::new();
 
         for o in ins.iter() {
             smv.push(o);
@@ -582,11 +582,11 @@ impl<'a, const OPERAND_COUNT: usize> CheckAPI<'a, OPERAND_COUNT> {
     }
 }
 #[cfg(test)]
-mod chkn_test {
+mod tests {
     use super::*;
     use crate::shr::reg::Register;
     #[test]
-    fn ops_test() {
+    fn tops_0() {
         use crate::shr::atype::*;
         assert_eq!(1 << 1, 2);
         assert_eq!(0 << 1, 0);
@@ -618,8 +618,8 @@ mod chkn_test {
         assert!(o.has(I8));
     }
     #[test]
-    fn chk_test() {
-        use crate::shr::ast::Operand;
+    fn tchk_1() {
+        use crate::shr::instruction::Operand;
         let t = Operand::Register(Register::RAX).atype();
         assert_eq!(t, AType::Register(Register::RAX, false));
         assert!(Register::EAX != Register::K0);

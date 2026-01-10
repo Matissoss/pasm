@@ -278,10 +278,10 @@ impl ToString for Number {
 }
 
 #[cfg(test)]
-mod tests_1 {
+mod tests {
     use super::*;
     #[test]
-    fn number_t_n() {
+    fn tnumber_0() {
         let str = "1.050"; // should parse into float
         assert_eq!(Number::from_str(str), Ok(Number::float(1.050)));
         let str = "0b100101";

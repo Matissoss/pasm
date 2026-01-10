@@ -7,152 +7,87 @@
 - CPU: Intel Core i7-3770k
 - RAM: 16GB
 - ENV: Linux x86-64
-- `pasm` compilation flags: `cargo build --release`
+- when: 10.01.2026
+- `pasm` compilation flags: `cargo build --release` (ver 1.0.0)
+- (GAS) `as` version: `2.45.1-1.fc43`
+- `perf` version: `perf version 6.17.12-300.fc43.x86_64`
+- `perf` arguments: `perf stat -e cycles,instructions,branches,branch-misses`
 
 ## benchmark 0
 
-Source code for GAS:
+### Source Code for PASM
 
+```
+target elf64
+bits 64
+_start:
+    mov rax, 1
+    add rax, 2
+    sub rax, 5
+    push 0
+    xor qword [rsp], rcx
+    pop rax
+    addps xmm0, xmm1
+    vcvttpd2dq xmm7, xmm5
+    addsubps xmm2, xword [rax]
+    vfmaddsub132ps ymm9, ymm12, xmm0
+    xor rdi, 10
+    and rdi, 1
+    shl rax, 14
+    shr rax, 12
+    syscall
+    ; repeat these 14 lines until source code file gets 100MB
+```
+
+### Source Code for GAS
 ```
 .intel_syntax noprefix
-
-_start:
-    mov ax, bx
-    ; [...] repeat until you get 100MB file
-```
-
-Source code for PASM:
-
-```
-format "elf64"
-output "a.out"
-
-section ".text" executable alloc
-
-_start:
-    mov ax, bx
-    ; [...] same as before
-```
-
-Tests were done using `perf stat -e cycles,instructions,branches,branch-misses`. 
-
-Following results were chosen as best of 5 iterations of each program.
-
-### PASM
-
-```
-12 883 828 524      cycles:u
-31 307 722 835      instructions:u                   #    2,43  insn per cycle
- 6 063 345 732      branches:u
-    38 065 145      branch-misses:u                  #    0,63% of all branches
-
-3,676242369 seconds time elapsed
-
-3,422828000 seconds user
-0,236103000 seconds sys
-```
-
-### GAS
-
-```
-46 480 001 208      cycles:u                                                                (66,68%)
-88 661 632 993      instructions:u                   #    1,91  insn per cycle              (83,34%)
-18 184 929 314      branches:u                                                              (83,33%)
-   116 183 976      branch-misses:u                  #    0,64% of all branches             (83,33%)
-
-12,557571220 seconds time elapsed
-
-12,292801000 seconds user
-0,134142000 seconds sys
-```
-
-## benchmark 1
-
-> [!NOTE]
-> Following benchmark only has PASM variant
-
-Following code was used:
-
-```
-format "bin"
 bits 64
-
 _start:
-    jmp @_start
-    ; [...] repeat until file reaches 100MB
+    mov rax, 1
+    add rax, 2
+    sub rax, 5
+    push 0
+    xor qword [rsp], rcx
+    pop rax
+    addps xmm0, xmm1
+    vcvttpd2dq xmm7, xmm5
+    vaddsubps xmm2, oword [rax]
+    vfmaddsub132ps ymm9, ymm12, xmm0
+    xor rdi, 10
+    and rdi, 1
+    shl rax, 14
+    shr rax, 12
+    syscall
+    ; repeat these 14 lines until source code file gets 100MB
 ```
 
-Benchmark:
+### Results
+
+#### PASM
 
 ```
- 9 340 119 980      cycles:u                         
-20 354 620 308      instructions:u                   #    2,18  insn per cycle
- 4 322 038 224      branches:u                       
-    22 308 887      branch-misses:u                  #    0,52% of all branches
+     9 580 055 631      cycles:u
+    14 773 197 936      instructions:u                   #    1,54  insn per cycle
+     3 326 376 659      branches:u
+        61 624 031      branch-misses:u                  #    1,85% of all branches
 
-3,058543794 seconds time elapsed
+       2,648856174 seconds time elapsed
 
-2,502184000 seconds user
-0,535834000 seconds sys
+       2,552998000 seconds user
+       0,072601000 seconds sys
 ```
 
-## benchmark 2
-
-> [!NOTE]
-> Following benchmark only has PASM variant
-
-Following code was used:
+#### GAS
 
 ```
-format "bin"
-bits 64
+    37 121 627 688      cycles:u
+    52 318 531 365      instructions:u                   #    1,41  insn per cycle
+    11 085 754 686      branches:u
+       135 672 346      branch-misses:u                  #    1,22% of all branches
 
-_start:
-    vaddps xmm2, xmm3, xmm4
-    ; [...] repeat until file reaches 100MB
-```
+      10,238676801 seconds time elapsed
 
-Benchmark result:
-
-```
- 7 080 275 660      cycles:u
-15 401 647 909      instructions:u                   #    2,18  insn per cycle
- 3 195 457 138      branches:u
-    35 821 104      branch-misses:u                  #    1,12% of all branches
-
-2,007428115 seconds time elapsed
-
-1,879298000 seconds user
-0,117254000 seconds sys
-```
-
-
-## benchmark 3
-
-> [!NOTE]
-> Following benchmark only has PASM variant
-
-Following code was used:
-
-```
-format "bin"
-bits 64
-
-_start:
-    vaddps zmm21 {k1} {z}, zmm31, zword (rax + rcx * 4 + 10)
-    ; [...] repeat until file reaches 100MB
-```
-
-Benchmark results:
-
-```
- 5 741 855 138      cycles:u
-11 857 702 335      instructions:u                   #    2,07  insn per cycle
- 2 546 956 139      branches:u
-    37 318 864      branch-misses:u                  #    1,47% of all branches
-
-1,630835000 seconds time elapsed
-
-1,530515000 seconds user
-0,093391000 seconds sys
+       9,914215000 seconds user
+       0,255321000 seconds sys
 ```

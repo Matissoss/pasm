@@ -4,7 +4,7 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    ast::Operand,
+    instruction::Operand,
     booltable::BoolTable8,
     reg::{Purpose, Register},
     size::Size,

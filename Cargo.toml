@@ -9,17 +9,11 @@ members = ["ins_adder"]
 [dependencies]
 
 [features]
-default = ["target_all", "time", "iinfo"]
-# measure time for assembling
-time = []
-# verbose timing (aka benchmark)
-# individual timing for: parsing, checking and assembling
-vtime = ["time"]
+default = ["target_elf", "iinfo"]
 # instruction info
 # takes extra space, because of `Mnemonic::to_string()`
 iinfo = []
-target_all = ["target_elf"]
-target_elf= []
+target_elf = []
 
 # should not be used
 refresh = ["iinfo"]

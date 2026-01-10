@@ -6,8 +6,9 @@
 
 Instruction syntax is almost same as Intel-like syntax in NASM/FASM, but symbol referencing and sections are distinct.
 
-> [!NOTE]
-> Memory addressing must always be prefixed using size prefix such as `qword`, `byte`, etc. Full list of size prefixes can be found below this section.
+
+## Memory Addressing
+Memory addressing must always be prefixed using size prefix such as `qword`, `byte`, etc. Full list of size prefixes can be found below this section.
 
 Example:
 ```
@@ -19,6 +20,12 @@ To use RIP-relative addressing we'll use another method of memory addressing:
 
 ```
 mov rax, qword [10] ; (RIP + 10)
+```
+
+To use segmenting you can do something like this:
+```
+mov eax, dword fs:[rax]
+mov eax, dword gs:[rax]
 ```
 
 ## Immediate syntax

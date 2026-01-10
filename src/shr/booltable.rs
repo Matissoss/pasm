@@ -111,7 +111,7 @@ impl BoolTable8 {
 mod tests {
     use super::*;
     #[test]
-    fn booltable_test() {
+    fn tbooltable_0() {
         let mut booltable = BoolTable16::new();
         booltable.set(1, true);
         assert!(booltable.data == 0b0000_0010);
