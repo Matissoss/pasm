@@ -7,10 +7,10 @@ use std::mem::MaybeUninit;
 
 use crate::core::apx::APXVariant;
 use crate::shr::{
-    instruction::{Instruction, Operand},
     atype::{AType, ToType, BCST_FLAG, K, VSIB_FLAG},
     booltable::BoolTable8 as Flags8,
     error::Error,
+    instruction::{Instruction, Operand},
     mnemonic::Mnemonic,
     size::Size,
     stackvec::StackVec,

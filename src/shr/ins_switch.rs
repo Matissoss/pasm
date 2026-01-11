@@ -8,7 +8,7 @@
 
 #[cfg(not(feature = "refresh"))]
 #[inline(always)]
-fn s<T>(t: T) -> Option<T>{
+fn s<T>(t: T) -> Option<T> {
     Some(t)
 }
 
@@ -16,7 +16,7 @@ fn s<T>(t: T) -> Option<T>{
 use crate::shr::mnemonic::Mnemonic;
 
 #[cfg(not(feature = "refresh"))]
-const N : Option<Mnemonic> = None;
+const N: Option<Mnemonic> = None;
 
 #[cfg(not(feature = "refresh"))]
 #[rustfmt::skip]

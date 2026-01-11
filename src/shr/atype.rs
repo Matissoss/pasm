@@ -4,8 +4,8 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    instruction::Operand,
     booltable::BoolTable8,
+    instruction::Operand,
     reg::{Purpose, Register},
     size::Size,
 };

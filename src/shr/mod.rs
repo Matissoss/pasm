@@ -1,12 +1,12 @@
-pub mod instruction;
 pub mod atype;
 pub mod booltable;
 pub mod error;
-pub mod mnemonic;
 #[cfg(not(feature = "refresh"))]
 pub mod ins_switch;
+pub mod instruction;
 pub mod label;
 pub mod mem;
+pub mod mnemonic;
 pub mod num;
 pub mod reg;
 pub mod reloc;

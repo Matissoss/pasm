@@ -11,8 +11,8 @@ use std::{
 
 use crate::core::apx::APXVariant;
 use crate::shr::{
-    mnemonic::Mnemonic,
     mem::Mem,
+    mnemonic::Mnemonic,
     num::Number,
     reg::{Purpose as RPurpose, Register},
     size::Size,

@@ -65,6 +65,6 @@ Provokes, when assembler wasn't able to open, read or write to/from a file.
 
 Provokes, when assembler does not recognize provided's target's name.
 
-## a0008 - symbol conflict
+## a0008 - symbol error
 
-Provokes, when assembler encounters symbols with the same name.
+Provokes, when assembler encounters symbol error (non-valid symbol, duplicate symbols with the same name, etc.).

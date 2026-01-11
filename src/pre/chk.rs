@@ -7,9 +7,9 @@ use crate::pre::chkn;
 
 use crate::core::apx::*;
 use crate::shr::{
-    instruction::{Instruction, Operand},
     atype::*,
     error::Error,
+    instruction::{Instruction, Operand},
     mnemonic::Mnemonic,
     reg::Purpose as RPurpose,
     size::Size,

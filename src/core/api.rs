@@ -23,10 +23,10 @@ use std::iter::Iterator;
 use crate::{
     core::{apx, disp, evex, modrm, rex, sib, vex},
     shr::{
-        instruction::{Instruction, Operand},
         booltable::BoolTable16,
-        mnemonic::Mnemonic,
+        instruction::{Instruction, Operand},
         mem::Mem,
+        mnemonic::Mnemonic,
         reg::Register,
         reloc::RelType as RelocationType,
         reloc::Relocation,

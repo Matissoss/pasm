@@ -340,6 +340,18 @@ pub fn assemble(ipath: &Path, opath: &Path) -> Result<(), PasmError> {
     });
     sections.push(current_section);
 
+    for s in &symbols {
+        if !s.valid {
+            return Err(PasmError::new(
+                format!(
+                    "you tried to use directive on invalid symbol named \"{}\"",
+                    s.name
+                ),
+                8,
+            ));
+        }
+    }
+
     match target.unwrap_or("bin") {
         #[cfg(feature = "target_elf")]
         "elf64" | "ELF64" => {

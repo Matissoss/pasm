@@ -4,10 +4,10 @@
 // licensed under MPL 2.0
 
 use crate::shr::{
-    instruction::{Instruction, OperandOwned},
     error::Error,
-    mnemonic::Mnemonic,
+    instruction::{Instruction, OperandOwned},
     mem::Mem,
+    mnemonic::Mnemonic,
     num::Number,
     reg::Register,
     size::Size,
